@@ -1,37 +1,62 @@
-## Welcome to GitHub Pages
 
-You can use the [editor on GitHub](https://github.com/yisiliang/yisiliang.github.io/edit/master/docs/index.md) to maintain and preview the content for your website in Markdown files.
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+# Welcome to My GitHub Pages
 
-### Markdown
+## 每天自动下载Bing的首页图片当做墙纸(MacOS)
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+## 脚本
 
-```markdown
-Syntax highlighted code block
+```bash
+#!/bin/sh
 
-# Header 1
-## Header 2
-### Header 3
+BING_PING_HOST="cn.bing.com"
+BING_BASE_URL="https://$BING_PING_HOST"
+WALLPAPERS_BASE_FOLDER="/Users/$USER/Pictures/wallpapers"
 
-- Bulleted
-- List
+INTERVAL=1
 
-1. Numbered
-2. List
+checkWan() {
+    i=1
+    while [ $i -lt 5 ]; do
+        /sbin/ping -c 1 $BING_PING_HOST 1>/dev/null 2>/dev/null
+        if [ $? -eq 0 ]; then
+            return 0
+        else
+            echo "[$(date)]$i can not connect to $BING_PING_HOST" 
+            sleep $INTERVAL
+        fi
+        i=$(expr $i + 1)
+    done
+    return 1
+}
 
-**Bold** and _Italic_ and `Code` text
+checkWan
+if [ $? -eq 0 ]; then
+    echo "[$(date)]status ok." 
 
-[Link](url) and ![Image](src)
+    filename="$WALLPAPERS_BASE_FOLDER/$(date "+%Y%m%d.jpg")"
+    if [ -f $filename ]; then
+        echo "$filename exists, return."
+        exit 0
+    fi
+    echo $filename
+    #提取壁纸图片URL
+    url="$(curl $BING_BASE_URL 2>/dev/null | grep "link id=\"bgLink\"" | head -1 | sed 's/\.jpg.*$/\.jpg/g' | sed 's/^.*href=\"//g')"
+    #拼接完整图片URL
+    url="${BING_BASE_URL}${url}"
+    echo $url
+    #下载图片至本地
+    curl -o $filename $url 1>/dev/null 2>/dev/null
+    #调用Finder应用切换桌面壁纸
+    osascript -e "tell application \"Finder\" to set desktop picture to POSIX file \"$filename\""
+    echo "changed completed."
+else
+    echo "[$(date)]can not connect to $BING_BASE_URL" 
+fi
 ```
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+### crontab
 
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/yisiliang/yisiliang.github.io/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+```bash
+*/10 * * * * /path/to/yourscript.sh
+```
