@@ -24,7 +24,7 @@ cmake -B build
 cmake --build build -j
 
 # 安装 Python 依赖
-pip install .
+pip install torch tabulate tqdm transformers accelerate sentencepiece
 ```
 
 
