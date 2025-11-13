@@ -1,1 +1,6 @@
 theme: jekyll-theme-architect
+plugins:
+  - jekyll-seo-tag
+# 新增下面这行：
+include:
+  - assets/css/custom.css
