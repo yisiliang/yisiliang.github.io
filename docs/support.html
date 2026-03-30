@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TCViewer Support</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef4f8;
+      --card: #ffffff;
+      --text: #15202b;
+      --muted: #556372;
+      --line: #d7e1e8;
+      --accent: #1f6feb;
+      --accent-soft: #e8f0ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
+      background: linear-gradient(180deg, #f6fbff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 20px 72px;
+    }
+
+    .hero {
+      padding: 28px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, #10344a 0%, #0b1f2f 55%, #113e54 100%);
+      color: #f7fbff;
+      box-shadow: 0 24px 50px rgba(16, 52, 74, 0.18);
+    }
+
+    .hero p {
+      margin: 0;
+      line-height: 1.65;
+      color: rgba(247, 251, 255, 0.9);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(32px, 6vw, 48px);
+      line-height: 1.04;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: 0 10px 26px rgba(19, 41, 61, 0.06);
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    ul,
+    ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 16px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .button.secondary {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .meta {
+      margin-top: 18px;
+      font-size: 14px;
+      color: rgba(247, 251, 255, 0.76);
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>TCViewer Support</h1>
+      <p>TCViewer 是一个用于在 iPhone 上浏览兼容 TeslaCam 目录结构视频的工具。将外部存储设备连接到 iPhone 后，你可以直接选择 TeslaCam 文件夹并回看行车记录。</p>
+      <p class="meta">Last updated: 2026-03-30</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>如何使用</h2>
+        <ol>
+          <li>将包含 TeslaCam 目录的外部存储设备连接到 iPhone。</li>
+          <li>打开 TCViewer，点击“选目录”。</li>
+          <li>选择 TeslaCam 文件夹，或选择包含 TeslaCam 的上级目录。</li>
+          <li>等待扫描完成后，在事件列表中浏览并播放视频。</li>
+        </ol>
+      </article>
+
+      <article class="card">
+        <h2>常见问题</h2>
+        <ul>
+          <li>如果提示未找到 TeslaCam 目录，请确认你选择的是 TeslaCam 文件夹本身，或者它的直接上级目录。</li>
+          <li>如果没有显示事件，请确认外部存储中包含兼容的 `.mp4`、`.mov` 或 `.m4v` 视频文件。</li>
+          <li>如果缩略图或播放异常，请重新扫描一次，或重新插拔外部存储设备后重试。</li>
+          <li>如果问题仍然存在，请通过下面的 GitHub Issues 页面提交问题，并尽量附上目录结构说明、iPhone 型号和系统版本。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>联系与反馈</h2>
+        <p>目前支持渠道使用 GitHub Issues。你可以在问题中描述重现步骤、机型、iOS 版本以及 TeslaCam 目录情况，这会帮助更快定位问题。</p>
+        <div class="actions">
+          <a class="button" href="https://github.com/yisiliang/TCViewer/issues" target="_blank" rel="noopener noreferrer">前往 GitHub Issues</a>
+          <a class="button secondary" href="./privacy.html">查看隐私政策</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>兼容性声明</h2>
+        <p>TCViewer 是独立开发的查看工具，仅用于说明兼容的 TeslaCam 目录格式，与 Tesla, Inc. 没有关联，也未获得其认可或背书。</p>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
