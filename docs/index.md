@@ -5,6 +5,6 @@
 
 ## [Gl iEnt GL-BE6500 国区到美区](./BE6500-CN-TO-US.md)
 
-## [TCViewer Support](./support.html)
+## [TCViewer Support](./TCViewer/support.html)
 
-## [TCViewer Privacy Policy](./privacy.html)
+## [TCViewer Privacy Policy](./TCViewer/privacy.html)
