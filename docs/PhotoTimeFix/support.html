@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PhotoTimeFix Support</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef4f8;
+      --card: #ffffff;
+      --text: #15202b;
+      --muted: #556372;
+      --line: #d7e1e8;
+      --accent: #1f6feb;
+      --accent-soft: #e8f0ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
+      background: linear-gradient(180deg, #f6fbff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 20px 72px;
+    }
+
+    .hero {
+      padding: 28px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, #10344a 0%, #0b1f2f 55%, #113e54 100%);
+      color: #f7fbff;
+      box-shadow: 0 24px 50px rgba(16, 52, 74, 0.18);
+    }
+
+    .hero p {
+      margin: 0;
+      line-height: 1.65;
+      color: rgba(247, 251, 255, 0.9);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(32px, 6vw, 48px);
+      line-height: 1.04;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: 0 10px 26px rgba(19, 41, 61, 0.06);
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    ul,
+    ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 16px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .button.secondary {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .meta {
+      margin-top: 18px;
+      font-size: 14px;
+      color: rgba(247, 251, 255, 0.76);
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>PhotoTimeFix Support</h1>
+      <p>PhotoTimeFix 是一个用于根据文件名识别照片和视频时间，并批量修正系统相册创建时间的 iPhone 工具。所有扫描和修改都在设备本地完成。</p>
+      <p>PhotoTimeFix is an iPhone utility for identifying photo and video dates from file names and batch-fixing creation dates in the system photo library. All scanning and editing are performed locally on your device.</p>
+      <p class="meta">Last updated: 2026-05-23</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>如何使用</h2>
+        <ol>
+          <li>打开 PhotoTimeFix，并授予照片库访问权限。</li>
+          <li>等待 App 扫描照片和视频文件名。</li>
+          <li>查看识别出的文件名、当前时间和解析出的新时间。</li>
+          <li>勾选需要修正的项目。</li>
+          <li>点击批量修正，并在确认弹窗中确认。</li>
+        </ol>
+        <ol>
+          <li>Open PhotoTimeFix and grant photo library access.</li>
+          <li>Wait while the app scans photo and video file names.</li>
+          <li>Review the recognized file name, current date, and parsed new date.</li>
+          <li>Select the items you want to fix.</li>
+          <li>Tap the batch fix action and confirm in the confirmation dialog.</li>
+        </ol>
+      </article>
+
+      <article class="card">
+        <h2>常见问题</h2>
+        <ul>
+          <li>如果列表为空，请确认照片库中存在支持的文件名格式。</li>
+          <li>如果某些照片没有显示，通常表示文件名无法解析为明确时间。</li>
+          <li>如果修改失败，请确认 App 拥有照片库读写权限。</li>
+          <li>如果问题仍然存在，请发送邮件联系开发者，并尽量附上文件名样例、iPhone 型号和 iOS 版本。</li>
+        </ul>
+        <ul>
+          <li>If the list is empty, confirm that your photo library contains supported file name formats.</li>
+          <li>If some photos are not shown, their file names usually cannot be parsed into a clear timestamp.</li>
+          <li>If edits fail, confirm that the app has read/write access to your photo library.</li>
+          <li>If the issue persists, contact the developer by email and include sample file names, your iPhone model, and iOS version when possible.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>联系与反馈</h2>
+        <p>目前支持渠道为电子邮箱。来信时请尽量附上重现步骤、文件名样例、机型和 iOS 版本，这会帮助更快定位问题。</p>
+        <p>Support is provided by email. When possible, include reproduction steps, sample file names, your device model, and iOS version so the issue can be investigated more quickly.</p>
+        <div class="actions">
+          <a class="button" href="mailto:yisiliang@foxmail.com">发送邮件</a>
+          <a class="button secondary" href="mailto:yisiliang@foxmail.com">Email Support</a>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
