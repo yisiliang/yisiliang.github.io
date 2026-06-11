@@ -5,6 +5,8 @@
 
 ## [Gl iEnt GL-BE6500 国区到美区](./BE6500-CN-TO-US.md)
 
+## [SRS 代理域名规则](./srs/)
+
 ## [TCViewer Support](./TCViewer/support.html)
 
 ## [TCViewer Privacy Policy](./TCViewer/privacy.html)
