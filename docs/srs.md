@@ -6,7 +6,9 @@ permalink: /srs/
 
 以下域名用于代理规则定义。
 
-纯文本版本：[srs.txt](/srs.txt)
+sing-box 二进制规则集：[srs.srs](/srs.srs)
+
+源 JSON：[srs.json](/srs.json)
 
 ```text
 *.qq.com
