@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TankDuo Support</title>
+  <style>
+    :root { color-scheme:dark; --bg:#0e0f11; --card:#17191d; --text:#f5f5f5; --muted:#c3c6cc; --line:#3d424a; --gold:#f2c51f; --cyan:#63d9ef; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",sans-serif; background:linear-gradient(180deg,#20242a 0%,var(--bg) 100%); color:var(--text); }
+    .wrap { max-width:860px; margin:0 auto; padding:40px 20px 72px; }
+    .hero { padding:28px; border:1px solid #6e5a12; border-radius:22px; background:linear-gradient(135deg,#28230f 0%,#111820 62%,#102a31 100%); box-shadow:0 20px 46px rgba(0,0,0,.3); }
+    .hero h1 { margin:0 0 12px; color:var(--gold); font-size:clamp(32px,6vw,48px); }
+    .hero p,.card p,.card li { color:var(--muted); line-height:1.7; }
+    .grid { display:grid; gap:18px; margin-top:22px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:24px; }
+    h2 { margin:0 0 14px; color:var(--cyan); }
+    ol,ul { margin:0; padding-left:20px; }
+    li+li { margin-top:8px; }
+    a { color:var(--cyan); text-decoration:none; }
+    .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:16px; }
+    .button { display:inline-flex; align-items:center; min-height:44px; padding:0 16px; border-radius:999px; background:var(--gold); color:#111; font-weight:700; }
+    .button.secondary { background:#183b44; color:var(--cyan); }
+    .meta { font-size:14px; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>TankDuo Support</h1>
+      <p>TankDuo是一款面向iPhone和iPad的原创复古坦克守卫游戏，支持单人战役和两台附近设备合作。</p>
+      <p>TankDuo is an original retro base-defense tank game for iPhone and iPad with a solo campaign and nearby two-player co-op.</p>
+      <p class="meta">Last updated: 2026-08-28</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>基本操作</h2>
+        <ol>
+          <li>在主菜单选择“单人游戏”或“附近双人联机”。</li>
+          <li>使用左侧方向盘移动坦克。</li>
+          <li>使用右侧FIRE按钮开火。</li>
+          <li>保护地图底部的基地，并击退本关全部敌军。</li>
+        </ol>
+        <p>Choose solo or nearby co-op, move with the direction pad, fire with the FIRE button, defend the base, and defeat every enemy in the stage.</p>
+      </article>
+
+      <article class="card">
+        <h2>附近双人联机</h2>
+        <ol>
+          <li>两台设备都进入“附近双人联机”。</li>
+          <li>第一台设备选择“创建房间”，第二台选择“加入房间”。</li>
+          <li>第二台设备选择与房主“我的代号”一致的房间。</li>
+          <li>连接成功后由房主开始游戏。</li>
+        </ol>
+        <p>Both devices need a compatible TankDuo version and permission to use local network and Bluetooth-related features. Keep the devices nearby during play.</p>
+      </article>
+
+      <article class="card">
+        <h2>常见问题</h2>
+        <ul>
+          <li>找不到房间：确认两台设备均已允许本地网络和蓝牙相关权限，并保持在附近。</li>
+          <li>房间无法连接：确认双方版本兼容，取消联机后重新创建和搜索。</li>
+          <li>没有声音：检查主菜单或战斗HUD上的音效开关，并确认系统音量。</li>
+          <li>游戏返回后暂停：单人模式进入后台会自动暂停，点击“继续游戏”即可恢复。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>联系与反馈</h2>
+        <p>来信时请尽量附上重现步骤、设备型号、iOS版本和双方TankDuo版本，这会帮助更快定位问题。</p>
+        <p>When contacting support, include reproduction steps, device models, iOS versions, and the TankDuo version on both devices when possible.</p>
+        <div class="actions">
+          <a class="button" href="mailto:yisiliang@foxmail.com">发送邮件</a>
+          <a class="button secondary" href="./privacy.html">查看隐私政策</a>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
