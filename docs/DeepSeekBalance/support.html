@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DeepSeek Balance Support</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef4f8;
+      --card: #ffffff;
+      --text: #15202b;
+      --muted: #556372;
+      --line: #d7e1e8;
+      --accent: #1f6feb;
+      --accent-soft: #e8f0ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
+      background: linear-gradient(180deg, #f6fbff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 20px 72px;
+    }
+
+    .hero {
+      padding: 28px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, #16346b 0%, #0d2145 55%, #17457f 100%);
+      color: #f7fbff;
+      box-shadow: 0 24px 50px rgba(16, 52, 74, 0.18);
+    }
+
+    .hero p {
+      margin: 0;
+      line-height: 1.65;
+      color: rgba(247, 251, 255, 0.9);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(32px, 6vw, 48px);
+      line-height: 1.04;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: 0 10px 26px rgba(19, 41, 61, 0.06);
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    ul,
+    ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    code {
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: #eef2f7;
+      font-size: 0.92em;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 16px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .button.secondary {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .meta {
+      margin-top: 18px;
+      font-size: 14px;
+      color: rgba(247, 251, 255, 0.76);
+    }
+
+    dl {
+      margin: 0;
+    }
+
+    dt {
+      font-weight: 600;
+      margin-top: 16px;
+    }
+
+    dt:first-child {
+      margin-top: 0;
+    }
+
+    dd {
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>DeepSeek Balance Support</h1>
+      <p>DeepSeek Balance 让你不用打开 DeepSeek 开放平台，在 iPhone 桌面就能看到 API 剩余余额、今日消费与预计可用天数。</p>
+      <p class="meta">Last updated: 2026-09-21</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>快速开始</h2>
+        <ol>
+          <li>打开 App，点击「去配置」。</li>
+          <li>粘贴你的 DeepSeek API Key（以 <code>sk-</code> 开头）。</li>
+          <li>先点「测试连接」确认可用，再点「保存」。</li>
+          <li>回到首页即可看到余额；下拉或点「刷新」可重新查询。</li>
+          <li>长按桌面 → 左上角 <code>+</code> → 搜索「DeepSeek Balance」→ 添加小组件。</li>
+        </ol>
+        <p>API Key 可在 DeepSeek 开放平台的 API Keys 页面创建。App 内不提供注册或登录，也不需要账号。</p>
+      </article>
+
+      <article class="card">
+        <h2>常见问题</h2>
+        <dl>
+          <dt>为什么「今日估算消费」显示“数据积累中”？</dt>
+          <dd>消费是由余额变化推算的，计算一天的数据需要当天至少成功查询 2 次。首次使用当天只查一次时会显示“数据积累中”，而不是错误的 ¥0。</dd>
+
+          <dt>为什么「7 日平均」和「预计可用」一直显示“数据积累中”？</dt>
+          <dd>这两项需要至少 3 个完整自然日的历史数据才会给出结果。这是为了避免过早给出误导性的预测，连续使用几天后会自动出现。</dd>
+
+          <dt>为什么我今天刷新了好几次，今日消费还是没变？</dt>
+          <dd>5 分钟内的重复查询，如果余额没有变化，不会重复记录；余额一旦变化则会立刻记录。所以短时间内多次刷新不会产生新的数据点。</dd>
+
+          <dt>消费金额和 DeepSeek 后台对不上？</dt>
+          <dd>App 显示的是根据余额变化推算的<strong>估算值</strong>，不是官方账单。充值、赠送额度变化、退款或账务延迟都可能带来误差，请以 DeepSeek 官方账单为准。</dd>
+
+          <dt>提示「API Key 无效，请重新配置」？</dt>
+          <dd>请确认 Key 没有多余空格、没有被复制截断，并且仍然有效；也可以去 DeepSeek 平台重新生成一个 Key 后再试。</dd>
+
+          <dt>网络异常时余额会消失吗？</dt>
+          <dd>不会。查询失败时 App 会继续显示上一次成功获取的余额，并标注更新时间，网络恢复后自动更新。</dd>
+
+          <dt>桌面小组件一直是空的？</dt>
+          <dd>小组件读取的是 App 最近一次成功获取的余额。请先打开 App 完成配置并成功刷新一次，然后长按小组件选择「刷新」；iOS 对小组件刷新频率有系统级限制，不会实时更新。</dd>
+
+          <dt>换手机或重装 App 后数据还在吗？</dt>
+          <dd>余额历史只保存在本机，不会同步到 iCloud。重装或更换设备后历史会重新开始积累，需要重新配置 API Key。</dd>
+
+          <dt>API Key 会被上传吗？</dt>
+          <dd>不会。Key 只保存在本机 iOS Keychain，仅在查询余额时通过 HTTPS 发送给 DeepSeek 官方接口。详见隐私政策。</dd>
+        </dl>
+      </article>
+
+      <article class="card">
+        <h2>联系与反馈</h2>
+        <p>目前支持渠道为电子邮箱。来信时请尽量附上重现步骤、iPhone 机型、iOS 版本与 App 版本，这会帮助更快定位问题。</p>
+        <p>请<strong>不要</strong>在邮件中附带完整的 API Key；如果确实需要协助排查，只需说明现象即可。</p>
+        <div class="actions">
+          <a class="button" href="mailto:yisiliang@foxmail.com">发送邮件</a>
+        </div>
+        <p>支持邮箱：<a href="mailto:yisiliang@foxmail.com">yisiliang@foxmail.com</a></p>
+        <div class="actions">
+          <a class="button secondary" href="./privacy.html">查看隐私政策</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>兼容性声明</h2>
+        <p>DeepSeek Balance 是独立开发的第三方工具，与 DeepSeek 官方没有关联，也未获得其认可或背书。“DeepSeek” 是其各自权利人的商标。</p>
+        <p>本 App 只调用 DeepSeek 公开文档中提供的接口，不抓取网页，不调用任何未公开接口。</p>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

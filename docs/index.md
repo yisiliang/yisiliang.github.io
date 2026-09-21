@@ -7,6 +7,10 @@
 
 ## [SRS 代理域名规则](./srs/)
 
+## [DeepSeek Balance Support](./DeepSeekBalance/support.html)
+
+## [DeepSeek Balance Privacy Policy](./DeepSeekBalance/privacy.html)
+
 ## [TCViewer Support](./TCViewer/support.html)
 
 ## [TCViewer Privacy Policy](./TCViewer/privacy.html)
