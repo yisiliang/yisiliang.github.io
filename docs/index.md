@@ -13,8 +13,6 @@
 
 ## [Gl iEnt GL-BE6500 国区到美区](./BE6500-CN-TO-US.md)
 
-## [SRS 代理域名规则](./srs/)
-
 ## [DeepSeek Balance Support](./DeepSeekBalance/support.html)
 
 ## [DeepSeek Balance Privacy Policy](./DeepSeekBalance/privacy.html)
