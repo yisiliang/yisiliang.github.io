@@ -22,9 +22,15 @@
 |4.9.8|rocketmq-all-4.9.8|2bdd53ef6694ffa19fd00db0b887e4895444f63e|经典实现对照；不代表所有4.x小版本完全一样|
 |5.3.4|rocketmq-all-5.3.4|63d20eb92a4aa685ae0d0696b419d3ffb6ca1738|全文主线；新增能力须看实际配置与客户端|
 
-关键章节包含17组源码对照。**“官方原因”**引用官方文档或RIP，**“源码分析/推断”**说明结构变化可能解决的问题，不伪装成维护者明确承诺。变化时间只对这两个基线负责，不推断所有能力都在5.0.0一次加入。
+关键章节包含17组源码对照。**“官方原因”<strong>引用官方文档或RIP，</strong>“源码分析/推断”**说明结构变化可能解决的问题，不伪装成维护者明确承诺。变化时间只对这两个基线负责，不推断所有能力都在5.0.0一次加入。
 
 [4.9.8官方发布说明](https://rocketmq.apache.org/release-notes/2024/01/29/4.9.8/) · [官方负载均衡说明](https://rocketmq.apache.org/docs/featureBehavior/08consumerloadbalance/) · [RIP-44Controller设计](https://github.com/apache/rocketmq/wiki/RIP-44-Support-DLedger-Controller)
+
+## 从这里开始：先懂主线，再钻源码
+
+先读[0.5三本账](#reading-ledgers)、[0.6手算offset](#reading-offsets)、[0.7发送完成点](#reading-send)、[0.8写入位置](#reading-positions)、[0.9消费进度](#reading-consume)、[0.10失败恢复](#reading-failures)、[0.11因果表与复述](#reading-tradeoffs)。这七节构成第一轮连贯导读；各章原始源码供第二轮逐段验证。
+
+阅读每个机制时，依次回答：<strong>解决什么问题→状态存在哪里→什么条件允许前进→失败由谁接手→为何采用这个结构。</strong>遇到版本、配置和特殊协议变化，再检查前提是否仍成立。
 
 ## 阅读节奏
 
@@ -39,9 +45,9 @@
 
 # 0. 先选阅读路线，再选实现分支
 
-**适用范围：**RocketMQ4.9.8与5.3.4固定提交；以5.3.4为主线。
+<strong>适用范围：</strong>RocketMQ4.9.8与5.3.4固定提交；以5.3.4为主线。
 
-**本章目标：**先把组件、协议、存储和消费方式分开，避免从一个类推断所有部署模式。
+<strong>本章目标：</strong>先把组件、协议、存储和消费方式分开，避免从一个类推断所有部署模式。
 
 
 ## 0.1 这本手册怎样读
@@ -60,7 +66,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[BrokerController.java · L877–L904](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L877-L904)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[BrokerController.java · L877–L904](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L877-L904)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean initialize() throws CloneNotSupportedException {
@@ -93,7 +99,7 @@ public boolean recoverAndInitService() throws CloneNotSupportedException {
     }
 ```
 
-**逐段阅读抓手：**initialize是生命周期入口，不是发送入口；先确认依赖加载是否成功，再看服务启动。
+<strong>逐段阅读抓手：</strong>initialize是生命周期入口，不是发送入口；先确认依赖加载是否成功，再看服务启动。
 
 
 ## 0.2 四组容易混淆的路径
@@ -111,7 +117,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[DefaultMessageStore.java · L268–L280](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L268-L280)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessageStore.java · L268–L280](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L268-L280)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public ConsumeQueueStoreInterface createConsumeQueueStore() {
@@ -129,7 +135,7 @@ public boolean parseDelayLevel() {
     timeUnitTable.put("d", 1000L * 60 * 60 * 24);
 ```
 
-**逐段阅读抓手：**先辨认实际对象类型；同名接口方法可以落到不同存储实现。
+<strong>逐段阅读抓手：</strong>先辨认实际对象类型；同名接口方法可以落到不同存储实现。
 
 
 ## 0.3 源码目录对应哪些职责
@@ -147,7 +153,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[DefaultMessagingProcessor.java · L139–L153](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java#L139-L153)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessagingProcessor.java · L139–L153](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java#L139-L153)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 protected void init() {
@@ -167,7 +173,7 @@ public ProxyTopicRouteData getTopicRouteDataForProxy(ProxyContext ctx, List<Addr
     String topicName) throws Exception {
 ```
 
-**逐段阅读抓手：**DefaultMessagingProcessor把不同操作交给对应Processor；继续进入具体操作，不要停在接口转发层。
+<strong>逐段阅读抓手：</strong>DefaultMessagingProcessor把不同操作交给对应Processor；继续进入具体操作，不要停在接口转发层。
 
 
 
@@ -177,9 +183,9 @@ public ProxyTopicRouteData getTopicRouteDataForProxy(ProxyContext ctx, List<Addr
 |---|---|---|
 |实现|4.9.8保留经典Remoting客户端、队列分配、等级延迟、事务消息与传统HA/DLedger等路径。|5.3.4同时保留兼容路径并增加Proxy/gRPC、POP、时间轮定时、Controller及新的存储分支等。|
 
-**变化原因（源码分析）：**兼容既有生态，同时提供新的消费和部署模型。这里比较固定发行版差异，不把某特性在5.3.4出现说成必定于5.0.0首次发布。
+<strong>变化原因（源码分析）：</strong>兼容既有生态，同时提供新的消费和部署模型。这里比较固定发行版差异，不把某特性在5.3.4出现说成必定于5.0.0首次发布。
 
-**适用边界：**升级Broker版本不会自动把旧Remoting Consumer变成gRPC/POP；源码有某分支，也不表示配置已启用。
+<strong>适用边界：</strong>升级Broker版本不会自动把旧Remoting Consumer变成gRPC/POP；源码有某分支，也不表示配置已启用。
 
 ```mermaid
 flowchart TB
@@ -192,7 +198,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[BrokerController.java · L241–L270](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L241-L270)，连续节选。
+<strong>4.9.8源码：</strong>[BrokerController.java · L241–L270](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L241-L270)，连续节选。
 
 ```java
 public boolean initialize() throws CloneNotSupportedException {
@@ -227,7 +233,7 @@ public boolean initialize() throws CloneNotSupportedException {
     if (result) {
 ```
 
-**5.3.4源码：**[BrokerController.java · L877–L904](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L877-L904)，连续节选。
+<strong>5.3.4源码：</strong>[BrokerController.java · L877–L904](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L877-L904)，连续节选。
 
 ```java
 public boolean initialize() throws CloneNotSupportedException {
@@ -260,7 +266,192 @@ public boolean recoverAndInitService() throws CloneNotSupportedException {
     }
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+
+<a id="reading-ledgers"></a>
+
+## 0.5 先把RocketMQ看成三本账
+
+读源码时最容易走丢，是把“消息存在”“消息可读”和“业务做完”看成同一个状态。经典文件存储可以先看成三本账：<strong>CommitLog记录发生过什么，ConsumeQueue记录到哪里找，消费位点记录某个Group下次从哪里继续。</strong>IndexFile是按Key查询的辅助入口，不替代按队列消费的CQ。
+
+|账本|谁维护|记录的单位|回答的问题|不能证明什么|
+|---|---|---|---|---|
+|CommitLog|Broker的CommitLog追加路径|物理字节位置与完整消息记录|日志中是否有这条记录|不能单凭追加证明已刷盘、已建CQ或业务成功|
+|ConsumeQueue|Reput分发到CQ实现|某个Topic/Queue的逻辑序号→物理位置|给定queueOffset去哪读消息|不能证明任何Group处理完成|
+|consumerOffset|客户端OffsetStore及Broker位点管理|Group/Topic/Queue的进度|该组重启或重新分配后从哪里继续|不能证明数据库副作用恰好发生一次|
+
+为什么拆开？多个Topic/Queue共享物理追加日志，可把许多写入汇入顺序写；消费又需要按各自Queue读，所以由索引把逻辑序列映射回物理日志；不同Group独立订阅同一批消息，所以进度必须另存。<strong>结构的收益与代价是一体的：写入和索引解耦提升处理弹性，也引入追加成功而暂时不可见的窗口。</strong>
+
+这只是经典文件主线的模型。RocksDB CQ改变索引后端；POP增加逐次投递的在途记录；DLedger改变日志提交路径。先掌握账本职责，再去看这些分支怎样换实现。
+
+```mermaid
+flowchart TB
+ P["Producer发送业务事件"] --> CL["CommitLog：记录内容和物理位置"]
+ CL -->|"Reput异步分发"| CQ["ConsumeQueue：逻辑序号到物理位置"]
+ CQ -->|"按queueOffset定位"| READ["读取CommitLog中的消息"]
+ READ --> G1["Group甲执行自己的业务"]
+ READ --> G2["Group乙执行自己的业务"]
+ G1 --> O1["Group甲的消费位点"]
+ G2 --> O2["Group乙的消费位点"]
+ O1 -.->|"下一次读取起点"| CQ
+ O2 -.->|"独立起点"| CQ
+```
+
+<strong>源码接续：</strong>[第1章的三种offset](#chapter-1)→[第7章的追加](#chapter-7)→[第10章的索引分发](#chapter-10)→[第17章的进度持久化](#chapter-17)。阅读时在每个类旁边写下“它管哪本账”，再读方法。
+
+<a id="reading-offsets"></a>
+
+## 0.6 用四条消息手算：为什么三个offset不能互换
+
+假设只讨论同一个Broker的经典文件主线，以下物理位置和长度均为讲解自拟值，不包含文件尾滚动。TopicA有Q0、Q1，TopicB有Q0。表中长度是**整条编码记录**的长度，包含元数据，并非只有Body。
+
+|物理追加顺序|Topic/Queue|queueOffset|commitLogOffset|记录长度|物理结束位置|
+|---|---|---:|---:|---:|---:|
+|M1|A/Q0|0|1000|120|1120|
+|M2|B/Q0|0|1120|160|1280|
+|M3|A/Q0|1|1280|140|1420|
+|M4|A/Q1|0|1420|180|1600|
+
+从这张表推出四个结论：A/Q0的逻辑offset连续为0、1，但物理位置隔着B/Q0的记录；A/Q1和B/Q0各自也从0开始；同一条M3对Group甲和Group乙的queueOffset相同，消费进度却可以不同；刷盘等待M3时关注的是完整记录结束位置1420，不是逻辑offset1。
+
+经典文件CQ的一条记录占20字节，所以A/Q0的逻辑offset1对应CQ逻辑字节位置`1×20=20`，该槽保存物理位置1280、消息长度140和tagsCode。CQ文件自身也会分段；找到槽后再读取CommitLog。<strong>乘20定位的是CQ槽，不是消息体，也不是CommitLog偏移。</strong>
+
+若Group甲已处理A/Q0的M1，通常把下一读取位置推进到1；Group乙还没处理则可能停在0。甲的consumerOffset=1表示下次从M3开始，并不表示“物理日志只刷到了1字节”。
+
+<strong>闭眼自检：</strong>M3已进入CommitLog，但CQ分发尚未赶到1280，消费者能否仅靠A/Q0的offset1马上读到它？不能，按队列消费的索引入口尚未建立。业务监听器完成M3后，能否立即物理删除M3？不能，其他Group、回溯与日志文件保留都有自己的生命周期。
+
+<a id="reading-send"></a>
+
+## 0.7 一次send成功经过了什么，哪些动作仍在后面
+
+普通Remoting同步发送主线从`DefaultMQProducerImpl.sendDefaultImpl`开始：拿路由、选Queue、计算剩余超时、通过Remoting发请求。Broker按请求码进入`SendMessageProcessor`，校验并构造内部消息，再进入MessageStore和CommitLog。最终响应来自存储结果映射，而消费在另一个推进过程里。
+
+```mermaid
+flowchart TB
+ A["sendDefaultImpl：路由、选队列、剩余预算"] --> B["sendKernelImpl：构造RPC请求"]
+ B --> C["SendMessageProcessor：校验并写Store"]
+ C --> D["CommitLog：追加完整记录"]
+ D --> E["按配置组合刷盘与复制等待结果"]
+ E --> F["映射SendResult并返回Producer"]
+ D --> R["Reput从可分发日志位置推进"]
+ R --> Q["生成业务CQ并触发到达通知"]
+ Q --> L["Pull取消息，Listener执行业务"]
+ L --> O["处理结果，更新及持久化消费进度"]
+```
+
+图里从追加处分叉，表示发送响应路径与消费可见性路径分别推进，**不表示两者有固定的先后竞赛结果**。重负载时Producer先拿到结果、Reput随后赶上；另一些时序下索引已生成，Producer仍在等待刷盘或复制确认。
+
+|完成点|源码抓手|此时能说什么|下一步还要问什么|
+|---|---|---|---|
+|追加完成|`AppendMessageResult`中的位置与长度|当前追加路径接受了该记录|可读位置、刷盘与副本到了哪里？|
+|发送结果返回|刷盘/复制Future与`SendMessageProcessor`状态映射|满足了本路径实际启用的确认条件，或报告相应错误|结果是否到达Producer？CQ是否赶上？|
+|业务CQ可见|Reput与CQ分发器|按此Queue查询可定位消息|消费者有没有拉到、执行是否成功？|
+|业务事务提交|应用自己的事务事实|业务副作用按其事务约束生效|消费确认是否送达、重投如何判重？|
+|进度持久化|OffsetStore及Broker位点管理|重启可按已保存进度续读|日志还在保留范围内吗？是否允许回溯？|
+
+<strong>关键反例：</strong>同步刷盘配置下，刷盘等待超时可以发生在记录已追加之后。把`FLUSH_DISK_TIMEOUT`或RPC超时一律理解为“Broker没收过”，会在重发时制造重复。代码中的Future超时结束的是一次等待，不会倒着擦除已追加日志。
+
+<strong>源码接续：</strong>[第4章](#chapter-4)、[第6章](#chapter-6)、[第9章](#chapter-9)、[第10章](#chapter-10)。先追成功判定，再追超时返回；不要只背调用栈。
+
+<a id="reading-positions"></a>
+
+## 0.8 三个写入位置：画清wrote、committed、flushed
+
+这三个字段首先是**单个MappedFile内部的位置**；`MappedFileQueue`的全局位置还要加上文件起始offset。讨论数值大小前，先确定是否启用暂存缓冲。以下限定经典文件路径，省略替代写入方式。
+
+|路径|追加后数据在哪|什么位置可读|commit做什么|flush做什么|
+|---|---|---|---|---|
+|没有writeBuffer的映射追加|映射区域/PageCache|以wrotePosition为可读边界|不存在把暂存区搬入文件的必要步骤|对可读数据执行相应force并推进刷盘位置|
+|有writeBuffer的暂存追加|暂存缓冲|以committedPosition为可读边界|把wrote与committed之间的字节写入文件通道|对已提交的可读数据force并推进刷盘位置|
+
+不能无条件写成`flushed≤committed≤wrote`后套给所有配置。无暂存缓冲时，`getReadPosition()`直接取wrotePosition，committedPosition不是该路径读取的门槛。有暂存缓冲时，三个阶段才构成“已追加→已提交到文件→已刷盘”的推进关系。
+
+假设有暂存缓冲，一个文件起始全局offset为0：初始W=C=F=1000；追加M1后W=1120、C=F=1000；commit后W=C=1120、F=1000；flush后W=C=F=1120。第一步后，暂存区有M1，却还不能据此认为文件读取路径或HA已能读到M1。第二步后，进程可从文件侧读取，断电持久化保证还取决于后续刷盘。
+
+```mermaid
+flowchart LR
+ A["暂存追加：W前进"] -->|"commit把新增字节写入文件"| B["C前进：文件侧可读"]
+ B -->|"flush执行force"| C["F前进：满足刷盘位置等待"]
+ A -.->|"进程仍有未提交数据"| X["不能跳过C直接当作已刷盘"]
+```
+
+<strong>读源码的顺序：</strong>[第8章](#chapter-8)中先看`appendMessage`写哪个Buffer，再看`getReadPosition`选择哪个位置，最后看`commit0`、`flush`和队列全局位置怎样组合。这样才能解释为什么“写入吞吐很高”与“同步刷盘RT很高”可以同时发生。
+
+<a id="reading-consume"></a>
+
+## 0.9 消费不是一个ACK：先追本地缓存，再追远端进度
+
+经典PushConsumer用后台Pull主动取消息。Broker长轮询挂起的是请求上下文，不是为每条请求占住一个业务线程不停等待。客户端把拉取结果放进ProcessQueue，再交给消费线程池。于是同一个Queue至少有三种客户端状态：**下次Pull位置、本地未完成集合、安全消费位点**；三者职责不同。
+
+下面假设正常集群并发消费，消息100、101、102已拉入同一ProcessQueue，没有过期清理或队列撤销。pull的nextOffset可以已经到103，consumerOffset却仍在100。消费者已“取走”不等于已“处理完”。
+
+|步骤|ProcessQueue剩余记录|本次removeMessage结果|内存安全位点|Broker持久化位点|
+|---|---|---:|---:|---|
+|都在处理|100、101、102|尚未移除|100|例如仍为100|
+|102先成功|100、101|100|100|不应据此跳到103|
+|100再成功|101|101|101|可能仍为100，尚未完成提交|
+|101最后成功|空|103|103|完成持久化后才可到103|
+
+为什么回调不能“谁先完成就把offset写成谁+1”？102先完成就提交103，重启后会跳过100、101。源码用有序的`msgTreeMap`保留尚未交接完成的记录，`removeMessage`取最小残留位置，空时返回`queueOffsetMax+1`。它保护的是本地待处理集合下的续读边界；普通Pull过滤掉的消息无需假装也都在这个集合里。
+
+101业务失败怎么办？若`sendMessageBack`成功，失败责任交给Broker重试消息，原Queue可以继续推进；回送失败则把101排除出本次可删除集合，保留本地并延后消费。<strong>允许原位点越过失败消息的理由，是重试责任已被安全交接，绝不是“失败也算成功”。</strong>
+
+最后还有一条裂缝：数据库已提交，但进度尚未持久化时宕机，重启可能再消费；业务幂等必须依据稳定业务事件标识，而非只看ProcessQueue是否为空。广播、顺序服务与POP各有自己的分支，不能套这张并发集群表。
+
+<strong>源码接续：</strong>[第13章](#chapter-13)的ProcessQueue→[第14章](#chapter-14)的Pull循环→[第15章](#chapter-15)的结果处理→[第17章](#chapter-17)的持久化。
+
+<a id="reading-failures"></a>
+
+## 0.10 失败由谁接手：把重试、事务回查与POP恢复分开
+
+三个机制都会“以后再做”，但补的是三个不同的缺口。
+
+|机制|要弥补的缺口|保存什么依据|谁推动恢复|应用仍需做什么|
+|---|---|---|---|---|
+|经典消费重试|Listener未完成处理|回送后的重试消息及重试次数等信息|Broker调度，消费者再次处理|幂等、可重试分类、死信处置|
+|事务回查|Broker不知道生产者本地事务结果|half及op处理记录、业务事务标识|Broker发起检查，Producer查本地事务事实|可靠查询COMMIT/ROLLBACK/未知，不能凭猜测返回|
+|POP超时恢复|投递过但没有完成有效ACK|checkpoint/ACK或KV在途记录|到期后的Revive或KV恢复路径|处理与ACK分离，续期、超时与重复处理控制|
+
+<strong>事务纸面时序：</strong>half先被接受→本地订单事务提交→Producer还没送达COMMIT就宕机。Broker看不到订单数据库，无法自行判断订单成功，只能回查Producer端的持久化事实。回查若只查原进程内的Map，进程重启后事实丢失，便无法可靠收敛。若数据库暂不可读，应区分未知与已回滚；查不到是否代表回滚，取决于事务记录、查询隔离与业务状态设计。
+
+COMMIT处理把最终消息写回原业务Topic，再记录half已处理的op。这里不是把磁盘上的half原地翻一个布尔位，也不是马上删除旧字节。最终业务消息与half处于不同逻辑队列，offset会变化。失败或重复处理窗口仍需结合完整源码追踪；下游数据库也没有自动加入生产者事务。[官方事务说明](https://rocketmq.apache.org/docs/featureBehavior/04transactionmessage/)明确区分消息生产与本地事务的一致性，以及下游消费处理责任。
+
+<strong>POP纸面时序：</strong>消费者甲取到M，获得本次投递的收据和不可见期限；甲执行很慢，期限到期且缺乏有效ACK/续期；恢复路径使M有机会再投递给乙；甲后来也提交了业务。不可见期限限制的是本次投递可见性，不是给甲的数据库加锁，也不是永久所有权。两个业务处理可能重叠，所以需要判重及业务并发约束。
+
+ReceiptHandle带本次投递的上下文，业务事件ID表达“这件业务是什么”。前者不能代替后者。旧checkpoint/ReviveTopic与KV在途记录是替代实现分支，必须看实际开关，不能把两个后端同时画成每条消息必经路径。
+
+<strong>源码接续：</strong>[第18章重试](#chapter-18)、[第20章事务](#chapter-20)、[第25章POP](#chapter-25)、[第26章KV/收据](#chapter-26)。
+
+<a id="reading-tradeoffs"></a>
+
+## 0.11 把顺序、吞吐和可靠性放在同一张因果表里
+
+|设计选择|为什么这样做|由此产生的代价|面试追问怎么接|
+|---|---|---|---|
+|共享CommitLog顺序追加|汇聚写入，减少分散随机写|物理追加仍要协调，共享路径可能形成瓶颈|先拆队列锁与物理追加锁，再谈锁内工作|
+|CQ异步派生|把日志事实与消费索引解耦|追加到可见之间有分发滞后|发送成功但拉不到，先确认CQ与分发位置|
+|并发消费+安全位点|让后续记录并行做，又不越过未完成集合|最早未完成记录拖住原队列进度|失败重试成功交接后，原位点为什么可以前进？|
+|同Queue顺序消费|限制同一序列内的并发执行|头部失败阻塞后续，吞吐受单条RT牵制|增加Queue只提高多个独立序列的并发，不能凭空保全局顺序|
+|异步刷盘/异步复制|减少发送路径等待|确认之后仍有数据未持久化或未复制窗口|指定进程故障、主机故障或断电，再说可能丢在哪里|
+|POP不可见期限|用时限回收失联消费者的投递责任|超时后旧、新处理可能重叠|续期减少重投窗口，业务幂等仍需单独证明|
+
+经典顺序消息需要把“同一个业务序列稳定路由到同一Queue”和“该Queue按顺序执行”同时说清。只启用顺序Listener、发送时却随机选Queue，不会得到同一订单跨Queue顺序。不同Producer并发发送时，“数据库中先发生”也不自动等于“Broker先追加”。5.x消息组FIFO要按对应SDK和服务端分支解释，不能靠旧顺序服务的Queue锁代替。
+
+吞吐算例也要明确范围：假设某个必须串行执行的业务序列，平均一条占用10ms，且不计其他开销，则该序列的处理上限约为100条/秒。这是讲解用的服务时间估算，不是RocketMQ基准值。加消费者若没有新的可分配Queue，经典队列分配模式下不会自动拆开这个序列；消息级负载均衡也不能免除FIFO序列约束。[官方负载均衡说明](https://rocketmq.apache.org/docs/featureBehavior/08consumerloadbalance/)按消费者类型区分队列级与消息级分配。
+
+<strong>一分钟复述：</strong>RocketMQ把物理日志、逻辑索引和消费进度分开。发送先选队列，经Broker追加日志，按配置等待刷盘和副本确认；CQ分发决定按队列消费的可见性。经典Push是后台Pull，消费完成顺序可以不同，所以用本地未完成集合算安全位点，失败则交给重试路径。事务消息解决生产者本地事务与消息可见性的收敛，POP用不可见期限和逐投递ACK管理在途责任。每个阶段都存在确认丢失或宕机窗口，业务幂等、顺序边界和日志保留需要分别设计。
+
+<strong>能复述不等于读懂，试着继续答这六个追问：</strong>
+
+1. 为什么SEND_OK后CQ仍可能没赶上？答出异步分发和不同完成点，见0.7。
+2. 为什么committedPosition不能总作可读边界？答出writeBuffer分支，见0.8。
+3. 102已成功而位点仍在100，是重复消费Bug吗？答出安全边界及持久化窗口，见0.9。
+4. 失败101为什么允许从原Queue移除？答出重试责任交接及回送失败保留，见0.9。
+5. 事务回查为什么不能只查内存？答出进程重启与持久化业务事实，见0.10。
+6. 不可见时间延长能否保证只扣款一次？不能，它管理投递期限，数据库重复副作用需要业务约束，见0.10。
+
+第一轮读到这里，应能画出消息和三本账的关系；第二轮回到各章的源码卡，验证每一次状态前进的条件；第三轮读版本对照和特殊路径，检查哪些前提已经变化。详细源码保留在原章，不要求逐行背诵，也不要求搭建集群或运行实验。
+
 
 ## 本章纸面推演
 
@@ -271,9 +462,13 @@ public boolean recoverAndInitService() throws CloneNotSupportedException {
 
 # 1. 架构、消息模型与三种offset
 
-**适用范围：**所有路径的概念层；布局示例以文件存储为准。
+<strong>适用范围：</strong>所有路径的概念层；布局示例以文件存储为准。
 
-**本章目标：**建立Topic、Queue、Group与物理日志之间的对应关系。
+<strong>本章目标：</strong>建立Topic、Queue、Group与物理日志之间的对应关系。
+
+> <strong>带着这个问题读：三个offset的单位分别是什么？</strong>
+>
+> queueOffset是单Queue逻辑序号，commitLogOffset是物理字节位置，consumerOffset属于Group进度。先手算0.6，再看源码字段。
 
 
 ## 1.1 Queue是逻辑序列，CommitLog是物理日志
@@ -294,7 +489,7 @@ T2["另一个Topic的Queue"] --> CQ3["另一份CQ索引"]
 CQ3 --> CL
 ```
 
-**源码对照：**[MessageQueue.java · L21–L49](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/common/src/main/java/org/apache/rocketmq/common/message/MessageQueue.java#L21-L49)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[MessageQueue.java · L21–L49](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/common/src/main/java/org/apache/rocketmq/common/message/MessageQueue.java#L21-L49)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public class MessageQueue implements Comparable<MessageQueue>, Serializable {
@@ -328,7 +523,7 @@ public class MessageQueue implements Comparable<MessageQueue>, Serializable {
     }
 ```
 
-**逐段阅读抓手：**MessageQueue的equals与compareTo用于集合、排序和分配；brokerName是逻辑Broker名称，不等于某次连接的IP地址。
+<strong>逐段阅读抓手：</strong>MessageQueue的equals与compareTo用于集合、排序和分配；brokerName是逻辑Broker名称，不等于某次连接的IP地址。
 
 
 ## 1.2 queueOffset、commitLogOffset、consumerOffset
@@ -346,7 +541,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[ConsumeQueue.java · L797–L840](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java#L797-L840)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeQueue.java · L797–L840](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java#L797-L840)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private boolean putMessagePositionInfo(final long offset, final int size, final long tagsCode,
@@ -395,7 +590,7 @@ private boolean putMessagePositionInfo(final long offset, final int size, final 
                 LOG_ERROR.warn(
 ```
 
-**逐段阅读抓手：**看expectLogicOffset如何由cqOffset计算；参数offset是物理位置，cqOffset是逻辑位置，别被同一个单词误导。
+<strong>逐段阅读抓手：</strong>看expectLogicOffset如何由cqOffset计算；参数offset是物理位置，cqOffset是逻辑位置，别被同一个单词误导。
 
 
 ## 1.3 Group才是消费进度的命名空间
@@ -413,7 +608,7 @@ B --> OB["Group B: consumerOffset=80"]
 OA -. "互不共享进度" .-> OB
 ```
 
-**源码对照：**[ConsumerOffsetManager.java · L198–L222](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/offset/ConsumerOffsetManager.java#L198-L222)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumerOffsetManager.java · L198–L222](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/offset/ConsumerOffsetManager.java#L198-L222)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void commitOffset(final String clientHost, final String group, final String topic, final int queueId,
@@ -443,14 +638,14 @@ private void commitOffset(final String clientHost, final String key, final int q
 public void commitPullOffset(final String clientHost, final String group, final String topic, final int queueId,
 ```
 
-**逐段阅读抓手：**观察topic与group组合key以及queueId到offset的映射；同Topic不同Group必须区分。
+<strong>逐段阅读抓手：</strong>观察topic与group组合key以及queueId到offset的映射；同Topic不同Group必须区分。
 
 
 ## 1.4 4.x与5.x对照：消息类型与Topic约束
 
 4.9.8经典TopicConfig主要表达读写队列数、权限、过滤类型等属性；普通、顺序、事务、延迟行为更多由消息属性和客户端使用方式表达。5.3.4新增/扩展Topic消息类型属性与Proxy发送校验路径，可区分NORMAL、FIFO、DELAY、TRANSACTION等能力。
 
-**原因（官方模型与源码分析）：**明确Topic消息类型可在入口阻止不匹配消息，并让路由/消费能力按类型表达。**边界：**校验是否启用及是否允许MIXED等兼容行为需看路径和配置；不能笼统说任何5.xBroker都无条件拒绝所有混用。经典Remoting兼容行为与Proxy不必完全相同。
+<strong>原因（官方模型与源码分析）：</strong>明确Topic消息类型可在入口阻止不匹配消息，并让路由/消费能力按类型表达。<strong>边界：</strong>校验是否启用及是否允许MIXED等兼容行为需看路径和配置；不能笼统说任何5.xBroker都无条件拒绝所有混用。经典Remoting兼容行为与Proxy不必完全相同。
 
 [官方Topic模型与版本兼容说明](https://rocketmq.apache.org/docs/domainModel/02topic/)。
 
@@ -464,7 +659,7 @@ E -- 否 --> G["入口报告类型错误"]
 ```
 
 
-**4.9.8源码对照：**[TopicConfig.java · L21–L51](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/common/src/main/java/org/apache/rocketmq/common/TopicConfig.java#L21-L51)，连续节选。
+<strong>4.9.8源码对照：</strong>[TopicConfig.java · L21–L51](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/common/src/main/java/org/apache/rocketmq/common/TopicConfig.java#L21-L51)，连续节选。
 
 ```java
 public class TopicConfig {
@@ -500,7 +695,7 @@ public class TopicConfig {
         sb.append(this.readQueueNums);
 ```
 
-**5.3.4源码对照：**[ProducerProcessor.java · L69–L102](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/ProducerProcessor.java#L69-L102)，连续节选。
+<strong>5.3.4源码对照：</strong>[ProducerProcessor.java · L69–L102](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/ProducerProcessor.java#L69-L102)，连续节选。
 
 ```java
 public CompletableFuture<List<SendResult>> sendMessage(ProxyContext ctx, QueueSelector queueSelector,
@@ -548,9 +743,13 @@ Topic有4个Queue，两组消费者都要读全量业务事件：每个Group各�
 
 # 2. NameServer：路由注册、查询与过期
 
-**适用范围：**经典路由；Namesrv RouteInfoManager。
+<strong>适用范围：</strong>经典路由；Namesrv RouteInfoManager。
 
-**本章目标：**读懂路由表的来源与失效，而不是把路由服务当成消息主节点。
+<strong>本章目标：</strong>读懂路由表的来源与失效，而不是把路由服务当成消息主节点。
+
+> <strong>带着这个问题读：NameServer故障会立刻停止所有消息发送吗？</strong>
+>
+> 路由缓存与已有Broker连接可能继续工作，新的路由发现和变更感知会受影响。要按缓存、刷新和Broker可达性分阶段判断。
 
 
 ## 2.1 注册一次Broker会更新哪些表
@@ -569,7 +768,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[RouteInfoManager.java · L212–L266](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L212-L266)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RouteInfoManager.java · L212–L266](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L212-L266)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public RegisterBrokerResult registerBroker(
@@ -629,7 +828,7 @@ public RegisterBrokerResult registerBroker(
 
 ```
 
-**逐段阅读抓手：**第一个重载会委托更完整的重载；继续读后面的锁范围和DataVersion比较。
+<strong>逐段阅读抓手：</strong>第一个重载会委托更完整的重载；继续读后面的锁范围和DataVersion比较。
 
 
 ## 2.2 查询路由返回快照，不传消息体
@@ -647,7 +846,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[RouteInfoManager.java · L700–L746](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L746)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RouteInfoManager.java · L700–L746](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L746)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public TopicRouteData pickupTopicRouteData(final String topic) {
@@ -699,7 +898,7 @@ public TopicRouteData pickupTopicRouteData(final String topic) {
 
 ```
 
-**逐段阅读抓手：**关注读锁、返回对象的复制以及Topic是否存在；查不到路由和消息发送失败是不同阶段。
+<strong>逐段阅读抓手：</strong>关注读锁、返回对象的复制以及Topic是否存在；查不到路由和消息发送失败是不同阶段。
 
 
 ## 2.3 心跳超时与连接断开怎样清理
@@ -718,7 +917,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[RouteInfoManager.java · L803–L818](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L803-L818)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RouteInfoManager.java · L803–L818](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L803-L818)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void scanNotActiveBroker() {
@@ -739,7 +938,7 @@ public void scanNotActiveBroker() {
 }
 ```
 
-**逐段阅读抓手：**逐行看比较条件；扫描周期和阈值共同决定观察到的故障检测延迟。
+<strong>逐段阅读抓手：</strong>逐行看比较条件；扫描周期和阈值共同决定观察到的故障检测延迟。
 
 
 
@@ -749,9 +948,9 @@ public void scanNotActiveBroker() {
 |---|---|---|
 |实现|RouteInfoManager维护Topic、Broker、Cluster和存活表，客户端取路由后直连Broker。|核心路由职责仍在；源码还处理更多静态Topic、主从通知等条件，Controller可独立或嵌入部署。|
 
-**变化原因（源码分析）：**路由发现必须兼容新老客户端及不同部署。NameServer与Controller的职责不能因为部署在同一进程就混为一谈。
+<strong>变化原因（源码分析）：</strong>路由发现必须兼容新老客户端及不同部署。NameServer与Controller的职责不能因为部署在同一进程就混为一谈。
 
-**适用边界：**不能说4.x依赖ZooKeeper而5.x才有NameServer；两边都有NameServer。
+<strong>适用边界：</strong>不能说4.x依赖ZooKeeper而5.x才有NameServer；两边都有NameServer。
 
 ```mermaid
 flowchart TB
@@ -764,7 +963,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[RouteInfoManager.java · L409–L446](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L409-L446)，连续节选。
+<strong>4.9.8源码：</strong>[RouteInfoManager.java · L409–L446](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L409-L446)，连续节选。
 
 ```java
 public TopicRouteData pickupTopicRouteData(final String topic) {
@@ -807,7 +1006,7 @@ public TopicRouteData pickupTopicRouteData(final String topic) {
                                 }
 ```
 
-**5.3.4源码：**[RouteInfoManager.java · L700–L737](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L737)，连续节选。
+<strong>5.3.4源码：</strong>[RouteInfoManager.java · L700–L737](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L737)，连续节选。
 
 ```java
 public TopicRouteData pickupTopicRouteData(final String topic) {
@@ -850,7 +1049,7 @@ public TopicRouteData pickupTopicRouteData(final String topic) {
             }
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
 
 ## 本章纸面推演
 
@@ -861,9 +1060,13 @@ Broker停止心跳以后，NameServer过期扫描移除路由需要时间；客�
 
 # 3. Broker生命周期与线程分工
 
-**适用范围：**BrokerController与Remoting请求处理。
+<strong>适用范围：</strong>BrokerController与Remoting请求处理。
 
-**本章目标：**把初始化、恢复、启动、注册与真正请求执行连接起来。
+<strong>本章目标：</strong>把初始化、恢复、启动、注册与真正请求执行连接起来。
+
+> <strong>带着这个问题读：为何启动必须先恢复日志和索引？</strong>
+>
+> 请求进入前要建立可解释的存储边界；只恢复线程池而没有恢复状态，会让后续读写建立在错误位置上。
 
 
 ## 3.1 先恢复存储，再对外提供服务
@@ -882,7 +1085,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[BrokerController.java · L892–L935](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L892-L935)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[BrokerController.java · L892–L935](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L892-L935)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean recoverAndInitService() throws CloneNotSupportedException {
@@ -931,7 +1134,7 @@ public boolean recoverAndInitService() throws CloneNotSupportedException {
         initialRequestPipeline();
 ```
 
-**逐段阅读抓手：**将recoverAndInitService与startBasicService、start串起来读；不要只看一个方法。
+<strong>逐段阅读抓手：</strong>将recoverAndInitService与startBasicService、start串起来读；不要只看一个方法。
 
 
 ## 3.2 请求码怎样找到处理器
@@ -950,7 +1153,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[BrokerController.java · L1094–L1146](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L1094-L1146)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[BrokerController.java · L1094–L1146](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L1094-L1146)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void registerProcessor() {
@@ -1008,7 +1211,7 @@ public void registerProcessor() {
 
 ```
 
-**逐段阅读抓手：**看注册时传入的线程池对象，区分网络事件线程和业务处理线程。
+<strong>逐段阅读抓手：</strong>看注册时传入的线程池对象，区分网络事件线程和业务处理线程。
 
 
 ## 3.3 排队时延也是可靠性问题
@@ -1027,7 +1230,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[NettyRemotingAbstract.java · L342–L391](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/remoting/src/main/java/org/apache/rocketmq/remoting/netty/NettyRemotingAbstract.java#L342-L391)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[NettyRemotingAbstract.java · L342–L391](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/remoting/src/main/java/org/apache/rocketmq/remoting/netty/NettyRemotingAbstract.java#L342-L391)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void processRequestCommand(final ChannelHandlerContext ctx, final RemotingCommand cmd) {
@@ -1082,7 +1285,7 @@ public void processRequestCommand(final ChannelHandlerContext ctx, final Remotin
             "[OVERLOAD]system busy, start flow control for a while");
 ```
 
-**逐段阅读抓手：**关注rejectRequest与线程池提交失败的响应；繁忙错误不等于消息必然未写入。
+<strong>逐段阅读抓手：</strong>关注rejectRequest与线程池提交失败的响应；繁忙错误不等于消息必然未写入。
 
 
 ## 本章纸面推演
@@ -1094,9 +1297,13 @@ public void processRequestCommand(final ChannelHandlerContext ctx, final Remotin
 
 # 4. Producer：启动、路由与发送预算
 
-**适用范围：**经典DefaultMQProducerImpl；SYNC/ASYNC/ONEWAY。
+<strong>适用范围：</strong>经典DefaultMQProducerImpl；SYNC/ASYNC/ONEWAY。
 
-**本章目标：**一章串起发送对象、路由缓存、重试、故障规避和超时预算。
+<strong>本章目标：</strong>一章串起发送对象、路由缓存、重试、故障规避和超时预算。
+
+> <strong>带着这个问题读：一次重试的预算为什么会越来越少？</strong>
+>
+> sendDefaultImpl扣的是同一次发送的总时间；选队列、前次请求和异常处理都占用预算，重试次数只是另一个上限。
 
 
 ## 4.1 Producer怎样共享客户端基础设施
@@ -1115,7 +1322,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultMQProducerImpl.java · L243–L291](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L243-L291)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L243–L291](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L243-L291)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void start(final boolean startFactory) throws MQClientException {
@@ -1169,7 +1376,7 @@ public void start(final boolean startFactory) throws MQClientException {
     RequestFutureHolder.getInstance().startScheduledTask(this);
 ```
 
-**逐段阅读抓手：**看ServiceState转换以及registerProducer失败分支；Group重复注册和路由不存在是两种问题。
+<strong>逐段阅读抓手：</strong>看ServiceState转换以及registerProducer失败分支；Group重复注册和路由不存在是两种问题。
 
 
 ## 4.2 sendDefaultImpl是发送控制环
@@ -1190,7 +1397,7 @@ G -- 成功或不可重试 --> H["返回结果或抛异常"]
 G -- 可重试且有次数 --> C
 ```
 
-**源码对照：**[DefaultMQProducerImpl.java · L738–L805](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L738-L805)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L738–L805](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L738-L805)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private SendResult sendDefaultImpl(
@@ -1263,7 +1470,7 @@ private SendResult sendDefaultImpl(
                         default:
 ```
 
-**逐段阅读抓手：**关注timesTotal、costTime、curTimeout、canRetryAgain；这是总预算与单次预算的组合。
+<strong>逐段阅读抓手：</strong>关注timesTotal、costTime、curTimeout、canRetryAgain；这是总预算与单次预算的组合。
 
 
 ## 4.3 重试为什么可能换Broker
@@ -1282,7 +1489,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[MQFaultStrategy.java · L137–L179](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/latency/MQFaultStrategy.java#L137-L179)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[MQFaultStrategy.java · L137–L179](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/latency/MQFaultStrategy.java#L137-L179)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName, final boolean resetIndex) {
@@ -1330,7 +1537,7 @@ private long computeNotAvailableDuration(final long currentLatency) {
     return 0;
 ```
 
-**逐段阅读抓手：**区分sendLatencyFaultEnable、reachable与available；它们不是同一个判断。
+<strong>逐段阅读抓手：</strong>区分sendLatencyFaultEnable、reachable与available；它们不是同一个判断。
 
 
 ## 4.4 消息真正进入RPC之前会发生什么
@@ -1349,7 +1556,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultMQProducerImpl.java · L915–L978](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L915-L978)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L915–L978](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L915-L978)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private SendResult sendKernelImpl(final Message msg,
@@ -1418,194 +1625,18 @@ private SendResult sendKernelImpl(final Message msg,
                 context.setBrokerAddr(brokerAddr);
 ```
 
-**逐段阅读抓手：**从try到finally看临时修改的恢复；Hook是观察/扩展点，不能替代存储确认。
+<strong>逐段阅读抓手：</strong>从try到finally看临时修改的恢复；Hook是观察/扩展点，不能替代存储确认。
 
 
-## 本章纸面推演
-
-总预算3秒，第一轮耗时2.8秒后失败，后续重试只能使用剩余预算；不是每次重试都额外获得3秒。第一次响应丢失时，Broker可能已经存储，第二次发送可能产生重复。
-
-
-<a id="chapter-5"></a>
-
-# 5. Remoting：协议帧、Future与并发限流
-
-**适用范围：**经典Netty Remoting；gRPC另见Proxy章。
-
-**本章目标：**弄清请求关联、响应回调、发送完成和业务确认的区别。
-
-
-## 5.1 协议帧里各字段的职责
-
-RemotingCommand编码长度、Header以及Body。Header包含code、opaque、flag和扩展字段等；opaque用来把响应关联到请求。头部长度标记还携带序列化类型，不能把整个4字节都当作纯Header长度。
-
-发送消息的Body与协议Header不同：业务属性可能参与自定义头或消息编码，实际字段需按请求类型读。协议帧有长度前缀，接收端据此处理拆包粘包。
-
-```mermaid
-flowchart LR
-    N0["总长度前缀"]
-    N1["头长度及序列化类型"]
-    N2["Header含code和opaque"]
-    N3["Body负载"]
-    N0 --> N1 --> N2 --> N3
-```
-
-**源码对照：**[RemotingCommand.java · L387–L420](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/remoting/src/main/java/org/apache/rocketmq/remoting/protocol/RemotingCommand.java#L387-L420)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
-
-```java
-public ByteBuffer encode() {
-    // 1> header length size
-    int length = 4;
-
-    // 2> header data length
-    byte[] headerData = this.headerEncode();
-    length += headerData.length;
-
-    // 3> body data length
-    if (this.body != null) {
-        length += body.length;
-    }
-
-    ByteBuffer result = ByteBuffer.allocate(4 + length);
-
-    // length
-    result.putInt(length);
-
-    // header length
-    result.putInt(markProtocolType(headerData.length, serializeTypeCurrentRPC));
-
-    // header data
-    result.put(headerData);
-
-    // body data;
-    if (this.body != null) {
-        result.put(this.body);
-    }
-
-    result.flip();
-
-    return result;
-}
-
-```
-
-**逐段阅读抓手：**对照decode与encode；长度是否包含自身的4字节，要按ByteBuffer构造和解码步骤算。
-
-
-## 5.2 responseTable如何兑现异步结果
-
-收到响应后，以opaque查询responseTable中的ResponseFuture，保存响应、移除表项，再走回调或唤醒等待者。响应丢失、超时、连接失败都可能让调用方看不到业务结果；它们不能证明服务端没有处理。
-
-异步回调执行在哪个Executor上，会影响资源消耗和回调延迟。回调内部做长时间业务操作，可能拖慢后续完成通知，因此要把客户端框架完成路径和业务任务分开理解。
-
-```mermaid
-sequenceDiagram
-participant C as 客户端调用
-participant N as NettyRemoting
-participant B as Broker
-C->>N: 创建请求opaque并登记Future
-N->>B: 请求
-B->>B: 业务处理 / Store等待
-B-->>N: 响应带相同opaque
-N->>N: 查Future、保存响应、移除表项
-N-->>C: 唤醒等待者或执行回调
-Note over N,B: 网络写完成与业务响应完成不同
-```
-
-**源码对照：**[NettyRemotingAbstract.java · L468–L490](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/remoting/src/main/java/org/apache/rocketmq/remoting/netty/NettyRemotingAbstract.java#L468-L490)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
-
-```java
-public void processResponseCommand(ChannelHandlerContext ctx, RemotingCommand cmd) {
-    final int opaque = cmd.getOpaque();
-    final ResponseFuture responseFuture = responseTable.get(opaque);
-    if (responseFuture != null) {
-        responseFuture.setResponseCommand(cmd);
-
-        responseTable.remove(opaque);
-
-        if (responseFuture.getInvokeCallback() != null) {
-            executeInvokeCallback(responseFuture);
-        } else {
-            responseFuture.putResponse(cmd);
-            responseFuture.release();
-        }
-    } else {
-        log.warn("receive response, cmd={}, but not matched any request, address={}, channelId={}", cmd, RemotingHelper.parseChannelRemoteAddr(ctx.channel()), ctx.channel().id());
-    }
-}
-
-/**
- * Execute callback in callback executor. If callback executor is null, run directly in current thread
- */
-private void executeInvokeCallback(final ResponseFuture responseFuture) {
-```
-
-**逐段阅读抓手：**观察putResponse、responseTable.remove与release的相对顺序。
-
-
-## 5.3 许可释放必须只发生一次
-
-ResponseFuture用原子标记防止回调重复执行，并通过SemaphoreReleaseOnlyOnce管理许可释放。NettyRemotingAbstract还有异步/单向请求许可，用来控制在途请求数；它们是内存与网络压力控制，不是消息去重。
-
-失败和成功可能在并发窗口里竞争：超时扫描、响应到达、Channel关闭都可能触发收尾。一次性回调与一次性release保障本地资源状态；业务效果是否重复仍是另一层问题。
-
-```mermaid
-flowchart LR
-    N0["响应到达或超时"]
-    N1["竞争完成路径"]
-    N2["回调最多执行一次"]
-    N3["许可最多释放一次"]
-    N0 --> N1 --> N2 --> N3
-```
-
-**源码对照：**[ResponseFuture.java · L62–L91](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/remoting/src/main/java/org/apache/rocketmq/remoting/netty/ResponseFuture.java#L62-L91)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
-
-```java
-public void executeInvokeCallback() {
-    if (invokeCallback != null) {
-        if (this.executeCallbackOnlyOnce.compareAndSet(false, true)) {
-            RemotingCommand response = getResponseCommand();
-            if (response != null) {
-                invokeCallback.operationSucceed(response);
-            } else {
-                if (!isSendRequestOK()) {
-                    invokeCallback.operationFail(new RemotingSendRequestException(channel.remoteAddress().toString(), getCause()));
-                } else if (isTimeout()) {
-                    invokeCallback.operationFail(new RemotingTimeoutException(channel.remoteAddress().toString(), getTimeoutMillis(), getCause()));
-                } else {
-                    invokeCallback.operationFail(new RemotingException(getRequestCommand().toString(), getCause()));
-                }
-            }
-            invokeCallback.operationComplete(this);
-        }
-    }
-}
-
-public void interrupt() {
-    interrupted = true;
-    executeInvokeCallback();
-}
-
-public void release() {
-    if (this.once != null) {
-        this.once.release();
-    }
-}
-```
-
-**逐段阅读抓手：**AtomicBoolean比较设置控制本地回调；不要把此处once翻译成消息Exactly Once。
-
-
-
-## 5.4 4.x与5.x对照：发送重试仍有总预算，5.3.4增加单次预算控制
+## 4.5 4.x与5.x对照：发送重试仍有总预算，5.3.4增加单次预算控制
 
 |对照维度|固定4.9.8|固定5.3.4|
 |---|---|---|
 |实现|sendDefaultImpl以第一次调用时间扣减总timeout；同步尝试数为1加发送失败重试次数。|同样保留总预算，并在符合条件时用sendMsgMaxTimeoutPerRequest限制单次curTimeout，为剩余尝试保留机会。|
 
-**变化原因（源码分析）：**【源码推断】第一轮耗尽总预算后无法有效重试，单次预算上限能改善某些慢Broker场景下的重试机会；实际效果取决于剩余时间与配置。
+<strong>变化原因（源码分析）：</strong>【源码推断】第一轮耗尽总预算后无法有效重试，单次预算上限能改善某些慢Broker场景下的重试机会；实际效果取决于剩余时间与配置。
 
-**适用边界：**不是4.x每次重试都重新给完整超时；总预算扣减在4.9.8就存在。
+<strong>适用边界：</strong>不是4.x每次重试都重新给完整超时；总预算扣减在4.9.8就存在。
 
 ```mermaid
 flowchart TB
@@ -1618,7 +1649,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[DefaultMQProducerImpl.java · L555–L588](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L555-L588)，连续节选。
+<strong>4.9.8源码：</strong>[DefaultMQProducerImpl.java · L555–L588](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L555-L588)，连续节选。
 
 ```java
 int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
@@ -1657,7 +1688,7 @@ for (; times < timesTotal; times++) {
                         }
 ```
 
-**5.3.4源码：**[DefaultMQProducerImpl.java · L756–L804](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L756-L804)，连续节选。
+<strong>5.3.4源码：</strong>[DefaultMQProducerImpl.java · L756–L804](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L756-L804)，连续节选。
 
 ```java
 int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
@@ -1711,7 +1742,8 @@ for (; times < timesTotal; times++) {
                     return sendResult;
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+
 
 ## 状态展开：一次发送的预算纸面计算
 
@@ -1725,6 +1757,187 @@ for (; times < timesTotal; times++) {
 
 假设启用单次请求上限1000ms，第一轮可能先使用1000ms，但这个上限只在对应可重试条件下生效。具体超时还经过RPC层和调度，表只是控制预算推演，不是RT测量。
 
+
+## 本章纸面推演
+
+总预算3秒，第一轮耗时2.8秒后失败，后续重试只能使用剩余预算；不是每次重试都额外获得3秒。第一次响应丢失时，Broker可能已经存储，第二次发送可能产生重复。
+
+
+<a id="chapter-5"></a>
+
+# 5. Remoting：协议帧、Future与并发限流
+
+<strong>适用范围：</strong>经典Netty Remoting；gRPC另见Proxy章。
+
+<strong>本章目标：</strong>弄清请求关联、响应回调、发送完成和业务确认的区别。
+
+> <strong>带着这个问题读：socket写完成为什么不等于发送成功？</strong>
+>
+> 网络写完成只说明请求传输阶段的结果；业务响应还要靠opaque找到对应Future，并有超时、回调和许可释放收尾。
+
+
+## 5.1 协议帧里各字段的职责
+
+RemotingCommand编码长度、Header以及Body。Header包含code、opaque、flag和扩展字段等；opaque用来把响应关联到请求。头部长度标记还携带序列化类型，不能把整个4字节都当作纯Header长度。
+
+发送消息的Body与协议Header不同：业务属性可能参与自定义头或消息编码，实际字段需按请求类型读。协议帧有长度前缀，接收端据此处理拆包粘包。
+
+```mermaid
+flowchart LR
+    N0["总长度前缀"]
+    N1["头长度及序列化类型"]
+    N2["Header含code和opaque"]
+    N3["Body负载"]
+    N0 --> N1 --> N2 --> N3
+```
+
+<strong>源码对照：</strong>[RemotingCommand.java · L387–L420](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/remoting/src/main/java/org/apache/rocketmq/remoting/protocol/RemotingCommand.java#L387-L420)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+
+```java
+public ByteBuffer encode() {
+    // 1> header length size
+    int length = 4;
+
+    // 2> header data length
+    byte[] headerData = this.headerEncode();
+    length += headerData.length;
+
+    // 3> body data length
+    if (this.body != null) {
+        length += body.length;
+    }
+
+    ByteBuffer result = ByteBuffer.allocate(4 + length);
+
+    // length
+    result.putInt(length);
+
+    // header length
+    result.putInt(markProtocolType(headerData.length, serializeTypeCurrentRPC));
+
+    // header data
+    result.put(headerData);
+
+    // body data;
+    if (this.body != null) {
+        result.put(this.body);
+    }
+
+    result.flip();
+
+    return result;
+}
+
+```
+
+<strong>逐段阅读抓手：</strong>对照decode与encode；长度是否包含自身的4字节，要按ByteBuffer构造和解码步骤算。
+
+
+## 5.2 responseTable如何兑现异步结果
+
+收到响应后，以opaque查询responseTable中的ResponseFuture，保存响应、移除表项，再走回调或唤醒等待者。响应丢失、超时、连接失败都可能让调用方看不到业务结果；它们不能证明服务端没有处理。
+
+异步回调执行在哪个Executor上，会影响资源消耗和回调延迟。回调内部做长时间业务操作，可能拖慢后续完成通知，因此要把客户端框架完成路径和业务任务分开理解。
+
+```mermaid
+sequenceDiagram
+participant C as 客户端调用
+participant N as NettyRemoting
+participant B as Broker
+C->>N: 创建请求opaque并登记Future
+N->>B: 请求
+B->>B: 业务处理 / Store等待
+B-->>N: 响应带相同opaque
+N->>N: 查Future、保存响应、移除表项
+N-->>C: 唤醒等待者或执行回调
+Note over N,B: 网络写完成与业务响应完成不同
+```
+
+<strong>源码对照：</strong>[NettyRemotingAbstract.java · L468–L490](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/remoting/src/main/java/org/apache/rocketmq/remoting/netty/NettyRemotingAbstract.java#L468-L490)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+
+```java
+public void processResponseCommand(ChannelHandlerContext ctx, RemotingCommand cmd) {
+    final int opaque = cmd.getOpaque();
+    final ResponseFuture responseFuture = responseTable.get(opaque);
+    if (responseFuture != null) {
+        responseFuture.setResponseCommand(cmd);
+
+        responseTable.remove(opaque);
+
+        if (responseFuture.getInvokeCallback() != null) {
+            executeInvokeCallback(responseFuture);
+        } else {
+            responseFuture.putResponse(cmd);
+            responseFuture.release();
+        }
+    } else {
+        log.warn("receive response, cmd={}, but not matched any request, address={}, channelId={}", cmd, RemotingHelper.parseChannelRemoteAddr(ctx.channel()), ctx.channel().id());
+    }
+}
+
+/**
+ * Execute callback in callback executor. If callback executor is null, run directly in current thread
+ */
+private void executeInvokeCallback(final ResponseFuture responseFuture) {
+```
+
+<strong>逐段阅读抓手：</strong>观察putResponse、responseTable.remove与release的相对顺序。
+
+
+## 5.3 许可释放必须只发生一次
+
+ResponseFuture用原子标记防止回调重复执行，并通过SemaphoreReleaseOnlyOnce管理许可释放。NettyRemotingAbstract还有异步/单向请求许可，用来控制在途请求数；它们是内存与网络压力控制，不是消息去重。
+
+失败和成功可能在并发窗口里竞争：超时扫描、响应到达、Channel关闭都可能触发收尾。一次性回调与一次性release保障本地资源状态；业务效果是否重复仍是另一层问题。
+
+```mermaid
+flowchart LR
+    N0["响应到达或超时"]
+    N1["竞争完成路径"]
+    N2["回调最多执行一次"]
+    N3["许可最多释放一次"]
+    N0 --> N1 --> N2 --> N3
+```
+
+<strong>源码对照：</strong>[ResponseFuture.java · L62–L91](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/remoting/src/main/java/org/apache/rocketmq/remoting/netty/ResponseFuture.java#L62-L91)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+
+```java
+public void executeInvokeCallback() {
+    if (invokeCallback != null) {
+        if (this.executeCallbackOnlyOnce.compareAndSet(false, true)) {
+            RemotingCommand response = getResponseCommand();
+            if (response != null) {
+                invokeCallback.operationSucceed(response);
+            } else {
+                if (!isSendRequestOK()) {
+                    invokeCallback.operationFail(new RemotingSendRequestException(channel.remoteAddress().toString(), getCause()));
+                } else if (isTimeout()) {
+                    invokeCallback.operationFail(new RemotingTimeoutException(channel.remoteAddress().toString(), getTimeoutMillis(), getCause()));
+                } else {
+                    invokeCallback.operationFail(new RemotingException(getRequestCommand().toString(), getCause()));
+                }
+            }
+            invokeCallback.operationComplete(this);
+        }
+    }
+}
+
+public void interrupt() {
+    interrupted = true;
+    executeInvokeCallback();
+}
+
+public void release() {
+    if (this.once != null) {
+        this.once.release();
+    }
+}
+```
+
+<strong>逐段阅读抓手：</strong>AtomicBoolean比较设置控制本地回调；不要把此处once翻译成消息Exactly Once。
+
+
+
 ## 本章纸面推演
 
 Channel的writeAndFlush成功说明网络写入步骤成功，不能说明Broker已经PUT_OK。responseTable中的Future等到带同一opaque的响应后，才有请求层面的结果；超时清理并不能撤销服务端已经执行的写入。
@@ -1734,9 +1947,13 @@ Channel的writeAndFlush成功说明网络写入步骤成功，不能说明Broker
 
 # 6. SendMessageProcessor：Broker接收与响应映射
 
-**适用范围：**Broker经典发送请求；普通消息为主。
+<strong>适用范围：</strong>Broker经典发送请求；普通消息为主。
 
-**本章目标：**区分验证失败、日志追加成功、刷盘结果和客户端状态。
+<strong>本章目标：</strong>区分验证失败、日志追加成功、刷盘结果和客户端状态。
+
+> <strong>带着这个问题读：Broker返回的状态能证明消费完成吗？</strong>
+>
+> 存储状态映射只描述发送侧的完成条件；CQ分发、Listener执行和消费进度提交属于后续独立状态。
 
 
 ## 6.1 接收端先校验与构造内部消息
@@ -1755,7 +1972,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[SendMessageProcessor.java · L242–L306](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L242-L306)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[SendMessageProcessor.java · L242–L306](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L242-L306)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public RemotingCommand sendMessage(final ChannelHandlerContext ctx,
@@ -1825,7 +2042,7 @@ public RemotingCommand sendMessage(final ChannelHandlerContext ctx,
     boolean sendTransactionPrepareMessage;
 ```
 
-**逐段阅读抓手：**看preSend与sendMessage的先后关系；参数校验和存储失败分别由不同位置产生。
+<strong>逐段阅读抓手：</strong>看preSend与sendMessage的先后关系；参数校验和存储失败分别由不同位置产生。
 
 
 ## 6.2 PUT_OK怎样变成发送响应
@@ -1843,7 +2060,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[SendMessageProcessor.java · L367–L428](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L367-L428)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[SendMessageProcessor.java · L367–L428](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L367-L428)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private RemotingCommand handlePutMessageResult(PutMessageResult putMessageResult, RemotingCommand response,
@@ -1910,7 +2127,7 @@ private RemotingCommand handlePutMessageResult(PutMessageResult putMessageResult
             response.setCode(ResponseCode.SERVICE_NOT_AVAILABLE);
 ```
 
-**逐段阅读抓手：**对照switch中的每个状态；发送返回不是CQ已分发和消费者已处理的证明。
+<strong>逐段阅读抓手：</strong>对照switch中的每个状态；发送返回不是CQ已分发和消费者已处理的证明。
 
 
 ## 6.3 重试消息与DLQ在发送侧也有分支
@@ -1928,7 +2145,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[SendMessageProcessor.java · L180–L239](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L180-L239)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[SendMessageProcessor.java · L180–L239](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L180-L239)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, RemotingCommand response,
@@ -1993,7 +2210,7 @@ private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, Remoti
     return true;
 ```
 
-**逐段阅读抓手：**关注reconsumeTimes与maxReconsumeTimes；Producer发送次数并不进入这个计数。
+<strong>逐段阅读抓手：</strong>关注reconsumeTimes与maxReconsumeTimes；Producer发送次数并不进入这个计数。
 
 
 ## 本章纸面推演
@@ -2005,9 +2222,13 @@ private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, Remoti
 
 # 7. CommitLog：追加、编码、锁与文件滚动
 
-**适用范围：**经典CommitLog；非DLedger覆盖路径。
+<strong>适用范围：</strong>经典CommitLog；非DLedger覆盖路径。
 
-**本章目标：**理解日志写入的连续性和逻辑offset分配。
+<strong>本章目标：</strong>理解日志写入的连续性和逻辑offset分配。
+
+> <strong>带着这个问题读：队列锁和物理追加锁各保护什么？</strong>
+>
+> 队列序号与共享文件追加位置是两类状态；5.3.4经典路径先持队列锁，再在较小范围内保护物理追加，成功后推进对应队列offset。
 
 
 ## 7.1 追加的锁保护什么
@@ -2017,111 +2238,116 @@ asyncPutMessage设置校验信息和版本，取得线程本地编码器，判�
 5.3.4的完整流程比“一个全局锁直接写文件”更复杂。编码、文件取得、追加、offset增长和释放锁的顺序决定了哪些步骤并发，哪些步骤序列化；不同配置也会改变路径。
 
 ```mermaid
-flowchart LR
-    N0["准备CRC和编码上下文"]
-    N1["检查副本条件"]
-    N2["锁定TopicQueue"]
-    N3["分配逻辑offset"]
-    N4["编码并追加CommitLog"]
-    N0 --> N1 --> N2 --> N3 --> N4
+flowchart TB
+ A["按Topic/Queue获取topicQueueLock"] --> Q["分配本队列逻辑offset并准备编码"]
+ Q --> L["获取putMessageLock"]
+ L --> W["选择文件、追加；文件尾不足则滚动"]
+ W --> U["finally释放putMessageLock"]
+ U --> O["成功追加后增加对应Queue的offset"]
+ O --> T["finally释放topicQueueLock"]
+ T --> H["组合刷盘与HA结果"]
 ```
 
-**源码对照：**[CommitLog.java · L948–L1037](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L948-L1037)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L1017–L1106](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1017-L1106)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
-    // Set the storage time
-    if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
-        msg.setStoreTimestamp(System.currentTimeMillis());
-    }
-    // Set the message body CRC (consider the most appropriate setting on the client)
-    msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
-    if (enabledAppendPropCRC) {
-        // delete crc32 properties if exist
-        msg.deleteProperty(MessageConst.PROPERTY_CRC32);
-    }
-    // Back to Results
-    AppendMessageResult result = null;
+topicQueueLock.lock(topicQueueKey);
+try {
 
-    StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
-
-    String topic = msg.getTopic();
-    msg.setVersion(MessageVersion.MESSAGE_VERSION_V1);
-    boolean autoMessageVersionOnTopicLen =
-        this.defaultMessageStore.getMessageStoreConfig().isAutoMessageVersionOnTopicLen();
-    if (autoMessageVersionOnTopicLen && topic.length() > Byte.MAX_VALUE) {
-        msg.setVersion(MessageVersion.MESSAGE_VERSION_V2);
+    boolean needAssignOffset = true;
+    if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
+        && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
+        needAssignOffset = false;
+    }
+    if (needAssignOffset) {
+        defaultMessageStore.assignOffset(msg);
     }
 
-    InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
-    if (bornSocketAddress.getAddress() instanceof Inet6Address) {
-        msg.setBornHostV6Flag();
+    PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
+    if (encodeResult != null) {
+        return CompletableFuture.completedFuture(encodeResult);
     }
+    msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
+    PutMessageContext putMessageContext = new PutMessageContext(topicQueueKey);
 
-    InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
-    if (storeSocketAddress.getAddress() instanceof Inet6Address) {
-        msg.setStoreHostAddressV6Flag();
-    }
-
-    PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
-    updateMaxMessageSize(putMessageThreadLocal);
-    String topicQueueKey = generateKey(putMessageThreadLocal.getKeyBuilder(), msg);
-    long elapsedTimeInLock = 0;
-    MappedFile unlockMappedFile = null;
-    MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
-
-    long currOffset;
-    if (mappedFile == null) {
-        currOffset = 0;
-    } else {
-        currOffset = mappedFile.getFileFromOffset() + mappedFile.getWrotePosition();
-    }
-
-    int needAckNums = this.defaultMessageStore.getMessageStoreConfig().getInSyncReplicas();
-    boolean needHandleHA = needHandleHA(msg);
-
-    if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableControllerMode()) {
-        if (this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset) < this.defaultMessageStore.getMessageStoreConfig().getMinInSyncReplicas()) {
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
-        }
-        if (this.defaultMessageStore.getMessageStoreConfig().isAllAckInSyncStateSet()) {
-            // -1 means all ack in SyncStateSet
-            needAckNums = MixAll.ALL_ACK_IN_SYNC_STATE_SET;
-        }
-    } else if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableSlaveActingMaster()) {
-        int inSyncReplicas = Math.min(this.defaultMessageStore.getAliveReplicaNumInGroup(),
-            this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset));
-        needAckNums = calcNeedAckNums(inSyncReplicas);
-        if (needAckNums > inSyncReplicas) {
-            // Tell the producer, don't have enough slaves to handle the send request
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
-        }
-    }
-
-    topicQueueLock.lock(topicQueueKey);
+    putMessageLock.lock(); //spin or ReentrantLock, depending on store config
     try {
+        long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+        this.beginTimeInLock = beginLockTimestamp;
 
-        boolean needAssignOffset = true;
-        if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
-            && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
-            needAssignOffset = false;
-        }
-        if (needAssignOffset) {
-            defaultMessageStore.assignOffset(msg);
+        // Here settings are stored timestamp, in order to ensure an orderly
+        // global
+        if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
+            msg.setStoreTimestamp(beginLockTimestamp);
         }
 
-        PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
-        if (encodeResult != null) {
-            return CompletableFuture.completedFuture(encodeResult);
+        if (null == mappedFile || mappedFile.isFull()) {
+            mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+            if (isCloseReadAhead()) {
+                setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+            }
         }
-        msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
-        PutMessageContext putMessageContext = new PutMessageContext(topicQueueKey);
+        if (null == mappedFile) {
+            log.error("create mapped file1 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+            beginTimeInLock = 0;
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, null));
+        }
 
-        putMessageLock.lock(); //spin or ReentrantLock, depending on store config
-        try {
+        result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+        switch (result.getStatus()) {
+            case PUT_OK:
+                onCommitLogAppend(msg, result, mappedFile);
+                break;
+            case END_OF_FILE:
+                onCommitLogAppend(msg, result, mappedFile);
+                unlockMappedFile = mappedFile;
+                // Create a new file, re-write the message
+                mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                if (null == mappedFile) {
+                    // XXX: warn and notify me
+                    log.error("create mapped file2 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+                    beginTimeInLock = 0;
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, result));
+                }
+                if (isCloseReadAhead()) {
+                    setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+                }
+                result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
+                    onCommitLogAppend(msg, result, mappedFile);
+                }
+                break;
+            case MESSAGE_SIZE_EXCEEDED:
+            case PROPERTIES_SIZE_EXCEEDED:
+                beginTimeInLock = 0;
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+            case UNKNOWN_ERROR:
+            default:
+                beginTimeInLock = 0;
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+        }
+
+        elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
+        beginTimeInLock = 0;
+    } finally {
+        putMessageLock.unlock();
+    }
+    // Increase queue offset when messages are successfully written
+    if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
+        this.defaultMessageStore.increaseOffset(msg, getMessageNum(msg));
+    }
+} catch (RocksDBException e) {
+    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+} finally {
+    topicQueueLock.unlock(topicQueueKey);
+}
 ```
 
-**逐段阅读抓手：**代码窗口覆盖前半段；继续沿固定链接读putMessageLock、appendMessage、increaseOffset和finally释放。
+<strong>逐段阅读抓手：</strong>这段连续原文已经覆盖两把锁：topicQueueLock包住队列offset分配、编码与offset递增；putMessageLock只在内层保护文件选择与物理追加。成功追加后才增加队列offset，两个finally分别释放各自的锁。
+
+<strong>为什么分两层：</strong>不同Topic/Queue可以在外层各自准备逻辑状态，但汇入共享CommitLog时仍须协调文件和写入位置。同一Queue若两个线程拿到同一个逻辑offset却各自成功追加，就会破坏索引序列，所以物理追加锁释放后，外层队列锁仍要保护increaseOffset。队列锁实际由锁表映射，也不能据此承诺每个Queue有完全独立、永不碰撞的锁对象。
+
+<strong>失败分支怎么读：</strong>encode失败会提早返回；文件创建失败、消息过大和未知追加错误也会返回。return在try里不跳过finally。只有AppendMessageStatus.PUT_OK才增加逻辑offset；END_OF_FILE先结束旧文件，再尝试新文件追加，不能把文件尾填充当作该业务消息成功入队。刷盘与HA结果组合位于两把锁释放之后，因此一次同步确认等待不会全程占住物理追加锁。
 
 
 ## 7.2 文件尾不够放一条消息怎么办
@@ -2140,7 +2366,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[CommitLog.java · L1064–L1092](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1064-L1092)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L1064–L1092](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1064-L1092)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
     case END_OF_FILE:
@@ -2174,7 +2400,7 @@ flowchart LR
 
 ```
 
-**逐段阅读抓手：**观察getLastMappedFile(0)之后是否可能CREATE_MAPPED_FILE_FAILED；切文件也有资源失败分支。
+<strong>逐段阅读抓手：</strong>观察getLastMappedFile(0)之后是否可能CREATE_MAPPED_FILE_FAILED；切文件也有资源失败分支。
 
 
 ## 7.3 记录格式为何包含两种offset
@@ -2192,7 +2418,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[CommitLog.java · L1959–L2023](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1959-L2023)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L1959–L2023](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1959-L2023)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer, final int maxBlank,
@@ -2262,7 +2488,166 @@ public AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer 
             queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
 ```
 
-**逐段阅读抓手：**看tranType：prepare与rollback不按普通可消费消息的逻辑offset方式处理。
+<strong>逐段阅读抓手：</strong>看tranType：prepare与rollback不按普通可消费消息的逻辑offset方式处理。
+
+
+## 7.4 4.x与5.x对照：CommitLog锁与offset管理的重构
+
+|对照维度|固定4.9.8|固定5.3.4|
+|---|---|---|
+|实现|4.9.8已经把普通消息的主要编码放在物理追加锁之前；追加回调中的队列offset、最终记录字段修正与文件滚动仍关联物理追加临界区。|5.3.4用topicQueueLock与QueueOffsetOperator等结构更明确地管理队列offset，编码后再进入物理追加锁；线程本地编码器在4.9.8已经存在。|
+
+<strong>变化原因（源码分析）：</strong>【源码分析】队列逻辑位置与共享物理位置是不同并发资源，拆分其管理有助于收敛临界区职责；不能仅凭结构变化声称吞吐提升固定百分比。
+
+<strong>适用边界：</strong>两边经典路径仍有物理追加序列化；5.x并没有消除所有锁，也不是为每个Topic改成独立CommitLog。
+
+```mermaid
+flowchart TB
+subgraph V4["固定4.9.8"]
+A["旧追加临界区内队列offset管理"]
+end
+subgraph V5["固定5.3.4"]
+B["队列锁加物理追加锁"]
+end
+A -. "比较状态归属 / 确认条件 / 配置" .-> B
+```
+
+<strong>4.9.8源码：</strong>[CommitLog.java · L676–L731](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L676-L731)，连续节选。
+
+```java
+putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
+try {
+    MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
+    long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+    this.beginTimeInLock = beginLockTimestamp;
+
+    // Here settings are stored timestamp, in order to ensure an orderly
+    // global
+    msg.setStoreTimestamp(beginLockTimestamp);
+
+    if (null == mappedFile || mappedFile.isFull()) {
+        mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+    }
+    if (null == mappedFile) {
+        log.error("create mapped file1 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
+        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
+    }
+
+    result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+    switch (result.getStatus()) {
+        case PUT_OK:
+            break;
+        case END_OF_FILE:
+            unlockMappedFile = mappedFile;
+            // Create a new file, re-write the message
+            mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+            if (null == mappedFile) {
+                // XXX: warn and notify me
+                log.error("create mapped file2 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, result));
+            }
+            result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+            break;
+        case MESSAGE_SIZE_EXCEEDED:
+        case PROPERTIES_SIZE_EXCEEDED:
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+        case UNKNOWN_ERROR:
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+        default:
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+    }
+
+    elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
+} finally {
+    beginTimeInLock = 0;
+    putMessageLock.unlock();
+}
+
+if (elapsedTimeInLock > 500) {
+    log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
+}
+
+if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
+    this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
+}
+
+```
+
+<strong>5.3.4源码：</strong>[CommitLog.java · L1017–L1074](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1017-L1074)，连续节选。
+
+```java
+topicQueueLock.lock(topicQueueKey);
+try {
+
+    boolean needAssignOffset = true;
+    if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
+        && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
+        needAssignOffset = false;
+    }
+    if (needAssignOffset) {
+        defaultMessageStore.assignOffset(msg);
+    }
+
+    PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
+    if (encodeResult != null) {
+        return CompletableFuture.completedFuture(encodeResult);
+    }
+    msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
+    PutMessageContext putMessageContext = new PutMessageContext(topicQueueKey);
+
+    putMessageLock.lock(); //spin or ReentrantLock, depending on store config
+    try {
+        long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+        this.beginTimeInLock = beginLockTimestamp;
+
+        // Here settings are stored timestamp, in order to ensure an orderly
+        // global
+        if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
+            msg.setStoreTimestamp(beginLockTimestamp);
+        }
+
+        if (null == mappedFile || mappedFile.isFull()) {
+            mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+            if (isCloseReadAhead()) {
+                setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+            }
+        }
+        if (null == mappedFile) {
+            log.error("create mapped file1 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+            beginTimeInLock = 0;
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, null));
+        }
+
+        result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+        switch (result.getStatus()) {
+            case PUT_OK:
+                onCommitLogAppend(msg, result, mappedFile);
+                break;
+            case END_OF_FILE:
+                onCommitLogAppend(msg, result, mappedFile);
+                unlockMappedFile = mappedFile;
+                // Create a new file, re-write the message
+                mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                if (null == mappedFile) {
+                    // XXX: warn and notify me
+                    log.error("create mapped file2 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+                    beginTimeInLock = 0;
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, result));
+                }
+```
+
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+
+
+## 状态展开：追加位置与队列位置推演
+
+|记录|逻辑Queue|queueOffset|CommitLog物理位置示例|
+|---|---|---:|---:|
+|事件A|TopicDemo / Queue1|100|8000000|
+|事件B|TopicOther / Queue0|23|8000500|
+|事件C|TopicDemo / Queue1|101|8000900|
+
+Queue1逻辑连续的100、101之间，物理日志插入了另一Topic的消息。消费者按CQ定位，不应假设Queue1每条记录在CommitLog中物理紧邻。物理位置示例与记录长度为虚构，真实长度由编码决定。
 
 
 ## 本章纸面推演
@@ -2274,9 +2659,13 @@ public AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer 
 
 # 8. MappedFile：写、commit、flush与引用释放
 
-**适用范围：**DefaultMappedFile；经典文件路径。
+<strong>适用范围：</strong>DefaultMappedFile；经典文件路径。
 
-**本章目标：**把内存可见和持久化分开，并理解TransientStorePool。
+<strong>本章目标：</strong>把内存可见和持久化分开，并理解TransientStorePool。
+
+> <strong>带着这个问题读：为什么commit并不是落盘承诺？</strong>
+>
+> 有暂存区时commit把新增字节写入文件侧；flush才推进刷盘边界。无暂存区时读取直接以wrote为界，不能机械套三位置不等式。
 
 
 ## 8.1 追加写入与暂存缓冲
@@ -2286,15 +2675,18 @@ DefaultMappedFile根据配置选择写入映射缓冲、暂存writeBuffer或其�
 因此mmap并非无条件“零拷贝且立刻落盘”。写入过程中仍有编码、内存复制、PageCache与设备I/O等步骤。讨论性能应明确是哪一次复制、哪一段传输以及是否启用了暂存池。
 
 ```mermaid
-flowchart LR
-    N0["编码后的消息"]
-    N1["映射缓冲或writeBuffer"]
-    N2["推进wrotePosition"]
-    N3["后续commit或flush"]
-    N0 --> N1 --> N2 --> N3
+flowchart TB
+ A["追加消息"] --> B{"是否有writeBuffer?"}
+ B -- 是 --> T["写暂存Buffer，推进wrotePosition"]
+ T --> C["commit0写文件通道，推进committedPosition"]
+ B -- 否 --> M["经典映射追加，推进wrotePosition"]
+ C --> R["getReadPosition取committedPosition"]
+ M --> W["getReadPosition取wrotePosition"]
+ R --> F["flush可读范围并推进flushedPosition"]
+ W --> F
 ```
 
-**源码对照：**[DefaultMappedFile.java · L351–L412](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L351-L412)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMappedFile.java · L351–L412](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L351-L412)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public AppendMessageResult appendMessagesInner(final MessageExt messageExt, final AppendMessageCallback cb,
@@ -2361,7 +2753,7 @@ protected ByteBuffer appendMessageBuffer() {
 }
 ```
 
-**逐段阅读抓手：**关注writeBuffer是否为null，以及getReadPosition如何限制可读取范围。
+<strong>逐段阅读抓手：</strong>关注writeBuffer是否为null，以及getReadPosition如何限制可读取范围。
 
 
 ## 8.2 commit提交不等于flush落盘
@@ -2380,7 +2772,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultMappedFile.java · L548–L598](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L548-L598)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMappedFile.java · L548–L598](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L548-L598)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public int commit(final int commitLeastPages) {
@@ -2436,7 +2828,7 @@ public boolean getAndMakeNotWriteable() {
 }
 ```
 
-**逐段阅读抓手：**逐行看commit0读取哪两个位置以及写入长度；提交成功并未等价于force完成。
+<strong>逐段阅读抓手：</strong>逐行看commit0读取哪两个位置以及写入长度；提交成功并未等价于force完成。
 
 
 ## 8.3 flush与读取引用的收尾
@@ -2455,7 +2847,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultMappedFile.java · L512–L546](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L512-L546)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMappedFile.java · L512–L546](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L512-L546)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public int flush(final int flushLeastPages) {
@@ -2495,166 +2887,122 @@ public int flush(final int flushLeastPages) {
 
 ```
 
-**逐段阅读抓手：**flushLeastPages不是时间间隔；时间与页数阈值由后台服务共同决定。
+<strong>逐段阅读抓手：</strong>flushLeastPages不是时间间隔；时间与页数阈值由后台服务共同决定。
 
 
 
-## 8.4 4.x与5.x对照：CommitLog锁与offset管理的重构
+## 8.4 4.x与5.x对照：MappedFile从具体类向接口体系演进
 
 |对照维度|固定4.9.8|固定5.3.4|
 |---|---|---|
-|实现|4.9.8已经把普通消息的主要编码放在物理追加锁之前；追加回调中的队列offset、最终记录字段修正与文件滚动仍关联物理追加临界区。|5.3.4用topicQueueLock与QueueOffsetOperator等结构更明确地管理队列offset，编码后再进入物理追加锁；线程本地编码器在4.9.8已经存在。|
+|实现|4.9.8的store.MappedFile集中实现映射文件、追加、commit、flush与引用管理。|5.3.4的store.logfile下出现MappedFile接口、AbstractMappedFile和DefaultMappedFile等，配置还影响实际写入路径。|
 
-**变化原因（源码分析）：**【源码分析】队列逻辑位置与共享物理位置是不同并发资源，拆分其管理有助于收敛临界区职责；不能仅凭结构变化声称吞吐提升固定百分比。
+<strong>变化原因（源码分析）：</strong>【源码分析】职责抽象便于不同文件实现和扩展策略；可读性上应先找实际实现，不再只按旧包路径搜索。
 
-**适用边界：**两边经典路径仍有物理追加序列化；5.x并没有消除所有锁，也不是为每个Topic改成独立CommitLog。
+<strong>适用边界：</strong>wrote/committed/flushed位置的核心区分并未消失；5.x也不是所有写入都自动绕过PageCache。
 
 ```mermaid
 flowchart TB
 subgraph V4["固定4.9.8"]
-A["旧追加临界区内队列offset管理"]
+A["store.MappedFile具体类"]
 end
 subgraph V5["固定5.3.4"]
-B["队列锁加物理追加锁"]
+B["logfile接口与DefaultMappedFile"]
 end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[CommitLog.java · L676–L731](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L676-L731)，连续节选。
+<strong>4.9.8源码：</strong>[MappedFile.java · L315–L347](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/MappedFile.java#L315-L347)，连续节选。
 
 ```java
-putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
-try {
-    MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
-    long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
-    this.beginTimeInLock = beginLockTimestamp;
-
-    // Here settings are stored timestamp, in order to ensure an orderly
-    // global
-    msg.setStoreTimestamp(beginLockTimestamp);
-
-    if (null == mappedFile || mappedFile.isFull()) {
-        mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+public int commit(final int commitLeastPages) {
+    if (writeBuffer == null) {
+        //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
+        return this.wrotePosition.get();
     }
-    if (null == mappedFile) {
-        log.error("create mapped file1 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
-        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
+    if (this.isAbleToCommit(commitLeastPages)) {
+        if (this.hold()) {
+            commit0();
+            this.release();
+        } else {
+            log.warn("in commit, hold failed, commit offset = " + this.committedPosition.get());
+        }
     }
 
-    result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
-    switch (result.getStatus()) {
-        case PUT_OK:
-            break;
-        case END_OF_FILE:
-            unlockMappedFile = mappedFile;
-            // Create a new file, re-write the message
-            mappedFile = this.mappedFileQueue.getLastMappedFile(0);
-            if (null == mappedFile) {
-                // XXX: warn and notify me
-                log.error("create mapped file2 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
-                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, result));
-            }
-            result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
-            break;
-        case MESSAGE_SIZE_EXCEEDED:
-        case PROPERTIES_SIZE_EXCEEDED:
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
-        case UNKNOWN_ERROR:
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
-        default:
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+    // All dirty data has been committed to FileChannel.
+    if (writeBuffer != null && this.transientStorePool != null && this.fileSize == this.committedPosition.get()) {
+        this.transientStorePool.returnBuffer(writeBuffer);
+        this.writeBuffer = null;
     }
 
-    elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
-} finally {
-    beginTimeInLock = 0;
-    putMessageLock.unlock();
+    return this.committedPosition.get();
 }
 
-if (elapsedTimeInLock > 500) {
-    log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
-}
+protected void commit0() {
+    int writePos = this.wrotePosition.get();
+    int lastCommittedPosition = this.committedPosition.get();
 
-if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
-    this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
-}
-
+    if (writePos - lastCommittedPosition > 0) {
+        try {
+            ByteBuffer byteBuffer = writeBuffer.slice();
+            byteBuffer.position(lastCommittedPosition);
+            byteBuffer.limit(writePos);
+            this.fileChannel.position(lastCommittedPosition);
 ```
 
-**5.3.4源码：**[CommitLog.java · L1017–L1074](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1017-L1074)，连续节选。
+<strong>5.3.4源码：</strong>[DefaultMappedFile.java · L548–L580](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L548-L580)，连续节选。
 
 ```java
-topicQueueLock.lock(topicQueueKey);
-try {
-
-    boolean needAssignOffset = true;
-    if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
-        && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
-        needAssignOffset = false;
-    }
-    if (needAssignOffset) {
-        defaultMessageStore.assignOffset(msg);
+public int commit(final int commitLeastPages) {
+    if (writeBuffer == null) {
+        //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
+        return WROTE_POSITION_UPDATER.get(this);
     }
 
-    PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
-    if (encodeResult != null) {
-        return CompletableFuture.completedFuture(encodeResult);
+    //no need to commit data to file channel, so just set committedPosition to wrotePosition.
+    if (transientStorePool != null && !transientStorePool.isRealCommit()) {
+        COMMITTED_POSITION_UPDATER.set(this, WROTE_POSITION_UPDATER.get(this));
+    } else if (this.isAbleToCommit(commitLeastPages)) {
+        if (this.hold()) {
+            commit0();
+            this.release();
+        } else {
+            log.warn("in commit, hold failed, commit offset = " + COMMITTED_POSITION_UPDATER.get(this));
+        }
     }
-    msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
-    PutMessageContext putMessageContext = new PutMessageContext(topicQueueKey);
 
-    putMessageLock.lock(); //spin or ReentrantLock, depending on store config
-    try {
-        long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
-        this.beginTimeInLock = beginLockTimestamp;
+    // All dirty data has been committed to FileChannel.
+    if (writeBuffer != null && this.transientStorePool != null && this.fileSize == COMMITTED_POSITION_UPDATER.get(this)) {
+        this.transientStorePool.returnBuffer(writeBuffer);
+        this.writeBuffer = null;
+    }
 
-        // Here settings are stored timestamp, in order to ensure an orderly
-        // global
-        if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
-            msg.setStoreTimestamp(beginLockTimestamp);
-        }
+    return COMMITTED_POSITION_UPDATER.get(this);
+}
 
-        if (null == mappedFile || mappedFile.isFull()) {
-            mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
-            if (isCloseReadAhead()) {
-                setFileReadMode(mappedFile, LibC.MADV_RANDOM);
-            }
-        }
-        if (null == mappedFile) {
-            log.error("create mapped file1 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
-            beginTimeInLock = 0;
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, null));
-        }
+protected void commit0() {
+    int writePos = WROTE_POSITION_UPDATER.get(this);
+    int lastCommittedPosition = COMMITTED_POSITION_UPDATER.get(this);
 
-        result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
-        switch (result.getStatus()) {
-            case PUT_OK:
-                onCommitLogAppend(msg, result, mappedFile);
-                break;
-            case END_OF_FILE:
-                onCommitLogAppend(msg, result, mappedFile);
-                unlockMappedFile = mappedFile;
-                // Create a new file, re-write the message
-                mappedFile = this.mappedFileQueue.getLastMappedFile(0);
-                if (null == mappedFile) {
-                    // XXX: warn and notify me
-                    log.error("create mapped file2 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
-                    beginTimeInLock = 0;
-                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, result));
-                }
+    if (writePos - lastCommittedPosition > 0) {
+        try {
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
 
-## 状态展开：追加位置与队列位置推演
 
-|记录|逻辑Queue|queueOffset|CommitLog物理位置示例|
-|---|---|---:|---:|
-|事件A|TopicDemo / Queue1|100|8000000|
-|事件B|TopicOther / Queue0|23|8000500|
-|事件C|TopicDemo / Queue1|101|8000900|
+## 状态展开：三个位置的约束与例外
 
-Queue1逻辑连续的100、101之间，物理日志插入了另一Topic的消息。消费者按CQ定位，不应假设Queue1每条记录在CommitLog中物理紧邻。物理位置示例与记录长度为虚构，真实长度由编码决定。
+|状态|表示什么|不表示什么|
+|---|---|---|
+|wrotePosition|当前文件累计追加位置|一定已force|
+|committedPosition|暂存路径已提交到文件通道位置|数据库或消息事务COMMIT|
+|flushedPosition|源码记录已执行刷盘达到的位置|消费者业务完成|
+|fileFromOffset|该日志段的全局物理基址|文件内相对位置|
+|readPosition|当前实现允许读取的有效位置|与wrotePosition永远无条件相等|
+
+启用writeBuffer时，理解flushed≤committed≤wrote的主要状态关系；未启用暂存时，readPosition通常跟随wrote，committed字段不再承担同样角色。图示不能把后一场景硬套进三段复制流程。
+
 
 ## 本章纸面推演
 
@@ -2665,9 +3013,13 @@ Queue1逻辑连续的100、101之间，物理日志插入了另一Topic的消息
 
 # 9. 刷盘与复制确认：SEND_OK的边界
 
-**适用范围：**经典CommitLog；同步/异步刷盘与HA组合。
+<strong>适用范围：</strong>经典CommitLog；同步/异步刷盘与HA组合。
 
-**本章目标：**分别回答本地追加、本地持久化与副本复制是否等待。
+<strong>本章目标：</strong>分别回答本地追加、本地持久化与副本复制是否等待。
+
+> <strong>带着这个问题读：同步刷盘加同步复制是否等于所有副本同步落盘？</strong>
+>
+> 本地force目标与副本确认目标不同；副本报告何种位置要看HA实现，不能从同步复制名称推导每个副本都force。
 
 
 ## 9.1 两个Future怎样合并为结果
@@ -2688,7 +3040,7 @@ S -- 否 --> TO["报告相应失败或超时状态"]
 TO --> U["不代表已追加记录被撤销"]
 ```
 
-**源码对照：**[CommitLog.java · L1317–L1355](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1317-L1355)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L1317–L1355](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1317-L1355)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private CompletableFuture<PutMessageResult> handleDiskFlushAndHA(PutMessageResult putMessageResult,
@@ -2732,7 +3084,7 @@ private CompletableFuture<PutMessageStatus> handleHA(AppendMessageResult result,
     haService.getWaitNotifyObject().wakeupAll();
 ```
 
-**逐段阅读抓手：**两个非PUT_OK状态同时出现时，后一赋值会影响最终报告；一个状态码未展示全部背景。
+<strong>逐段阅读抓手：</strong>两个非PUT_OK状态同时出现时，后一赋值会影响最终报告；一个状态码未展示全部背景。
 
 
 ## 9.2 同步刷盘等待的是目标字节位置
@@ -2751,7 +3103,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[CommitLog.java · L1662–L1734](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1662-L1734)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L1662–L1734](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1662-L1734)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 class GroupCommitService extends FlushCommitLogService {
@@ -2829,7 +3181,7 @@ class GroupCommitService extends FlushCommitLogService {
             }
 ```
 
-**逐段阅读抓手：**目标值通常是wroteOffset加wroteBytes；这表示整条记录的末尾位置。
+<strong>逐段阅读抓手：</strong>目标值通常是wroteOffset加wroteBytes；这表示整条记录的末尾位置。
 
 
 ## 9.3 复制确认与刷盘确认不能互相替代
@@ -2848,7 +3200,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[CommitLog.java · L1342–L1360](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1342-L1360)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L1342–L1360](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1342-L1360)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private CompletableFuture<PutMessageStatus> handleHA(AppendMessageResult result, PutMessageResult putMessageResult,
@@ -2872,120 +3224,121 @@ private CompletableFuture<PutMessageStatus> handleHA(AppendMessageResult result,
  * According to receive certain message or offset storage time if an error occurs, it returns -1
 ```
 
-**逐段阅读抓手：**needAckNums小于等于1时无需额外从节点确认；数量含义要结合HAService实现看。
+<strong>逐段阅读抓手：</strong>needAckNums小于等于1时无需额外从节点确认；数量含义要结合HAService实现看。
 
 
 
-## 9.4 4.x与5.x对照：MappedFile从具体类向接口体系演进
+## 9.4 4.x与5.x对照：复制确认从传统从节点进度扩展到同步集合
 
 |对照维度|固定4.9.8|固定5.3.4|
 |---|---|---|
-|实现|4.9.8的store.MappedFile集中实现映射文件、追加、commit、flush与引用管理。|5.3.4的store.logfile下出现MappedFile接口、AbstractMappedFile和DefaultMappedFile等，配置还影响实际写入路径。|
+|实现|4.9.8经典CommitLog按SYNC_MASTER等条件，提交目标nextOffset到HAService等待从节点进度。|5.3.4的HA等待携带needAckNums；Controller等路径考虑minInSyncReplicas、SyncStateSet和allAckInSyncStateSet。|
 
-**变化原因（源码分析）：**【源码分析】职责抽象便于不同文件实现和扩展策略；可读性上应先找实际实现，不再只按旧包路径搜索。
+<strong>变化原因（源码分析）：</strong>【源码分析】更明确的确认数量和同步集合能把写入可用性与副本安全条件纳入决策，但需要与切换资格保持一致。
 
-**适用边界：**wrote/committed/flushed位置的核心区分并未消失；5.x也不是所有写入都自动绕过PageCache。
+<strong>适用边界：</strong>这些等待都不同于每个副本同步force；DLedger多数派提交不能套到普通HA。
 
 ```mermaid
 flowchart TB
 subgraph V4["固定4.9.8"]
-A["store.MappedFile具体类"]
+A["传统HA目标offset等待"]
 end
 subgraph V5["固定5.3.4"]
-B["logfile接口与DefaultMappedFile"]
+B["确认数量加SyncStateSet条件"]
 end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[MappedFile.java · L315–L347](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/MappedFile.java#L315-L347)，连续节选。
+<strong>4.9.8源码：</strong>[CommitLog.java · L617–L653](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L617-L653)，连续节选。
 
 ```java
-public int commit(final int commitLeastPages) {
-    if (writeBuffer == null) {
-        //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
-        return this.wrotePosition.get();
-    }
-    if (this.isAbleToCommit(commitLeastPages)) {
-        if (this.hold()) {
-            commit0();
-            this.release();
-        } else {
-            log.warn("in commit, hold failed, commit offset = " + this.committedPosition.get());
+    public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
+        // Set the storage time
+        msg.setStoreTimestamp(System.currentTimeMillis());
+        // Set the message body BODY CRC (consider the most appropriate setting
+        // on the client)
+        msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
+        // Back to Results
+        AppendMessageResult result = null;
+
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
+
+        String topic = msg.getTopic();
+//        int queueId msg.getQueueId();
+        final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
+        if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
+                || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
+            // Delay Delivery
+            if (msg.getDelayTimeLevel() > 0) {
+                if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
+                    msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
+                }
+
+                topic = TopicValidator.RMQ_SYS_SCHEDULE_TOPIC;
+                int queueId = ScheduleMessageService.delayLevel2QueueId(msg.getDelayTimeLevel());
+
+                // Backup real topic, queueId
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_TOPIC, msg.getTopic());
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_QUEUE_ID, String.valueOf(msg.getQueueId()));
+                msg.setPropertiesString(MessageDecoder.messageProperties2String(msg.getProperties()));
+
+                msg.setTopic(topic);
+                msg.setQueueId(queueId);
+            }
         }
-    }
 
-    // All dirty data has been committed to FileChannel.
-    if (writeBuffer != null && this.transientStorePool != null && this.fileSize == this.committedPosition.get()) {
-        this.transientStorePool.returnBuffer(writeBuffer);
-        this.writeBuffer = null;
-    }
-
-    return this.committedPosition.get();
-}
-
-protected void commit0() {
-    int writePos = this.wrotePosition.get();
-    int lastCommittedPosition = this.committedPosition.get();
-
-    if (writePos - lastCommittedPosition > 0) {
-        try {
-            ByteBuffer byteBuffer = writeBuffer.slice();
-            byteBuffer.position(lastCommittedPosition);
-            byteBuffer.limit(writePos);
-            this.fileChannel.position(lastCommittedPosition);
+        InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
+        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
 ```
 
-**5.3.4源码：**[DefaultMappedFile.java · L548–L580](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L548-L580)，连续节选。
+<strong>5.3.4源码：</strong>[CommitLog.java · L996–L1024](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L996-L1024)，连续节选。
 
 ```java
-public int commit(final int commitLeastPages) {
-    if (writeBuffer == null) {
-        //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
-        return WROTE_POSITION_UPDATER.get(this);
-    }
+int needAckNums = this.defaultMessageStore.getMessageStoreConfig().getInSyncReplicas();
+boolean needHandleHA = needHandleHA(msg);
 
-    //no need to commit data to file channel, so just set committedPosition to wrotePosition.
-    if (transientStorePool != null && !transientStorePool.isRealCommit()) {
-        COMMITTED_POSITION_UPDATER.set(this, WROTE_POSITION_UPDATER.get(this));
-    } else if (this.isAbleToCommit(commitLeastPages)) {
-        if (this.hold()) {
-            commit0();
-            this.release();
-        } else {
-            log.warn("in commit, hold failed, commit offset = " + COMMITTED_POSITION_UPDATER.get(this));
-        }
+if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableControllerMode()) {
+    if (this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset) < this.defaultMessageStore.getMessageStoreConfig().getMinInSyncReplicas()) {
+        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
     }
-
-    // All dirty data has been committed to FileChannel.
-    if (writeBuffer != null && this.transientStorePool != null && this.fileSize == COMMITTED_POSITION_UPDATER.get(this)) {
-        this.transientStorePool.returnBuffer(writeBuffer);
-        this.writeBuffer = null;
+    if (this.defaultMessageStore.getMessageStoreConfig().isAllAckInSyncStateSet()) {
+        // -1 means all ack in SyncStateSet
+        needAckNums = MixAll.ALL_ACK_IN_SYNC_STATE_SET;
     }
-
-    return COMMITTED_POSITION_UPDATER.get(this);
+} else if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableSlaveActingMaster()) {
+    int inSyncReplicas = Math.min(this.defaultMessageStore.getAliveReplicaNumInGroup(),
+        this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset));
+    needAckNums = calcNeedAckNums(inSyncReplicas);
+    if (needAckNums > inSyncReplicas) {
+        // Tell the producer, don't have enough slaves to handle the send request
+        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
+    }
 }
 
-protected void commit0() {
-    int writePos = WROTE_POSITION_UPDATER.get(this);
-    int lastCommittedPosition = COMMITTED_POSITION_UPDATER.get(this);
+topicQueueLock.lock(topicQueueKey);
+try {
 
-    if (writePos - lastCommittedPosition > 0) {
-        try {
+    boolean needAssignOffset = true;
+    if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
+        && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
+        needAssignOffset = false;
+    }
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
 
-## 状态展开：三个位置的约束与例外
 
-|状态|表示什么|不表示什么|
-|---|---|---|
-|wrotePosition|当前文件累计追加位置|一定已force|
-|committedPosition|暂存路径已提交到文件通道位置|数据库或消息事务COMMIT|
-|flushedPosition|源码记录已执行刷盘达到的位置|消费者业务完成|
-|fileFromOffset|该日志段的全局物理基址|文件内相对位置|
-|readPosition|当前实现允许读取的有效位置|与wrotePosition永远无条件相等|
+## 状态展开：确认保证矩阵
 
-启用writeBuffer时，理解flushed≤committed≤wrote的主要状态关系；未启用暂存时，readPosition通常跟随wrote，committed字段不再承担同样角色。图示不能把后一场景硬套进三段复制流程。
+|经典配置组合|等待本地force|等待相应副本进度|不能据此推导|
+|---|---|---|---|
+|ASYNC_FLUSH + ASYNC_MASTER|通常不按每条同步等待|通常不按每条同步等待|所有确认消息已落盘且有副本|
+|SYNC_FLUSH + ASYNC_MASTER|符合waitStoreMsgOK等条件时等待|通常不按每条同步等待|本地主故障后其他副本一定拥有尾部|
+|ASYNC_FLUSH + SYNC_MASTER|通常不按每条同步等待|符合HA条件时等待|每个副本已同步force|
+|SYNC_FLUSH + SYNC_MASTER|符合条件时等待|符合条件时等待|业务只执行一次、任意故障永不丢|
+
+Controller模式需再叠加同步集合、最小副本数、确认数、角色等条件；DLedger应换用其实现。表格描述主线，所有结论都受waitStoreMsgOK与具体部署限制。
+
 
 ## 本章纸面推演
 
@@ -2996,9 +3349,13 @@ protected void commit0() {
 
 # 10. Reput、ConsumeQueue与可见性
 
-**适用范围：**经典文件CQ；RocksDB与双写分支独立说明。
+<strong>适用范围：</strong>经典文件CQ；RocksDB与双写分支独立说明。
 
-**本章目标：**从日志事实重建面向消费的逻辑索引。
+<strong>本章目标：</strong>从日志事实重建面向消费的逻辑索引。
+
+> <strong>带着这个问题读：为什么日志里有消息，按队列却暂时读不到？</strong>
+>
+> CQ由分发服务派生；可分发位置、扫描、CQ更新和消息类型条件共同决定业务Queue可见性。
 
 
 ## 10.1 Reput怎样从日志派生索引
@@ -3017,7 +3374,7 @@ IX --> KY["按Key查询候选"]
 CQ --> P["按Queue消费"]
 ```
 
-**源码对照：**[DefaultMessageStore.java · L2529–L2610](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L2529-L2610)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessageStore.java · L2529–L2610](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L2529-L2610)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void doReput() {
@@ -3104,7 +3461,7 @@ private void notifyMessageArrive4MultiQueue(DispatchRequest dispatchRequest) {
     Map<String, String> prop = dispatchRequest.getPropertiesMap();
 ```
 
-**逐段阅读抓手：**观察记录大小、读取位置增长与文件尾滚动；解析失败分支也会影响推进。
+<strong>逐段阅读抓手：</strong>观察记录大小、读取位置增长与文件尾滚动；解析失败分支也会影响推进。
 
 
 ## 10.2 文件CQ为什么固定20字节
@@ -3124,7 +3481,7 @@ O --> CL["CommitLog消息区间"]
 S --> CL
 ```
 
-**源码对照：**[ConsumeQueue.java · L797–L863](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java#L797-L863)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeQueue.java · L797–L863](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java#L797-L863)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private boolean putMessagePositionInfo(final long offset, final int size, final long tagsCode,
@@ -3196,7 +3553,7 @@ private void fillPreBlank(final MappedFile mappedFile, final long untilWhere) {
     ByteBuffer byteBuffer = ByteBuffer.allocate(CQ_STORE_UNIT_SIZE);
 ```
 
-**逐段阅读抓手：**看byteBufferIndex.putLong、putInt、putLong及重复/回退位置判断。
+<strong>逐段阅读抓手：</strong>看byteBufferIndex.putLong、putInt、putLong及重复/回退位置判断。
 
 
 ## 10.3 事务状态决定是否进入业务CQ
@@ -3213,7 +3570,7 @@ K -- PREPARE或ROLLBACK --> NO["此分发器不按普通消息构建业务CQ"]
 CQ --> C["订阅业务Topic的消费者可读取"]
 ```
 
-**源码对照：**[DefaultMessageStore.java · L2083–L2111](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L2083-L2111)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessageStore.java · L2083–L2111](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L2083-L2111)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 class CommitLogDispatcherBuildConsumeQueue implements CommitLogDispatcher {
@@ -3247,7 +3604,7 @@ public boolean isTimeToDelete() {
     String when = messageStoreConfig.getDeleteWhen();
 ```
 
-**逐段阅读抓手：**对照switch枚举；可见性判断位于索引分发，不仅在Consumer过滤层。
+<strong>逐段阅读抓手：</strong>对照switch枚举；可见性判断位于索引分发，不仅在Consumer过滤层。
 
 
 ## 10.4 RocksDB CQ和迁移双写需要单独读
@@ -3266,7 +3623,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[RocksDBConsumeQueueStore.java · L233–L268](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/queue/RocksDBConsumeQueueStore.java#L233-L268)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RocksDBConsumeQueueStore.java · L233–L268](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/queue/RocksDBConsumeQueueStore.java#L233-L268)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void putMessagePosition(List<DispatchRequest> requests) throws RocksDBException {
@@ -3307,119 +3664,86 @@ private boolean putMessagePosition0(List<DispatchRequest> requests) {
         long maxPhyOffset = 0;
 ```
 
-**逐段阅读抓手：**看批量写成功前后如何更新和通知；接口一致不代表持久化顺序完全一样。
+<strong>逐段阅读抓手：</strong>看批量写成功前后如何更新和通知；接口一致不代表持久化顺序完全一样。
 
 
 
-## 10.5 4.x与5.x对照：复制确认从传统从节点进度扩展到同步集合
+## 10.5 4.x与5.x对照：文件CQ基础保留，KV与双写成为可选分支
 
 |对照维度|固定4.9.8|固定5.3.4|
 |---|---|---|
-|实现|4.9.8经典CommitLog按SYNC_MASTER等条件，提交目标nextOffset到HAService等待从节点进度。|5.3.4的HA等待携带needAckNums；Controller等路径考虑minInSyncReplicas、SyncStateSet和allAckInSyncStateSet。|
+|实现|4.9.8创建文件ConsumeQueue，单元定位沿用物理offset、size、tagsCode。|5.3.4通过ConsumeQueueStoreInterface组织索引，还存在RocksDB CQ、Combine双写迁移等配置分支。|
 
-**变化原因（源码分析）：**【源码分析】更明确的确认数量和同步集合能把写入可用性与副本安全条件纳入决策，但需要与切换资格保持一致。
+<strong>变化原因（源码分析）：</strong>【源码分析】KV后端改变多队列索引的管理方式；双写给迁移提供路径。它们并非所有场景都更快，代价还包括KV写放大、后台任务与内存管理。
 
-**适用边界：**这些等待都不同于每个副本同步force；DLedger多数派提交不能套到普通HA。
+<strong>适用边界：</strong>20字节是文件ConsumeQueue格式，不是5.x所有索引后端格式；不要把双写开关当默认启用。
 
 ```mermaid
 flowchart TB
 subgraph V4["固定4.9.8"]
-A["传统HA目标offset等待"]
+A["文件ConsumeQueue"]
 end
 subgraph V5["固定5.3.4"]
-B["确认数量加SyncStateSet条件"]
+B["文件与RocksDB及Combine分支"]
 end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[CommitLog.java · L617–L653](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L617-L653)，连续节选。
+<strong>4.9.8源码：</strong>[DefaultMessageStore.java · L1235–L1258](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1235-L1258)，连续节选。
 
 ```java
-    public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
-        // Set the storage time
-        msg.setStoreTimestamp(System.currentTimeMillis());
-        // Set the message body BODY CRC (consider the most appropriate setting
-        // on the client)
-        msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
-        // Back to Results
-        AppendMessageResult result = null;
-
-        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
-
-        String topic = msg.getTopic();
-//        int queueId msg.getQueueId();
-        final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
-        if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
-                || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
-            // Delay Delivery
-            if (msg.getDelayTimeLevel() > 0) {
-                if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
-                    msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
-                }
-
-                topic = TopicValidator.RMQ_SYS_SCHEDULE_TOPIC;
-                int queueId = ScheduleMessageService.delayLevel2QueueId(msg.getDelayTimeLevel());
-
-                // Backup real topic, queueId
-                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_TOPIC, msg.getTopic());
-                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_QUEUE_ID, String.valueOf(msg.getQueueId()));
-                msg.setPropertiesString(MessageDecoder.messageProperties2String(msg.getProperties()));
-
-                msg.setTopic(topic);
-                msg.setQueueId(queueId);
+        ConsumeQueue newLogic = new ConsumeQueue(
+            topic,
+            queueId,
+            StorePathConfigHelper.getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()),
+            this.getMessageStoreConfig().getMappedFileSizeConsumeQueue(),
+            this);
+        ConsumeQueue oldLogic = map.putIfAbsent(queueId, newLogic);
+        if (oldLogic != null) {
+            logic = oldLogic;
+        } else {
+            if (MixAll.isLmq(topic)) {
+                lmqConsumeQueueNum.getAndIncrement();
             }
+            logic = newLogic;
         }
-
-        InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
-        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
-```
-
-**5.3.4源码：**[CommitLog.java · L996–L1024](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L996-L1024)，连续节选。
-
-```java
-int needAckNums = this.defaultMessageStore.getMessageStoreConfig().getInSyncReplicas();
-boolean needHandleHA = needHandleHA(msg);
-
-if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableControllerMode()) {
-    if (this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset) < this.defaultMessageStore.getMessageStoreConfig().getMinInSyncReplicas()) {
-        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
     }
-    if (this.defaultMessageStore.getMessageStoreConfig().isAllAckInSyncStateSet()) {
-        // -1 means all ack in SyncStateSet
-        needAckNums = MixAll.ALL_ACK_IN_SYNC_STATE_SET;
-    }
-} else if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableSlaveActingMaster()) {
-    int inSyncReplicas = Math.min(this.defaultMessageStore.getAliveReplicaNumInGroup(),
-        this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset));
-    needAckNums = calcNeedAckNums(inSyncReplicas);
-    if (needAckNums > inSyncReplicas) {
-        // Tell the producer, don't have enough slaves to handle the send request
-        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
-    }
+
+    return logic;
 }
 
-topicQueueLock.lock(topicQueueKey);
-try {
-
-    boolean needAssignOffset = true;
-    if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
-        && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
-        needAssignOffset = false;
-    }
+private long nextOffsetCorrection(long oldOffset, long newOffset) {
+    long nextOffset = oldOffset;
+    if (this.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE || this.getMessageStoreConfig().isOffsetCheckInSlave()) {
+        nextOffset = newOffset;
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>5.3.4源码：</strong>[DefaultMessageStore.java · L268–L277](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L268-L277)，连续节选。
 
-## 状态展开：确认保证矩阵
+```java
+public ConsumeQueueStoreInterface createConsumeQueueStore() {
+    if (messageStoreConfig.isRocksdbCQDoubleWriteEnable()) {
+        return new CombineConsumeQueueStore(this);
+    }
+    return new ConsumeQueueStore(this);
+}
 
-|经典配置组合|等待本地force|等待相应副本进度|不能据此推导|
-|---|---|---|---|
-|ASYNC_FLUSH + ASYNC_MASTER|通常不按每条同步等待|通常不按每条同步等待|所有确认消息已落盘且有副本|
-|SYNC_FLUSH + ASYNC_MASTER|符合waitStoreMsgOK等条件时等待|通常不按每条同步等待|本地主故障后其他副本一定拥有尾部|
-|ASYNC_FLUSH + SYNC_MASTER|通常不按每条同步等待|符合HA条件时等待|每个副本已同步force|
-|SYNC_FLUSH + SYNC_MASTER|符合条件时等待|符合条件时等待|业务只执行一次、任意故障永不丢|
+public boolean parseDelayLevel() {
+    HashMap<String, Long> timeUnitTable = new HashMap<>();
+    timeUnitTable.put("s", 1000L);
+```
 
-Controller模式需再叠加同步集合、最小副本数、确认数、角色等条件；DLedger应换用其实现。表格描述主线，所有结论都受waitStoreMsgOK与具体部署限制。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+
+
+## 状态展开：日志、索引与消费进度的三个完成点
+
+1. CommitLog追加完成：消息记录进入当前存储路径，随后仍有刷盘/复制条件。
+2. Reput分发完成：CQ等派生结构能定位记录，符合条件后可拉取。
+3. Consumer业务完成：业务事务结束，再进行位点或ACK确认。
+
+这三个阶段由不同线程或服务推进，不能拿其中一个offset替另一个阶段作证明。如果发送成功却短暂拉不到，先核对Topic/Queue、订阅过滤、Reput滞后和offset范围，再判断数据事实。
+
 
 ## 本章纸面推演
 
@@ -3430,9 +3754,13 @@ CommitLog成功追加后，Reput仍可能暂时落后，CQ尚未出现新消息�
 
 # 11. IndexFile：按Key查询与冲突验证
 
-**适用范围：**经典哈希IndexFile；不是消费主路径。
+<strong>适用范围：</strong>经典哈希IndexFile；不是消费主路径。
 
-**本章目标：**理解业务Key查询为何是候选索引，而非唯一性约束。
+<strong>本章目标：</strong>理解业务Key查询为何是候选索引，而非唯一性约束。
+
+> <strong>带着这个问题读：Key相同或哈希相同，为什么查询还要读消息核验？</strong>
+>
+> IndexFile提供候选物理位置，哈希不能证明原始Key精确相等；最终查询层还要检查真实消息信息。
 
 
 ## 11.1 哈希槽与链式索引结构
@@ -3451,7 +3779,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[IndexFile.java · L116–L175](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/index/IndexFile.java#L116-L175)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[IndexFile.java · L116–L175](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/index/IndexFile.java#L116-L175)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean putKey(final String key, final long phyOffset, final long storeTimestamp) {
@@ -3516,7 +3844,7 @@ public boolean putKey(final String key, final long phyOffset, final long storeTi
 
 ```
 
-**逐段阅读抓手：**关注slotValue和indexCount；链位置不是CommitLog字节位置。
+<strong>逐段阅读抓手：</strong>关注slotValue和indexCount；链位置不是CommitLog字节位置。
 
 
 ## 11.2 查询沿槽链向后追溯
@@ -3535,7 +3863,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[IndexFile.java · L204–L260](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/index/IndexFile.java#L204-L260)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[IndexFile.java · L204–L260](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/index/IndexFile.java#L204-L260)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
     public void selectPhyOffset(final List<Long> phyOffsets, final String key, final int maxNum,
@@ -3597,7 +3925,7 @@ flowchart LR
 }
 ```
 
-**逐段阅读抓手：**看timeDiff如何还原时间；query的maxNum是上限，不保证一定返回这么多目标消息。
+<strong>逐段阅读抓手：</strong>看timeDiff如何还原时间；query的maxNum是上限，不保证一定返回这么多目标消息。
 
 
 ## 11.3 最终结果为何还要读消息体
@@ -3615,7 +3943,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[DefaultMessageStore.java · L1307–L1361](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1307-L1361)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessageStore.java · L1307–L1361](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1307-L1361)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public QueryMessageResult queryMessage(String topic, String key, int maxNum, long begin, long end) {
@@ -3675,84 +4003,65 @@ public QueryMessageResult queryMessage(String topic, String key, int maxNum, lon
 @Override
 ```
 
-**逐段阅读抓手：**本节Store方法负责取候选；字段拒绝的最终筛选见下一节MQAdminImpl。
+<strong>逐段阅读抓手：</strong>本节Store方法负责取候选；字段拒绝的最终筛选见下一节MQAdminImpl。
 
 
 
-## 11.4 4.x与5.x对照：文件CQ基础保留，KV与双写成为可选分支
+## 11.4 查询精确核验实际在MQAdminImpl这一层
 
-|对照维度|固定4.9.8|固定5.3.4|
-|---|---|---|
-|实现|4.9.8创建文件ConsumeQueue，单元定位沿用物理offset、size、tagsCode。|5.3.4通过ConsumeQueueStoreInterface组织索引，还存在RocksDB CQ、Combine双写迁移等配置分支。|
+这段代码是前面哈希冲突问题的最后一环：普通Key查询把消息keys按分隔符拆开，比较Key字符串，并检查Topic；uniqKey查询采用另一分支。LMQ有对应Topic条件例外，所以不能说所有路径都执行完全一样的Topic比较。
 
-**变化原因（源码分析）：**【源码分析】KV后端改变多队列索引的管理方式；双写给迁移提供路径。它们并非所有场景都更快，代价还包括KV写放大、后台任务与内存管理。
-
-**适用边界：**20字节是文件ConsumeQueue格式，不是5.x所有索引后端格式；不要把双写开关当默认启用。
+纠正后的调用链是IndexService选候选→DefaultMessageStore取日志缓冲→Broker响应→经典MQAdminImpl解码与字段匹配。若改用其他客户端或接口，应该验证它是否提供相同最终筛选，不要把经典管理客户端保证无条件推广。
 
 ```mermaid
-flowchart TB
-subgraph V4["固定4.9.8"]
-A["文件ConsumeQueue"]
-end
-subgraph V5["固定5.3.4"]
-B["文件与RocksDB及Combine分支"]
-end
-A -. "比较状态归属 / 确认条件 / 配置" .-> B
+flowchart LR
+A["Index哈希候选"] --> B["Store读取缓冲"]
+B --> C["Broker返回候选"]
+C --> D["MQAdminImpl真实Key/Topic比较"]
+D --> E["最终查询列表"]
 ```
 
-**4.9.8源码：**[DefaultMessageStore.java · L1235–L1258](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1235-L1258)，连续节选。
+
+<strong>5.3.4源码对照：</strong>[MQAdminImpl.java · L441–L475](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/MQAdminImpl.java#L441-L475)，连续节选。
 
 ```java
-        ConsumeQueue newLogic = new ConsumeQueue(
-            topic,
-            queueId,
-            StorePathConfigHelper.getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()),
-            this.getMessageStoreConfig().getMappedFileSizeConsumeQueue(),
-            this);
-        ConsumeQueue oldLogic = map.putIfAbsent(queueId, newLogic);
-        if (oldLogic != null) {
-            logic = oldLogic;
-        } else {
-            if (MixAll.isLmq(topic)) {
-                lmqConsumeQueueNum.getAndIncrement();
+    for (MessageExt msgExt : qr.getMessageList()) {
+        if (isUniqKey) {
+            if (msgExt.getMsgId().equals(key)) {
+                messageList.add(msgExt);
+            } else {
+                log.warn("queryMessage by uniqKey, find message key not matched, maybe hash duplicate {}", msgExt.toString());
             }
-            logic = newLogic;
+        } else {
+            String keys = msgExt.getKeys();
+            String msgTopic = msgExt.getTopic();
+            if (keys != null) {
+                boolean matched = false;
+                String[] keyArray = keys.split(MessageConst.KEY_SEPARATOR);
+                for (String k : keyArray) {
+                    // both topic and key must be equal at the same time
+                    if (Objects.equals(key, k) && (isLmq || Objects.equals(topic, msgTopic))) {
+                        matched = true;
+                        break;
+                    }
+                }
+
+                if (matched) {
+                    messageList.add(msgExt);
+                } else {
+                    log.warn("queryMessage, find message key not matched, maybe hash duplicate {}", msgExt.toString());
+                }
+            }
         }
     }
-
-    return logic;
 }
 
-private long nextOffsetCorrection(long oldOffset, long newOffset) {
-    long nextOffset = oldOffset;
-    if (this.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE || this.getMessageStoreConfig().isOffsetCheckInSlave()) {
-        nextOffset = newOffset;
+//If namespace not null , reset Topic without namespace.
+if (null != this.mQClientFactory.getClientConfig().getNamespace()) {
+    for (MessageExt messageExt : messageList) {
+        messageExt.setTopic(NamespaceUtil.withoutNamespace(messageExt.getTopic(), this.mQClientFactory.getClientConfig().getNamespace()));
 ```
 
-**5.3.4源码：**[DefaultMessageStore.java · L268–L277](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L268-L277)，连续节选。
-
-```java
-public ConsumeQueueStoreInterface createConsumeQueueStore() {
-    if (messageStoreConfig.isRocksdbCQDoubleWriteEnable()) {
-        return new CombineConsumeQueueStore(this);
-    }
-    return new ConsumeQueueStore(this);
-}
-
-public boolean parseDelayLevel() {
-    HashMap<String, Long> timeUnitTable = new HashMap<>();
-    timeUnitTable.put("s", 1000L);
-```
-
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
-
-## 状态展开：日志、索引与消费进度的三个完成点
-
-1. CommitLog追加完成：消息记录进入当前存储路径，随后仍有刷盘/复制条件。
-2. Reput分发完成：CQ等派生结构能定位记录，符合条件后可拉取。
-3. Consumer业务完成：业务事务结束，再进行位点或ACK确认。
-
-这三个阶段由不同线程或服务推进，不能拿其中一个offset替另一个阶段作证明。如果发送成功却短暂拉不到，先核对Topic/Queue、订阅过滤、Reput滞后和offset范围，再判断数据事实。
 
 ## 本章纸面推演
 
@@ -3763,9 +4072,13 @@ public boolean parseDelayLevel() {
 
 # 12. Broker拉取与长轮询
 
-**适用范围：**PullMessageProcessor；经典Pull协议。
+<strong>适用范围：</strong>PullMessageProcessor；经典Pull协议。
 
-**本章目标：**连起订阅过滤、CQ扫描、消息读取和挂起唤醒。
+<strong>本章目标：</strong>连起订阅过滤、CQ扫描、消息读取和挂起唤醒。
+
+> <strong>带着这个问题读：长轮询到底把什么挂起来？</strong>
+>
+> 保存请求和Channel等上下文，之后由到达通知或超时推进；没有为每个等待请求永久阻塞一个业务线程。
 
 
 ## 12.1 拉取请求先确认什么
@@ -3784,7 +4097,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[PullMessageProcessor.java · L302–L369](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PullMessageProcessor.java#L302-L369)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PullMessageProcessor.java · L302–L369](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PullMessageProcessor.java#L302-L369)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private RemotingCommand processRequest(final Channel channel, RemotingCommand request, boolean brokerAllowSuspend,
@@ -3857,7 +4170,7 @@ private RemotingCommand processRequest(final Channel channel, RemotingCommand re
 
 ```
 
-**逐段阅读抓手：**区分commitOffset标记和本次拉取offset；一个请求可以携带不同用途的进度。
+<strong>逐段阅读抓手：</strong>区分commitOffset标记和本次拉取offset；一个请求可以携带不同用途的进度。
 
 
 ## 12.2 getMessage扫描索引再取日志
@@ -3877,7 +4190,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-**源码对照：**[DefaultMessageStore.java · L808–L879](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L808-L879)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessageStore.java · L808–L879](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L808-L879)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public GetMessageResult getMessage(final String group, final String topic, final int queueId, final long offset,
@@ -3954,7 +4267,7 @@ public GetMessageResult getMessage(final String group, final String topic, final
             int cqFileNum = 0;
 ```
 
-**逐段阅读抓手：**该签名有委托重载；继续读更完整重载中的迭代与状态分支。
+<strong>逐段阅读抓手：</strong>该签名有委托重载；继续读更完整重载中的迭代与状态分支。
 
 
 ## 12.3 长轮询不需要线程一直阻塞等待
@@ -3973,7 +4286,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[PullRequestHoldService.java · L45–L64](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/longpolling/PullRequestHoldService.java#L45-L64)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PullRequestHoldService.java · L45–L64](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/longpolling/PullRequestHoldService.java#L45-L64)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void suspendPullRequest(final String topic, final int queueId, final PullRequest pullRequest) {
@@ -3998,7 +4311,7 @@ private String buildKey(final String topic, final int queueId) {
     sb.append(queueId);
 ```
 
-**逐段阅读抓手：**挂起保存了Channel和请求上下文；连接关闭与请求超时都要有收尾。
+<strong>逐段阅读抓手：</strong>挂起保存了Channel和请求上下文；连接关闭与请求超时都要有收尾。
 
 
 ## 12.4 到达通知也需要判断过滤条件
@@ -4017,7 +4330,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[PullRequestHoldService.java · L123–L184](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/longpolling/PullRequestHoldService.java#L123-L184)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PullRequestHoldService.java · L123–L184](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/longpolling/PullRequestHoldService.java#L123-L184)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void notifyMessageArriving(final String topic, final int queueId, final long maxOffset, final Long tagsCode,
@@ -4084,63 +4397,8 @@ public void notifyMessageArriving(final String topic, final int queueId, final l
 }
 ```
 
-**逐段阅读抓手：**cloneListAndClear与replayList配合，理解取出、检查和重新加入的状态变化。
+<strong>逐段阅读抓手：</strong>cloneListAndClear与replayList配合，理解取出、检查和重新加入的状态变化。
 
-
-## 12.5 查询精确核验实际在MQAdminImpl这一层
-
-这段代码是前面哈希冲突问题的最后一环：普通Key查询把消息keys按分隔符拆开，比较Key字符串，并检查Topic；uniqKey查询采用另一分支。LMQ有对应Topic条件例外，所以不能说所有路径都执行完全一样的Topic比较。
-
-纠正后的调用链是IndexService选候选→DefaultMessageStore取日志缓冲→Broker响应→经典MQAdminImpl解码与字段匹配。若改用其他客户端或接口，应该验证它是否提供相同最终筛选，不要把经典管理客户端保证无条件推广。
-
-```mermaid
-flowchart LR
-A["Index哈希候选"] --> B["Store读取缓冲"]
-B --> C["Broker返回候选"]
-C --> D["MQAdminImpl真实Key/Topic比较"]
-D --> E["最终查询列表"]
-```
-
-
-**5.3.4源码对照：**[MQAdminImpl.java · L441–L475](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/MQAdminImpl.java#L441-L475)，连续节选。
-
-```java
-    for (MessageExt msgExt : qr.getMessageList()) {
-        if (isUniqKey) {
-            if (msgExt.getMsgId().equals(key)) {
-                messageList.add(msgExt);
-            } else {
-                log.warn("queryMessage by uniqKey, find message key not matched, maybe hash duplicate {}", msgExt.toString());
-            }
-        } else {
-            String keys = msgExt.getKeys();
-            String msgTopic = msgExt.getTopic();
-            if (keys != null) {
-                boolean matched = false;
-                String[] keyArray = keys.split(MessageConst.KEY_SEPARATOR);
-                for (String k : keyArray) {
-                    // both topic and key must be equal at the same time
-                    if (Objects.equals(key, k) && (isLmq || Objects.equals(topic, msgTopic))) {
-                        matched = true;
-                        break;
-                    }
-                }
-
-                if (matched) {
-                    messageList.add(msgExt);
-                } else {
-                    log.warn("queryMessage, find message key not matched, maybe hash duplicate {}", msgExt.toString());
-                }
-            }
-        }
-    }
-}
-
-//If namespace not null , reset Topic without namespace.
-if (null != this.mQClientFactory.getClientConfig().getNamespace()) {
-    for (MessageExt messageExt : messageList) {
-        messageExt.setTopic(NamespaceUtil.withoutNamespace(messageExt.getTopic(), this.mQClientFactory.getClientConfig().getNamespace()));
-```
 
 ## 本章纸面推演
 
@@ -4151,9 +4409,13 @@ if (null != this.mQClientFactory.getClientConfig().getNamespace()) {
 
 # 13. Rebalance与ProcessQueue：队列处理权
 
-**适用范围：**经典队列分配；Broker分配分支须区分。
+<strong>适用范围：</strong>经典队列分配；Broker分配分支须区分。
 
-**本章目标：**理解分配算法、撤销、位点恢复和本地缓存的责任。
+<strong>本章目标：</strong>理解分配算法、撤销、位点恢复和本地缓存的责任。
+
+> <strong>带着这个问题读：消费者变多，为什么可能仍有实例闲着？</strong>
+>
+> 经典队列分配下Queue是分配单位；再均衡还需撤销旧ProcessQueue及处理进度收尾。消息级分配另走相应路径。
 
 
 ## 13.1 同Group成员怎样算出分配结果
@@ -4172,7 +4434,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[RebalanceImpl.java · L268–L346](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java#L268-L346)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RebalanceImpl.java · L268–L346](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java#L268-L346)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private boolean rebalanceByTopic(final String topic, final boolean isOrder) {
@@ -4256,7 +4518,7 @@ private boolean rebalanceByTopic(final String topic, final boolean isOrder) {
 
 ```
 
-**逐段阅读抓手：**找CLUSTERING、BROADCASTING与分配条件；不要把平均分配示例当成唯一策略。
+<strong>逐段阅读抓手：</strong>找CLUSTERING、BROADCASTING与分配条件；不要把平均分配示例当成唯一策略。
 
 
 ## 13.2 撤销队列先标记dropped
@@ -4275,7 +4537,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[RebalanceImpl.java · L428–L504](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java#L428-L504)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RebalanceImpl.java · L428–L504](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java#L428-L504)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet,
@@ -4357,7 +4619,7 @@ private boolean updateProcessQueueTableInRebalance(final String topic, final Set
 
 ```
 
-**逐段阅读抓手：**removeUnnecessaryMessageQueue失败时可能延后移除；处理权迁移有收尾过程。
+<strong>逐段阅读抓手：</strong>removeUnnecessaryMessageQueue失败时可能延后移除；处理权迁移有收尾过程。
 
 
 ## 13.3 ProcessQueue如何保存未完成消息
@@ -4376,7 +4638,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ProcessQueue.java · L129–L186](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java#L129-L186)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ProcessQueue.java · L129–L186](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java#L129-L186)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean putMessage(final List<MessageExt> msgs) {
@@ -4439,7 +4701,174 @@ public long getMaxSpan() {
 
 ```
 
-**逐段阅读抓手：**看旧值是否存在以及计数如何增长；msgCount是本地缓存，不是Broker积压总量。
+<strong>逐段阅读抓手：</strong>看旧值是否存在以及计数如何增长；msgCount是本地缓存，不是Broker积压总量。
+
+
+## 13.4 4.x与5.x对照：队列分配与消息分配：并发模型变化
+
+|对照维度|固定4.9.8|固定5.3.4|
+|---|---|---|
+|实现|经典PushConsumer在Rebalance中将Queue分配给Group成员，一个Queue在稳定经典集群分配里主要由一个成员持有。|5.x保留队列分配，并为对应消费类型提供消息粒度分配与POP确认：同一Queue的不同消息可被不同消费者处理。|
+
+<strong>变化原因（官方说明与固定源码）：</strong>官方负载均衡文档把两种策略区分开。消息粒度减少非顺序消费并发对Queue数量的直接约束，同时把在途消息确认与恢复更多交给服务端。
+
+<strong>适用边界：</strong>不是所有5.xConsumer都消息分配；策略取决于客户端和消费者类型，FIFO还有额外顺序约束。
+
+```mermaid
+flowchart TB
+subgraph V4["4.9.8经典队列分配"]
+Q1["Queue1"] --> C1["ConsumerA"]
+Q2["Queue2"] --> C2["ConsumerB"]
+end
+subgraph V5["5.x适用类型的消息分配"]
+Q3["同一Queue中的不同消息"] --> M1["消息1 / ConsumerA"]
+Q3 --> M2["消息2 / ConsumerB"]
+M1 --> ACK["每条确认与不可见恢复"]
+M2 --> ACK
+end
+```
+
+<strong>4.9.8源码：</strong>[RebalanceImpl.java · L239–L304](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java#L239-L304)，连续节选。
+
+```java
+private void rebalanceByTopic(final String topic, final boolean isOrder) {
+    switch (messageModel) {
+        case BROADCASTING: {
+            Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
+            if (mqSet != null) {
+                boolean changed = this.updateProcessQueueTableInRebalance(topic, mqSet, isOrder);
+                if (changed) {
+                    this.messageQueueChanged(topic, mqSet, mqSet);
+                    log.info("messageQueueChanged {} {} {} {}",
+                        consumerGroup,
+                        topic,
+                        mqSet,
+                        mqSet);
+                }
+            } else {
+                log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
+            }
+            break;
+        }
+        case CLUSTERING: {
+            Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
+            List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup);
+            if (null == mqSet) {
+                if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+                    log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
+                }
+            }
+
+            if (null == cidAll) {
+                log.warn("doRebalance, {} {}, get consumer id list failed", consumerGroup, topic);
+            }
+
+            if (mqSet != null && cidAll != null) {
+                List<MessageQueue> mqAll = new ArrayList<MessageQueue>();
+                mqAll.addAll(mqSet);
+
+                Collections.sort(mqAll);
+                Collections.sort(cidAll);
+
+                AllocateMessageQueueStrategy strategy = this.allocateMessageQueueStrategy;
+
+                List<MessageQueue> allocateResult = null;
+                try {
+                    allocateResult = strategy.allocate(
+                        this.consumerGroup,
+                        this.mQClientFactory.getClientId(),
+                        mqAll,
+                        cidAll);
+                } catch (Throwable e) {
+                    log.error("AllocateMessageQueueStrategy.allocate Exception. allocateMessageQueueStrategyName={}", strategy.getName(),
+                        e);
+                    return;
+                }
+
+                Set<MessageQueue> allocateResultSet = new HashSet<MessageQueue>();
+                if (allocateResult != null) {
+                    allocateResultSet.addAll(allocateResult);
+                }
+
+                boolean changed = this.updateProcessQueueTableInRebalance(topic, allocateResultSet, isOrder);
+                if (changed) {
+                    log.info(
+                        "rebalanced result changed. allocateMessageQueueStrategyName={}, group={}, topic={}, clientId={}, mqAllSize={}, cidAllSize={}, rebalanceResultSize={}, rebalanceResultSet={}",
+                        strategy.getName(), consumerGroup, topic, this.mQClientFactory.getClientId(), mqSet.size(), cidAll.size(),
+                        allocateResultSet.size(), allocateResultSet);
+                    this.messageQueueChanged(topic, mqSet, allocateResultSet);
+```
+
+<strong>5.3.4源码：</strong>[PopMessageProcessor.java · L675–L728](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L675-L728)，连续节选。
+
+```java
+private CompletableFuture<Long> popMsgFromQueue(String topic, String attemptId, boolean isRetry,
+    GetMessageResult getMessageResult,
+    PopMessageRequestHeader requestHeader, int queueId, long restNum, int reviveQid,
+    Channel channel, long popTime, ExpressionMessageFilter messageFilter, StringBuilder startOffsetInfo,
+    StringBuilder msgOffsetInfo, StringBuilder orderCountInfo) {
+
+    String lockKey =
+        topic + PopAckConstants.SPLIT + requestHeader.getConsumerGroup() + PopAckConstants.SPLIT + queueId;
+    boolean isOrder = requestHeader.isOrder();
+    long offset;
+    try {
+        offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
+            false, lockKey, false);
+    } catch (ConsumeQueueException e) {
+        CompletableFuture<Long> failure = new CompletableFuture<>();
+        failure.completeExceptionally(e);
+        return failure;
+    }
+
+    CompletableFuture<Long> future = new CompletableFuture<>();
+    if (!queueLockManager.tryLock(lockKey)) {
+        try {
+            if (!requestHeader.isOrder()) {
+                restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
+            }
+            future.complete(restNum);
+        } catch (ConsumeQueueException e) {
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    future.whenComplete((result, throwable) -> queueLockManager.unLock(lockKey));
+    if (isPopShouldStop(topic, requestHeader.getConsumerGroup(), queueId)) {
+        POP_LOGGER.warn("Too much msgs unacked, then stop popping. topic={}, group={}, queueId={}",
+            topic, requestHeader.getConsumerGroup(), queueId);
+        try {
+            restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
+            future.complete(restNum);
+        } catch (ConsumeQueueException e) {
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    try {
+        offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
+            true, lockKey, true);
+
+        // Current requests would calculate the total number of messages
+        // waiting to be filtered for new message arrival notifications in
+        // the long-polling service, need disregarding the backlog in order
+        // consumption scenario. If rest message num including the blocked
+        // queue accumulation would lead to frequent unnecessary wake-ups
+```
+
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+
+
+## 状态展开：四Queue、三成员到五成员的经典分配
+
+|状态|消费者A|消费者B|消费者C|消费者D/E|
+|---|---|---|---|---|
+|4Queue、3成员的可能平均结果|Q0/Q1|Q2|Q3|不存在|
+|4Queue、5成员的可能结果|Q0|Q1|Q2|D拿Q3，E无Queue|
+
+实际归属取决于稳定排序与分配策略，表仅示例。新增成员可能先触发心跳、成员查询和Rebalance，旧任务收尾与新任务启动存在窗口。POP消息分配不是这张经典Queue拥有者表，FIFO同样不能无条件放开并发。
 
 
 ## 本章纸面推演
@@ -4451,9 +4880,13 @@ public long getMaxSpan() {
 
 # 14. 经典PushConsumer：拉取循环与流控
 
-**适用范围：**DefaultMQPushConsumerImpl的Pull分支。
+<strong>适用范围：</strong>DefaultMQPushConsumerImpl的Pull分支。
 
-**本章目标：**把“Push”表层API还原为缓存、回调与调度。
+<strong>本章目标：</strong>把“Push”表层API还原为缓存、回调与调度。
+
+> <strong>带着这个问题读：拉取到103为什么不代表消费位点能到103？</strong>
+>
+> nextOffset推动下一轮取数，ProcessQueue保留未完成集合，OffsetStore保存安全处理进度；取到与做完必须分开。
 
 
 ## 14.1 拉取前为何检查缓存与跨度
@@ -4471,7 +4904,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[DefaultMQPushConsumerImpl.java · L246–L341](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java#L246-L341)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQPushConsumerImpl.java · L246–L341](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java#L246-L341)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void pullMessage(final PullRequest pullRequest) {
@@ -4572,7 +5005,7 @@ public void pullMessage(final PullRequest pullRequest) {
     }
 ```
 
-**逐段阅读抓手：**定位executePullRequestLater及延后时长；它是调度延期，不是立刻丢掉缓存消息。
+<strong>逐段阅读抓手：</strong>定位executePullRequestLater及延后时长；它是调度延期，不是立刻丢掉缓存消息。
 
 
 ## 14.2 Pull回调怎样连接到消费线程
@@ -4591,7 +5024,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultMQPushConsumerImpl.java · L353–L409](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java#L353-L409)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQPushConsumerImpl.java · L353–L409](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java#L353-L409)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 case FOUND:
@@ -4653,7 +5086,7 @@ case OFFSET_ILLEGAL:
 
 ```
 
-**逐段阅读抓手：**比较PullRequest.nextOffset与OffsetStore中的offset，确认两个位置不同。
+<strong>逐段阅读抓手：</strong>比较PullRequest.nextOffset与OffsetStore中的offset，确认两个位置不同。
 
 
 ## 14.3 并发消费如何切分批次
@@ -4672,7 +5105,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ConsumeMessageConcurrentlyService.java · L187–L225](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L187-L225)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L187–L225](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L187-L225)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void submitConsumeRequest(
@@ -4716,174 +5149,9 @@ public void submitConsumeRequest(
 @Override
 ```
 
-**逐段阅读抓手：**Executor拒绝不是业务Listener失败；看延迟重提如何保留消息列表。
+<strong>逐段阅读抓手：</strong>Executor拒绝不是业务Listener失败；看延迟重提如何保留消息列表。
 
 
-
-## 14.4 4.x与5.x对照：队列分配与消息分配：并发模型变化
-
-|对照维度|固定4.9.8|固定5.3.4|
-|---|---|---|
-|实现|经典PushConsumer在Rebalance中将Queue分配给Group成员，一个Queue在稳定经典集群分配里主要由一个成员持有。|5.x保留队列分配，并为对应消费类型提供消息粒度分配与POP确认：同一Queue的不同消息可被不同消费者处理。|
-
-**变化原因（官方说明与固定源码）：**官方负载均衡文档把两种策略区分开。消息粒度减少非顺序消费并发对Queue数量的直接约束，同时把在途消息确认与恢复更多交给服务端。
-
-**适用边界：**不是所有5.xConsumer都消息分配；策略取决于客户端和消费者类型，FIFO还有额外顺序约束。
-
-```mermaid
-flowchart TB
-subgraph V4["4.9.8经典队列分配"]
-Q1["Queue1"] --> C1["ConsumerA"]
-Q2["Queue2"] --> C2["ConsumerB"]
-end
-subgraph V5["5.x适用类型的消息分配"]
-Q3["同一Queue中的不同消息"] --> M1["消息1 / ConsumerA"]
-Q3 --> M2["消息2 / ConsumerB"]
-M1 --> ACK["每条确认与不可见恢复"]
-M2 --> ACK
-end
-```
-
-**4.9.8源码：**[RebalanceImpl.java · L239–L304](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java#L239-L304)，连续节选。
-
-```java
-private void rebalanceByTopic(final String topic, final boolean isOrder) {
-    switch (messageModel) {
-        case BROADCASTING: {
-            Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
-            if (mqSet != null) {
-                boolean changed = this.updateProcessQueueTableInRebalance(topic, mqSet, isOrder);
-                if (changed) {
-                    this.messageQueueChanged(topic, mqSet, mqSet);
-                    log.info("messageQueueChanged {} {} {} {}",
-                        consumerGroup,
-                        topic,
-                        mqSet,
-                        mqSet);
-                }
-            } else {
-                log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
-            }
-            break;
-        }
-        case CLUSTERING: {
-            Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
-            List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup);
-            if (null == mqSet) {
-                if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
-                    log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
-                }
-            }
-
-            if (null == cidAll) {
-                log.warn("doRebalance, {} {}, get consumer id list failed", consumerGroup, topic);
-            }
-
-            if (mqSet != null && cidAll != null) {
-                List<MessageQueue> mqAll = new ArrayList<MessageQueue>();
-                mqAll.addAll(mqSet);
-
-                Collections.sort(mqAll);
-                Collections.sort(cidAll);
-
-                AllocateMessageQueueStrategy strategy = this.allocateMessageQueueStrategy;
-
-                List<MessageQueue> allocateResult = null;
-                try {
-                    allocateResult = strategy.allocate(
-                        this.consumerGroup,
-                        this.mQClientFactory.getClientId(),
-                        mqAll,
-                        cidAll);
-                } catch (Throwable e) {
-                    log.error("AllocateMessageQueueStrategy.allocate Exception. allocateMessageQueueStrategyName={}", strategy.getName(),
-                        e);
-                    return;
-                }
-
-                Set<MessageQueue> allocateResultSet = new HashSet<MessageQueue>();
-                if (allocateResult != null) {
-                    allocateResultSet.addAll(allocateResult);
-                }
-
-                boolean changed = this.updateProcessQueueTableInRebalance(topic, allocateResultSet, isOrder);
-                if (changed) {
-                    log.info(
-                        "rebalanced result changed. allocateMessageQueueStrategyName={}, group={}, topic={}, clientId={}, mqAllSize={}, cidAllSize={}, rebalanceResultSize={}, rebalanceResultSet={}",
-                        strategy.getName(), consumerGroup, topic, this.mQClientFactory.getClientId(), mqSet.size(), cidAll.size(),
-                        allocateResultSet.size(), allocateResultSet);
-                    this.messageQueueChanged(topic, mqSet, allocateResultSet);
-```
-
-**5.3.4源码：**[PopMessageProcessor.java · L675–L728](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L675-L728)，连续节选。
-
-```java
-private CompletableFuture<Long> popMsgFromQueue(String topic, String attemptId, boolean isRetry,
-    GetMessageResult getMessageResult,
-    PopMessageRequestHeader requestHeader, int queueId, long restNum, int reviveQid,
-    Channel channel, long popTime, ExpressionMessageFilter messageFilter, StringBuilder startOffsetInfo,
-    StringBuilder msgOffsetInfo, StringBuilder orderCountInfo) {
-
-    String lockKey =
-        topic + PopAckConstants.SPLIT + requestHeader.getConsumerGroup() + PopAckConstants.SPLIT + queueId;
-    boolean isOrder = requestHeader.isOrder();
-    long offset;
-    try {
-        offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
-            false, lockKey, false);
-    } catch (ConsumeQueueException e) {
-        CompletableFuture<Long> failure = new CompletableFuture<>();
-        failure.completeExceptionally(e);
-        return failure;
-    }
-
-    CompletableFuture<Long> future = new CompletableFuture<>();
-    if (!queueLockManager.tryLock(lockKey)) {
-        try {
-            if (!requestHeader.isOrder()) {
-                restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
-            }
-            future.complete(restNum);
-        } catch (ConsumeQueueException e) {
-            future.completeExceptionally(e);
-        }
-        return future;
-    }
-
-    future.whenComplete((result, throwable) -> queueLockManager.unLock(lockKey));
-    if (isPopShouldStop(topic, requestHeader.getConsumerGroup(), queueId)) {
-        POP_LOGGER.warn("Too much msgs unacked, then stop popping. topic={}, group={}, queueId={}",
-            topic, requestHeader.getConsumerGroup(), queueId);
-        try {
-            restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
-            future.complete(restNum);
-        } catch (ConsumeQueueException e) {
-            future.completeExceptionally(e);
-        }
-        return future;
-    }
-
-    try {
-        offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
-            true, lockKey, true);
-
-        // Current requests would calculate the total number of messages
-        // waiting to be filtered for new message arrival notifications in
-        // the long-polling service, need disregarding the backlog in order
-        // consumption scenario. If rest message num including the blocked
-        // queue accumulation would lead to frequent unnecessary wake-ups
-```
-
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
-
-## 状态展开：四Queue、三成员到五成员的经典分配
-
-|状态|消费者A|消费者B|消费者C|消费者D/E|
-|---|---|---|---|---|
-|4Queue、3成员的可能平均结果|Q0/Q1|Q2|Q3|不存在|
-|4Queue、5成员的可能结果|Q0|Q1|Q2|D拿Q3，E无Queue|
-
-实际归属取决于稳定排序与分配策略，表仅示例。新增成员可能先触发心跳、成员查询和Rebalance，旧任务收尾与新任务启动存在窗口。POP消息分配不是这张经典Queue拥有者表，FIFO同样不能无条件放开并发。
 
 ## 本章纸面推演
 
@@ -4894,9 +5162,13 @@ private CompletableFuture<Long> popMsgFromQueue(String topic, String attemptId, 
 
 # 15. 并发消费：ackIndex、回送与安全位点
 
-**适用范围：**经典ConsumeMessageConcurrentlyService；CLUSTERING/BROADCASTING分开。
+<strong>适用范围：</strong>经典ConsumeMessageConcurrentlyService；CLUSTERING/BROADCASTING分开。
 
-**本章目标：**解释批次部分成功和乱序完成怎样影响进度。
+<strong>本章目标：</strong>解释批次部分成功和乱序完成怎样影响进度。
+
+> <strong>带着这个问题读：后面的消息先成功，位点怎样避免跳过前面的？</strong>
+>
+> 删除完成或已交接重试的记录，再以最小残留offset计算续读边界；远端提交是之后的动作。
 
 
 ## 15.1 ackIndex表示成功前缀
@@ -4906,15 +5178,16 @@ CONSUME_SUCCESS时ackIndex会被限制到本批最后下标；RECONSUME_LATER把
 如果Listener批量写多个业务记录，最好保证返回语义与实际提交对应。一次返回SUCCESS并不能证明回调内部每个业务副作用都完成了，尤其异步调用、部分事务和吞掉异常时。
 
 ```mermaid
-flowchart LR
-    N0["Listener结果"]
-    N1["SUCCESS约束ackIndex"]
-    N2["失败置为负一"]
-    N3["分出成功前缀与失败后缀"]
-    N0 --> N1 --> N2 --> N3
+flowchart TB
+ A["Listener返回状态"] --> S{"返回哪种状态?"}
+ S -- CONSUME_SUCCESS --> C["ackIndex限制到批次末尾"]
+ S -- RECONSUME_LATER --> F["ackIndex置为负一"]
+ C --> P["从0到ackIndex为成功前缀"]
+ F --> P
+ P --> R["后缀按MessageModel处理失败"]
 ```
 
-**源码对照：**[ConsumeMessageConcurrentlyService.java · L242–L275](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L242-L275)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L242–L275](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L242-L275)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void processConsumeResult(
@@ -4953,7 +5226,9 @@ public void processConsumeResult(
                 log.warn("BROADCASTING, the message consume failed, drop it, {}", msg.toString());
 ```
 
-**逐段阅读抓手：**ackIndex是批内数组下标，不是queueOffset；两个整数不要混用。
+<strong>逐段阅读抓手：</strong>ackIndex是批内数组下标，不是queueOffset；两个整数不要混用。
+
+<strong>把分支展开：</strong>若传给Listener的批次为[100,101,102]且返回SUCCESS、ackIndex=0，成功的是100，101与102进入失败后缀。若真实业务已经做完100和102、唯独101失败，ackIndex无法表达这个不连续集合；把它设成2会错误宣告101成功，设成0则可能重做102。需要让实际事务边界与返回语义一致，并让可能重做的副作用具备幂等约束。典型默认消费批次只有一条；这张表解释扩大批次后接口能表达什么，不声称默认会同时回调三条。
 
 
 ## 15.2 集群失败回送，广播路径不同
@@ -4973,7 +5248,7 @@ R -- 否 --> RET["保留本地并延后消费"]
 B --> OK
 ```
 
-**源码对照：**[ConsumeMessageConcurrentlyService.java · L272–L310](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L272-L310)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L272–L310](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L272-L310)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
         case BROADCASTING:
@@ -5017,7 +5292,7 @@ B --> OK
 }
 ```
 
-**逐段阅读抓手：**msgBackFailed会从本次可移除集合排除；先成功交接到重试存储，再让原队列进度前进。
+<strong>逐段阅读抓手：</strong>msgBackFailed会从本次可移除集合排除；先成功交接到重试存储，再让原队列进度前进。
 
 
 ## 15.3 removeMessage返回最早未完成位置
@@ -5036,7 +5311,7 @@ O2 --> H["101完成后缓存空"]
 H --> O3["位点可到103"]
 ```
 
-**源码对照：**[ProcessQueue.java · L187–L247](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java#L187-L247)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ProcessQueue.java · L187–L247](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java#L187-L247)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public long removeMessage(final List<MessageExt> msgs) {
@@ -5102,7 +5377,21 @@ public boolean isLocked() {
 }
 ```
 
-**逐段阅读抓手：**区分缓存删除、内存offset更新和远端offset提交三个动作。
+<strong>逐段阅读抓手：</strong>区分缓存删除、内存offset更新和远端offset提交三个动作。
+
+<strong>不变量与异常窗口：</strong>msgTreeMap按queueOffset有序；正常结果处理移除已完成或已交接记录，最小残留位置仍是未处理边界。treeMapLock保护删除、计数变化与返回边界的计算，不能把它理解为Listener业务代码也在这把锁内执行。拿到结果后，还要检查ProcessQueue是否dropped，再更新OffsetStore。撤销队列后的旧任务不能无条件拿旧缓存去覆盖新拥有者的进度；但dropped检查也不是把旧业务事务撤回的分布式锁。
+
+
+## 状态展开：五条消息的ackIndex推演
+
+假设批次为offset100、101、102、103、104，回调返回CONSUME_SUCCESS且ackIndex=1。
+
+- 批内下标0、1视为成功，对应100、101。
+- 下标2、3、4作为失败后缀，在集群分支尝试回送。
+- 假设103回送失败，其余失败消息交接成功，则103保留本地，安排延后。
+- 本次可移除100、101、102、104；安全位点受到103以及其他残留任务限制。
+
+ackIndex只表达成功前缀。若业务实际成功集合是100、102、104，就不能用一个ackIndex完整表达，应调整批次事务策略或返回保守失败并依赖幂等。
 
 
 ## 本章纸面推演
@@ -5114,9 +5403,13 @@ public boolean isLocked() {
 
 # 16. 顺序消费：路由、队列锁与失败阻塞
 
-**适用范围：**经典ConsumeMessageOrderlyService；POP FIFO另有实现。
+<strong>适用范围：</strong>经典ConsumeMessageOrderlyService；POP FIFO另有实现。
 
-**本章目标：**把生产顺序、存储顺序和处理顺序串成端到端约束。
+<strong>本章目标：</strong>把生产顺序、存储顺序和处理顺序串成端到端约束。
+
+> <strong>带着这个问题读：顺序消费为什么更容易被一条慢消息卡住？</strong>
+>
+> 同一顺序域的后续执行必须等待前序处理；失败本地重试维持顺序，也放大头部阻塞代价。
 
 
 ## 16.1 同队列消费串行靠哪些锁
@@ -5126,16 +5419,19 @@ ConsumeRequest使用MessageQueue对应的本地锁，结合ProcessQueue消费锁
 锁定Queue保障这一层的处理序列；它不能补救Producer此前跨队列发送或上游并发顺序已经错乱。重平衡、失败、锁续期和消费耗时都要同时纳入。
 
 ```mermaid
-flowchart LR
-    N0["同业务键固定Queue"]
-    N1["Broker处理权锁"]
-    N2["客户端同Queue锁"]
-    N3["从缓存取顺序批次"]
-    N4["Listener串行处理"]
-    N0 --> N1 --> N2 --> N3 --> N4
+flowchart TB
+ A["ConsumeRequest开始"] --> D{"ProcessQueue已dropped?"}
+ D -- 是 --> X["结束旧任务"]
+ D -- 否 --> L["进入本地MessageQueue对应monitor"]
+ L --> M{"广播或集群队列锁有效?"}
+ M -- 否 --> RET["稍后再锁定队列并消费"]
+ M -- 是 --> T["takeMessages取顺序批次"]
+ T --> C["ProcessQueue消费锁内再次检查dropped"]
+ C --> B["调用Listener并处理返回结果"]
+ B --> N["提交进度或本地回退/稍后重试"]
 ```
 
-**源码对照：**[ConsumeMessageOrderlyService.java · L410–L486](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L410-L486)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageOrderlyService.java · L410–L486](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L410-L486)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 class ConsumeRequest implements Runnable {
@@ -5217,7 +5513,7 @@ class ConsumeRequest implements Runnable {
                             ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.executeHookBefore(consumeMessageContext);
 ```
 
-**逐段阅读抓手：**顺序锁粒度是MessageQueue；不同Queue可以并发消费。
+<strong>逐段阅读抓手：</strong>顺序锁粒度是MessageQueue；不同Queue可以并发消费。
 
 
 ## 16.2 成功提交，失败先放回本地
@@ -5236,7 +5532,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ConsumeMessageOrderlyService.java · L274–L344](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L274-L344)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageOrderlyService.java · L274–L344](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L274-L344)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean processConsumeResult(
@@ -5312,7 +5608,7 @@ public boolean processConsumeResult(
     return continueConsume;
 ```
 
-**逐段阅读抓手：**对照context.isAutoCommit两套switch；不要把并发消费返回枚举搬到顺序Listener。
+<strong>逐段阅读抓手：</strong>对照context.isAutoCommit两套switch；不要把并发消费返回枚举搬到顺序Listener。
 
 
 ## 16.3 顺序重试次数不是固定16次
@@ -5331,7 +5627,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ConsumeMessageOrderlyService.java · L351–L394](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L351-L394)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageOrderlyService.java · L351–L394](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L351-L394)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private int getMaxReconsumeTimes() {
@@ -5380,211 +5676,18 @@ public boolean sendMessageBack(final MessageExt msg) {
         return true;
 ```
 
-**逐段阅读抓手：**这里直接给出getMaxReconsumeTimes和checkReconsumeTimes；结合后面的sendMessageBack看DLQ转交。
+<strong>逐段阅读抓手：</strong>这里直接给出getMaxReconsumeTimes和checkReconsumeTimes；结合后面的sendMessageBack看DLQ转交。
 
 
-## 状态展开：五条消息的ackIndex推演
-
-假设批次为offset100、101、102、103、104，回调返回CONSUME_SUCCESS且ackIndex=1。
-
-- 批内下标0、1视为成功，对应100、101。
-- 下标2、3、4作为失败后缀，在集群分支尝试回送。
-- 假设103回送失败，其余失败消息交接成功，则103保留本地，安排延后。
-- 本次可移除100、101、102、104；安全位点受到103以及其他残留任务限制。
-
-ackIndex只表达成功前缀。若业务实际成功集合是100、102、104，就不能用一个ackIndex完整表达，应调整批次事务策略或返回保守失败并依赖幂等。
-
-## 本章纸面推演
-
-同订单的创建、支付、关闭被发往不同Queue时，即使Listener是顺序型也不能提供订单内顺序。固定同一Queue后，失败暂停会阻塞后续消息，因此一个毒消息会拖住该队列。
-
-
-<a id="chapter-17"></a>
-
-# 17. 消费位点：内存、Broker、本地文件与重置
-
-**适用范围：**经典OffsetStore；POP进度不是同一模型。
-
-**本章目标：**读懂持久化周期与宕机重复窗口。
-
-
-## 17.1 远端位点也先在客户端内存更新
-
-updateOffset先修改客户端offsetTable；increaseOnly控制是否仅递增。readOffset则可以按内存、存储或内存优先模式读取。表中写入并不代表已经发往Broker。
-
-这层分离允许批量、周期性提交减轻网络负担，也引入崩溃恢复时的重放窗口。offset没有天然绑定业务数据库事务，端到端可靠性必须在应用层设计。
-
-```mermaid
-flowchart LR
-    N0["业务完成或安全交接"]
-    N1["updateOffset内存表"]
-    N2["定期或显式persist"]
-    N3["发送更新请求"]
-    N4["Broker保存消费进度"]
-    N0 --> N1 --> N2 --> N3 --> N4
-```
-
-**源码对照：**[RemoteBrokerOffsetStore.java · L59–L83](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L59-L83)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
-
-```java
-public void updateOffset(MessageQueue mq, long offset, boolean increaseOnly) {
-    if (mq != null) {
-        ControllableOffset offsetOld = this.offsetTable.get(mq);
-        if (null == offsetOld) {
-            offsetOld = this.offsetTable.putIfAbsent(mq, new ControllableOffset(offset));
-        }
-
-        if (null != offsetOld) {
-            if (increaseOnly) {
-                offsetOld.update(offset, true);
-            } else {
-                offsetOld.update(offset);
-            }
-        }
-    }
-}
-
-@Override
-public void updateAndFreezeOffset(MessageQueue mq, long offset) {
-    if (mq != null) {
-        this.offsetTable.computeIfAbsent(mq, k -> new ControllableOffset(offset))
-            .updateAndFreeze(offset);
-    }
-}
-
-```
-
-**逐段阅读抓手：**increaseOnly参数保护递增；重置位点是另一个管理动作，不能靠普通递增更新实现回退。
-
-
-## 17.2 persistAll与撤销队列的清理
-
-persistAll遍历当前位点表，把仍属于当前分配的Queue提交到Broker，并清理不再属于自己的表项。底层可能使用单向更新请求，客户端没有逐次等待持久化确认。
-
-Broker内存元数据更新与文件或其他后端的落盘也要分开；其持久化配置与HA模式不能仅从客户端persist这个名字推断。读到persist不应立刻写“已强一致持久化”。
-
-```mermaid
-flowchart LR
-    N0["遍历offsetTable"]
-    N1["属于当前分配则上报"]
-    N2["不属于则清理"]
-    N3["Broker更新元数据"]
-    N4["后端按实现保存"]
-    N0 --> N1 --> N2 --> N3 --> N4
-```
-
-**源码对照：**[RemoteBrokerOffsetStore.java · L122–L159](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L122-L159)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
-
-```java
-public void persistAll(Set<MessageQueue> mqs) {
-    if (null == mqs || mqs.isEmpty())
-        return;
-
-    final HashSet<MessageQueue> unusedMQ = new HashSet<>();
-
-    for (Map.Entry<MessageQueue, ControllableOffset> entry : this.offsetTable.entrySet()) {
-        MessageQueue mq = entry.getKey();
-        ControllableOffset offset = entry.getValue();
-        if (offset != null) {
-            if (mqs.contains(mq)) {
-                try {
-                    this.updateConsumeOffsetToBroker(mq, offset.getOffset());
-                    log.info("[persistAll] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}",
-                        this.groupName,
-                        this.mQClientFactory.getClientId(),
-                        mq,
-                        offset.getOffset());
-                } catch (Exception e) {
-                    log.error("updateConsumeOffsetToBroker exception, " + mq.toString(), e);
-                }
-            } else {
-                unusedMQ.add(mq);
-            }
-        }
-    }
-
-    if (!unusedMQ.isEmpty()) {
-        for (MessageQueue mq : unusedMQ) {
-            this.offsetTable.remove(mq);
-            log.info("remove unused mq, {}, {}", mq, this.groupName);
-        }
-    }
-}
-
-@Override
-public void persist(MessageQueue mq) {
-    ControllableOffset offset = this.offsetTable.get(mq);
-```
-
-**逐段阅读抓手：**看updateConsumeOffsetToBroker的isOneway参数和调用点。
-
-
-## 17.3 经典广播常用本地文件位点
-
-经典广播消费者通过LocalFileOffsetStore保存自己的进度，而集群模式一般通过RemoteBrokerOffsetStore共享Group队列进度。读取本地备份、客户端身份以及文件保存位置影响广播消费者的重启行为。
-
-“从最后位置开始”主要影响没有已有有效位点的初始化；已有消费进度通常优先使用。改变consumeFromWhere并不等于把一个已有Group重置到最新或最早位置。
-
-```mermaid
-flowchart LR
-    N0["经典广播每个实例独立消费"]
-    N1["本地offset表"]
-    N2["序列化并保存本地文件"]
-    N3["重启读取原进度"]
-    N0 --> N1 --> N2 --> N3
-```
-
-**源码对照：**[LocalFileOffsetStore.java · L140–L172](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/LocalFileOffsetStore.java#L140-L172)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
-
-```java
-public void persistAll(Set<MessageQueue> mqs) {
-    if (null == mqs || mqs.isEmpty()) {
-        return;
-    }
-    OffsetSerializeWrapper offsetSerializeWrapper = null;
-    try {
-        offsetSerializeWrapper = readLocalOffset();
-    } catch (MQClientException e) {
-        log.error("readLocalOffset exception", e);
-        return;
-    }
-
-    if (offsetSerializeWrapper == null) {
-        offsetSerializeWrapper = new OffsetSerializeWrapper();
-    }
-    for (Map.Entry<MessageQueue, ControllableOffset> entry : this.offsetTable.entrySet()) {
-        if (mqs.contains(entry.getKey())) {
-            AtomicLong offset = new AtomicLong(entry.getValue().getOffset());
-            offsetSerializeWrapper.getOffsetTable().put(entry.getKey(), offset);
-        }
-    }
-
-    String jsonString = offsetSerializeWrapper.toJson(true);
-    if (jsonString != null) {
-        try {
-            MixAll.string2File(jsonString, this.storePath);
-        } catch (IOException e) {
-            log.error("persistAll consumer offset Exception, " + this.storePath, e);
-        }
-    }
-}
-
-@Override
-```
-
-**逐段阅读抓手：**看persistAll的过滤与文件写入；读本地进度失败与找不到远程Group位点不同。
-
-
-
-## 17.4 4.x与5.x对照：顺序消费保障延续，POP FIFO不能靠旧锁流程说明
+## 16.4 4.x与5.x对照：顺序消费保障延续，POP FIFO不能靠旧锁流程说明
 
 |对照维度|固定4.9.8|固定5.3.4|
 |---|---|---|
 |实现|4.9.8顺序消费依赖Broker Queue锁、客户端同Queue锁、顺序缓存commit与失败暂停。|5.3.4经典顺序服务仍保留；POP顺序还维护Broker侧消费顺序状态与确认时间等信息。|
 
-**变化原因（源码分析）：**【源码分析】不同协议的处理权与确认模型不同，需对应维护顺序阻塞状态。业务键路由与外部业务幂等依然是应用责任。
+<strong>变化原因（源码分析）：</strong>【源码分析】不同协议的处理权与确认模型不同，需对应维护顺序阻塞状态。业务键路由与外部业务幂等依然是应用责任。
 
-**适用边界：**5.x新增FIFO相关能力不意味着所有事件自动全局有序；旧顺序服务默认重试上限也不能套到POP。
+<strong>适用边界：</strong>5.x新增FIFO相关能力不意味着所有事件自动全局有序；旧顺序服务默认重试上限也不能套到POP。
 
 ```mermaid
 flowchart TB
@@ -5597,7 +5700,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[ConsumeMessageOrderlyService.java · L272–L318](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L272-L318)，连续节选。
+<strong>4.9.8源码：</strong>[ConsumeMessageOrderlyService.java · L272–L318](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L272-L318)，连续节选。
 
 ```java
 public boolean processConsumeResult(
@@ -5649,7 +5752,7 @@ public boolean processConsumeResult(
                     consumeRequest.getMessageQueue(),
 ```
 
-**5.3.4源码：**[ConsumerOrderInfoManager.java · L143–L185](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/offset/ConsumerOrderInfoManager.java#L143-L185)，连续节选。
+<strong>5.3.4源码：</strong>[ConsumerOrderInfoManager.java · L143–L185](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/offset/ConsumerOrderInfoManager.java#L143-L185)，连续节选。
 
 ```java
 public boolean checkBlock(String attemptId, String topic, String group, int queueId, long invisibleTime) {
@@ -5697,9 +5800,196 @@ public long commitAndNext(String topic, String group, int queueId, long queueOff
     OrderInfo orderInfo = qs.get(queueId);
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
 
-## 17.5 5.xFIFO消息组与经典固定Queue的衔接
+
+## 本章纸面推演
+
+同订单的创建、支付、关闭被发往不同Queue时，即使Listener是顺序型也不能提供订单内顺序。固定同一Queue后，失败暂停会阻塞后续消息，因此一个毒消息会拖住该队列。
+
+
+<a id="chapter-17"></a>
+
+# 17. 消费位点：内存、Broker、本地文件与重置
+
+<strong>适用范围：</strong>经典OffsetStore；POP进度不是同一模型。
+
+<strong>本章目标：</strong>读懂持久化周期与宕机重复窗口。
+
+> <strong>带着这个问题读：内存位点已更新，重启为何还可能重复？</strong>
+>
+> 内存更新与Broker或本地文件持久化分离，宕机窗口里重启只能依赖已保存的进度。
+
+
+## 17.1 远端位点也先在客户端内存更新
+
+updateOffset先修改客户端offsetTable；increaseOnly控制是否仅递增。readOffset则可以按内存、存储或内存优先模式读取。表中写入并不代表已经发往Broker。
+
+这层分离允许批量、周期性提交减轻网络负担，也引入崩溃恢复时的重放窗口。offset没有天然绑定业务数据库事务，端到端可靠性必须在应用层设计。
+
+```mermaid
+flowchart LR
+    N0["业务完成或安全交接"]
+    N1["updateOffset内存表"]
+    N2["定期或显式persist"]
+    N3["发送更新请求"]
+    N4["Broker保存消费进度"]
+    N0 --> N1 --> N2 --> N3 --> N4
+```
+
+<strong>源码对照：</strong>[RemoteBrokerOffsetStore.java · L59–L83](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L59-L83)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+
+```java
+public void updateOffset(MessageQueue mq, long offset, boolean increaseOnly) {
+    if (mq != null) {
+        ControllableOffset offsetOld = this.offsetTable.get(mq);
+        if (null == offsetOld) {
+            offsetOld = this.offsetTable.putIfAbsent(mq, new ControllableOffset(offset));
+        }
+
+        if (null != offsetOld) {
+            if (increaseOnly) {
+                offsetOld.update(offset, true);
+            } else {
+                offsetOld.update(offset);
+            }
+        }
+    }
+}
+
+@Override
+public void updateAndFreezeOffset(MessageQueue mq, long offset) {
+    if (mq != null) {
+        this.offsetTable.computeIfAbsent(mq, k -> new ControllableOffset(offset))
+            .updateAndFreeze(offset);
+    }
+}
+
+```
+
+<strong>逐段阅读抓手：</strong>increaseOnly参数保护递增；重置位点是另一个管理动作，不能靠普通递增更新实现回退。
+
+
+## 17.2 persistAll与撤销队列的清理
+
+persistAll遍历当前位点表，把仍属于当前分配的Queue提交到Broker，并清理不再属于自己的表项。底层可能使用单向更新请求，客户端没有逐次等待持久化确认。
+
+Broker内存元数据更新与文件或其他后端的落盘也要分开；其持久化配置与HA模式不能仅从客户端persist这个名字推断。读到persist不应立刻写“已强一致持久化”。
+
+```mermaid
+flowchart LR
+    N0["遍历offsetTable"]
+    N1["属于当前分配则上报"]
+    N2["不属于则清理"]
+    N3["Broker更新元数据"]
+    N4["后端按实现保存"]
+    N0 --> N1 --> N2 --> N3 --> N4
+```
+
+<strong>源码对照：</strong>[RemoteBrokerOffsetStore.java · L122–L159](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L122-L159)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+
+```java
+public void persistAll(Set<MessageQueue> mqs) {
+    if (null == mqs || mqs.isEmpty())
+        return;
+
+    final HashSet<MessageQueue> unusedMQ = new HashSet<>();
+
+    for (Map.Entry<MessageQueue, ControllableOffset> entry : this.offsetTable.entrySet()) {
+        MessageQueue mq = entry.getKey();
+        ControllableOffset offset = entry.getValue();
+        if (offset != null) {
+            if (mqs.contains(mq)) {
+                try {
+                    this.updateConsumeOffsetToBroker(mq, offset.getOffset());
+                    log.info("[persistAll] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}",
+                        this.groupName,
+                        this.mQClientFactory.getClientId(),
+                        mq,
+                        offset.getOffset());
+                } catch (Exception e) {
+                    log.error("updateConsumeOffsetToBroker exception, " + mq.toString(), e);
+                }
+            } else {
+                unusedMQ.add(mq);
+            }
+        }
+    }
+
+    if (!unusedMQ.isEmpty()) {
+        for (MessageQueue mq : unusedMQ) {
+            this.offsetTable.remove(mq);
+            log.info("remove unused mq, {}, {}", mq, this.groupName);
+        }
+    }
+}
+
+@Override
+public void persist(MessageQueue mq) {
+    ControllableOffset offset = this.offsetTable.get(mq);
+```
+
+<strong>逐段阅读抓手：</strong>看updateConsumeOffsetToBroker的isOneway参数和调用点。
+
+
+## 17.3 经典广播常用本地文件位点
+
+经典广播消费者通过LocalFileOffsetStore保存自己的进度，而集群模式一般通过RemoteBrokerOffsetStore共享Group队列进度。读取本地备份、客户端身份以及文件保存位置影响广播消费者的重启行为。
+
+“从最后位置开始”主要影响没有已有有效位点的初始化；已有消费进度通常优先使用。改变consumeFromWhere并不等于把一个已有Group重置到最新或最早位置。
+
+```mermaid
+flowchart LR
+    N0["经典广播每个实例独立消费"]
+    N1["本地offset表"]
+    N2["序列化并保存本地文件"]
+    N3["重启读取原进度"]
+    N0 --> N1 --> N2 --> N3
+```
+
+<strong>源码对照：</strong>[LocalFileOffsetStore.java · L140–L172](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/LocalFileOffsetStore.java#L140-L172)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+
+```java
+public void persistAll(Set<MessageQueue> mqs) {
+    if (null == mqs || mqs.isEmpty()) {
+        return;
+    }
+    OffsetSerializeWrapper offsetSerializeWrapper = null;
+    try {
+        offsetSerializeWrapper = readLocalOffset();
+    } catch (MQClientException e) {
+        log.error("readLocalOffset exception", e);
+        return;
+    }
+
+    if (offsetSerializeWrapper == null) {
+        offsetSerializeWrapper = new OffsetSerializeWrapper();
+    }
+    for (Map.Entry<MessageQueue, ControllableOffset> entry : this.offsetTable.entrySet()) {
+        if (mqs.contains(entry.getKey())) {
+            AtomicLong offset = new AtomicLong(entry.getValue().getOffset());
+            offsetSerializeWrapper.getOffsetTable().put(entry.getKey(), offset);
+        }
+    }
+
+    String jsonString = offsetSerializeWrapper.toJson(true);
+    if (jsonString != null) {
+        try {
+            MixAll.string2File(jsonString, this.storePath);
+        } catch (IOException e) {
+            log.error("persistAll consumer offset Exception, " + this.storePath, e);
+        }
+    }
+}
+
+@Override
+```
+
+<strong>逐段阅读抓手：</strong>看persistAll的过滤与文件写入；读本地进度失败与找不到远程Group位点不同。
+
+
+
+## 17.4 5.xFIFO消息组与经典固定Queue的衔接
 
 5.xgRPC消息使用MessageGroup表达需要共同顺序的消息组，Proxy把它转换为消息属性并参与相应发送/消费处理。同Group顺序的业务建模与经典MessageQueueSelector固定队列有联系，但API与协议状态不相同。
 
@@ -5717,7 +6007,7 @@ C -. "不同职责" .-> B
 ```
 
 
-**5.3.4源码对照：**[SendMessageActivity.java · L271–L288](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/grpc/v2/producer/SendMessageActivity.java#L271-L288)，连续节选。
+<strong>5.3.4源码对照：</strong>[SendMessageActivity.java · L271–L288](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/grpc/v2/producer/SendMessageActivity.java#L271-L288)，连续节选。
 
 ```java
 String messageGroup = message.getSystemProperties().getMessageGroup();
@@ -5749,9 +6039,13 @@ if (StringUtils.isNotBlank(bornHost)) {
 
 # 18. 重试与死信：把失败责任安全交接
 
-**适用范围：**经典回送路径；POP重试另见POP章。
+<strong>适用范围：</strong>经典回送路径；POP重试另见POP章。
 
-**本章目标：**区分生产重试、消费重试和DLQ人工处置。
+<strong>本章目标：</strong>区分生产重试、消费重试和DLQ人工处置。
+
+> <strong>带着这个问题读：业务失败后原位点还能前进，消息是谁负责了？</strong>
+>
+> 集群并发路径在回送重试成功后交接责任；回送失败的消息保留本地，DLQ则需要另行运营处置。
 
 
 ## 18.1 回送失败还有兜底发送
@@ -5770,7 +6064,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultMQPushConsumerImpl.java · L759–L787](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java#L759-L787)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQPushConsumerImpl.java · L759–L787](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java#L759-L787)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private void sendMessageBack(MessageExt msg, int delayLevel, final String brokerName, final MessageQueue mq)
@@ -5804,7 +6098,7 @@ private void sendMessageBack(MessageExt msg, int delayLevel, final String broker
 private void sendMessageBackAsNormalMessage(MessageExt msg) throws  RemotingException, MQBrokerException, InterruptedException, MQClientException {
 ```
 
-**逐段阅读抓手：**继续读sendMessageBackAsNormalMessage；客户端兜底不是无条件成功。
+<strong>逐段阅读抓手：</strong>继续读sendMessageBackAsNormalMessage；客户端兜底不是无条件成功。
 
 
 ## 18.2 Broker如何生成重试或死信消息
@@ -5823,7 +6117,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[AbstractSendMessageProcessor.java · L92–L164](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/AbstractSendMessageProcessor.java#L92-L164)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[AbstractSendMessageProcessor.java · L92–L164](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/AbstractSendMessageProcessor.java#L92-L164)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 protected RemotingCommand consumerSendMsgBack(final ChannelHandlerContext ctx, final RemotingCommand request)
@@ -5901,7 +6195,7 @@ protected RemotingCommand consumerSendMsgBack(final ChannelHandlerContext ctx, f
 
 ```
 
-**逐段阅读抓手：**区分reconsumeTimes加一、最大次数与delayLevel；默认值只对当前分支适用。
+<strong>逐段阅读抓手：</strong>区分reconsumeTimes加一、最大次数与delayLevel；默认值只对当前分支适用。
 
 
 ## 18.3 DLQ与普通消费位点不互相替代
@@ -5920,7 +6214,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[SendMessageProcessor.java · L180–L239](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L180-L239)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[SendMessageProcessor.java · L180–L239](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L180-L239)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, RemotingCommand response,
@@ -5985,7 +6279,7 @@ private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, Remoti
     return true;
 ```
 
-**逐段阅读抓手：**物理存储身份变化与业务事件身份不一致，这是重复处理设计的重要边界。
+<strong>逐段阅读抓手：</strong>物理存储身份变化与业务事件身份不一致，这是重复处理设计的重要边界。
 
 
 ## 本章纸面推演
@@ -5997,9 +6291,9 @@ private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, Remoti
 
 # 19. 消息过滤：Tag、SQL与两阶段判断
 
-**适用范围：**经典Broker过滤与客户端结果处理。
+<strong>适用范围：</strong>经典Broker过滤与客户端结果处理。
 
-**本章目标：**避免把哈希/Bloom预筛当成最终精确匹配。
+<strong>本章目标：</strong>避免把哈希/Bloom预筛当成最终精确匹配。
 
 
 ## 19.1 CQ预过滤为何必须保守
@@ -6018,7 +6312,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ExpressionMessageFilter.java · L60–L114](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/filter/ExpressionMessageFilter.java#L60-L114)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ExpressionMessageFilter.java · L60–L114](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/filter/ExpressionMessageFilter.java#L60-L114)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean isMatchedByConsumeQueue(Long tagsCode, ConsumeQueueExt.CqExtUnit cqExtUnit) {
@@ -6078,7 +6372,7 @@ public boolean isMatchedByConsumeQueue(Long tagsCode, ConsumeQueueExt.CqExtUnit 
 }
 ```
 
-**逐段阅读抓手：**看缺少FilterData、扩展信息和Bloom有效性时的返回值；保守返回true有其正确性目的。
+<strong>逐段阅读抓手：</strong>看缺少FilterData、扩展信息和Bloom有效性时的返回值；保守返回true有其正确性目的。
 
 
 ## 19.2 属性表达式在CommitLog阶段计算
@@ -6096,7 +6390,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[ExpressionMessageFilter.java · L117–L161](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/filter/ExpressionMessageFilter.java#L117-L161)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ExpressionMessageFilter.java · L117–L161](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/filter/ExpressionMessageFilter.java#L117-L161)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
     public boolean isMatchedByCommitLog(ByteBuffer msgBuffer, Map<String, String> properties) {
@@ -6146,7 +6440,7 @@ flowchart LR
 }
 ```
 
-**逐段阅读抓手：**区分Body与properties；SQL过滤不是对任意消息Body做数据库SQL查询。
+<strong>逐段阅读抓手：</strong>区分Body与properties；SQL过滤不是对任意消息Body做数据库SQL查询。
 
 
 ## 19.3 经典客户端还会核对真实Tag
@@ -6165,7 +6459,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[PullAPIWrapper.java · L73–L145](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/PullAPIWrapper.java#L73-L145)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PullAPIWrapper.java · L73–L145](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/PullAPIWrapper.java#L73-L145)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult,
@@ -6243,7 +6537,7 @@ public PullResult processPullResult(final MessageQueue mq, final PullResult pull
         }
 ```
 
-**逐段阅读抓手：**观察tagsSet.contains(msg.getTags())；不要把预筛选返回的候选全部当成最终匹配。
+<strong>逐段阅读抓手：</strong>观察tagsSet.contains(msg.getTags())；不要把预筛选返回的候选全部当成最终匹配。
 
 
 ## 本章纸面推演
@@ -6255,9 +6549,13 @@ Tag字符串不同但hash碰撞时，Broker CQ预过滤可能认为匹配，经�
 
 # 20. 事务消息：half、op、提交与回查
 
-**适用范围：**经典事务消息实现；不是数据库与MQ的XA。
+<strong>适用范围：</strong>经典事务消息实现；不是数据库与MQ的XA。
 
-**本章目标：**用最终确认和回查连接业务事务与消息可见性。
+<strong>本章目标：</strong>用最终确认和回查连接业务事务与消息可见性。
+
+> <strong>带着这个问题读：Producer提交本地事务后失联，Broker怎么决定？</strong>
+>
+> 依据half/op状态发起回查，由Producer查询持久化业务事实返回结果；Broker不直接读取应用数据库。
 
 
 ## 20.1 Producer先发半消息再执行本地事务
@@ -6287,7 +6585,7 @@ P-->>B: 返回明确或仍未知状态
 end
 ```
 
-**源码对照：**[DefaultMQProducerImpl.java · L1433–L1513](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L1433-L1513)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L1433–L1513](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L1433-L1513)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public TransactionSendResult sendMessageInTransaction(final Message msg,
@@ -6373,7 +6671,7 @@ public TransactionSendResult sendMessageInTransaction(final Message msg,
 }
 ```
 
-**逐段阅读抓手：**源码枚举UNKNOW拼写保留；不要人为改成UNKNOWN导致无法对照。
+<strong>逐段阅读抓手：</strong>源码枚举UNKNOW拼写保留；不要人为改成UNKNOWN导致无法对照。
 
 
 ## 20.2 half怎样被改写到内部Topic
@@ -6391,7 +6689,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[TransactionalMessageBridge.java · L219–L240](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageBridge.java#L219-L240)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[TransactionalMessageBridge.java · L219–L240](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageBridge.java#L219-L240)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private MessageExtBrokerInner parseHalfMessageInner(MessageExtBrokerInner msgInner) {
@@ -6418,7 +6716,7 @@ public PutMessageResult putMessageReturnResult(MessageExtBrokerInner messageInne
         this.brokerController.getBrokerStatsManager().incTopicPutSize(messageInner.getTopic(),
 ```
 
-**逐段阅读抓手：**半消息原始queueOffset与提交后的业务queueOffset属于不同逻辑队列。
+<strong>逐段阅读抓手：</strong>半消息原始queueOffset与提交后的业务queueOffset属于不同逻辑队列。
 
 
 ## 20.3 提交先写最终消息，再标记half已处理
@@ -6428,16 +6726,17 @@ EndTransactionProcessor校验prepare消息与请求信息，构造最终消息�
 “删除半消息”通常是op协议标记，不是即时从CommitLog中物理挖掉字节。追加式日志的清理以文件保留周期为主。
 
 ```mermaid
-flowchart LR
-    N0["校验prepare关联关系"]
-    N1["恢复真实消息"]
-    N2["存储最终消息"]
-    N3["记录half已处理"]
-    N4["业务CQ使其可见"]
-    N0 --> N1 --> N2 --> N3 --> N4
+flowchart TB
+ A["收到事务COMMIT请求"] --> H["定位并校验half"]
+ H --> F["恢复业务Topic，构造最终消息"]
+ F --> W["sendFinalMessage写入Store"]
+ W --> S{"最终消息写入结果是否成功?"}
+ S -- 是 --> O["deletePrepareMessage记录op"]
+ S -- 否 --> E["返回失败，不提前标记half处理完成"]
+ O --> V["后续检查用op跳过已处理half"]
 ```
 
-**源码对照：**[EndTransactionProcessor.java · L130–L193](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/EndTransactionProcessor.java#L130-L193)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[EndTransactionProcessor.java · L130–L193](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/EndTransactionProcessor.java#L130-L193)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
     if (MessageSysFlag.TRANSACTION_COMMIT_TYPE == requestHeader.getCommitOrRollback()) {
@@ -6506,7 +6805,7 @@ flowchart LR
  * And the commit/rollback request whose validity period exceeds CheckImmunityTimeInSeconds and is not checked back will be processed and failed
 ```
 
-**逐段阅读抓手：**看sendFinalMessage结果与deletePrepareMessage的先后；失败不能提前当作提交成功。
+<strong>逐段阅读抓手：</strong>看sendFinalMessage结果与deletePrepareMessage的先后；失败不能提前当作提交成功。
 
 
 ## 20.4 回查怎样跳过已有op并延后未知状态
@@ -6525,7 +6824,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[TransactionalMessageServiceImpl.java · L162–L249](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L162-L249)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[TransactionalMessageServiceImpl.java · L162–L249](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L162-L249)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void check(long transactionTimeout, int transactionCheckMax,
@@ -6618,7 +6917,7 @@ public void check(long transactionTimeout, int transactionCheckMax,
                                 msgExt.getMsgId(),
 ```
 
-**逐段阅读抓手：**阅读removeMap、checkOffset与opOffset推进；跳过不等于从物理日志删除。
+<strong>逐段阅读抓手：</strong>阅读removeMap、checkOffset与opOffset推进；跳过不等于从物理日志删除。
 
 
 
@@ -6628,9 +6927,9 @@ public void check(long transactionTimeout, int transactionCheckMax,
 |---|---|---|
 |实现|4.9.8已使用half消息、op处理标记和回查来协调Producer本地事务与消息可见性。|5.3.4保留核心协议，也有Proxy/gRPC入口与相关批处理、指标等演进；不应因类或服务移动就当作全新事务语义。|
 
-**变化原因（源码分析）：**【源码分析】兼容既有存储协议与应用事务监听，同时适配新的协议入口；真正重要的持久化事务结果与幂等边界未改变。
+<strong>变化原因（源码分析）：</strong>【源码分析】兼容既有存储协议与应用事务监听，同时适配新的协议入口；真正重要的持久化事务结果与幂等边界未改变。
 
-**适用边界：**两边都不能替任意消费者数据库提供XA或端到端Exactly Once。
+<strong>适用边界：</strong>两边都不能替任意消费者数据库提供XA或端到端Exactly Once。
 
 ```mermaid
 flowchart TB
@@ -6643,7 +6942,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[TransactionalMessageBridge.java · L203–L224](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageBridge.java#L203-L224)，连续节选。
+<strong>4.9.8源码：</strong>[TransactionalMessageBridge.java · L203–L224](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageBridge.java#L203-L224)，连续节选。
 
 ```java
 private MessageExtBrokerInner parseHalfMessageInner(MessageExtBrokerInner msgInner) {
@@ -6670,7 +6969,7 @@ public boolean putOpMessage(MessageExt messageExt, String opType) {
 public PutMessageResult putMessageReturnResult(MessageExtBrokerInner messageInner) {
 ```
 
-**5.3.4源码：**[TransactionalMessageBridge.java · L219–L240](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageBridge.java#L219-L240)，连续节选。
+<strong>5.3.4源码：</strong>[TransactionalMessageBridge.java · L219–L240](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageBridge.java#L219-L240)，连续节选。
 
 ```java
 private MessageExtBrokerInner parseHalfMessageInner(MessageExtBrokerInner msgInner) {
@@ -6697,7 +6996,7 @@ public PutMessageResult putMessageReturnResult(MessageExtBrokerInner messageInne
         this.brokerController.getBrokerStatsManager().incTopicPutSize(messageInner.getTopic(),
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
 
 ## 状态展开：事务故障表：判断依赖哪个事实
 
@@ -6721,9 +7020,13 @@ public PutMessageResult putMessageReturnResult(MessageExtBrokerInner messageInne
 
 # 21. 延迟与定时消息：两套调度路径
 
-**适用范围：**经典delayLevel与TimerMessageStore；固定5.3.4。
+<strong>适用范围：</strong>经典delayLevel与TimerMessageStore；固定5.3.4。
 
-**本章目标：**分清相对延迟等级和时间轮定时消息。
+<strong>本章目标：</strong>分清相对延迟等级和时间轮定时消息。
+
+> <strong>带着这个问题读：定时时间到了，为什么消费者还没完成处理？</strong>
+>
+> 到期调度、恢复业务Topic、CQ分发、取数和业务执行各有耗时；到期时间不是业务完成的硬实时期限。
 
 
 ## 21.1 delayLevel映射到内部延迟队列
@@ -6742,7 +7045,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ScheduleMessageService.java · L300–L332](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/schedule/ScheduleMessageService.java#L300-L332)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ScheduleMessageService.java · L300–L332](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/schedule/ScheduleMessageService.java#L300-L332)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean parseDelayLevel() {
@@ -6780,7 +7083,7 @@ public boolean parseDelayLevel() {
 }
 ```
 
-**逐段阅读抓手：**queueId与delayLevel通常通过加减一转换；等级编号不是延迟秒数。
+<strong>逐段阅读抓手：</strong>queueId与delayLevel通常通过加减一转换；等级编号不是延迟秒数。
 
 
 ## 21.2 延迟到期不是直接给消费者推送
@@ -6799,7 +7102,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ScheduleMessageService.java · L334–L371](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/schedule/ScheduleMessageService.java#L334-L371)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ScheduleMessageService.java · L334–L371](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/schedule/ScheduleMessageService.java#L334-L371)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private MessageExtBrokerInner messageTimeUp(MessageExt msgExt) {
@@ -6842,7 +7145,7 @@ class DeliverDelayedMessageTimerTask implements Runnable {
         this.delayLevel = delayLevel;
 ```
 
-**逐段阅读抓手：**看REAL_TOPIC、REAL_QUEUE_ID等属性的恢复；它们是内部目的地信息。
+<strong>逐段阅读抓手：</strong>看REAL_TOPIC、REAL_QUEUE_ID等属性的恢复；它们是内部目的地信息。
 
 
 ## 21.3 TimerWheel和TimerLog怎样组织到期任务
@@ -6861,7 +7164,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[TimerMessageStore.java · L830–L873](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java#L830-L873)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[TimerMessageStore.java · L830–L873](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java#L830-L873)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean doEnqueue(long offsetPy, int sizePy, long delayedTime, MessageExt messageExt) {
@@ -6910,7 +7213,7 @@ public boolean doEnqueue(long offsetPy, int sizePy, long delayedTime, MessageExt
 @SuppressWarnings("NonAtomicOperationOnVolatileField")
 ```
 
-**逐段阅读抓手：**观察delayedTime的格式化、槽定位以及prevPos；计时精度应以配置和实现为准。
+<strong>逐段阅读抓手：</strong>观察delayedTime的格式化、槽定位以及prevPos；计时精度应以配置和实现为准。
 
 
 ## 21.4 到期任务恢复原Topic仍可能再次滚动
@@ -6929,7 +7232,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[TimerMessageStore.java · L1238–L1275](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java#L1238-L1275)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[TimerMessageStore.java · L1238–L1275](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java#L1238-L1275)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public MessageExtBrokerInner convertMessage(MessageExt msgExt, boolean needRoll) {
@@ -6972,7 +7275,7 @@ protected String getRealTopic(MessageExt msgExt) {
 
 ```
 
-**逐段阅读抓手：**needRoll分支不能忽略；到期路径并不总是立即恢复成业务消息。
+<strong>逐段阅读抓手：</strong>needRoll分支不能忽略；到期路径并不总是立即恢复成业务消息。
 
 
 
@@ -6982,9 +7285,9 @@ protected String getRealTopic(MessageExt msgExt) {
 |---|---|---|
 |实现|4.9.8经典ScheduleMessageService解析delayLevel等级表，按等级队列扫描并恢复真实Topic。|5.3.4保留等级路径，同时提供TimerMessageStore、TimerWheel与TimerLog的定时消息实现，可按配置支持更灵活的到期时间。|
 
-**变化原因（源码分析）：**【源码分析】有限等级不适合每条消息独立表达任意到期时间；时间轮把定时任务按时间槽组织，避免为每种时长增加队列。
+<strong>变化原因（源码分析）：</strong>【源码分析】有限等级不适合每条消息独立表达任意到期时间；时间轮把定时任务按时间槽组织，避免为每种时长增加队列。
 
-**适用边界：**到期可投递不等于精确时刻完成业务；具体精度、范围和限制依实现与配置，5.3.4不可套用之后的RocksDB Timer特性。
+<strong>适用边界：</strong>到期可投递不等于精确时刻完成业务；具体精度、范围和限制依实现与配置，5.3.4不可套用之后的RocksDB Timer特性。
 
 ```mermaid
 flowchart TB
@@ -6997,7 +7300,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[ScheduleMessageService.java · L276–L308](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/schedule/ScheduleMessageService.java#L276-L308)，连续节选。
+<strong>4.9.8源码：</strong>[ScheduleMessageService.java · L276–L308](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/schedule/ScheduleMessageService.java#L276-L308)，连续节选。
 
 ```java
 public boolean parseDelayLevel() {
@@ -7035,7 +7338,7 @@ public boolean parseDelayLevel() {
     return true;
 ```
 
-**5.3.4源码：**[TimerMessageStore.java · L830–L873](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java#L830-L873)，连续节选。
+<strong>5.3.4源码：</strong>[TimerMessageStore.java · L830–L873](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java#L830-L873)，连续节选。
 
 ```java
 public boolean doEnqueue(long offsetPy, int sizePy, long delayedTime, MessageExt messageExt) {
@@ -7084,7 +7387,7 @@ public boolean doEnqueue(long offsetPy, int sizePy, long delayedTime, MessageExt
 @SuppressWarnings("NonAtomicOperationOnVolatileField")
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
 
 ## 状态展开：两种时间概念与业务到达延迟
 
@@ -7107,9 +7410,9 @@ public boolean doEnqueue(long offsetPy, int sizePy, long delayedTime, MessageExt
 
 # 22. 传统HA：传日志、报进度与故障窗口
 
-**适用范围：**DefaultHAService及DefaultHAConnection/Client。
+<strong>适用范围：</strong>DefaultHAService及DefaultHAConnection/Client。
 
-**本章目标：**把复制数据平面和主节点选举分开。
+<strong>本章目标：</strong>把复制数据平面和主节点选举分开。
 
 
 ## 22.1 HA服务组织连接与等待请求
@@ -7128,7 +7431,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultHAService.java · L68–L110](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAService.java#L68-L110)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultHAService.java · L68–L110](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAService.java#L68-L110)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void init(final DefaultMessageStore defaultMessageStore) throws IOException {
@@ -7176,7 +7479,7 @@ public void notifyTransferSome(final long offset) {
         if (ok) {
 ```
 
-**逐段阅读抓手：**连接数量与同步确认数量不是同一指标；连接存在不说明已经追平目标offset。
+<strong>逐段阅读抓手：</strong>连接数量与同步确认数量不是同一指标；连接存在不说明已经追平目标offset。
 
 
 ## 22.2 主节点发送的是物理字节范围
@@ -7195,7 +7498,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultHAConnection.java · L256–L316](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAConnection.java#L256-L316)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultHAConnection.java · L256–L316](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAConnection.java#L256-L316)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 class WriteSocketService extends ServiceThread {
@@ -7261,7 +7564,7 @@ class WriteSocketService extends ServiceThread {
                         // Build Header
 ```
 
-**逐段阅读抓手：**看header与body的剩余字节、释放SelectMappedBufferResult的时机。
+<strong>逐段阅读抓手：</strong>看header与body的剩余字节、释放SelectMappedBufferResult的时机。
 
 
 ## 22.3 从节点进度不是业务消费位点
@@ -7280,7 +7583,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultHAClient.java · L184–L245](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAClient.java#L184-L245)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultHAClient.java · L184–L245](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAClient.java#L184-L245)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private boolean dispatchReadRequest() {
@@ -7347,7 +7650,7 @@ private boolean reportSlaveMaxOffsetPlus() {
 
 ```
 
-**逐段阅读抓手：**offset不一致时的分支关系到恢复和截断；不能直接无视后追加数据。
+<strong>逐段阅读抓手：</strong>offset不一致时的分支关系到恢复和截断；不能直接无视后追加数据。
 
 
 ## 本章纸面推演
@@ -7359,9 +7662,13 @@ private boolean reportSlaveMaxOffsetPlus() {
 
 # 23. Controller与DLedger：两条高可用路线
 
-**适用范围：**固定版本中的可选部署；独立于传统HA基础路径。
+<strong>适用范围：</strong>固定版本中的可选部署；独立于传统HA基础路径。
 
-**本章目标：**辨清选主元数据、复制同步集合与共识日志。
+<strong>本章目标：</strong>辨清选主元数据、复制同步集合与共识日志。
+
+> <strong>带着这个问题读：Controller和DLedgerCommitLog能否当同一套机制解释？</strong>
+>
+> 前者侧重角色及副本元数据协调，后者改变消息日志提交路径；控制元数据共识不等于所有消息都用该日志实现。
 
 
 ## 23.1 Controller参与的是角色与元数据决策
@@ -7380,7 +7687,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ReplicasManager.java · L137–L182](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/controller/ReplicasManager.java#L137-L182)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ReplicasManager.java · L137–L182](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/controller/ReplicasManager.java#L137-L182)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void start() {
@@ -7431,7 +7738,7 @@ private boolean startBasicService() {
 
 ```
 
-**逐段阅读抓手：**继续看changeToMaster、changeToSlave；角色状态切换应与Store和HA更新对应。
+<strong>逐段阅读抓手：</strong>继续看changeToMaster、changeToSlave；角色状态切换应与Store和HA更新对应。
 
 
 ## 23.2 AutoSwitchHA限制候选同步集合
@@ -7450,7 +7757,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[AutoSwitchHAService.java · L115–L165](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/autoswitch/AutoSwitchHAService.java#L115-L165)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[AutoSwitchHAService.java · L115–L165](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/autoswitch/AutoSwitchHAService.java#L115-L165)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean changeToMaster(int masterEpoch) throws RocksDBException {
@@ -7506,7 +7813,7 @@ public boolean changeToMaster(int masterEpoch) throws RocksDBException {
 public boolean changeToSlave(String newMasterAddr, int newMasterEpoch, Long slaveId) {
 ```
 
-**逐段阅读抓手：**changeToMaster窗口只是一个角色处理入口；不能把它当完整选举算法。
+<strong>逐段阅读抓手：</strong>changeToMaster窗口只是一个角色处理入口；不能把它当完整选举算法。
 
 
 ## 23.3 DLedgerCommitLog不是普通HA的另一个参数
@@ -7525,7 +7832,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DLedgerCommitLog.java · L539–L608](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L539-L608)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DLedgerCommitLog.java · L539–L608](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L539-L608)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
@@ -7600,7 +7907,7 @@ public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner
         topicQueueLock.unlock(topicQueueKey);
 ```
 
-**逐段阅读抓手：**检查当前Store中实际CommitLog类型；不要同时把两套路径的保证叠加。
+<strong>逐段阅读抓手：</strong>检查当前Store中实际CommitLog类型；不要同时把两套路径的保证叠加。
 
 
 
@@ -7610,9 +7917,9 @@ public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner
 |---|---|---|
 |实现|4.9.8有传统主从与DLedgerCommitLog可选路径；不能说4.x完全没有自动选主能力。|5.3.4包含Controller/ReplicasManager/AutoSwitchHA，Controller管理主身份、epoch和同步集合，Broker继续使用原生存储复制路径。|
 
-**变化原因（官方RIP-44与固定源码）：**RIP-44的目标是让原生主从架构获得可选故障切换并统一存储复制维护，选主不是强制功能。Controller控制面的一致性和业务消息数据复制是两层。
+<strong>变化原因（官方RIP-44与固定源码）：</strong>RIP-44的目标是让原生主从架构获得可选故障切换并统一存储复制维护，选主不是强制功能。Controller控制面的一致性和业务消息数据复制是两层。
 
-**适用边界：**DLedger Controller可以使用DLedger维护控制元数据；这不等于Broker必须使用DLedgerCommitLog保存消息Body。
+<strong>适用边界：</strong>DLedger Controller可以使用DLedger维护控制元数据；这不等于Broker必须使用DLedgerCommitLog保存消息Body。
 
 ```mermaid
 flowchart TB
@@ -7625,7 +7932,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[DLedgerCommitLog.java · L425–L472](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L425-L472)，连续节选。
+<strong>4.9.8源码：</strong>[DLedgerCommitLog.java · L425–L472](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L425-L472)，连续节选。
 
 ```java
 public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
@@ -7678,7 +7985,7 @@ public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner
         }
 ```
 
-**5.3.4源码：**[ReplicasManager.java · L237–L287](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/controller/ReplicasManager.java#L237-L287)，连续节选。
+<strong>5.3.4源码：</strong>[ReplicasManager.java · L237–L287](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/controller/ReplicasManager.java#L237-L287)，连续节选。
 
 ```java
 public void changeToMaster(final int newMasterEpoch, final int syncStateSetEpoch, final Set<Long> syncStateSet) throws Exception {
@@ -7734,7 +8041,7 @@ public void changeToSlave(final String newMasterAddress, final int newMasterEpoc
             this.masterEpoch = newMasterEpoch;
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
 
 ## 本章纸面推演
 
@@ -7745,9 +8052,9 @@ public void changeToSlave(final String newMasterAddress, final int newMasterEpoc
 
 # 24. Proxy与gRPC：计算入口和协议转换
 
-**适用范围：**5.x服务端Proxy；客户端SDK仓库单独固定版本才可推其内部行为。
+<strong>适用范围：</strong>5.x服务端Proxy；客户端SDK仓库单独固定版本才可推其内部行为。
 
-**本章目标：**从ReceiveMessage入口进入POP，而不借用经典Pull消费解释一切。
+<strong>本章目标：</strong>从ReceiveMessage入口进入POP，而不借用经典Pull消费解释一切。
 
 
 ## 24.1 Local与Cluster的依赖创建不同
@@ -7766,7 +8073,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultMessagingProcessor.java · L109–L151](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java#L109-L151)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessagingProcessor.java · L109–L151](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java#L109-L151)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public static DefaultMessagingProcessor createForLocalMode(BrokerController brokerController) {
@@ -7814,7 +8121,7 @@ public SubscriptionGroupConfig getSubscriptionGroupConfig(ProxyContext ctx, Stri
 @Override
 ```
 
-**逐段阅读抓手：**比较createForLocalMode与createForClusterMode，确认同进程调用与远程服务差异。
+<strong>逐段阅读抓手：</strong>比较createForLocalMode与createForClusterMode，确认同进程调用与远程服务差异。
 
 
 ## 24.2 ReceiveMessage怎样变成POP请求
@@ -7833,7 +8140,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ReceiveMessageActivity.java · L59–L154](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/grpc/v2/consumer/ReceiveMessageActivity.java#L59-L154)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ReceiveMessageActivity.java · L59–L154](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/grpc/v2/consumer/ReceiveMessageActivity.java#L59-L154)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void receiveMessage(ProxyContext ctx, ReceiveMessageRequest request,
@@ -7934,7 +8241,7 @@ public void receiveMessage(ProxyContext ctx, ReceiveMessageRequest request,
                                         messageExt.getQueueOffset(), messageExt.getReconsumeTimes());
 ```
 
-**逐段阅读抓手：**看request的pollingDuration、invisibleDuration与上下文超时如何校验和传递。
+<strong>逐段阅读抓手：</strong>看request的pollingDuration、invisibleDuration与上下文超时如何校验和传递。
 
 
 ## 24.3 Proxy的Processor只是编排层
@@ -7953,7 +8260,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultMessagingProcessor.java · L178–L217](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java#L178-L217)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessagingProcessor.java · L178–L217](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java#L178-L217)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public CompletableFuture<PopResult> popMessage(
@@ -7998,7 +8305,7 @@ public CompletableFuture<PullResult> pullMessage(ProxyContext ctx, MessageQueue 
     long queueOffset, int maxMsgNums, int sysFlag, long commitOffset, long suspendTimeoutMillis,
 ```
 
-**逐段阅读抓手：**同时查看ackMessage与changeInvisibleTime的调用，收据管理与消息存储不在同一方法。
+<strong>逐段阅读抓手：</strong>同时查看ackMessage与changeInvisibleTime的调用，收据管理与消息存储不在同一方法。
 
 
 
@@ -8008,9 +8315,9 @@ public CompletableFuture<PullResult> pullMessage(ProxyContext ctx, MessageQueue 
 |---|---|---|
 |实现|4.9.8经典客户端直接按路由连接Broker，Broker自己处理Remoting请求。|5.3.4的Proxy提供gRPC入口、统一API与对应消费编排；Cluster模式可把入口计算和Broker存储分开，Local模式同进程部署。|
 
-**变化原因（官方Proxy说明与固定源码）：**Proxy README明确描述协议支持和计算/存储分离。入口层可以单独扩展与适配多语言SDK，Broker聚焦持久化和复制；实际吞吐仍受存储瓶颈限制。
+<strong>变化原因（官方Proxy说明与固定源码）：</strong>Proxy README明确描述协议支持和计算/存储分离。入口层可以单独扩展与适配多语言SDK，Broker聚焦持久化和复制；实际吞吐仍受存储瓶颈限制。
 
-**适用边界：**5.xBroker仍支持经典Remoting；升级Broker不会强制所有客户端经过Proxy。Proxy“无状态”不等于进程里没有连接、缓存和收据等运行态。
+<strong>适用边界：</strong>5.xBroker仍支持经典Remoting；升级Broker不会强制所有客户端经过Proxy。Proxy“无状态”不等于进程里没有连接、缓存和收据等运行态。
 
 ```mermaid
 flowchart TB
@@ -8023,7 +8330,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[BrokerController.java · L542–L580](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L542-L580)，连续节选。
+<strong>4.9.8源码：</strong>[BrokerController.java · L542–L580](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L542-L580)，连续节选。
 
 ```java
 public void registerProcessor() {
@@ -8067,7 +8374,7 @@ public void registerProcessor() {
     this.remotingServer.registerProcessor(RequestCode.VIEW_MESSAGE_BY_ID, queryProcessor, this.queryMessageExecutor);
 ```
 
-**5.3.4源码：**[DefaultMessagingProcessor.java · L109–L151](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java#L109-L151)，连续节选。
+<strong>5.3.4源码：</strong>[DefaultMessagingProcessor.java · L109–L151](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java#L109-L151)，连续节选。
 
 ```java
 public static DefaultMessagingProcessor createForLocalMode(BrokerController brokerController) {
@@ -8115,7 +8422,7 @@ public SubscriptionGroupConfig getSubscriptionGroupConfig(ProxyContext ctx, Stri
 @Override
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
 
 ## 本章纸面推演
 
@@ -8126,9 +8433,13 @@ Proxy Cluster模式单独扩容入口层后，Broker磁盘瓶颈仍存在。Loca
 
 # 25. POP消费：取出、不可见、ACK与Revive
 
-**适用范围：**经典POP checkpoint/revive路径；KV分支下一章。
+<strong>适用范围：</strong>经典POP checkpoint/revive路径；KV分支下一章。
 
-**本章目标：**理解按消息确认与经典队列位点推进的不同。
+<strong>本章目标：</strong>理解按消息确认与经典队列位点推进的不同。
+
+> <strong>带着这个问题读：不可见期限过了，原消费者还能继续执行业务吗？</strong>
+>
+> 业务线程没有被自动撤销；恢复投递后可能与新消费者重叠，ACK、续期和数据库并发约束分别承担责任。
 
 
 ## 25.1 POP取出后为什么不能只推进offset
@@ -8150,7 +8461,7 @@ stateDiagram-v2
 已确认 --> [*]
 ```
 
-**源码对照：**[PopMessageProcessor.java · L675–L759](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L675-L759)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PopMessageProcessor.java · L675–L759](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L675-L759)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private CompletableFuture<Long> popMsgFromQueue(String topic, String attemptId, boolean isRetry,
@@ -8240,7 +8551,7 @@ private CompletableFuture<Long> popMsgFromQueue(String topic, String attemptId, 
             requestHeader.getMaxMsgNums() - getMessageResult.getMessageMapedList().size(), messageFilter)
 ```
 
-**逐段阅读抓手：**关注appendCheckPoint、offset更新以及顺序/非顺序分支；图示只画普通非顺序主线。
+<strong>逐段阅读抓手：</strong>关注appendCheckPoint、offset更新以及顺序/非顺序分支；图示只画普通非顺序主线。
 
 
 ## 25.2 ACK和checkpoint怎样合并
@@ -8259,7 +8570,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[AckMessageProcessor.java · L191–L285](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/AckMessageProcessor.java#L191-L285)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[AckMessageProcessor.java · L191–L285](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/AckMessageProcessor.java#L191-L285)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private void appendAck(final AckMessageRequestHeader requestHeader, final BatchAck batchAck,
@@ -8359,7 +8670,7 @@ private void appendAck(final AckMessageRequestHeader requestHeader, final BatchA
     msgInner.setBody(JSON.toJSONString(ackMsg).getBytes(StandardCharsets.UTF_8));
 ```
 
-**逐段阅读抓手：**代码还有appendAckNew分支；不要把旧ReviveTopic说成所有POP的唯一持久化后端。
+<strong>逐段阅读抓手：</strong>代码还有appendAckNew分支；不要把旧ReviveTopic说成所有POP的唯一持久化后端。
 
 
 ## 25.3 Revive恢复的是未确认消息
@@ -8378,7 +8689,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[PopReviveService.java · L469–L526](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopReviveService.java#L469-L526)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PopReviveService.java · L469–L526](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopReviveService.java#L469-L526)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 protected void mergeAndRevive(ConsumeReviveObj consumeReviveObj) throws Throwable {
@@ -8441,7 +8752,7 @@ protected void mergeAndRevive(ConsumeReviveObj consumeReviveObj) throws Throwabl
 private void reviveMsgFromCk(PopCheckPoint popCheckPoint) {
 ```
 
-**逐段阅读抓手：**阅读bitMap和inflightReviveRequestMap，区分已确认、在恢复中与恢复完成。
+<strong>逐段阅读抓手：</strong>阅读bitMap和inflightReviveRequestMap，区分已确认、在恢复中与恢复完成。
 
 
 ## 25.4 恢复失败时进度不能随意跳过
@@ -8460,7 +8771,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[PopReviveService.java · L526–L579](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopReviveService.java#L526-L579)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PopReviveService.java · L526–L579](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopReviveService.java#L526-L579)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private void reviveMsgFromCk(PopCheckPoint popCheckPoint) {
@@ -8519,7 +8830,7 @@ private void rePutCK(PopCheckPoint oldCK, Pair<Long, Boolean> pair) {
     int rePutTimes = oldCK.parseRePutTimes();
 ```
 
-**逐段阅读抓手：**看完成Future与失败处理，确认何时允许推进Revive进度。
+<strong>逐段阅读抓手：</strong>看完成Future与失败处理，确认何时允许推进Revive进度。
 
 
 
@@ -8529,9 +8840,9 @@ private void rePutCK(PopCheckPoint oldCK, Pair<Long, Boolean> pair) {
 |---|---|---|
 |实现|4.9.8经典并发消费把消息放到本地ProcessQueue，安全位点受最早未完成消息约束，再向Broker提交Queue进度。|5.3.4POP为已取出消息维护不可见窗口、checkpoint或KV记录，ACK按消息确认，服务端对未确认消息执行Revive。|
 
-**变化原因（源码分析）：**【源码分析】逐消息状态支持消息分配和较轻的客户端进度管理，代价是服务端需要管理更多在途状态、收据和恢复工作。
+<strong>变化原因（源码分析）：</strong>【源码分析】逐消息状态支持消息分配和较轻的客户端进度管理，代价是服务端需要管理更多在途状态、收据和恢复工作。
 
-**适用边界：**新确认模型仍可能重投；ACK丢失、续期失败、处理超时都需要业务幂等。
+<strong>适用边界：</strong>新确认模型仍可能重投；ACK丢失、续期失败、处理超时都需要业务幂等。
 
 ```mermaid
 flowchart TB
@@ -8544,7 +8855,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[ProcessQueue.java · L191–L232](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java#L191-L232)，连续节选。
+<strong>4.9.8源码：</strong>[ProcessQueue.java · L191–L232](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java#L191-L232)，连续节选。
 
 ```java
 public long removeMessage(final List<MessageExt> msgs) {
@@ -8591,7 +8902,7 @@ public AtomicLong getMsgCount() {
 }
 ```
 
-**5.3.4源码：**[PopMessageProcessor.java · L951–L983](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L951-L983)，连续节选。
+<strong>5.3.4源码：</strong>[PopMessageProcessor.java · L951–L983](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L951-L983)，连续节选。
 
 ```java
 private boolean appendCheckPoint(final PopMessageRequestHeader requestHeader,
@@ -8629,7 +8940,7 @@ private boolean appendCheckPoint(final PopMessageRequestHeader requestHeader,
 
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
 
 ## 状态展开：POP不可见时间的纸面时序
 
@@ -8652,9 +8963,13 @@ private boolean appendCheckPoint(final PopMessageRequestHeader requestHeader,
 
 # 26. POP KV存储与ReceiptHandle：另一条实现分支
 
-**适用范围：**5.3.4可选PopConsumerService/RocksDB；Proxy收据。
+<strong>适用范围：</strong>5.3.4可选PopConsumerService/RocksDB；Proxy收据。
 
-**本章目标：**避免只背checkpoint Topic模型，却忽略实际配置。
+<strong>本章目标：</strong>避免只背checkpoint Topic模型，却忽略实际配置。
+
+> <strong>带着这个问题读：消息ID为什么不能代替本次ReceiptHandle？</strong>
+>
+> 业务事件身份与投递尝试上下文不同；ACK、续期必须对应收据表达的投递记录。
 
 
 ## 26.1 配置决定是否走新POP服务
@@ -8664,16 +8979,17 @@ PopMessageProcessor根据Broker配置选择旧POP或PopConsumerService。KV服�
 因此本文将旧checkpoint/ReviveTopic路径与KV路径分章。它们都解决待确认消息恢复，但状态布局、合并优化和恢复扫描不一样。
 
 ```mermaid
-flowchart LR
-    N0["POP处理器配置判断"]
-    N1["PopConsumerService取消息"]
-    N2["生成消费记录"]
-    N3["缓存或RocksDB保存"]
-    N4["ACK删除或到期Revive"]
-    N0 --> N1 --> N2 --> N3 --> N4
+flowchart TB
+ A["PopMessageProcessor收到请求"] --> K{"popConsumerKVServiceEnable?"}
+ K -- 否 --> OLD["旧POP：checkpoint与ACK恢复路径"]
+ K -- 是 --> NEW["PopConsumerService：KV在途记录"]
+ OLD --> R1["ReviveTopic相关恢复流程"]
+ NEW --> R2["记录ACK、续期或到期恢复"]
+ R1 --> M["未确认消息可能再次投递"]
+ R2 --> M
 ```
 
-**源码对照：**[PopConsumerService.java · L326–L415](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerService.java#L326-L415)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PopConsumerService.java · L326–L415](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerService.java#L326-L415)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public CompletableFuture<PopConsumerContext> popAsync(String clientHost, long popTime, long invisibleTime,
@@ -8768,7 +9084,7 @@ public CompletableFuture<PopConsumerContext> popAsync(String clientHost, long po
                 if (throwable != null) {
 ```
 
-**逐段阅读抓手：**查brokerConfig.isPopConsumerKVServiceEnable与初始化条件；代码存在不代表默认必然启用。
+<strong>逐段阅读抓手：</strong>查brokerConfig.isPopConsumerKVServiceEnable与初始化条件；代码存在不代表默认必然启用。
 
 
 ## 26.2 KV ACK删除的是特定取出记录
@@ -8787,7 +9103,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[PopConsumerService.java · L436–L484](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerService.java#L436-L484)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PopConsumerService.java · L436–L484](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerService.java#L436-L484)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public CompletableFuture<Boolean> ackAsync(
@@ -8841,7 +9157,7 @@ public void changeInvisibilityDuration(long popTime, long invisibleTime,
 // Use broker escape bridge to support remote read
 ```
 
-**逐段阅读抓手：**删除键的字段必须对应当前取出；同一业务消息不同投递尝试具有不同收据上下文。
+<strong>逐段阅读抓手：</strong>删除键的字段必须对应当前取出；同一业务消息不同投递尝试具有不同收据上下文。
 
 
 ## 26.3 到期扫描与续期依赖记录时间
@@ -8860,7 +9176,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[PopConsumerRocksdbStore.java · L140–L160](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerRocksdbStore.java#L140-L160)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PopConsumerRocksdbStore.java · L140–L160](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerRocksdbStore.java#L140-L160)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public List<PopConsumerRecord> scanExpiredRecords(long lower, long upper, int maxCount) {
@@ -8886,7 +9202,7 @@ public List<PopConsumerRecord> scanExpiredRecords(long lower, long upper, int ma
 protected void preShutdown() {
 ```
 
-**逐段阅读抓手：**看seek与上下界检查；记录到期扫描不是消息Body的全库扫描。
+<strong>逐段阅读抓手：</strong>看seek与上下界检查；记录到期扫描不是消息Body的全库扫描。
 
 
 ## 26.4 ReceiptHandle比消息ID包含更多上下文
@@ -8905,7 +9221,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ReceiptHandle.java · L43–L81](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/common/src/main/java/org/apache/rocketmq/common/consumer/ReceiptHandle.java#L43-L81)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ReceiptHandle.java · L43–L81](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/common/src/main/java/org/apache/rocketmq/common/consumer/ReceiptHandle.java#L43-L81)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public String encode() {
@@ -8949,7 +9265,7 @@ public static ReceiptHandle decode(String receiptHandle) {
         .receiptHandle(receiptHandle).build();
 ```
 
-**逐段阅读抓手：**encode和decode字段顺序必须一致；isExpired比较nextVisibleTime与当前时间。
+<strong>逐段阅读抓手：</strong>encode和decode字段顺序必须一致；isExpired比较nextVisibleTime与当前时间。
 
 
 
@@ -8959,9 +9275,9 @@ public static ReceiptHandle decode(String receiptHandle) {
 |---|---|---|
 |实现|4.9.8没有本手册引用的PopConsumerService/KV POP实现；经典进度以OffsetStore与ProcessQueue为主。|5.3.4同时有旧POP checkpoint/ReviveTopic与可选KV POP；后者用PopConsumerRecord和RocksDB保存待确认记录。|
 
-**变化原因（源码分析）：**【源码分析】不同持久化与合并策略尝试处理在途记录规模和恢复扫描成本。启用哪个分支必须看配置，不能只根据大版本号决定。
+<strong>变化原因（源码分析）：</strong>【源码分析】不同持久化与合并策略尝试处理在途记录规模和恢复扫描成本。启用哪个分支必须看配置，不能只根据大版本号决定。
 
-**适用边界：**此处不是断言5.0.0就有5.3.4所有优化；升级迁移与记录兼容要按具体版本说明核验。
+<strong>适用边界：</strong>此处不是断言5.0.0就有5.3.4所有优化；升级迁移与记录兼容要按具体版本说明核验。
 
 ```mermaid
 flowchart TB
@@ -8974,7 +9290,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[RemoteBrokerOffsetStore.java · L115–L144](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L115-L144)，连续节选。
+<strong>4.9.8源码：</strong>[RemoteBrokerOffsetStore.java · L115–L144](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L115-L144)，连续节选。
 
 ```java
 public void persistAll(Set<MessageQueue> mqs) {
@@ -9009,7 +9325,7 @@ public void persistAll(Set<MessageQueue> mqs) {
             this.offsetTable.remove(mq);
 ```
 
-**5.3.4源码：**[PopMessageProcessor.java · L384–L417](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L384-L417)，连续节选。
+<strong>5.3.4源码：</strong>[PopMessageProcessor.java · L384–L417](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L384-L417)，连续节选。
 
 ```java
 if (brokerConfig.isPopConsumerKVServiceEnable()) {
@@ -9048,7 +9364,7 @@ if (brokerConfig.isPopConsumerKVServiceEnable()) {
 
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
 
 ## 状态展开：哪些标识稳定，哪些随投递变化
 
@@ -9071,9 +9387,9 @@ if (brokerConfig.isPopConsumerKVServiceEnable()) {
 
 # 27. 恢复、保留与积压：日志不是永久保险箱
 
-**适用范围：**经典文件Store；不同后端恢复细节不同。
+<strong>适用范围：</strong>经典文件Store；不同后端恢复细节不同。
 
-**本章目标：**理解异常退出、派生状态恢复和容量限制。
+<strong>本章目标：</strong>理解异常退出、派生状态恢复和容量限制。
 
 
 ## 27.1 正常恢复与异常恢复读取不同边界
@@ -9092,7 +9408,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultMessageStore.java · L361–L386](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L361-L386)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessageStore.java · L361–L386](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L361-L386)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private void recover(final boolean lastExitOK) throws RocksDBException {
@@ -9123,7 +9439,7 @@ public void start() throws Exception {
     if (!messageStoreConfig.isEnableDLegerCommitLog() && !this.messageStoreConfig.isDuplicationEnable()) {
 ```
 
-**逐段阅读抓手：**lastExitOK来自运行标记；别把操作系统退出状态直接等同应用存储状态。
+<strong>逐段阅读抓手：</strong>lastExitOK来自运行标记；别把操作系统退出状态直接等同应用存储状态。
 
 
 ## 27.2 保留周期还受磁盘压力影响
@@ -9142,7 +9458,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[CommitLog.java · L233–L254](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L233-L254)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L233–L254](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L233-L254)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public int deleteExpiredFile(
@@ -9169,7 +9485,7 @@ public int deleteExpiredFile(
  */
 ```
 
-**逐段阅读抓手：**该方法是委托层；继续看DefaultMessageStore的CleanCommitLogService及MappedFileQueue实现。
+<strong>逐段阅读抓手：</strong>该方法是委托层；继续看DefaultMessageStore的CleanCommitLogService及MappedFileQueue实现。
 
 
 ## 27.3 dispatchBehind、flushBehind与消费lag不同
@@ -9187,7 +9503,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[DefaultMessageStore.java · L1574–L1597](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1574-L1597)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessageStore.java · L1574–L1597](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1574-L1597)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public long dispatchBehindBytes() {
@@ -9216,7 +9532,7 @@ public long flush() {
 public long getFlushedWhere() {
 ```
 
-**逐段阅读抓手：**不要把字节差与消息数差放进同一个告警阈值；时间滞后也要单独观察。
+<strong>逐段阅读抓手：</strong>不要把字节差与消息数差放进同一个告警阈值；时间滞后也要单独观察。
 
 
 ## 本章纸面推演
@@ -9228,9 +9544,13 @@ public long getFlushedWhere() {
 
 # 28. 端到端可靠性与幂等：六个故障窗口
 
-**适用范围：**跨组件推理；保证限定到具体协议与部署配置。
+<strong>适用范围：</strong>跨组件推理；保证限定到具体协议与部署配置。
 
-**本章目标：**把至少一次投递与业务只执行一次区分开。
+<strong>本章目标：</strong>把至少一次投递与业务只执行一次区分开。
+
+> <strong>带着这个问题读：哪两个动作不能被普通消费自动原子提交？</strong>
+>
+> 应用数据库提交与MQ消费确认；处理已成功而确认丢失会形成重投窗口，需稳定业务标识和原子幂等设计。
 
 
 ## 28.1 发送响应丢失：超时是未知结果
@@ -9249,7 +9569,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultMQProducerImpl.java · L817–L842](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L817-L842)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L817–L842](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L817-L842)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 } catch (RemotingException e) {
@@ -9280,7 +9600,7 @@ flowchart LR
     } else {
 ```
 
-**逐段阅读抓手：**这段catch进入后更新故障项并继续；它没有向Broker发撤销已追加消息的事务。
+<strong>逐段阅读抓手：</strong>这段catch进入后更新故障项并继续；它没有向Broker发撤销已追加消息的事务。
 
 
 ## 28.2 业务提交与消费确认之间的裂缝
@@ -9302,7 +9622,7 @@ MQ-->>C: 对应协议结果
 Note over C,DB: 重投后按稳定事件ID检查，避免重复副作用
 ```
 
-**源码对照：**[ConsumeMessageConcurrentlyService.java · L306–L314](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L306-L314)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L306–L314](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L306-L314)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
     long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
@@ -9316,7 +9636,7 @@ public ConsumerStatsManager getConsumerStatsManager() {
 }
 ```
 
-**逐段阅读抓手：**源码只管理ProcessQueue与OffsetStore；业务事务在Listener中，原子性不会自动跨过去。
+<strong>逐段阅读抓手：</strong>源码只管理ProcessQueue与OffsetStore；业务事务在Listener中，原子性不会自动跨过去。
 
 
 ## 28.3 副本切换与日志删除也有边界
@@ -9335,7 +9655,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[CommitLog.java · L1295–L1315](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1295-L1315)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L1295–L1315](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1295-L1315)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private boolean needHandleHA(MessageExt messageExt) {
@@ -9361,7 +9681,7 @@ private boolean needHandleHA(MessageExt messageExt) {
 }
 ```
 
-**逐段阅读抓手：**needHandleHA体现配置和角色的条件；不要从单个SEND_OK给出永不丢消息结论。
+<strong>逐段阅读抓手：</strong>needHandleHA体现配置和角色的条件；不要从单个SEND_OK给出永不丢消息结论。
 
 
 
@@ -9371,9 +9691,9 @@ private boolean needHandleHA(MessageExt messageExt) {
 |---|---|---|
 |实现|4.9.8可靠性围绕发送、刷盘、HA/DLedger、消费位点、重试和幂等展开。|5.3.4增加更多协议、确认数、自动切换与POP状态恢复能力，但外部业务事务与消息确认之间仍有窗口。|
 
-**变化原因（源码分析）：**【源码分析】新机制改变部分状态归属和恢复条件，没有消除分布式系统中的未知结果和跨资源原子性问题。
+<strong>变化原因（源码分析）：</strong>【源码分析】新机制改变部分状态归属和恢复条件，没有消除分布式系统中的未知结果和跨资源原子性问题。
 
-**适用边界：**不能用“5.x先进”替代明确配置，也不能把4.x全部描述为不可靠。
+<strong>适用边界：</strong>不能用“5.x先进”替代明确配置，也不能把4.x全部描述为不可靠。
 
 ```mermaid
 flowchart TB
@@ -9386,7 +9706,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-**4.9.8源码：**[ConsumeMessageConcurrentlyService.java · L298–L306](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L298-L306)，连续节选。
+<strong>4.9.8源码：</strong>[ConsumeMessageConcurrentlyService.java · L298–L306](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L298-L306)，连续节选。
 
 ```java
     long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
@@ -9400,7 +9720,7 @@ public ConsumerStatsManager getConsumerStatsManager() {
 }
 ```
 
-**5.3.4源码：**[ConsumeMessageConcurrentlyService.java · L306–L314](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L306-L314)，连续节选。
+<strong>5.3.4源码：</strong>[ConsumeMessageConcurrentlyService.java · L306–L314](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L306-L314)，连续节选。
 
 ```java
     long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
@@ -9414,14 +9734,14 @@ public ConsumerStatsManager getConsumerStatsManager() {
 }
 ```
 
-**对照读法：**先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
+<strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
 
 ## 状态展开：幂等设计的四个追问
 
-1. **唯一键作用域是什么？**同一事件的所有重试共用ID，不同事件不能误用同一键。
-2. **去重与业务更新是否同一事务？**分开提交会留下误跳过或重复变更窗口。
-3. **外部副作用怎样处理？**数据库事务无法自动回滚已经发出的远程请求，需要对端幂等或补偿。
-4. **去重记录保留多久？**应覆盖正常重投与允许的人工重放范围，不能只看当前不可见窗口。
+1. <strong>唯一键作用域是什么？</strong>同一事件的所有重试共用ID，不同事件不能误用同一键。
+2. <strong>去重与业务更新是否同一事务？</strong>分开提交会留下误跳过或重复变更窗口。
+3. <strong>外部副作用怎样处理？</strong>数据库事务无法自动回滚已经发出的远程请求，需要对端幂等或补偿。
+4. <strong>去重记录保留多久？</strong>应覆盖正常重投与允许的人工重放范围，不能只看当前不可见窗口。
 
 这是应用层方案的阅读案例，不是要求你做实验，也不是声称一张去重表就无条件覆盖所有分布式副作用。
 
@@ -9434,9 +9754,13 @@ public ConsumerStatsManager getConsumerStatsManager() {
 
 # 29. 性能与故障推演：按链路定位
 
-**适用范围：**只读诊断方法；不要求运行命令或实验。
+<strong>适用范围：</strong>只读诊断方法；不要求运行命令或实验。
 
-**本章目标：**把性能问题与具体等待点对应，避免背调参清单。
+<strong>本章目标：</strong>把性能问题与具体等待点对应，避免背调参清单。
+
+> <strong>带着这个问题读：发送慢、拉不到、消费积压为什么不能用一个lag解释？</strong>
+>
+> 分别看发送队列与存储等待、Reput/CQ分发滞后、本地缓存和业务RT，以及位点差与日志保留。
 
 
 ## 29.1 发送慢先拆开时间预算
@@ -9456,7 +9780,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-**源码对照：**[BrokerController.java · L1296–L1307](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L1296-L1307)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[BrokerController.java · L1296–L1307](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L1296-L1307)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void printWaterMark() {
@@ -9473,7 +9797,7 @@ public void printWaterMark() {
 
 ```
 
-**逐段阅读抓手：**headSlowTimeMills与Queue size是不同维度；短队列里的一个很慢任务仍可能有高排队时延。
+<strong>逐段阅读抓手：</strong>headSlowTimeMills与Queue size是不同维度；短队列里的一个很慢任务仍可能有高排队时延。
 
 
 ## 29.2 消费慢先区分Broker和本地缓存
@@ -9492,7 +9816,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ProcessQueue.java · L432–L462](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java#L432-L462)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ProcessQueue.java · L432–L462](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java#L432-L462)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public void fillProcessQueueInfo(final ProcessQueueInfo info) {
@@ -9528,7 +9852,7 @@ public void fillProcessQueueInfo(final ProcessQueueInfo info) {
 public long getLastConsumeTimestamp() {
 ```
 
-**逐段阅读抓手：**msgCount、msgSize与lastConsumeTimestamp需要一起看；只看单个最后时间戳不能证明消费正常。
+<strong>逐段阅读抓手：</strong>msgCount、msgSize与lastConsumeTimestamp需要一起看；只看单个最后时间戳不能证明消费正常。
 
 
 ## 29.3 批量、压缩与零拷贝都有条件
@@ -9546,7 +9870,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[DefaultMQProducerImpl.java · L1112–L1136](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L1112-L1136)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L1112–L1136](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L1112-L1136)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 private boolean tryToCompressMessage(final Message msg) {
@@ -9576,7 +9900,7 @@ private boolean tryToCompressMessage(final Message msg) {
 }
 ```
 
-**逐段阅读抓手：**看阈值、批消息例外及压缩标记；“支持压缩”不意味着每条消息都压缩。
+<strong>逐段阅读抓手：</strong>看阈值、批消息例外及压缩标记；“支持压缩”不意味着每条消息都压缩。
 
 
 ## 本章纸面推演
@@ -9588,9 +9912,9 @@ private boolean tryToCompressMessage(final Message msg) {
 
 # 30. 只看也能学会：完整消息生命周期推演
 
-**适用范围：**纸面案例；所有名字与数字为虚构。
+<strong>适用范围：</strong>纸面案例；所有名字与数字为虚构。
 
-**本章目标：**用一条事件串起源码里的状态，形成可口述的完整链路。
+<strong>本章目标：</strong>用一条事件串起源码里的状态，形成可口述的完整链路。
 
 
 ## 30.1 普通消息从发送到完成消费
@@ -9610,7 +9934,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-**源码对照：**[MQClientInstance.java · L782–L847](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/factory/MQClientInstance.java#L782-L847)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[MQClientInstance.java · L782–L847](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/factory/MQClientInstance.java#L782-L847)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault,
@@ -9681,7 +10005,7 @@ public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean is
                         this.topicRouteTable.put(topic, cloneTopicRouteData);
 ```
 
-**逐段阅读抓手：**路由刷新会更新Broker地址与发布/订阅信息；它不是每条消息都强制执行的步骤。
+<strong>逐段阅读抓手：</strong>路由刷新会更新Broker地址与发布/订阅信息；它不是每条消息都强制执行的步骤。
 
 
 ## 30.2 事务事件的未知状态怎样收敛
@@ -9701,7 +10025,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-**源码对照：**[TransactionalMessageServiceImpl.java · L597–L623](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L597-L623)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[TransactionalMessageServiceImpl.java · L597–L623](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L597-L623)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean deletePrepareMessage(MessageExt messageExt) {
@@ -9733,7 +10057,7 @@ public boolean deletePrepareMessage(MessageExt messageExt) {
     Message msg = getOpMessage(queueId, data);
 ```
 
-**逐段阅读抓手：**deletePrepareMessage通过桥接层记录op；名字中的delete不是立即删除CommitLog字节。
+<strong>逐段阅读抓手：</strong>deletePrepareMessage通过桥接层记录op；名字中的delete不是立即删除CommitLog字节。
 
 
 ## 30.3 POP超时重投怎样避免重复效果
@@ -9753,7 +10077,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-**源码对照：**[PopConsumerService.java · L490–L506](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerService.java#L490-L506)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PopConsumerService.java · L490–L506](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerService.java#L490-L506)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public CompletableFuture<Boolean> revive(PopConsumerRecord record) {
@@ -9775,7 +10099,7 @@ public CompletableFuture<Boolean> revive(PopConsumerRecord record) {
 public void clearCache(String groupId, String topicId, int queueId) {
 ```
 
-**逐段阅读抓手：**revive读取原消息并重试；业务完成记录由应用维护，不在PopConsumerRecord中。
+<strong>逐段阅读抓手：</strong>revive读取原消息并重试；业务完成记录由应用维护，不在PopConsumerRecord中。
 
 
 ## 本章纸面推演
@@ -9787,9 +10111,9 @@ public void clearCache(String groupId, String topicId, int queueId) {
 
 # 31. 面试复述与常见误解
 
-**适用范围：**概念对照；答案基于正文固定路径。
+<strong>适用范围：</strong>概念对照；答案基于正文固定路径。
 
-**本章目标：**给出能说明原理与边界的答案，避免只报组件名称。
+<strong>本章目标：</strong>给出能说明原理与边界的答案，避免只报组件名称。
 
 
 ## 31.1 为什么高吞吐，是否就是零拷贝
@@ -9808,7 +10132,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[DefaultMappedFile.java · L653–L674](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L653-L674)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMappedFile.java · L653–L674](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L653-L674)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public SelectMappedBufferResult selectMappedBuffer(int pos, int size) {
@@ -9835,7 +10159,7 @@ public SelectMappedBufferResult selectMappedBuffer(int pos, int size) {
 }
 ```
 
-**逐段阅读抓手：**返回的是映射区切片并持引用；看调用方如何传输和release才能讨论复制次数。
+<strong>逐段阅读抓手：</strong>返回的是映射区切片并持引用；看调用方如何传输和release才能讨论复制次数。
 
 
 ## 31.2 为什么不需要每条消息经过NameServer
@@ -9853,7 +10177,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[RouteInfoManager.java · L700–L730](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L730)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RouteInfoManager.java · L700–L730](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L730)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public TopicRouteData pickupTopicRouteData(final String topic) {
@@ -9889,7 +10213,7 @@ public TopicRouteData pickupTopicRouteData(final String topic) {
                 }
 ```
 
-**逐段阅读抓手：**返回QueueData/BrokerData等结构；消息Body并不从这里转发。
+<strong>逐段阅读抓手：</strong>返回QueueData/BrokerData等结构；消息Body并不从这里转发。
 
 
 ## 31.3 怎样回答不丢、重复与顺序
@@ -9908,7 +10232,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ConsumeMessageConcurrentlyService.java · L316–L329](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L316-L329)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L316–L329](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L316-L329)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
 public boolean sendMessageBack(final MessageExt msg, final ConsumeConcurrentlyContext context) {
@@ -9927,7 +10251,7 @@ public boolean sendMessageBack(final MessageExt msg, final ConsumeConcurrentlyCo
 }
 ```
 
-**逐段阅读抓手：**sendMessageBack返回成功表示交接结果，仍需理解其内部请求和持久化路径。
+<strong>逐段阅读抓手：</strong>sendMessageBack返回成功表示交接结果，仍需理解其内部请求和持久化路径。
 
 
 ## 本章纸面推演
@@ -9958,12 +10282,12 @@ public boolean sendMessageBack(final MessageExt msg, final ConsumeConcurrentlyCo
 
 ## 六个自检题与答案
 
-1. **发送超时能否证明消息没存？**不能。可能请求未到，也可能已存而响应丢失；需要重试与业务幂等。
-2. **为什么102完成，位点仍停100？**100仍在ProcessQueue未完成，不能越过最早未完成位置。
-3. **为什么CommitLog有消息却Pull不到？**可能CQ尚未分发、过滤不匹配、读错Queue/Group或位点范围不对；先拆阶段。
-4. **业务已提交，ACK失败怎么办？**按确认协议重试或等待重投；用稳定业务键保证重复不再产生副作用。
-5. **为什么事务回查要查数据库？**进程内状态会随重启丢失，回查必须依据稳定的本地事务事实。
-6. **Controller和DLedger是不是一样？**不是。Controller控制角色与同步集合，DLedgerCommitLog使用自己的共识日志追加路径。
+1. <strong>发送超时能否证明消息没存？</strong>不能。可能请求未到，也可能已存而响应丢失；需要重试与业务幂等。
+2. <strong>为什么102完成，位点仍停100？</strong>100仍在ProcessQueue未完成，不能越过最早未完成位置。
+3. <strong>为什么CommitLog有消息却Pull不到？</strong>可能CQ尚未分发、过滤不匹配、读错Queue/Group或位点范围不对；先拆阶段。
+4. <strong>业务已提交，ACK失败怎么办？</strong>按确认协议重试或等待重投；用稳定业务键保证重复不再产生副作用。
+5. <strong>为什么事务回查要查数据库？</strong>进程内状态会随重启丢失，回查必须依据稳定的本地事务事实。
+6. <strong>Controller和DLedger是不是一样？</strong>不是。Controller控制角色与同步集合，DLedgerCommitLog使用自己的共识日志追加路径。
 
 ## 上游与归属
 
@@ -10059,13 +10383,13 @@ public boolean sendMessageBack(final MessageExt msg, final ConsumeConcurrentlyCo
 |消息类型与Topic约束|[第1章](#chapter-1)|Proxy校验与Topic元数据需看配置；不能推为所有Remoting路径相同|
 |两个基线与“升级”究竟比较什么|[第0章](#chapter-0)|升级Broker版本不会自动把旧Remoting Consumer变成gRPC/POP；源码有某分支，也不表示配置已启用。|
 |路由层定位没变，版本信息与部署职责扩展|[第2章](#chapter-2)|不能说4.x依赖ZooKeeper而5.x才有NameServer；两边都有NameServer。|
-|发送重试仍有总预算，5.3.4增加单次预算控制|[第5章](#chapter-5)|不是4.x每次重试都重新给完整超时；总预算扣减在4.9.8就存在。|
-|CommitLog锁与offset管理的重构|[第8章](#chapter-8)|两边经典路径仍有物理追加序列化；5.x并没有消除所有锁，也不是为每个Topic改成独立CommitLog。|
-|MappedFile从具体类向接口体系演进|[第9章](#chapter-9)|wrote/committed/flushed位置的核心区分并未消失；5.x也不是所有写入都自动绕过PageCache。|
-|复制确认从传统从节点进度扩展到同步集合|[第10章](#chapter-10)|这些等待都不同于每个副本同步force；DLedger多数派提交不能套到普通HA。|
-|文件CQ基础保留，KV与双写成为可选分支|[第11章](#chapter-11)|20字节是文件ConsumeQueue格式，不是5.x所有索引后端格式；不要把双写开关当默认启用。|
-|队列分配与消息分配：并发模型变化|[第14章](#chapter-14)|不是所有5.xConsumer都消息分配；策略取决于客户端和消费者类型，FIFO还有额外顺序约束。|
-|顺序消费保障延续，POP FIFO不能靠旧锁流程说明|[第17章](#chapter-17)|5.x新增FIFO相关能力不意味着所有事件自动全局有序；旧顺序服务默认重试上限也不能套到POP。|
+|发送重试仍有总预算，5.3.4增加单次预算控制|[第4章](#chapter-4)|不是4.x每次重试都重新给完整超时；总预算扣减在4.9.8就存在。|
+|CommitLog锁与offset管理的重构|[第7章](#chapter-7)|两边经典路径仍有物理追加序列化；5.x并没有消除所有锁，也不是为每个Topic改成独立CommitLog。|
+|MappedFile从具体类向接口体系演进|[第8章](#chapter-8)|wrote/committed/flushed位置的核心区分并未消失；5.x也不是所有写入都自动绕过PageCache。|
+|复制确认从传统从节点进度扩展到同步集合|[第9章](#chapter-9)|这些等待都不同于每个副本同步force；DLedger多数派提交不能套到普通HA。|
+|文件CQ基础保留，KV与双写成为可选分支|[第10章](#chapter-10)|20字节是文件ConsumeQueue格式，不是5.x所有索引后端格式；不要把双写开关当默认启用。|
+|队列分配与消息分配：并发模型变化|[第13章](#chapter-13)|不是所有5.xConsumer都消息分配；策略取决于客户端和消费者类型，FIFO还有额外顺序约束。|
+|顺序消费保障延续，POP FIFO不能靠旧锁流程说明|[第16章](#chapter-16)|5.x新增FIFO相关能力不意味着所有事件自动全局有序；旧顺序服务默认重试上限也不能套到POP。|
 |half/op协议是延续，事务不是5.x才有|[第20章](#chapter-20)|两边都不能替任意消费者数据库提供XA或端到端Exactly Once。|
 |等级延迟到时间轮：精度与调度结构改变|[第21章](#chapter-21)|到期可投递不等于精确时刻完成业务；具体精度、范围和限制依实现与配置，5.3.4不可套用之后的RocksDB Timer特性。|
 |4.x已有DLedger，5.xController是另一种自动切换|[第23章](#chapter-23)|DLedger Controller可以使用DLedger维护控制元数据；这不等于Broker必须使用DLedgerCommitLog保存消息Body。|
@@ -10089,4 +10413,4 @@ flowchart TB
     E --> F
 ```
 
-**复述模板：**“在4.9.8的某条路径里，状态由A保存，成功依赖条件X；在5.3.4启用某分支时，状态改由B保存，成功依赖条件Y。这样解决了Z问题，但W边界仍在。”如果只是代码抽象变化，就明确说核心语义延续，不要硬凑一个版本革命。
+<strong>复述模板：</strong>“在4.9.8的某条路径里，状态由A保存，成功依赖条件X；在5.3.4启用某分支时，状态改由B保存，成功依赖条件Y。这样解决了Z问题，但W边界仍在。”如果只是代码抽象变化，就明确说核心语义延续，不要硬凑一个版本革命。
