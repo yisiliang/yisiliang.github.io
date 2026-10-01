@@ -1190,13 +1190,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  N0["HashSet.add委托map.put"]
-  N1["LinkedHashMap找到条目"]
-  N2["accessOrder时移动到尾部"]
-  N3["插入后可检查淘汰最老条目"]
-  N0 --> N1
-  N1 --> N2
-  N2 --> N3
+ S["HashSet.add"] --> P["map.put：元素作键"]
+ P --> B["根据旧映射判断是否新增"]
+ G["LinkedHashMap.get"] --> F["散列查找Entry"]
+ F --> A{"accessOrder开启且命中？"}
+ A -- 是 --> T["afterNodeAccess：移到尾"]
+ A -- 否 --> V["直接返回相应结果"]
+ T --> V
+ I["LinkedHashMap插入新键"] --> E["afterNodeInsertion：检查淘汰钩子"]
 ```
 
 ## 三段源码，抓住核心机制
@@ -1310,13 +1311,12 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  N0["TreeMap沿比较结果找位置"]
-  N1["插入后平衡颜色与旋转"]
-  N2["PriorityQueue尾部插入上浮"]
-  N3["poll用尾元素补根并下沉"]
-  N0 --> N1
-  N1 --> N2
-  N2 --> N3
+ T["TreeMap.put"] --> C["比较键并沿树定位"]
+ C --> E{"比较结果为0？"}
+ E -- 是 --> V["替换value"]
+ E -- 否 --> N["插入树节点并平衡"]
+ O["PriorityQueue.offer"] --> U["放尾部并siftUp"]
+ P["PriorityQueue.poll"] --> R["取根，尾元素补位并siftDown"]
 ```
 
 ## 三段源码，抓住核心机制
@@ -1762,13 +1762,15 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  N0["普通计数CAS"]
-  N1["竞争时使用计数单元"]
-  N2["需要时检查扩容"]
-  N3["compute按键协调并发布结果"]
-  N0 --> N1
-  N1 --> N2
-  N2 --> N3
+ A["addCount"] --> B{"baseCount低竞争CAS成功？"}
+ B -- 是 --> C["按条件检查扩容"]
+ B -- 否 --> D["CounterCell路径"]
+ D --> C
+ S["sumCount"] --> R["汇总baseCount与各Cell"]
+ F["computeIfAbsent"] --> G{"键已存在？"}
+ G -- 是 --> H["返回已有value"]
+ G -- 否 --> I["按桶状态协调计算并发布"]
+ I --> J["新增映射时维护计数"]
 ```
 
 ## 三段源码，抓住核心机制
@@ -3574,13 +3576,13 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  N0["生产或消费尝试匹配"]
-  N1["无匹配则入队等待"]
-  N2["另一方到来完成交接"]
-  N3["DelayQueue队头到期才可取"]
-  N0 --> N1
-  N1 --> N2
-  N2 --> N3
+ S["SynchronousQueue.transfer"] --> M{"存在可匹配的另一方？"}
+ M -- 是 --> C["CAS完成交接"]
+ M -- 否 --> W["视操作模式等待、超时或立即失败"]
+ D["DelayQueue.take"] --> E{"队头存在且到期？"}
+ E -- 是 --> P["poll队头"]
+ E -- 否 --> L["leader限时等待或其他线程await"]
+ L --> E
 ```
 
 ## 三段源码，抓住核心机制
@@ -4037,13 +4039,15 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  N0["推进运行状态"]
-  N1["shutdown中断空闲线程"]
-  N2["shutdownNow中断全部并drainQueue"]
-  N3["tryTerminate核验并完成终止"]
-  N0 --> N1
-  N1 --> N2
-  N2 --> N3
+ S["shutdown"] --> H["推进SHUTDOWN"]
+ H --> I["中断空闲worker，继续处理队列"]
+ N["shutdownNow"] --> T["推进STOP"]
+ T --> A["中断全部worker并drainQueue"]
+ I --> C["tryTerminate核验"]
+ A --> C
+ C --> X{"worker与队列满足终止条件？"}
+ X -- 是 --> Z["TIDYING → TERMINATED"]
+ X -- 否 --> R["等待退出或后续触发检查"]
 ```
 
 ## 三段源码，抓住核心机制
@@ -5369,13 +5373,15 @@ flowchart TD
  D -- 否 --> F{"TreeNode？"}
  F -- 是 --> G["树桶查找 / 插入"]
  F -- 否 --> H["链表查找，匹配则替换"]
- H --> I{"到尾部追加新节点？"}
+ H -- 找到相等键 --> E
+ H -- 未找到相等键 --> I{"到尾部追加新节点？"}
  I -- 是 --> J{"binCount达到检查条件？"}
  J -- 是 --> K{"table长度至少64？"}
  K -- 否 --> L["resize"]
  K -- 是 --> M["treeify"]
  C --> N["新增条目：size加1"]
- G --> N
+ G -- 已有键 --> E
+ G -- 新增键 --> N
  J -- 否 --> N
  L --> N
  M --> N
