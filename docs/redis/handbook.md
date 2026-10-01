@@ -2017,7 +2017,9 @@ flowchart TB
  O --> F{"找到？"}
  F -->|是| R["返回entry"]
  F -->|否且正在rehash| N["按新表mask找桶"]
- N --> R
+ N --> NF{"新表找到？"}
+ NF -->|是| R
+ NF -->|否| Z
  F -->|否且未rehash| Z["不存在"]
  subgraph OLD["旧表8桶，rehashidx=2"]
  E["桶0、1已清空"]
@@ -10866,7 +10868,7 @@ Stream消息体保存在Stream本体中，消费组PEL维护待确认ID，消费
 stateDiagram-v2
  [*] --> Stored: XADD
  Stored --> PendingA: 消费组正常投递
- PendingA --> PendingB: CLAIM或XAUTOCLAIM转交
+ PendingA --> PendingB: XCLAIM或XAUTOCLAIM转交
  PendingA --> Acked: XACK
  PendingB --> Acked: XACK
  PendingA --> MissingBody: 消息体删除或裁剪
