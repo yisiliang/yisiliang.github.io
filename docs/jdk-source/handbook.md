@@ -2356,6 +2356,10 @@ private void siftDownUsingComparator(int k, E x) {
 - [分散计数与compute边界](#topic-11-6)
 - [computeIfAbsent与缓存值的生命周期](#topic-11-7)
 
+- [11.8 初始化权的CAS与table发布：不用全局锁初始化所有写入](#topic-11-8)
+- [11.9 TreeBin的读协调：get不锁桶头，不等于没有任何同步](#topic-11-9)
+- [11.10 线程安全覆盖到哪里：组合操作、值对象与GC引用链](#topic-11-10)
+
 <a id="topic-11-1"></a>
 ## 11.1 初始化竞争、负hash节点和sizeCtl
 
@@ -3004,6 +3008,126 @@ private final void addCount(long x, int check) {
 
 函数内部若递归更新同一Map，可能触发递归更新检测或形成不合适的依赖；设计时避免这样的操作。需要做耗时远程加载时，要额外设计超时、失败缓存和副作用去重，Map的键级协调并不覆盖外部系统事务。
 
+<a id="topic-11-8"></a>
+## 11.8 初始化权的CAS与table发布：不用全局锁初始化所有写入
+
+sizeCtl在未分配table时可以保存目标容量提示。线程用CAS把它改为-1取得本轮初始化权，进入try后还要检查一次table；finally恢复控制值。失败者重新观察状态，Thread.yield只是调度提示，不代表保证公平或立即让其他线程完成。
+
+**ConcurrentHashMap·[L2223–L2244](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2223-L2244)**
+
+> 连续原文窗口；仅统一展示缩进，完整函数及调用方见固定链接。
+
+```java
+private final Node<K,V>[] initTable() {
+    Node<K,V>[] tab; int sc;
+    while ((tab = table) == null || tab.length == 0) {
+        if ((sc = sizeCtl) < 0)
+            Thread.yield(); // lost initialization race; just spin
+        else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
+            try {
+                if ((tab = table) == null || tab.length == 0) {
+                    int n = (sc > 0) ? sc : DEFAULT_CAPACITY;
+                    @SuppressWarnings("unchecked")
+                    Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
+                    table = tab = nt;
+                    sc = n - (n >>> 2);
+                }
+            } finally {
+                sizeCtl = sc;
+            }
+            break;
+        }
+    }
+    return tab;
+}
+```
+
+table是volatile字段；数组槽位通过tabAt/casTabAt/setTabAt等Unsafe访问形成读写协调。不能因为table引用是volatile就推断普通数组元素读写也自动具有相同发布语义。普通Node的val与next也有相应volatile声明，组合这些路径理解get的可见性。
+
+```mermaid
+flowchart TD
+ N0["线程尝试CAS：sizeCtl由容量提示改为-1"]
+ N1["获胜后复查table，建立并发布数组"]
+ N2["finally恢复扩容阈值；其他线程重新检查"]
+ N3["后续不同桶的写无需共享这一把初始化锁"]
+ N0 --> N1
+ N1 --> N2
+ N2 --> N3
+```
+
+
+<a id="topic-11-9"></a>
+## 11.9 TreeBin的读协调：get不锁桶头，不等于没有任何同步
+
+HashMap树桶头是TreeNode；CHM用TreeBin包装树桶，同时保存root与first链。put等结构修改先按桶协调，树旋转还涉及TreeBin自己的lockState。普通get不会通过synchronized等待桶头，但树查询有自己的读者计数CAS与回退策略，不能笼统说整条get路径“没有同步”。
+
+```mermaid
+flowchart TD
+ A["get遇TREEBIN，进入TreeBin.find"] --> Q{"有WRITER或WAITER？"}
+ Q -->|是| L["沿first / next链查找并返回"]
+ Q -->|否| C{"CAS增加READER成功？"}
+ C -->|否| Q
+ C -->|是| R["从root查树"]
+ R --> F["finally减少READER，必要时唤醒写者"]
+ F --> E["返回匹配节点或null"]
+```
+
+图中两条查询方式是条件分支，不是每次依次执行。读者在树写者协调期间可以退回链表查找；这也解释了树桶为什么仍维护链表。CAS重试和树桶协议不能当成API永久承诺，本文限定固定8u实现。
+
+**ConcurrentHashMap·[L2834–L2865](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2834-L2865)**
+
+```java
+final Node<K,V> find(int h, Object k) {
+    if (k != null) {
+        for (Node<K,V> e = first; e != null; ) {
+            int s; K ek;
+            if (((s = lockState) & (WAITER|WRITER)) != 0) {
+                if (e.hash == h &&
+                    ((ek = e.key) == k || (ek != null && k.equals(ek))))
+                    return e;
+                e = e.next;
+            }
+            else if (U.compareAndSwapInt(this, LOCKSTATE, s,
+                                         s + READER)) {
+                TreeNode<K,V> r, p;
+                try {
+                    p = ((r = root) == null ? null :
+                         r.findTreeNode(h, k, null));
+                } finally {
+                    Thread w;
+                    if (U.getAndAddInt(this, LOCKSTATE, -READER) ==
+                        (READER|WAITER) && (w = waiter) != null)
+                        LockSupport.unpark(w);
+                }
+                return p;
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Finds or adds a node.
+ * @return null if added
+```
+
+
+<a id="topic-11-10"></a>
+## 11.10 线程安全覆盖到哪里：组合操作、值对象与GC引用链
+
+|问题|准确边界|
+|---|---|
+|get→判断→put|分开的调用不是整体原子动作，按需求用putIfAbsent/compute等|
+|返回可变value后直接修改|CHM管理映射的协调，不自动保护value内部字段|
+|并发size或遍历|聚合结果不是全表事务快照，迭代是弱一致，不承诺fail-fast|
+|remove与GC|移除映射不等于值立即回收，还要看线程栈、调用者及其他对象引用|
+|计算回调|可能在桶协调范围内执行，应简短；同map递归更新有约束，不把长I/O塞入回调|
+
+从JVM视角读CHM，应先找发布关系和保留链：table、节点val/next、槽位Unsafe操作共同支撑可见性；计数器与弱一致遍历又不提供同一时刻全局快照。锁粒度小只减少部分竞争，不能让一个热点桶或长计算回调没有等待。
+
+口述答案：8u普通写按桶状态分支：空桶CAS，非空桶锁头后复查身份，迁移桶协作transfer，树桶走TreeBin协议。get通过发布与特殊节点find找数据；扩容用ForwardingNode导向新表，baseCount/CounterCell分散计数。映射操作的线程安全不等于组合业务事务或value对象自动安全。
+
+
 <a id="chapter-12"></a>
 # 12. CopyOnWriteArrayList：写时复制、发布与快照
 
@@ -3332,6 +3456,11 @@ sequenceDiagram
 - [缺项初始化与set(null)的字段级推演](#topic-14-2)
 - [开放寻址、陈旧项与探测链修复](#topic-14-3)
 - [清理是探测链维护，不是一个GC魔法](#topic-14-4)
+
+- [14.5 set不是简单赋值：碰撞、陈旧项与维护阈值](#topic-14-5)
+- [14.6 replaceStaleEntry为什么先向后检查再交换位置](#topic-14-6)
+- [14.7 rehash先清理再判断扩容，扩容也会过滤stale](#topic-14-7)
+- [14.8 线程池中的两种保留链与正确清理位置](#topic-14-8)
 
 <a id="topic-14-1"></a>
 ## 14.1 线程归属、弱键强值与初始化
@@ -3681,6 +3810,274 @@ flowchart TD
  E --> F["相关Map操作触发清理 / 线程退出解除链"]
  F --> G["释放引用后才具备回收条件"]
 ```
+
+<a id="topic-14-5"></a>
+## 14.5 set不是简单赋值：碰撞、陈旧项与维护阈值
+
+公开set先定位当前Thread的Map，再进入下面的ThreadLocalMap.set。探测中找到同一个key，就只替换value并返回；遇stale则进入replaceStaleEntry；直到null才建立新Entry。不是每次set都扫描全表，也不是每次更新已有值都触发清理。
+
+**ThreadLocal·[L475–L508](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L475-L508)**
+
+> 连续原文窗口；仅统一展示缩进，完整函数及调用方见固定链接。
+
+```java
+private void set(ThreadLocal<?> key, Object value) {
+
+    // We don't use a fast path as with get() because it is at
+    // least as common to use set() to create new entries as
+    // it is to replace existing ones, in which case, a fast
+    // path would fail more often than not.
+
+    Entry[] tab = table;
+    int len = tab.length;
+    int i = key.threadLocalHashCode & (len-1);
+
+    for (Entry e = tab[i];
+         e != null;
+         e = tab[i = nextIndex(i, len)]) {
+        ThreadLocal<?> k = e.get();
+
+        if (k == key) {
+            e.value = value;
+            return;
+        }
+
+        if (k == null) {
+            replaceStaleEntry(key, value, i);
+            return;
+        }
+    }
+
+    tab[i] = new Entry(key, value);
+    int sz = ++size;
+    if (!cleanSomeSlots(i, sz) && sz >= threshold)
+        rehash();
+}
+
+/**
+```
+
+|探测结果|状态变化|清理边界|
+|---|---|---|
+|key相同|替换e.value并返回|这条快速更新路径没有全表清扫|
+|key为null的陈旧项|replaceStaleEntry处理当前run|可能交换已有key并清理相关区域|
+|遇到空槽|new Entry，size增加|cleanSomeSlots；必要时rehash|
+
+```mermaid
+flowchart TD
+ N0["ThreadLocal.set：先取得当前Thread的Map"]
+ N1["Map.set沿探测链：同key更新 / stale替换 / null新增"]
+ N2["新增后做启发式清理；满足条件才rehash"]
+ N3["不能承诺一次任意set就清空全部陈旧value"]
+ N0 --> N1
+ N1 --> N2
+ N2 --> N3
+```
+
+
+<a id="topic-14-6"></a>
+## 14.6 replaceStaleEntry为什么先向后检查再交换位置
+
+纸面数组：槽3是陈旧项，槽4是另一个有效key，槽5已有本次要set的key。若直接在槽3新建同key，槽5又留下旧映射，便破坏唯一映射与探测顺序。实现先确定这段连续run中合适的清理起点，再向前找已有key或尾部null。找到已有key时更新它的value，并与stale槽交换；没有找到时才用新Entry替换stale槽。
+
+**ThreadLocal·[L541–L616](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L541-L616)**
+
+> 连续原文窗口；仅统一展示缩进，完整函数及调用方见固定链接。
+
+```java
+private void replaceStaleEntry(ThreadLocal<?> key, Object value,
+                               int staleSlot) {
+    Entry[] tab = table;
+    int len = tab.length;
+    Entry e;
+
+    // Back up to check for prior stale entry in current run.
+    // We clean out whole runs at a time to avoid continual
+    // incremental rehashing due to garbage collector freeing
+    // up refs in bunches (i.e., whenever the collector runs).
+    int slotToExpunge = staleSlot;
+    for (int i = prevIndex(staleSlot, len);
+         (e = tab[i]) != null;
+         i = prevIndex(i, len))
+        if (e.get() == null)
+            slotToExpunge = i;
+
+    // Find either the key or trailing null slot of run, whichever
+    // occurs first
+    for (int i = nextIndex(staleSlot, len);
+         (e = tab[i]) != null;
+         i = nextIndex(i, len)) {
+        ThreadLocal<?> k = e.get();
+
+        // If we find key, then we need to swap it
+        // with the stale entry to maintain hash table order.
+        // The newly stale slot, or any other stale slot
+        // encountered above it, can then be sent to expungeStaleEntry
+        // to remove or rehash all of the other entries in run.
+        if (k == key) {
+            e.value = value;
+
+            tab[i] = tab[staleSlot];
+            tab[staleSlot] = e;
+
+            // Start expunge at preceding stale entry if it exists
+            if (slotToExpunge == staleSlot)
+                slotToExpunge = i;
+            cleanSomeSlots(expungeStaleEntry(slotToExpunge), len);
+            return;
+        }
+
+        // If we didn't find stale entry on backward scan, the
+        // first stale entry seen while scanning for key is the
+        // first still present in the run.
+        if (k == null && slotToExpunge == staleSlot)
+            slotToExpunge = i;
+    }
+
+    // If key not found, put new entry in stale slot
+    tab[staleSlot].value = null;
+    tab[staleSlot] = new Entry(key, value);
+
+    // If there are any other stale entries in run, expunge them
+    if (slotToExpunge != staleSlot)
+        cleanSomeSlots(expungeStaleEntry(slotToExpunge), len);
+}
+
+/**
+ * Expunge a stale entry by rehashing any possibly colliding entries
+ * lying between staleSlot and the next null slot.  This also expunges
+ * any other stale entries encountered before the trailing null.  See
+ * Knuth, Section 6.4
+ *
+ * @param staleSlot index of slot known to have null key
+ * @return the index of the next null slot after staleSlot
+ * (all between staleSlot and this slot will have been checked
+ * for expunging).
+ */
+private int expungeStaleEntry(int staleSlot) {
+    Entry[] tab = table;
+    int len = tab.length;
+
+    // expunge entry at staleSlot
+    tab[staleSlot].value = null;
+    tab[staleSlot] = null;
+```
+
+```mermaid
+flowchart TD
+ N0["set(K)：先遇槽3的stale，不能直接新增第二个K"]
+ N1["向前探测，在槽5找到已有K，先更新其value"]
+ N2["交换有效Entry与stale位置，维护探测次序"]
+ N3["从选择的陈旧起点清理，并重排该run中的有效项"]
+ N0 --> N1
+ N1 --> N2
+ N2 --> N3
+```
+
+这里的run是两个null槽之间的连续非空区域，不是整个数组。expungeStaleEntry会减少size、清除value引用并重新安置后续有效项；仅清WeakReference不会完成这些工作。
+
+
+<a id="topic-14-7"></a>
+## 14.7 rehash先清理再判断扩容，扩容也会过滤stale
+
+ThreadLocalMap初始容量为16，维护阈值通常是容量的2/3。达到触发条件不等于立即把所有条目复制到双倍数组：rehash先全表清陈旧项，再以较低判断阈值决定是否resize。不要把HashMap的0.75负载因子和树化规则套到ThreadLocalMap。
+
+**ThreadLocal·[L691–L739](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L691-L739)**
+
+> 连续原文窗口；仅统一展示缩进，完整函数及调用方见固定链接。
+
+```java
+private void rehash() {
+    expungeStaleEntries();
+
+    // Use lower threshold for doubling to avoid hysteresis
+    if (size >= threshold - threshold / 4)
+        resize();
+}
+
+/**
+ * Double the capacity of the table.
+ */
+private void resize() {
+    Entry[] oldTab = table;
+    int oldLen = oldTab.length;
+    int newLen = oldLen * 2;
+    Entry[] newTab = new Entry[newLen];
+    int count = 0;
+
+    for (int j = 0; j < oldLen; ++j) {
+        Entry e = oldTab[j];
+        if (e != null) {
+            ThreadLocal<?> k = e.get();
+            if (k == null) {
+                e.value = null; // Help the GC
+            } else {
+                int h = k.threadLocalHashCode & (newLen - 1);
+                while (newTab[h] != null)
+                    h = nextIndex(h, newLen);
+                newTab[h] = e;
+                count++;
+            }
+        }
+    }
+
+    setThreshold(newLen);
+    size = count;
+    table = newTab;
+}
+
+/**
+ * Expunge all stale entries in the table.
+ */
+private void expungeStaleEntries() {
+    Entry[] tab = table;
+    int len = tab.length;
+    for (int j = 0; j < len; j++) {
+        Entry e = tab[j];
+        if (e != null && e.get() == null)
+            expungeStaleEntry(j);
+```
+
+```mermaid
+flowchart TD
+ N0["触发rehash：先expungeStaleEntries全表清理"]
+ N1["用清理后的size判断是否需要扩大数组"]
+ N2["若扩容：按新mask重新定位有效Entry并线性探测"]
+ N3["更新table、size与threshold；陈旧value不进入新表"]
+ N0 --> N1
+ N1 --> N2
+ N2 --> N3
+```
+
+扩容可以释放一些陈旧引用，但你不能靠制造扩容作为请求生命周期管理。ThreadLocal通常由当前线程操作自己的Map，核心实现没有HashMap的桶链，也不依赖CHM的桶头monitor。
+
+
+<a id="topic-14-8"></a>
+## 14.8 线程池中的两种保留链与正确清理位置
+
+|场景|为什么value继续存活|处理重点|
+|---|---|---|
+|ThreadLocal实例已不可达|弱key可被清空，但Thread→Map→Entry→value仍强可达|机会性清理不能作为及时释放承诺|
+|ThreadLocal是长期static字段|key仍有效，根本不会成为stale；value留在worker中|业务结束后主动remove|
+|值又强引用ThreadLocal自身|value到key可能构成额外强可达链，弱key不一定消失|检查完整引用图，不能只看Entry继承WeakReference|
+
+请求A和请求B先后复用同一worker时，ThreadLocal隔离的是线程，不是请求；A留下的有效Entry可被B的get直接读到。remove必须在实际执行任务的worker上调用，并覆盖异常路径。在提交任务的线程调用remove，只清理提交者自己的Map。
+
+```mermaid
+flowchart TD
+ N0["请求A在worker-W上设置上下文"]
+ N1["A结束时在worker-W的finally中remove"]
+ N2["清除W自己的Entry并修复探测链"]
+ N3["请求B复用W：缺项时重新initialValue，或自行set"]
+ N0 --> N1
+ N1 --> N2
+ N2 --> N3
+```
+
+set(null)只把value设为null，Entry仍在，下一次get返回null；remove之后get才重新初始化。另一个边界：ThreadLocal让各线程拥有独立映射，但若人为把同一个可变对象set到多个线程，该对象本身仍被共享，不会自动获得线程安全。
+
+口述答案：值归当前Thread的ThreadLocalMap管理，Entry弱key强value；开放寻址需要在删除时修复探测链，机会性清理不保证及时回收。线程池要按任务在worker的finally里remove，不能把弱引用当成自动资源释放。
+
 
 <a id="chapter-15"></a>
 # 15. AtomicInteger：可见性、CAS与原子更新边界
@@ -8408,6 +8805,6 @@ flowchart TD
 
 ## 版权与隐私范围
 
-只使用公开OpenJDK源码、通用说明与虚构例子。正文不引用简历、工作项目、业务数据、聊天记录、凭据或本机目录；页面无统计脚本与外部资源加载。源码及其版权头保留在[原始源码包](./openjdk-source.zip)，对应[完整版权声明](./source-notices.txt)与[上游许可证](./openjdk-license.txt)一并提供。
+只使用公开OpenJDK源码、通用说明与虚构例子。正文不引用简历、工作项目、业务数据、聊天记录、凭据或本机目录；公开页沿用站点既有访问统计；离线包不加载统计脚本或外部资源，点击上游链接时才联网。源码及其版权头保留在[原始源码包](./openjdk-source.zip)，对应[完整版权声明](./source-notices.txt)与[上游许可证](./openjdk-license.txt)一并提供。
 
 Java源码、构建模板与native入口有不同证据边界。切换到其他JDK版本应重新确认实现，不将本期阈值、字段布局与调度机制当作跨版本永久保证。
