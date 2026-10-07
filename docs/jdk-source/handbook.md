@@ -95,7 +95,7 @@ flowchart TD
 #### 源码1：private final char value[];
 
 
-**String·[L114–L121](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L114-L121)**
+**String·[L114–L120](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L114-L120)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -107,7 +107,6 @@ private int hash; // Default to 0
 
 /** use serialVersionUID from JDK 1.0.2 for interoperability */
 private static final long serialVersionUID = -6849794470754667710L;
-
 ```
 
 value是内部表示，hash是缓存，不是字符串的逻辑内容。一个Unicode字符可能需要两个char表示，因此length统计UTF-16代码单元。不要把char[]说成按字符编码后的byte数组。
@@ -116,16 +115,23 @@ value是内部表示，hash是缓存，不是字符串的逻辑内容。一个Un
 #### 源码2：public String(char value[])
 
 
-**String·[L165–L169](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L165-L169)**
+**String·[L156–L167](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L156-L167)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Allocates a new {@code String} so that it represents the sequence of
+ * characters currently contained in the character array argument. The
+ * contents of the character array are copied; subsequent modification of
+ * the character array does not affect the newly created string.
+ *
+ * @param  value
+ *         The initial value of the string
+ */
 public String(char value[]) {
     this.value = Arrays.copyOf(value, value.length);
 }
-
-/**
 ```
 
 这个构造器复制外部数组。即使调用者后来修改原数组，已经构造的字符串也不改变。对比String(String)共享value：两个String都不提供修改该数组的公共接口，共享仍安全。
@@ -134,11 +140,24 @@ public String(char value[]) {
 #### 源码3：public int hashCode()
 
 
-**String·[L1465–L1480](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L1465-L1480)**
+**String·[L1452–L1476](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L1452-L1476)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Returns a hash code for this string. The hash code for a
+ * {@code String} object is computed as
+ * <blockquote><pre>
+ * s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]
+ * </pre></blockquote>
+ * using {@code int} arithmetic, where {@code s[i]} is the
+ * <i>i</i>th character of the string, {@code n} is the length of
+ * the string, and {@code ^} indicates exponentiation.
+ * (The hash value of the empty string is zero.)
+ *
+ * @return  a hash code value for this object.
+ */
 public int hashCode() {
     int h = hash;
     if (h == 0 && value.length > 0) {
@@ -151,10 +170,6 @@ public int hashCode() {
     }
     return h;
 }
-
-/**
- * Returns the index within this string of the first occurrence of
- * the specified character. If a character with value
 ```
 
 逐个char累积h=31*h+字符。整数溢出是算法的一部分，不抛溢出异常；hash为0既可能是尚未计算，也可能是真实结果为0，后者可能再次计算。equals成立必须hash一致，hash相同不能推出equals。
@@ -178,11 +193,26 @@ equals先看是不是同一个对象，再看类型，最后比长度和char数�
 构造String(String original)可以共享不可变的value；从外部char数组构造则复制。共享安全与否取决于数组是否能通过公开路径被修改，而不是“只要用了数组共享就一定不安全”。字符串不可变也不意味着所有使用它的复合业务代码都自动线程安全。
 
 
-**String·[L976–L1000](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L976-L1000)**
+**String·[L961–L996](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L961-L996)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Compares this string to the specified object.  The result is {@code
+ * true} if and only if the argument is not {@code null} and is a {@code
+ * String} object that represents the same sequence of characters as this
+ * object.
+ *
+ * @param  anObject
+ *         The object to compare this {@code String} against
+ *
+ * @return  {@code true} if the given object represents a {@code String}
+ *          equivalent to this string, {@code false} otherwise
+ *
+ * @see  #compareTo(String)
+ * @see  #equalsIgnoreCase(String)
+ */
 public boolean equals(Object anObject) {
     if (this == anObject) {
         return true;
@@ -204,10 +234,6 @@ public boolean equals(Object anObject) {
     }
     return false;
 }
-
-/**
- * Compares this string to the specified {@code StringBuffer}.  The result
- * is {@code true} if and only if this {@code String} represents the same
 ```
 
 引用相同快速返回；String类型且长度相同才按char逐个比较。源码没有因为hash相等就返回true。
@@ -253,11 +279,18 @@ flowchart TD
 #### 源码1：private void ensureCapacityInternal(
 
 
-**AbstractStringBuilder·[L121–L128](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/AbstractStringBuilder.java#L121-L128)**
+**AbstractStringBuilder·[L114–L127](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/AbstractStringBuilder.java#L114-L127)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * For positive values of {@code minimumCapacity}, this method
+ * behaves like {@code ensureCapacity}, however it is never
+ * synchronized.
+ * If {@code minimumCapacity} is non positive due to numeric
+ * overflow, this method throws {@code OutOfMemoryError}.
+ */
 private void ensureCapacityInternal(int minimumCapacity) {
     // overflow-conscious code
     if (minimumCapacity - value.length > 0) {
@@ -265,7 +298,6 @@ private void ensureCapacityInternal(int minimumCapacity) {
                 newCapacity(minimumCapacity));
     }
 }
-
 ```
 
 用minimumCapacity-value.length判断是否需要增长。这里没有锁；不能因为内部数组复制就把StringBuilder当线程安全容器。
@@ -274,11 +306,22 @@ private void ensureCapacityInternal(int minimumCapacity) {
 #### 源码2：private int newCapacity(
 
 
-**AbstractStringBuilder·[L148–L158](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/AbstractStringBuilder.java#L148-L158)**
+**AbstractStringBuilder·[L137–L157](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/AbstractStringBuilder.java#L137-L157)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Returns a capacity at least as large as the given minimum capacity.
+ * Returns the current capacity increased by the same amount + 2 if
+ * that suffices.
+ * Will not return a capacity greater than {@code MAX_ARRAY_SIZE}
+ * unless the given minimum capacity is greater than that.
+ *
+ * @param  minCapacity the desired minimum capacity
+ * @throws OutOfMemoryError if minCapacity is less than zero or
+ *         greater than Integer.MAX_VALUE
+ */
 private int newCapacity(int minCapacity) {
     // overflow-conscious code
     int newCapacity = (value.length << 1) + 2;
@@ -289,7 +332,6 @@ private int newCapacity(int minCapacity) {
         ? hugeCapacity(minCapacity)
         : newCapacity;
 }
-
 ```
 
 常规候选容量是旧容量的两倍加2；若仍不足，使用minCapacity。巨大容量与溢出另有分支，所以“永远严格翻倍”不准确。
@@ -298,11 +340,29 @@ private int newCapacity(int minCapacity) {
 #### 源码3：public AbstractStringBuilder append(String str)
 
 
-**AbstractStringBuilder·[L444–L455](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/AbstractStringBuilder.java#L444-L455)**
+**AbstractStringBuilder·[L426–L452](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/AbstractStringBuilder.java#L426-L452)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Appends the specified string to this character sequence.
+ * <p>
+ * The characters of the {@code String} argument are appended, in
+ * order, increasing the length of this sequence by the length of the
+ * argument. If {@code str} is {@code null}, then the four
+ * characters {@code "null"} are appended.
+ * <p>
+ * Let <i>n</i> be the length of this character sequence just prior to
+ * execution of the {@code append} method. Then the character at
+ * index <i>k</i> in the new character sequence is equal to the character
+ * at index <i>k</i> in the old character sequence, if <i>k</i> is less
+ * than <i>n</i>; otherwise, it is equal to the character at index
+ * <i>k-n</i> in the argument {@code str}.
+ *
+ * @param   str   a string.
+ * @return  a reference to this object.
+ */
 public AbstractStringBuilder append(String str) {
     if (str == null)
         return appendNull();
@@ -312,9 +372,6 @@ public AbstractStringBuilder append(String str) {
     count += len;
     return this;
 }
-
-// Documentation in subclasses because of synchro difference
-public AbstractStringBuilder append(StringBuffer sb) {
 ```
 
 先处理null，再取长度、扩容、把字符复制到count之后，最后推进count。append(null String)追加的是字符串null，而不是跳过。
@@ -338,16 +395,29 @@ public AbstractStringBuilder append(StringBuffer sb) {
 频繁在循环内toString会产生新的结果字符串，不能因为用了Builder就认定整段循环绝无分配。还应区分单条表达式的编译转换与跨多次循环累积，后者反复String连接可能重复复制已有前缀。
 
 
-**String·[L599–L603](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L599-L603)**
+**String·[L584–L601](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L584-L601)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Allocates a new string that contains the sequence of characters
+ * currently contained in the string builder argument. The contents of the
+ * string builder are copied; subsequent modification of the string builder
+ * does not affect the newly created string.
+ *
+ * <p> This constructor is provided to ease migration to {@code
+ * StringBuilder}. Obtaining a string from a string builder via the {@code
+ * toString} method is likely to run faster and is generally preferred.
+ *
+ * @param   builder
+ *          A {@code StringBuilder}
+ *
+ * @since  1.5
+ */
 public String(StringBuilder builder) {
     this.value = Arrays.copyOf(builder.getValue(), builder.length());
 }
-
-/*
 ```
 
 这里复制builder.getValue的count长度区域，之后Builder再append不改已有String。
@@ -430,17 +500,31 @@ private static class IntegerCache {
 #### 源码2：public static Integer valueOf(int i)
 
 
-**Integer·[L829–L834](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Integer.java#L829-L834)**
+**Integer·[L814–L833](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Integer.java#L814-L833)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Returns an {@code Integer} instance representing the specified
+ * {@code int} value.  If a new {@code Integer} instance is not
+ * required, this method should generally be used in preference to
+ * the constructor {@link #Integer(int)}, as this method is likely
+ * to yield significantly better space and time performance by
+ * caching frequently requested values.
+ *
+ * This method will always cache values in the range -128 to 127,
+ * inclusive, and may cache other values outside of this range.
+ *
+ * @param  i an {@code int} value.
+ * @return an {@code Integer} instance representing {@code i}.
+ * @since  1.5
+ */
 public static Integer valueOf(int i) {
     if (i >= IntegerCache.low && i <= IntegerCache.high)
         return IntegerCache.cache[i + (-IntegerCache.low)];
     return new Integer(i);
 }
-
 ```
 
 这里直接决定是否返回同一个缓存对象。new Integer走构造器，不经过valueOf缓存分支。
@@ -449,19 +533,27 @@ public static Integer valueOf(int i) {
 #### 源码3：public boolean equals(Object obj)
 
 
-**Integer·[L973–L980](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Integer.java#L973-L980)**
+**Integer·[L963–L978](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Integer.java#L963-L978)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Compares this object to the specified object.  The result is
+ * {@code true} if and only if the argument is not
+ * {@code null} and is an {@code Integer} object that
+ * contains the same {@code int} value as this object.
+ *
+ * @param   obj   the object to compare with.
+ * @return  {@code true} if the objects are the same;
+ *          {@code false} otherwise.
+ */
 public boolean equals(Object obj) {
     if (obj instanceof Integer) {
         return value == ((Integer)obj).intValue();
     }
     return false;
 }
-
-/**
 ```
 
 equals先检查对象类型，然后比较int值。Integer与Long即使数值相同也不会因此equals；拆箱null则是另一条路径，会抛NullPointerException。
@@ -530,17 +622,22 @@ flowchart TD
 #### 源码1：public boolean add(E e)
 
 
-**ArrayList·[L463–L468](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L463-L468)**
+**ArrayList·[L457–L467](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L457-L467)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Appends the specified element to the end of this list.
+ *
+ * @param e element to be appended to this list
+ * @return <tt>true</tt> (as specified by {@link Collection#add})
+ */
 public boolean add(E e) {
     ensureCapacityInternal(size + 1);  // Increments modCount!!
     elementData[size++] = e;
     return true;
 }
-
 ```
 
 ensureCapacityInternal(size+1)确保下一格存在，然后数组赋值并后置增加size。默认构造的空标记数组在第一次添加时通常扩到默认容量10。
@@ -549,11 +646,17 @@ ensureCapacityInternal(size+1)确保下一格存在，然后数组赋值并后�
 #### 源码2：private void grow(int minCapacity)
 
 
-**ArrayList·[L258–L270](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L258-L270)**
+**ArrayList·[L252–L268](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L252-L268)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Increases the capacity to ensure that it can hold at least the
+ * number of elements specified by the minimum capacity argument.
+ *
+ * @param minCapacity the desired minimum capacity
+ */
 private void grow(int minCapacity) {
     // overflow-conscious code
     int oldCapacity = elementData.length;
@@ -565,8 +668,6 @@ private void grow(int minCapacity) {
     // minCapacity is usually close to size, so this is a win:
     elementData = Arrays.copyOf(elementData, newCapacity);
 }
-
-private static int hugeCapacity(int minCapacity) {
 ```
 
 常规候选容量为oldCapacity+(oldCapacity>>1)，约1.5倍；若候选不足则使用所需最小容量。超过数组上限还要走hugeCapacity，所以并非任意情况下恰好1.5倍。
@@ -575,11 +676,20 @@ private static int hugeCapacity(int minCapacity) {
 #### 源码3：public E remove(int index)
 
 
-**ArrayList·[L497–L511](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L497-L511)**
+**ArrayList·[L488–L510](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L488-L510)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Removes the element at the specified position in this list.
+ * Shifts any subsequent elements to the left (subtracts one from their
+ * indices).
+ *
+ * @param index the index of the element to be removed
+ * @return the element that was removed from the list
+ * @throws IndexOutOfBoundsException {@inheritDoc}
+ */
 public E remove(int index) {
     rangeCheck(index);
 
@@ -594,7 +704,6 @@ public E remove(int index) {
 
     return oldValue;
 }
-
 ```
 
 检查下标后移动后续元素，size减少，最后把多余槽置null，避免容器继续保留已删除对象的强引用。删除中间元素的成本来自搬移。
@@ -642,7 +751,7 @@ flowchart TD
 #### 源码1：public E next()
 
 
-**ArrayList·[L860–L873](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L860-L873)**
+**ArrayList·[L860–L870](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L860-L870)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -658,9 +767,6 @@ public E next() {
     cursor = i + 1;
     return (E) elementData[lastRet = i];
 }
-
-public void remove() {
-    if (lastRet < 0)
 ```
 
 先检查并发修改，再检查下标和当前数组边界。检查只能帮助尽早发现错误，不能把数据竞争变成可靠异常。
@@ -686,7 +792,7 @@ expectedModCount不同就抛异常。不要把ConcurrentModificationException理
 #### 源码3：SubList(AbstractList<E> parent,
 
 
-**ArrayList·[L1026–L1035](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L1026-L1035)**
+**ArrayList·[L1026–L1033](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L1026-L1033)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -699,8 +805,6 @@ SubList(AbstractList<E> parent,
     this.size = toIndex - fromIndex;
     this.modCount = ArrayList.this.modCount;
 }
-
-public E set(int index, E e) {
 ```
 
 子视图保存父列表、偏移和创建时modCount。对视图做结构修改会经其实现更新相关状态，直接改父列表结构会让旧视图失效。
@@ -732,11 +836,15 @@ public E set(int index, E e) {
 **视图偏移推演：**父列表[A,B,C,D,E]，subList(1,4)对应[B,C,D]。子视图set(0,X)改的是父列表索引1。子视图持有父结构，长期保留它可能继续保留父列表及大数组。需要独立数据时，必须明确创建副本，不能只截一个视图。
 
 
-**ArrayList·[L559–L567](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L559-L567)**
+**ArrayList·[L555–L567](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L555-L567)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Removes all of the elements from this list.  The list will
+ * be empty after this call returns.
+ */
 public void clear() {
     modCount++;
 
@@ -793,11 +901,14 @@ flowchart TD
 #### 源码1：void linkLast(E e)
 
 
-**LinkedList·[L140–L151](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedList.java#L140-L151)**
+**LinkedList·[L137–L150](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedList.java#L137-L150)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Links e as last element.
+ */
 void linkLast(E e) {
     final Node<E> l = last;
     final Node<E> newNode = new Node<>(l, e, null);
@@ -809,7 +920,6 @@ void linkLast(E e) {
     size++;
     modCount++;
 }
-
 ```
 
 创建新尾节点，处理空链表与非空链表两种连接方式。追加尾部可直接用last，无需遍历。
@@ -818,11 +928,14 @@ void linkLast(E e) {
 #### 源码2：Node<E> node(int index)
 
 
-**LinkedList·[L566–L581](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedList.java#L566-L581)**
+**LinkedList·[L563–L580](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedList.java#L563-L580)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Returns the (non-null) Node at the specified element index.
+ */
 Node<E> node(int index) {
     // assert isElementIndex(index);
 
@@ -838,7 +951,6 @@ Node<E> node(int index) {
         return x;
     }
 }
-
 ```
 
 index<size/2时从first向后，否则从last向前。双向链降低常数，但数量级仍为O(n)。
@@ -847,11 +959,14 @@ index<size/2时从first向后，否则从last向前。双向链降低常数，�
 #### 源码3：E unlink(Node<E> x)
 
 
-**LinkedList·[L209–L238](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedList.java#L209-L238)**
+**LinkedList·[L206–L233](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedList.java#L206-L233)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Unlinks non-null node x.
+ */
 E unlink(Node<E> x) {
     // assert x != null;
     final E element = x.item;
@@ -877,11 +992,6 @@ E unlink(Node<E> x) {
     modCount++;
     return element;
 }
-
-/**
- * Returns the first element in this list.
- *
- * @return the first element in this list
 ```
 
 分别修补前驱和后继；首尾需要额外更新first/last。清除item和断开的引用，让已删除节点不继续保留旧结构。
@@ -905,16 +1015,23 @@ E unlink(Node<E> x) {
 LinkedList既实现List也实现Deque。getFirst/removeFirst在空队列抛异常，peekFirst/pollFirst用null表达空；因为LinkedList允许null元素，调用者需要自己避免语义歧义。
 
 
-**LinkedList·[L758–L762](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedList.java#L758-L762)**
+**LinkedList·[L750–L761](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedList.java#L750-L761)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Retrieves and removes the first element of this list,
+ * or returns {@code null} if this list is empty.
+ *
+ * @return the first element of this list, or {@code null} if
+ *     this list is empty
+ * @since 1.6
+ */
 public E pollFirst() {
     final Node<E> f = first;
     return (f == null) ? null : unlinkFirst(f);
 }
-
 ```
 
 两端非抛异常API检查first是否null，再委托unlinkFirst。
@@ -953,11 +1070,20 @@ public E pollFirst() {
 初始参数17通常先调整为32。第一次分配后，默认负载因子0.75使阈值为24。不要把构造完成时threshold=32理解成“可以存32项再扩容”。
 
 
-**HashMap·[L448–L460](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L448-L460)**
+**HashMap·[L439–L459](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L439-L459)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Constructs an empty <tt>HashMap</tt> with the specified initial
+ * capacity and load factor.
+ *
+ * @param  initialCapacity the initial capacity
+ * @param  loadFactor      the load factor
+ * @throws IllegalArgumentException if the initial capacity is negative
+ *         or the load factor is nonpositive
+ */
 public HashMap(int initialCapacity, float loadFactor) {
     if (initialCapacity < 0)
         throw new IllegalArgumentException("Illegal initial capacity: " +
@@ -970,18 +1096,20 @@ public HashMap(int initialCapacity, float loadFactor) {
     this.loadFactor = loadFactor;
     this.threshold = tableSizeFor(initialCapacity);
 }
-
 ```
 
 构造器只验证参数、保存loadFactor与threshold，没有new Node数组。
 
 
 
-**HashMap·[L379–L389](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L379-L389)**
+**HashMap·[L376–L387](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L376-L387)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Returns a power of two size for the given target capacity.
+ */
 static final int tableSizeFor(int cap) {
     int n = cap - 1;
     n |= n >>> 1;
@@ -991,8 +1119,6 @@ static final int tableSizeFor(int cap) {
     n |= n >>> 16;
     return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
 }
-
-/* ---------------- Fields -------------- */
 ```
 
 cap-1以后逐步把最高有效位右侧填成1，最后加1得到不小于cap的2的幂。边界值还受MAXIMUM_CAPACITY限制。
@@ -1135,11 +1261,27 @@ flowchart TD
 #### 源码1：static final int hash(Object key)
 
 
-**HashMap·[L338–L341](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L338-L341)**
+**HashMap·[L322–L341](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L322-L341)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Computes key.hashCode() and spreads (XORs) higher bits of hash
+ * to lower.  Because the table uses power-of-two masking, sets of
+ * hashes that vary only in bits above the current mask will
+ * always collide. (Among known examples are sets of Float keys
+ * holding consecutive whole numbers in small tables.)  So we
+ * apply a transform that spreads the impact of higher bits
+ * downward. There is a tradeoff between speed, utility, and
+ * quality of bit-spreading. Because many common sets of hashes
+ * are already reasonably distributed (so don't benefit from
+ * spreading), and because we use trees to handle large sets of
+ * collisions in bins, we just XOR some shifted bits in the
+ * cheapest possible way to reduce systematic lossage, as well as
+ * to incorporate impact of the highest bits that would otherwise
+ * never be used in index calculations because of table bounds.
+ */
 static final int hash(Object key) {
     int h;
     return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
@@ -1152,11 +1294,21 @@ null键的hash为0；非null键使用h^(h>>>16)。Node的hash字段记录扰动�
 #### 源码2：final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
 
 
-**HashMap·[L626–L659](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L626-L659)**
+**HashMap·[L616–L659](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L616-L659)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Implements Map.put and related methods.
+ *
+ * @param hash hash for key
+ * @param key the key
+ * @param value the value to put
+ * @param onlyIfAbsent if true, don't change existing value
+ * @param evict if false, the table is in creation mode.
+ * @return previous value, or null if none
+ */
 final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
                boolean evict) {
     Node<K,V>[] tab; Node<K,V> p; int n, i;
@@ -1242,11 +1394,21 @@ put分成定位、匹配、插入、维护四步。hash缩小候选范围，equa
 onlyIfAbsent不是“只要有Entry就永远不能改”：旧value为null时仍可写新value。evict传递给afterNodeInsertion，主要为继承结构维护提供上下文，不是HashMap自身内置LRU。
 
 
-**HashMap·[L626–L672](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L626-L672)**
+**HashMap·[L616–L667](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L616-L667)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Implements Map.put and related methods.
+ *
+ * @param hash hash for key
+ * @param key the key
+ * @param value the value to put
+ * @param onlyIfAbsent if true, don't change existing value
+ * @param evict if false, the table is in creation mode.
+ * @return previous value, or null if none
+ */
 final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
                boolean evict) {
     Node<K,V>[] tab; Node<K,V> p; int n, i;
@@ -1289,11 +1451,6 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
     afterNodeInsertion(evict);
     return null;
 }
-
-/**
- * Initializes or doubles table size.  If null, allocates in
- * accord with initial capacity target held in field threshold.
- * Otherwise, because we are using power-of-two expansion, the
 ```
 
 请把return oldValue与方法最后return null画成两个出口。第一条不增加size；第二条表示新增，但null返回也不能单独证明过去没有映射，因为旧值本来就可能为null。
@@ -1307,11 +1464,18 @@ HashMap允许null键和null值。get返回null有两种解释：没有该键；�
 查找先检查桶首，再分树桶和普通链。getNode依赖的是查询时重新计算的hash，节点保存的是插入时的hash。这个时间差解释了可变键的问题。
 
 
-**HashMap·[L568–L593](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L568-L593)**
+**HashMap·[L561–L586](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L561-L586)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Implements Map.get and related methods.
+ *
+ * @param hash hash for key
+ * @param key the key
+ * @return the node, or null if none
+ */
 final Node<K,V> getNode(int hash, Object key) {
     Node<K,V>[] tab; Node<K,V> first, e; int n; K k;
     if ((tab = table) != null && (n = tab.length) > 0 &&
@@ -1331,13 +1495,6 @@ final Node<K,V> getNode(int hash, Object key) {
     }
     return null;
 }
-
-/**
- * Returns <tt>true</tt> if this map contains a mapping for the
- * specified key.
- *
- * @param   key   The key whose presence in this map is to be tested
- * @return <tt>true</tt> if this map contains a mapping for the specified
 ```
 
 首先校验首节点hash与键，树桶委托getTreeNode，普通链逐个检查。桶索引相同也只是候选范围相同，仍必须比较hash与键。
@@ -1384,11 +1541,20 @@ flowchart TD
 #### 源码1：final Node<K,V>[] resize()
 
 
-**HashMap·[L678–L706](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L678-L706)**
+**HashMap·[L669–L706](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L669-L706)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Initializes or doubles table size.  If null, allocates in
+ * accord with initial capacity target held in field threshold.
+ * Otherwise, because we are using power-of-two expansion, the
+ * elements from each bin must either stay at same index, or move
+ * with a power of two offset in the new table.
+ *
+ * @return the table
+ */
 final Node<K,V>[] resize() {
     Node<K,V>[] oldTab = table;
     int oldCap = (oldTab == null) ? 0 : oldTab.length;
@@ -1574,11 +1740,15 @@ binCount从桶首开始计数，遇到链尾并追加后才判断。普通put逐
 #### 源码2：final void treeifyBin(Node<K,V>[] tab, int hash)
 
 
-**HashMap·[L756–L775](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L756-L775)**
+**HashMap·[L752–L775](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L752-L775)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Replaces all linked nodes in bin at index for given hash unless
+ * table is too small, in which case resizes instead.
+ */
 final void treeifyBin(Node<K,V>[] tab, int hash) {
     int n, index; Node<K,V> e;
     if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
@@ -1607,11 +1777,21 @@ final void treeifyBin(Node<K,V>[] tab, int hash) {
 #### 源码3：final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit)
 
 
-**HashMap·[L2162–L2207](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L2162-L2207)**
+**HashMap·[L2152–L2207](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L2152-L2207)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Splits nodes in a tree bin into lower and upper tree bins,
+ * or untreeifies if now too small. Called only from resize;
+ * see above discussion about split bits and indices.
+ *
+ * @param map the map
+ * @param tab the table for recording bin heads
+ * @param index the index of the table being split
+ * @param bit the bit of hash to split on
+ */
 final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
     TreeNode<K,V> b = this;
     // Relink into lo and hi lists, preserving order
@@ -1704,11 +1884,16 @@ TreeNode同时含parent/left/right/red等树字段，以及继承的next与自�
 hash不同可以直接决定向左或向右；hash相同且equals匹配就返回。若键有可用的Comparable顺序，按该顺序分支；如果无法区分方向，find可能递归搜索一侧，再查另一侧。插入时tieBreakOrder帮助安排结构，不能用身份hash直接替代业务equals查询。
 
 
-**HashMap·[L1882–L1908](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L1882-L1908)**
+**HashMap·[L1877–L1907](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L1877-L1907)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Finds the node starting at root p with the given hash and key.
+ * The kc argument caches comparableClassFor(key) upon first use
+ * comparing keys.
+ */
 final TreeNode<K,V> find(int h, Object k, Class<?> kc) {
     TreeNode<K,V> p = this;
     do {
@@ -1735,18 +1920,24 @@ final TreeNode<K,V> find(int h, Object k, Class<?> kc) {
     } while (p != null);
     return null;
 }
-
 ```
 
 最后两个搜索分支说明：同hash且没有可用比较方向时，查找不能始终只走单一路径。树平衡与查找可判向是不同条件。
 
 
 
-**HashMap·[L1923–L1931](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L1923-L1931)**
+**HashMap·[L1916–L1931](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L1916-L1931)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Tie-breaking utility for ordering insertions when equal
+ * hashCodes and non-comparable. We don't require a total
+ * order, just a consistent insertion rule to maintain
+ * equivalence across rebalancings. Tie-breaking further than
+ * necessary simplifies testing a bit.
+ */
 static int tieBreakOrder(Object a, Object b) {
     int d;
     if (a == null || b == null ||
@@ -1777,11 +1968,21 @@ removeNode先像查找一样定位目标。删除普通桶首要改table[index]�
 matchValue=true的路径还要核对旧value，用于remove(key,value)；普通remove(key)无需匹配value。movable=false可让迭代器删除避免某些结构移动，影响树桶删除维护分支。
 
 
-**HashMap·[L814–L856](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L814-L856)**
+**HashMap·[L804–L853](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L804-L853)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Implements Map.remove and related methods.
+ *
+ * @param hash hash for key
+ * @param key the key
+ * @param value the value to match if matchValue, else ignored
+ * @param matchValue if true only remove if value is equal
+ * @param movable if false do not move other nodes while removing
+ * @return the node, or null if none
+ */
 final Node<K,V> removeNode(int hash, Object key, Object value,
                            boolean matchValue, boolean movable) {
     Node<K,V>[] tab; Node<K,V> p; int n, index;
@@ -1822,20 +2023,27 @@ final Node<K,V> removeNode(int hash, Object key, Object value,
     }
     return null;
 }
-
-/**
- * Removes all of the mappings from this map.
 ```
 
 node定位目标，p在普通链中保留前驱。删除分支区分树节点、桶首和链中节点，并调用afterNodeRemoval给LinkedHashMap等继承者清理顺序链。
 
 
 
-**HashMap·[L2054–L2079](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L2054-L2079)**
+**HashMap·[L2044–L2079](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L2044-L2079)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Removes the given node, that must be present before this call.
+ * This is messier than typical red-black deletion code because we
+ * cannot swap the contents of an interior node with a leaf
+ * successor that is pinned by "next" pointers that are accessible
+ * independently during traversal. So instead we swap the tree
+ * linkages. If the current tree appears to have too few nodes,
+ * the bin is converted back to a plain bin. (The test triggers
+ * somewhere between 2 and 6 nodes, depending on tree structure).
+ */
 final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab,
                           boolean movable) {
     int n;
@@ -1967,15 +2175,26 @@ flowchart TD
 #### 源码1：public boolean add(E e)
 
 
-**HashSet·[L219–L222](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashSet.java#L219-L222)**
+**HashSet·[L207–L221](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashSet.java#L207-L221)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Adds the specified element to this set if it is not already present.
+ * More formally, adds the specified element <tt>e</tt> to this set if
+ * this set contains no element <tt>e2</tt> such that
+ * <tt>(e==null&nbsp;?&nbsp;e2==null&nbsp;:&nbsp;e.equals(e2))</tt>.
+ * If this set already contains the element, the call leaves the set
+ * unchanged and returns <tt>false</tt>.
+ *
+ * @param e element to be added to this set
+ * @return <tt>true</tt> if this set did not already contain the specified
+ * element
+ */
 public boolean add(E e) {
     return map.put(e, PRESENT)==null;
 }
-
 ```
 
 put返回null表示此前没有此键，add才返回true。所有键对应同一个PRESENT，HashSet无需再维护另一份value语义。
@@ -1998,15 +2217,26 @@ HashSet不需要存一份与元素不同的业务value，所以所有键都映�
 允许null元素，因为底层HashMap支持null键。Set不保证插入顺序；若键对象后来改变hashCode/equals，contains/remove可能遇到与HashMap相同的问题。集合去重必须建立在稳定、相互一致的键契约上。
 
 
-**HashSet·[L235–L238](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashSet.java#L235-L238)**
+**HashSet·[L223–L237](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashSet.java#L223-L237)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Removes the specified element from this set if it is present.
+ * More formally, removes an element <tt>e</tt> such that
+ * <tt>(o==null&nbsp;?&nbsp;e==null&nbsp;:&nbsp;o.equals(e))</tt>,
+ * if this set contains such an element.  Returns <tt>true</tt> if
+ * this set contained the element (or equivalently, if this set
+ * changed as a result of the call).  (This set will not contain the
+ * element once the call returns.)
+ *
+ * @param o object to be removed from this set, if present
+ * @return <tt>true</tt> if the set contained the specified element
+ */
 public boolean remove(Object o) {
     return map.remove(o)==PRESENT;
 }
-
 ```
 
 remove通过返回值是否为PRESENT判断删除是否确实发生，复用底层Map的查找与断链。
@@ -2050,7 +2280,7 @@ flowchart TD
 #### 源码1：void afterNodeAccess(Node<K,V> e)
 
 
-**LinkedHashMap·[L305–L332](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedHashMap.java#L305-L332)**
+**LinkedHashMap·[L305–L328](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedHashMap.java#L305-L328)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -2079,10 +2309,6 @@ void afterNodeAccess(Node<K,V> e) { // move node to last
         ++modCount;
     }
 }
-
-void internalWriteEntries(java.io.ObjectOutputStream s) throws IOException {
-    for (LinkedHashMap.Entry<K,V> e = head; e != null; e = e.after) {
-        s.writeObject(e.key);
 ```
 
 accessOrder打开时，把访问节点从原位置摘下移到tail，并更新modCount。因此访问顺序模式的get也可能是结构修改。
@@ -2091,7 +2317,7 @@ accessOrder打开时，把访问节点从原位置摘下移到tail，并更新mo
 #### 源码2：void afterNodeInsertion(boolean evict)
 
 
-**LinkedHashMap·[L297–L304](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedHashMap.java#L297-L304)**
+**LinkedHashMap·[L297–L303](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedHashMap.java#L297-L303)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -2103,7 +2329,6 @@ void afterNodeInsertion(boolean evict) { // possibly remove eldest
         removeNode(hash(key), key, null, false, true);
     }
 }
-
 ```
 
 新节点插入后检查removeEldestEntry。默认返回false；继承并覆盖该方法可做简单容量淘汰，但完整缓存还需考虑同步和过期策略。
@@ -2126,7 +2351,7 @@ void afterNodeInsertion(boolean evict) { // possibly remove eldest
 访问顺序模式中get命中可能把条目移到tail，若它本来就在tail则无需移动。get未命中不会创建条目。以size>容量覆盖removeEldestEntry可做简单LRU，但与其他线程并发读写、按时间过期、加载失败处理都不在这个钩子的基本保证中。
 
 
-**LinkedHashMap·[L283–L296](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedHashMap.java#L283-L296)**
+**LinkedHashMap·[L283–L295](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/LinkedHashMap.java#L283-L295)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -2144,7 +2369,6 @@ void afterNodeRemoval(Node<K,V> e) { // unlink
     else
         a.before = b;
 }
-
 ```
 
 从before/after两侧修补，遇首尾则更新head/tail；这与HashMap删除桶节点是两套维护。
@@ -2190,11 +2414,29 @@ flowchart TD
 #### 源码1：public V put(K key, V value)
 
 
-**TreeMap·[L535–L568](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/TreeMap.java#L535-L568)**
+**TreeMap·[L517–L568](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/TreeMap.java#L517-L568)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Associates the specified value with the specified key in this map.
+ * If the map previously contained a mapping for the key, the old
+ * value is replaced.
+ *
+ * @param key key with which the specified value is to be associated
+ * @param value value to be associated with the specified key
+ *
+ * @return the previous value associated with {@code key}, or
+ *         {@code null} if there was no mapping for {@code key}.
+ *         (A {@code null} return can also indicate that the map
+ *         previously associated {@code null} with {@code key}.)
+ * @throws ClassCastException if the specified key cannot be compared
+ *         with the keys currently in the map
+ * @throws NullPointerException if the specified key is null
+ *         and this map uses natural ordering, or its comparator
+ *         does not permit null keys
+ */
 public V put(K key, V value) {
     Entry<K,V> t = root;
     if (t == null) {
@@ -2251,11 +2493,12 @@ TreeMap查找与插入都沿Comparator或Comparable结果走左右子树，比�
 红黑树维护颜色与黑高度约束。插入新节点时可能把父与叔重新染色，也可能围绕祖父旋转；目的是修复红父红子等违例，而不是每次插入都重建整棵树。能讲清触发条件和不变量即可，旋转细节可继续读fixAfterInsertion。
 
 
-**TreeMap·[L2257–L2291](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/TreeMap.java#L2257-L2291)**
+**TreeMap·[L2256–L2291](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/TreeMap.java#L2256-L2291)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/** From CLR */
 private void fixAfterInsertion(Entry<K,V> x) {
     x.color = RED;
 
@@ -2336,7 +2579,7 @@ flowchart TD
 #### 源码1：private void siftUpComparable(int k, E x)
 
 
-**PriorityQueue·[L651–L663](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L651-L663)**
+**PriorityQueue·[L651–L662](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L651-L662)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -2353,7 +2596,6 @@ private void siftUpComparable(int k, E x) {
     }
     queue[k] = key;
 }
-
 ```
 
 父索引是(k-1)>>>1。小根堆中只要x比父小就把父搬下来，直到找到合适位置。
@@ -2362,7 +2604,7 @@ private void siftUpComparable(int k, E x) {
 #### 源码2：public E poll()
 
 
-**PriorityQueue·[L586–L601](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L586-L601)**
+**PriorityQueue·[L586–L597](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L586-L597)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -2379,10 +2621,6 @@ public E poll() {
         siftDown(0, x);
     return result;
 }
-
-/**
- * Removes the ith element from queue.
- *
 ```
 
 移走根，尾元素补位后siftDown。堆操作O(log n)，peek看根O(1)，遍历底层数组不能得到全排序结果。
@@ -2410,7 +2648,7 @@ public E poll() {
 迭代器走数组位置不是连续poll，因此遍历结果并非优先级顺序。remove(Object)还要先定位元素，不能只看堆修复就宣称任意删除都是O(log n)。
 
 
-**PriorityQueue·[L693–L713](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L693-L713)**
+**PriorityQueue·[L693–L709](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L693-L709)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -2432,10 +2670,6 @@ private void siftDownComparable(int k, E x) {
     }
     queue[k] = key;
 }
-
-@SuppressWarnings("unchecked")
-private void siftDownUsingComparator(int k, E x) {
-    int half = size >>> 1;
 ```
 
 先选较小孩子，再比较x是否已不大于该孩子；只沿一条高度为对数级的路径下沉。
@@ -2475,11 +2709,14 @@ CHM初始化也是延迟分配，但多个线程会竞争初始化权。sizeCtl�
 普通节点hash被限制为非负，从而为负值保留协议空间。读get时看到eh<0，应继续追Node.find的具体实现，不要误认为遇到负值就一定没有条目。
 
 
-**ConcurrentHashMap·[L2223–L2245](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2223-L2245)**
+**ConcurrentHashMap·[L2220–L2244](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2220-L2244)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Initializes table, using the size recorded in sizeCtl.
+ */
 private final Node<K,V>[] initTable() {
     Node<K,V>[] tab; int sc;
     while ((tab = table) == null || tab.length == 0) {
@@ -2502,14 +2739,13 @@ private final Node<K,V>[] initTable() {
     }
     return tab;
 }
-
 ```
 
 先CAS sizeCtl取得初始化权，内层再次检查table，发布新数组后计算约0.75容量的阈值，finally恢复sizeCtl。
 
 
 
-**ConcurrentHashMap·[L594–L598](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L594-L598)**
+**ConcurrentHashMap·[L594–L597](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L594-L597)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -2518,7 +2754,6 @@ static final int MOVED     = -1; // hash for forwarding nodes
 static final int TREEBIN   = -2; // hash for roots of trees
 static final int RESERVED  = -3; // hash for transient reservations
 static final int HASH_BITS = 0x7fffffff; // usable bits of normal node hash
-
 ```
 
 这些负值区分控制节点。HASH_BITS保证普通hash留在非负范围。
@@ -2559,22 +2794,13 @@ flowchart TD
 #### 源码1：static final <K,V> Node<K,V> tabAt(
 
 
-**ConcurrentHashMap·[L754–L765](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L754-L765)**
+**ConcurrentHashMap·[L754–L756](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L754-L756)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
 static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
     return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
-}
-
-static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,
-                                    Node<K,V> c, Node<K,V> v) {
-    return U.compareAndSwapObject(tab, ((long)i << ASHIFT) + ABASE, c, v);
-}
-
-static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
-    U.putObjectVolatile(tab, ((long)i << ASHIFT) + ABASE, v);
 }
 ```
 
@@ -2584,11 +2810,12 @@ tabAt与casTabAt通过Unsafe访问数组槽位，提供相应的内存语义。�
 #### 源码2：final V putVal(K key, V value, boolean onlyIfAbsent)
 
 
-**ConcurrentHashMap·[L1010–L1072](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L1010-L1072)**
+**ConcurrentHashMap·[L1009–L1072](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L1009-L1072)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/** Implementation for put and putIfAbsent */
 final V putVal(K key, V value, boolean onlyIfAbsent) {
     if (key == null || value == null) throw new NullPointerException();
     int hash = spread(key.hashCode());
@@ -2660,11 +2887,22 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
 #### 源码3：public V get(Object key)
 
 
-**ConcurrentHashMap·[L934–L959](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L934-L959)**
+**ConcurrentHashMap·[L923–L952](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L923-L952)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Returns the value to which the specified key is mapped,
+ * or {@code null} if this map contains no mapping for the key.
+ *
+ * <p>More formally, if this map contains a mapping from a key
+ * {@code k} to a value {@code v} such that {@code key.equals(k)},
+ * then this method returns {@code v}; otherwise it returns
+ * {@code null}.  (There can be at most one such mapping.)
+ *
+ * @throws NullPointerException if the specified key is null
+ */
 public V get(Object key) {
     Node<K,V>[] tab; Node<K,V> e, p; int n, eh; K ek;
     int h = spread(key.hashCode());
@@ -2684,13 +2922,6 @@ public V get(Object key) {
     }
     return null;
 }
-
-/**
- * Tests if the specified object is a key in this table.
- *
- * @param  key possible key
- * @return {@code true} if and only if the specified object
- *         is a key in this table, as determined by the
 ```
 
 先看首节点，再处理负hash特殊节点或顺链查找。get不获取普通桶头monitor，但仍有volatile读取和特殊树节点的协调，不能简化成“完全不需任何内存同步”。
@@ -2804,11 +3035,15 @@ flowchart TD
 #### 源码1：private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab)
 
 
-**ConcurrentHashMap·[L2365–L2394](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2365-L2394)**
+**ConcurrentHashMap·[L2361–L2394](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2361-L2394)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Moves and/or copies the nodes in each bin to new table. See
+ * above for explanation.
+ */
 private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
     int n = tab.length, stride;
     if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
@@ -2878,11 +3113,14 @@ else {
 #### 源码3：final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f)
 
 
-**ConcurrentHashMap·[L2295–L2318](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2295-L2318)**
+**ConcurrentHashMap·[L2292–L2313](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2292-L2313)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Helps transfer if a resize is in progress.
+ */
 final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
     Node<K,V>[] nextTab; int sc;
     if (tab != null && (f instanceof ForwardingNode) &&
@@ -2902,11 +3140,6 @@ final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
     }
     return table;
 }
-
-/**
- * Tries to presize table to accommodate the given number of elements.
- *
- * @param size number of elements (doesn't need to be perfectly accurate)
 ```
 
 发现ForwardingNode后检查正在迁移的是同一张表及参与条件，再CAS增加协作者并调用transfer。不是每次看到MOVED都无限制加入。
@@ -3006,11 +3239,33 @@ final long sumCount() {
 #### 源码2：public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction)
 
 
-**ConcurrentHashMap·[L1643–L1675](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L1643-L1675)**
+**ConcurrentHashMap·[L1621–L1675](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L1621-L1675)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * If the specified key is not already associated with a value,
+ * attempts to compute its value using the given mapping function
+ * and enters it into this map unless {@code null}.  The entire
+ * method invocation is performed atomically, so the function is
+ * applied at most once per key.  Some attempted update operations
+ * on this map by other threads may be blocked while computation
+ * is in progress, so the computation should be short and simple,
+ * and must not attempt to update any other mappings of this map.
+ *
+ * @param key key with which the specified value is to be associated
+ * @param mappingFunction the function to compute a value
+ * @return the current (existing or computed) value associated with
+ *         the specified key, or null if the computed value is null
+ * @throws NullPointerException if the specified key or mappingFunction
+ *         is null
+ * @throws IllegalStateException if the computation detectably
+ *         attempts a recursive update to this map that would
+ *         otherwise never complete
+ * @throws RuntimeException or Error if the mappingFunction does so,
+ *         in which case the mapping is left unestablished
+ */
 public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
     if (key == null || mappingFunction == null)
         throw new NullPointerException();
@@ -3052,11 +3307,21 @@ public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction
 #### 源码3：private final void addCount(long x, int check)
 
 
-**ConcurrentHashMap·[L2256–L2282](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2256-L2282)**
+**ConcurrentHashMap·[L2246–L2282](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2246-L2282)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Adds to count, and if table is too small and not already
+ * resizing, initiates transfer. If already resizing, helps
+ * perform transfer if work is available.  Rechecks occupancy
+ * after a transfer to see if another resize is already needed
+ * because resizings are lagging additions.
+ *
+ * @param x the count to add
+ * @param check if <0, don't check resize, if <= 1 only check if uncontended
+ */
 private final void addCount(long x, int check) {
     CounterCell[] as; long b, s;
     if ((as = counterCells) != null ||
@@ -3111,11 +3376,14 @@ private final void addCount(long x, int check) {
 
 sizeCtl在未分配table时可以保存目标容量提示。线程用CAS把它改为-1取得本轮初始化权，进入try后还要检查一次table；finally恢复控制值。失败者重新观察状态，Thread.yield只是调度提示，不代表保证公平或立即让其他线程完成。
 
-**ConcurrentHashMap·[L2223–L2244](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2223-L2244)**
+**ConcurrentHashMap·[L2220–L2244](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2220-L2244)**
 
 > 连续原文窗口；仅统一展示缩进，完整函数及调用方见固定链接。
 
 ```java
+/**
+ * Initializes table, using the size recorded in sizeCtl.
+ */
 private final Node<K,V>[] initTable() {
     Node<K,V>[] tab; int sc;
     while ((tab = table) == null || tab.length == 0) {
@@ -3172,9 +3440,14 @@ flowchart TD
 
 图中两条查询方式是条件分支，不是每次依次执行。读者在树写者协调期间可以退回链表查找；这也解释了树桶为什么仍维护链表。CAS重试和树桶协议不能当成API永久承诺，本文限定固定8u实现。
 
-**ConcurrentHashMap·[L2834–L2865](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2834-L2865)**
+**ConcurrentHashMap·[L2829–L2861](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2829-L2861)**
 
 ```java
+/**
+ * Returns matching node or null if none. Tries to search
+ * using tree comparisons from root, but continues linear
+ * search when lock not available.
+ */
 final Node<K,V> find(int h, Object k) {
     if (k != null) {
         for (Node<K,V> e = first; e != null; ) {
@@ -3203,10 +3476,6 @@ final Node<K,V> find(int h, Object k) {
     }
     return null;
 }
-
-/**
- * Finds or adds a node.
- * @return null if added
 ```
 
 
@@ -3267,11 +3536,17 @@ flowchart TD
 #### 源码1：public boolean add(E e)
 
 
-**CopyOnWriteArrayList·[L434–L448](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java#L434-L448)**
+**CopyOnWriteArrayList·[L428–L447](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java#L428-L447)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Appends the specified element to the end of this list.
+ *
+ * @param e element to be appended to this list
+ * @return {@code true} (as specified by {@link Collection#add})
+ */
 public boolean add(E e) {
     final ReentrantLock lock = this.lock;
     lock.lock();
@@ -3286,7 +3561,6 @@ public boolean add(E e) {
         lock.unlock();
     }
 }
-
 ```
 
 锁内获取旧数组、copyOf到len+1、写最后一格、发布新数组，finally释放锁。多个写者仍串行协调。
@@ -3295,15 +3569,24 @@ public boolean add(E e) {
 #### 源码2：public Iterator<E> iterator()
 
 
-**CopyOnWriteArrayList·[L1081–L1084](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java#L1081-L1084)**
+**CopyOnWriteArrayList·[L1071–L1083](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java#L1071-L1083)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Returns an iterator over the elements in this list in proper sequence.
+ *
+ * <p>The returned iterator provides a snapshot of the state of the list
+ * when the iterator was constructed. No synchronization is needed while
+ * traversing the iterator. The iterator does <em>NOT</em> support the
+ * {@code remove} method.
+ *
+ * @return an iterator over the elements in this list in proper sequence
+ */
 public Iterator<E> iterator() {
     return new COWIterator<E>(getArray(), 0);
 }
-
 ```
 
 构造迭代器时捕获数组，后续遍历不会跟着容器字段切换版本。
@@ -3363,11 +3646,17 @@ COW快照冻结的是数组版本，不是元素内部状态。写时复制换�
 addIfAbsent也不能只做一次无锁contains然后add：另一个写者可能在两者间插入。实现会在写锁内重新核对当前数组与先前快照差异。
 
 
-**CopyOnWriteArrayList·[L612–L616](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java#L612-L616)**
+**CopyOnWriteArrayList·[L606–L616](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java#L606-L616)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Appends the element, if not present.
+ *
+ * @param e element to be added to this list, if absent
+ * @return {@code true} if the element was added
+ */
 public boolean addIfAbsent(E e) {
     Object[] snapshot = getArray();
     return indexOf(e, snapshot, 0, snapshot.length) >= 0 ? false :
@@ -3418,11 +3707,18 @@ flowchart TD
 #### 源码1：public boolean offer(E e)
 
 
-**ConcurrentLinkedQueue·[L326–L353](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java#L326-L353)**
+**ConcurrentLinkedQueue·[L319–L353](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java#L319-L353)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Inserts the specified element at the tail of this queue.
+ * As the queue is unbounded, this method will never return {@code false}.
+ *
+ * @return {@code true} (as specified by {@link Queue#offer})
+ * @throws NullPointerException if the specified element is null
+ */
 public boolean offer(E e) {
     checkNotNull(e);
     final Node<E> newNode = new Node<E>(e);
@@ -3459,7 +3755,7 @@ public boolean offer(E e) {
 #### 源码2：public E poll()
 
 
-**ConcurrentLinkedQueue·[L356–L382](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java#L356-L382)**
+**ConcurrentLinkedQueue·[L356–L379](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java#L356-L379)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -3488,9 +3784,6 @@ public E poll() {
         }
     }
 }
-
-public E peek() {
-    restartFromHead:
 ```
 
 item非null且CAS成null的线程取得元素；head更新可稍后完成。多个poll不会成功取走同一个非null item。
@@ -3499,16 +3792,19 @@ item非null且CAS成null的线程取得元素；head更新可稍后完成。多�
 #### 源码3：final void updateHead(Node<E> h, Node<E> p)
 
 
-**ConcurrentLinkedQueue·[L304–L308](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java#L304-L308)**
+**ConcurrentLinkedQueue·[L300–L307](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java#L300-L307)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Tries to CAS head to p. If successful, repoint old head to itself
+ * as sentinel for succ(), below.
+ */
 final void updateHead(Node<E> h, Node<E> p) {
     if (h != p && casHead(h, p))
         h.lazySetNext(h);
 }
-
 ```
 
 CAS更新head成功后把旧head的next指向自己，帮助脱离与后续遍历恢复。自链接不是普通有效队列环。
@@ -3595,11 +3891,19 @@ flowchart TD
 #### 源码1：public T get()
 
 
-**ThreadLocal·[L161–L173](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L161-L173)**
+**ThreadLocal·[L153–L173](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L153-L173)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Returns the value in the current thread's copy of this
+ * thread-local variable.  If the variable has no value for the
+ * current thread, it is first initialized to the value returned
+ * by an invocation of the {@link #initialValue} method.
+ *
+ * @return the current thread's value of this thread-local
+ */
 public T get() {
     Thread t = Thread.currentThread();
     ThreadLocalMap map = getMap(t);
@@ -3621,7 +3925,7 @@ public T get() {
 #### 源码2：static class Entry extends WeakReference<ThreadLocal<?>>
 
 
-**ThreadLocal·[L329–L339](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L329-L339)**
+**ThreadLocal·[L329–L337](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L329-L337)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -3635,8 +3939,6 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
         value = v;
     }
 }
-
-/**
 ```
 
 继承WeakReference只削弱key引用；value仍是普通Object字段。Thread活着、Map活着、Entry未清理时value仍可被保留。
@@ -3645,17 +3947,28 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 #### 源码3：public void remove()
 
 
-**ThreadLocal·[L239–L244](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L239-L244)**
+**ThreadLocal·[L228–L244](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L228-L244)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-public void remove() {
-    ThreadLocalMap m = getMap(Thread.currentThread());
-    if (m != null) {
-        m.remove(this);
-    }
-}
+/**
+ * Removes the current thread's value for this thread-local
+ * variable.  If this thread-local variable is subsequently
+ * {@linkplain #get read} by the current thread, its value will be
+ * reinitialized by invoking its {@link #initialValue} method,
+ * unless its value is {@linkplain #set set} by the current thread
+ * in the interim.  This may result in multiple invocations of the
+ * {@code initialValue} method in the current thread.
+ *
+ * @since 1.5
+ */
+ public void remove() {
+     ThreadLocalMap m = getMap(Thread.currentThread());
+     if (m != null) {
+         m.remove(this);
+     }
+ }
 ```
 
 remove委托当前线程Map删除该键。在线程池里一个线程连续处理多次业务，结束一次使用后清理尤其重要。
@@ -3686,11 +3999,17 @@ get找到Entry时直接返回其value，哪怕value为null。只有Entry未找�
 initialValue通常默认返回null，但子类或withInitial工厂可以自定义。一次初始化不表示多个线程共享同一个初始结果。
 
 
-**ThreadLocal·[L194–L205](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L194-L205)**
+**ThreadLocal·[L188–L205](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L188-L205)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Variant of set() to establish initialValue. Used instead
+ * of set() in case user has overridden the set() method.
+ *
+ * @return the initial value
+ */
 private T setInitialValue() {
     T value = initialValue();
     Thread t = Thread.currentThread();
@@ -3709,15 +4028,21 @@ private T setInitialValue() {
 
 
 
-**ThreadLocal·[L253–L256](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L253-L256)**
+**ThreadLocal·[L246–L255](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L246-L255)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Get the map associated with a ThreadLocal. Overridden in
+ * InheritableThreadLocal.
+ *
+ * @param  t the current thread
+ * @return the map
+ */
 ThreadLocalMap getMap(Thread t) {
     return t.threadLocals;
 }
-
 ```
 
 归属关系非常直接：从Thread字段取threadLocals。
@@ -3755,11 +4080,21 @@ flowchart TD
 #### 源码1：private Entry getEntry(ThreadLocal<?> key)
 
 
-**ThreadLocal·[L434–L443](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L434-L443)**
+**ThreadLocal·[L424–L441](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L424-L441)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Get the entry associated with key.  This method
+ * itself handles only the fast path: a direct hit of existing
+ * key. It otherwise relays to getEntryAfterMiss.  This is
+ * designed to maximize performance for direct hits, in part
+ * by making this method readily inlinable.
+ *
+ * @param  key the thread local object
+ * @return the entry associated with key, or null if no such
+ */
 private Entry getEntry(ThreadLocal<?> key) {
     int i = key.threadLocalHashCode & (table.length - 1);
     Entry e = table[i];
@@ -3768,8 +4103,6 @@ private Entry getEntry(ThreadLocal<?> key) {
     else
         return getEntryAfterMiss(key, i, e);
 }
-
-/**
 ```
 
 先检查理想槽，未直接命中则走getEntryAfterMiss。常见无碰撞读取路径很短。
@@ -3778,11 +4111,20 @@ private Entry getEntry(ThreadLocal<?> key) {
 #### 源码2：private Entry getEntryAfterMiss(ThreadLocal<?> key, int i, Entry e)
 
 
-**ThreadLocal·[L452–L470](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L452-L470)**
+**ThreadLocal·[L443–L467](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L443-L467)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Version of getEntry method for use when key is not found in
+ * its direct hash slot.
+ *
+ * @param  key the thread local object
+ * @param  i the table index for key's hash code
+ * @param  e the entry at table[i]
+ * @return the entry associated with key, or null if no such
+ */
 private Entry getEntryAfterMiss(ThreadLocal<?> key, int i, Entry e) {
     Entry[] tab = table;
     int len = tab.length;
@@ -3799,9 +4141,6 @@ private Entry getEntryAfterMiss(ThreadLocal<?> key, int i, Entry e) {
     }
     return null;
 }
-
-/**
- * Set the value associated with key.
 ```
 
 连续探测中遇null终止；遇stale会expunge，正常条目继续向后寻找。清理取决于实际触发的路径。
@@ -3810,11 +4149,22 @@ private Entry getEntryAfterMiss(ThreadLocal<?> key, int i, Entry e) {
 #### 源码3：private int expungeStaleEntry(int staleSlot)
 
 
-**ThreadLocal·[L610–L644](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L610-L644)**
+**ThreadLocal·[L599–L644](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L599-L644)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Expunge a stale entry by rehashing any possibly colliding entries
+ * lying between staleSlot and the next null slot.  This also expunges
+ * any other stale entries encountered before the trailing null.  See
+ * Knuth, Section 6.4
+ *
+ * @param staleSlot index of slot known to have null key
+ * @return the index of the next null slot after staleSlot
+ * (all between staleSlot and this slot will have been checked
+ * for expunging).
+ */
 private int expungeStaleEntry(int staleSlot) {
     Entry[] tab = table;
     int len = tab.length;
@@ -3873,11 +4223,35 @@ private int expungeStaleEntry(int staleSlot) {
 线程池里的业务结束应在当前worker上remove，并覆盖异常路径。若把ThreadLocal作为长期静态key，key本身通常不会成为stale，value残留仍需要业务主动清理，不能只围绕弱键回收讨论。
 
 
-**ThreadLocal·[L670–L686](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L670-L686)**
+**ThreadLocal·[L646–L684](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L646-L684)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Heuristically scan some cells looking for stale entries.
+ * This is invoked when either a new element is added, or
+ * another stale one has been expunged. It performs a
+ * logarithmic number of scans, as a balance between no
+ * scanning (fast but retains garbage) and a number of scans
+ * proportional to number of elements, that would find all
+ * garbage but would cause some insertions to take O(n) time.
+ *
+ * @param i a position known NOT to hold a stale entry. The
+ * scan starts at the element after i.
+ *
+ * @param n scan control: {@code log2(n)} cells are scanned,
+ * unless a stale entry is found, in which case
+ * {@code log2(table.length)-1} additional cells are scanned.
+ * When called from insertions, this parameter is the number
+ * of elements, but when from replaceStaleEntry, it is the
+ * table length. (Note: all this could be changed to be either
+ * more or less aggressive by weighting n instead of just
+ * using straight log n. But this version is simple, fast, and
+ * seems to work well.)
+ *
+ * @return true if any stale entries have been removed.
+ */
 private boolean cleanSomeSlots(int i, int n) {
     boolean removed = false;
     Entry[] tab = table;
@@ -3893,8 +4267,6 @@ private boolean cleanSomeSlots(int i, int n) {
     } while ( (n >>>= 1) != 0);
     return removed;
 }
-
-/**
 ```
 
 右移n控制启发式扫描次数；发现stale后扩大清理机会，调用expunge修复相关区域。它不是固定每次全表遍历。
@@ -3914,11 +4286,17 @@ flowchart TD
 
 公开set先定位当前Thread的Map，再进入下面的ThreadLocalMap.set。探测中找到同一个key，就只替换value并返回；遇stale则进入replaceStaleEntry；直到null才建立新Entry。不是每次set都扫描全表，也不是每次更新已有值都触发清理。
 
-**ThreadLocal·[L475–L508](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L475-L508)**
+**ThreadLocal·[L469–L506](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L469-L506)**
 
 > 连续原文窗口；仅统一展示缩进，完整函数及调用方见固定链接。
 
 ```java
+/**
+ * Set the value associated with key.
+ *
+ * @param key the thread local object
+ * @param value the value to be set
+ */
 private void set(ThreadLocal<?> key, Object value) {
 
     // We don't use a fast path as with get() because it is at
@@ -3951,8 +4329,6 @@ private void set(ThreadLocal<?> key, Object value) {
     if (!cleanSomeSlots(i, sz) && sz >= threshold)
         rehash();
 }
-
-/**
 ```
 
 |探测结果|状态变化|清理边界|
@@ -3978,11 +4354,26 @@ flowchart TD
 
 纸面数组：槽3是陈旧项，槽4是另一个有效key，槽5已有本次要set的key。若直接在槽3新建同key，槽5又留下旧映射，便破坏唯一映射与探测顺序。实现先确定这段连续run中合适的清理起点，再向前找已有key或尾部null。找到已有key时更新它的value，并与stale槽交换；没有找到时才用新Entry替换stale槽。
 
-**ThreadLocal·[L541–L616](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L541-L616)**
+**ThreadLocal·[L526–L597](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L526-L597)**
 
 > 连续原文窗口；仅统一展示缩进，完整函数及调用方见固定链接。
 
 ```java
+/**
+ * Replace a stale entry encountered during a set operation
+ * with an entry for the specified key.  The value passed in
+ * the value parameter is stored in the entry, whether or not
+ * an entry already exists for the specified key.
+ *
+ * As a side effect, this method expunges all stale entries in the
+ * "run" containing the stale entry.  (A run is a sequence of entries
+ * between two null slots.)
+ *
+ * @param  key the key
+ * @param  value the value to be associated with key
+ * @param  staleSlot index of the first stale entry encountered while
+ *         searching for key.
+ */
 private void replaceStaleEntry(ThreadLocal<?> key, Object value,
                                int staleSlot) {
     Entry[] tab = table;
@@ -4040,25 +4431,6 @@ private void replaceStaleEntry(ThreadLocal<?> key, Object value,
     if (slotToExpunge != staleSlot)
         cleanSomeSlots(expungeStaleEntry(slotToExpunge), len);
 }
-
-/**
- * Expunge a stale entry by rehashing any possibly colliding entries
- * lying between staleSlot and the next null slot.  This also expunges
- * any other stale entries encountered before the trailing null.  See
- * Knuth, Section 6.4
- *
- * @param staleSlot index of slot known to have null key
- * @return the index of the next null slot after staleSlot
- * (all between staleSlot and this slot will have been checked
- * for expunging).
- */
-private int expungeStaleEntry(int staleSlot) {
-    Entry[] tab = table;
-    int len = tab.length;
-
-    // expunge entry at staleSlot
-    tab[staleSlot].value = null;
-    tab[staleSlot] = null;
 ```
 
 ```mermaid
@@ -4080,11 +4452,16 @@ flowchart TD
 
 ThreadLocalMap初始容量为16，维护阈值通常是容量的2/3。达到触发条件不等于立即把所有条目复制到双倍数组：rehash先全表清陈旧项，再以较低判断阈值决定是否resize。不要把HashMap的0.75负载因子和树化规则套到ThreadLocalMap。
 
-**ThreadLocal·[L691–L739](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L691-L739)**
+**ThreadLocal·[L686–L739](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L686-L739)**
 
 > 连续原文窗口；仅统一展示缩进，完整函数及调用方见固定链接。
 
 ```java
+/**
+ * Re-pack and/or re-size the table. First scan the entire
+ * table removing stale entries. If this doesn't sufficiently
+ * shrink the size of the table, double the table size.
+ */
 private void rehash() {
     expungeStaleEntries();
 
@@ -4217,15 +4594,19 @@ flowchart TD
 #### 源码1：public final int incrementAndGet()
 
 
-**AtomicInteger·[L185–L188](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/AtomicInteger.java#L185-L188)**
+**AtomicInteger·[L180–L187](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/AtomicInteger.java#L180-L187)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Atomically increments by one the current value.
+ *
+ * @return the updated value
+ */
 public final int incrementAndGet() {
     return unsafe.getAndAddInt(this, valueOffset, 1) + 1;
 }
-
 ```
 
 getAndAddInt返回旧值，再加1得到新值。getAndIncrement则直接返回旧值，调用方看到的返回语义不同。
@@ -4234,11 +4615,21 @@ getAndAddInt返回旧值，再加1得到新值。getAndIncrement则直接返回�
 #### 源码2：public final int updateAndGet(IntUnaryOperator updateFunction)
 
 
-**AtomicInteger·[L237–L246](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/AtomicInteger.java#L237-L246)**
+**AtomicInteger·[L227–L244](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/AtomicInteger.java#L227-L244)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Atomically updates the current value with the results of
+ * applying the given function, returning the updated value. The
+ * function should be side-effect-free, since it may be re-applied
+ * when attempted updates fail due to contention among threads.
+ *
+ * @param updateFunction a side-effect-free function
+ * @return the updated value
+ * @since 1.8
+ */
 public final int updateAndGet(IntUnaryOperator updateFunction) {
     int prev, next;
     do {
@@ -4247,8 +4638,6 @@ public final int updateAndGet(IntUnaryOperator updateFunction) {
     } while (!compareAndSet(prev, next));
     return next;
 }
-
-/**
 ```
 
 循环中函数可能被重复调用，因此应无副作用；CAS失败后必须基于新prev重算next。
@@ -4257,11 +4646,22 @@ public final int updateAndGet(IntUnaryOperator updateFunction) {
 #### 源码3：public final int getAndAddInt(Object o, long offset, int delta)
 
 
-**Unsafe·[L1031–L1037](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/sun/misc/Unsafe.java#L1031-L1037)**
+**Unsafe·[L1020–L1037](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/sun/misc/Unsafe.java#L1020-L1037)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Atomically adds the given value to the current value of a field
+ * or array element within the given object <code>o</code>
+ * at the given <code>offset</code>.
+ *
+ * @param o object/array to update the field/element in
+ * @param offset field/element offset
+ * @param delta the value to add
+ * @return the previous value
+ * @since 1.8
+ */
 public final int getAndAddInt(Object o, long offset, int delta) {
     int v;
     do {
@@ -4292,15 +4692,23 @@ updateAndGet读取prev，调用用户函数得到next，再CAS；失败后重新
 多个字段之间的约束并不会因为其中一个字段是AtomicInteger就自动成立。例如同时维护“剩余数”和“已售数”，分成两个独立原子递增/递减仍可能被观察到中间组合。必须找出整个不变量需要的原子范围。
 
 
-**AtomicInteger·[L132–L135](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/AtomicInteger.java#L132-L135)**
+**AtomicInteger·[L123–L134](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/AtomicInteger.java#L123-L134)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Atomically sets the value to the given updated value
+ * if the current value {@code ==} the expected value.
+ *
+ * @param expect the expected value
+ * @param update the new value
+ * @return {@code true} if successful. False return indicates that
+ * the actual value was not equal to the expected value.
+ */
 public final boolean compareAndSet(int expect, int update) {
     return unsafe.compareAndSwapInt(this, valueOffset, expect, update);
 }
-
 ```
 
 只比较并更新这个value字段；失败返回false，没有替你重试业务，也没有保护其他字段。
@@ -4350,11 +4758,16 @@ flowchart TD
 #### 源码1：public void add(long x)
 
 
-**LongAdder·[L84–L99](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/LongAdder.java#L84-L99)**
+**LongAdder·[L79–L93](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/LongAdder.java#L79-L93)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Adds the given value.
+ *
+ * @param x the value to add
+ */
 public void add(long x) {
     Cell[] as; long b, v; int m; Cell a;
     if ((as = cells) != null || !casBase(b = base, b + x)) {
@@ -4365,12 +4778,6 @@ public void add(long x) {
             longAccumulate(x, null, uncontended);
     }
 }
-
-/**
- * Equivalent to {@code add(1)}.
- */
-public void increment() {
-    add(1L);
 ```
 
 无cells时先尝试base；存在cells或CAS失败时使用线程probe找到Cell，冲突进入longAccumulate。
@@ -4379,11 +4786,20 @@ public void increment() {
 #### 源码2：public long sum()
 
 
-**LongAdder·[L118–L129](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/LongAdder.java#L118-L129)**
+**LongAdder·[L109–L128](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/LongAdder.java#L109-L128)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Returns the current sum.  The returned value is <em>NOT</em> an
+ * atomic snapshot; invocation in the absence of concurrent
+ * updates returns an accurate result, but concurrent updates that
+ * occur while the sum is being calculated might not be
+ * incorporated.
+ *
+ * @return the sum
+ */
 public long sum() {
     Cell[] as = cells; Cell a;
     long sum = base;
@@ -4395,7 +4811,6 @@ public long sum() {
     }
     return sum;
 }
-
 ```
 
 逐个读取base与Cell值并相加，没有冻结所有更新线程；它给出观察到的累计总和，不能推出同时刻一致快照。
@@ -4404,11 +4819,23 @@ public long sum() {
 #### 源码3：final void longAccumulate(long x, LongBinaryOperator fn,
 
 
-**Striped64·[L214–L242](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/Striped64.java#L214-L242)**
+**Striped64·[L202–L242](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/Striped64.java#L202-L242)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Handles cases of updates involving initialization, resizing,
+ * creating new Cells, and/or contention. See above for
+ * explanation. This method suffers the usual non-modularity
+ * problems of optimistic retry code, relying on rechecked sets of
+ * reads.
+ *
+ * @param x the value
+ * @param fn the update function, or null for add (this convention
+ * avoids the need for an extra field or function in LongAdder).
+ * @param wasUncontended false if CAS failed before call
+ */
 final void longAccumulate(long x, LongBinaryOperator fn,
                           boolean wasUncontended) {
     int h;
@@ -4500,11 +4927,22 @@ flowchart TD
 #### 源码1：public static void unpark(Thread thread)
 
 
-**LockSupport·[L139–L142](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/LockSupport.java#L139-L142)**
+**LockSupport·[L128–L142](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/LockSupport.java#L128-L142)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Makes available the permit for the given thread, if it
+ * was not already available.  If the thread was blocked on
+ * {@code park} then it will unblock.  Otherwise, its next call
+ * to {@code park} is guaranteed not to block. This operation
+ * is not guaranteed to have any effect at all if the given
+ * thread has not been started.
+ *
+ * @param thread the thread to unpark, or {@code null}, in which case
+ *        this operation has no effect
+ */
 public static void unpark(Thread thread) {
     if (thread != null)
         UNSAFE.unpark(thread);
@@ -4517,18 +4955,45 @@ thread非null才调用Unsafe.unpark。这个许可不是Semaphore那样可以积
 #### 源码2：public static void park(Object blocker)
 
 
-**LockSupport·[L172–L178](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/LockSupport.java#L172-L178)**
+**LockSupport·[L144–L177](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/LockSupport.java#L144-L177)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Disables the current thread for thread scheduling purposes unless the
+ * permit is available.
+ *
+ * <p>If the permit is available then it is consumed and the call returns
+ * immediately; otherwise
+ * the current thread becomes disabled for thread scheduling
+ * purposes and lies dormant until one of three things happens:
+ *
+ * <ul>
+ * <li>Some other thread invokes {@link #unpark unpark} with the
+ * current thread as the target; or
+ *
+ * <li>Some other thread {@linkplain Thread#interrupt interrupts}
+ * the current thread; or
+ *
+ * <li>The call spuriously (that is, for no reason) returns.
+ * </ul>
+ *
+ * <p>This method does <em>not</em> report which of these caused the
+ * method to return. Callers should re-check the conditions which caused
+ * the thread to park in the first place. Callers may also determine,
+ * for example, the interrupt status of the thread upon return.
+ *
+ * @param blocker the synchronization object responsible for this
+ *        thread parking
+ * @since 1.6
+ */
 public static void park(Object blocker) {
     Thread t = Thread.currentThread();
     setBlocker(t, blocker);
     UNSAFE.park(false, 0L);
     setBlocker(t, null);
 }
-
 ```
 
 设置blocker供诊断，再调用Unsafe.park，返回后清理blocker。blocker不表示monitor锁所有权。
@@ -4537,11 +5002,43 @@ public static void park(Object blocker) {
 #### 源码3：public static void parkNanos(Object blocker, long nanos)
 
 
-**LockSupport·[L211–L219](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/LockSupport.java#L211-L219)**
+**LockSupport·[L179–L218](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/LockSupport.java#L179-L218)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Disables the current thread for thread scheduling purposes, for up to
+ * the specified waiting time, unless the permit is available.
+ *
+ * <p>If the permit is available then it is consumed and the call
+ * returns immediately; otherwise the current thread becomes disabled
+ * for thread scheduling purposes and lies dormant until one of four
+ * things happens:
+ *
+ * <ul>
+ * <li>Some other thread invokes {@link #unpark unpark} with the
+ * current thread as the target; or
+ *
+ * <li>Some other thread {@linkplain Thread#interrupt interrupts}
+ * the current thread; or
+ *
+ * <li>The specified waiting time elapses; or
+ *
+ * <li>The call spuriously (that is, for no reason) returns.
+ * </ul>
+ *
+ * <p>This method does <em>not</em> report which of these caused the
+ * method to return. Callers should re-check the conditions which caused
+ * the thread to park in the first place. Callers may also determine,
+ * for example, the interrupt status of the thread, or the elapsed time
+ * upon return.
+ *
+ * @param blocker the synchronization object responsible for this
+ *        thread parking
+ * @param nanos the maximum number of nanoseconds to wait
+ * @since 1.6
+ */
 public static void parkNanos(Object blocker, long nanos) {
     if (nanos > 0) {
         Thread t = Thread.currentThread();
@@ -4550,7 +5047,6 @@ public static void parkNanos(Object blocker, long nanos) {
         setBlocker(t, null);
     }
 }
-
 ```
 
 限时等待仅在nanos>0时进入Unsafe。超时返回不表示等待目标一定达成。
@@ -4618,11 +5114,23 @@ flowchart TD
 #### 源码1：public final void acquire(int arg)
 
 
-**AbstractQueuedSynchronizer·[L1197–L1201](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1197-L1201)**
+**AbstractQueuedSynchronizer·[L1185–L1201](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1185-L1201)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Acquires in exclusive mode, ignoring interrupts.  Implemented
+ * by invoking at least once {@link #tryAcquire},
+ * returning on success.  Otherwise the thread is queued, possibly
+ * repeatedly blocking and unblocking, invoking {@link
+ * #tryAcquire} until success.  This method can be used
+ * to implement method {@link Lock#lock}.
+ *
+ * @param arg the acquire argument.  This value is conveyed to
+ *        {@link #tryAcquire} but is otherwise uninterpreted and
+ *        can represent anything you like.
+ */
 public final void acquire(int arg) {
     if (!tryAcquire(arg) &&
         acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
@@ -4636,11 +5144,19 @@ public final void acquire(int arg) {
 #### 源码2：final boolean acquireQueued(final Node node, int arg)
 
 
-**AbstractQueuedSynchronizer·[L857–L882](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L857-L882)**
+**AbstractQueuedSynchronizer·[L849–L877](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L849-L877)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Acquires in exclusive uninterruptible mode for thread already in
+ * queue. Used by condition wait methods as well as acquire.
+ *
+ * @param node the node
+ * @param arg the acquire argument
+ * @return {@code true} if interrupted while waiting
+ */
 final boolean acquireQueued(final Node node, int arg) {
     boolean failed = true;
     try {
@@ -4662,11 +5178,6 @@ final boolean acquireQueued(final Node node, int arg) {
             cancelAcquire(node);
     }
 }
-
-/**
- * Acquires in exclusive interruptible mode.
- * @param arg the acquire argument
- */
 ```
 
 只有前驱为head时才在这条路径尝试获取；成功后setHead并断开旧头。failed/finally保证异常时取消节点。
@@ -4675,11 +5186,20 @@ final boolean acquireQueued(final Node node, int arg) {
 #### 源码3：private static boolean shouldParkAfterFailedAcquire(Node pred, Node node)
 
 
-**AbstractQueuedSynchronizer·[L795–L818](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L795-L818)**
+**AbstractQueuedSynchronizer·[L786–L818](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L786-L818)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Checks and updates status for a node that failed to acquire.
+ * Returns true if thread should block. This is the main signal
+ * control in all acquire loops.  Requires that pred == node.prev.
+ *
+ * @param pred node's predecessor holding status
+ * @param node the node
+ * @return {@code true} if thread should block
+ */
 private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
     int ws = pred.waitStatus;
     if (ws == Node.SIGNAL)
@@ -4736,11 +5256,16 @@ private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
 AQS节点取消后，会修补前后关系或唤醒后继；next可能短暂未连好，所以某些查找会从tail沿prev倒着找有效等待者。队列源码并非普通单线程双链表增删。
 
 
-**AbstractQueuedSynchronizer·[L583–L601](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L583-L601)**
+**AbstractQueuedSynchronizer·[L578–L597](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L578-L597)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Inserts node into queue, initializing if necessary. See picture above.
+ * @param node the node to insert
+ * @return node's predecessor
+ */
 private Node enq(final Node node) {
     for (;;) {
         Node t = tail;
@@ -4756,21 +5281,22 @@ private Node enq(final Node node) {
         }
     }
 }
-
-/**
- * Creates and enqueues node for current thread and given mode.
- *
 ```
 
 无队列时CAS建立哨兵head；随后设node.prev、CAS tail、再设pred.next。读者必须考虑tail已更新而next尚未连上的窗口。
 
 
 
-**AbstractQueuedSynchronizer·[L638–L663](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L638-L663)**
+**AbstractQueuedSynchronizer·[L633–L663](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L633-L663)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Wakes up node's successor, if one exists.
+ *
+ * @param node the node
+ */
 private void unparkSuccessor(Node node) {
     /*
      * If status is negative (i.e., possibly needing signal) try
@@ -4834,7 +5360,7 @@ flowchart TD
 #### 源码1：protected int tryAcquireShared(int acquires)
 
 
-**CountDownLatch·[L172–L175](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CountDownLatch.java#L172-L175)**
+**CountDownLatch·[L172–L174](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CountDownLatch.java#L172-L174)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -4842,7 +5368,6 @@ flowchart TD
 protected int tryAcquireShared(int acquires) {
     return (getState() == 0) ? 1 : -1;
 }
-
 ```
 
 只有state==0才允许await通过；await不把计数再减一。Latch通常是一次性门闩，计数到0后继续通过。
@@ -4851,24 +5376,22 @@ protected int tryAcquireShared(int acquires) {
 #### 源码2：protected boolean tryReleaseShared(int releases)
 
 
-**CountDownLatch·[L176–L188](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CountDownLatch.java#L176-L188)**
+**CountDownLatch·[L176–L186](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CountDownLatch.java#L176-L186)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-    protected boolean tryReleaseShared(int releases) {
-        // Decrement count; signal when transition to zero
-        for (;;) {
-            int c = getState();
-            if (c == 0)
-                return false;
-            int nextc = c-1;
-            if (compareAndSetState(c, nextc))
-                return nextc == 0;
-        }
+protected boolean tryReleaseShared(int releases) {
+    // Decrement count; signal when transition to zero
+    for (;;) {
+        int c = getState();
+        if (c == 0)
+            return false;
+        int nextc = c-1;
+        if (compareAndSetState(c, nextc))
+            return nextc == 0;
     }
 }
-
 ```
 
 循环CAS把计数减1，到0时返回true让AQS传播；已经为0再countDown返回false而不变负。
@@ -4877,7 +5400,7 @@ protected int tryAcquireShared(int acquires) {
 #### 源码3：final int nonfairTryAcquireShared(int acquires)
 
 
-**Semaphore·[L177–L186](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/Semaphore.java#L177-L186)**
+**Semaphore·[L177–L185](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/Semaphore.java#L177-L185)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -4891,7 +5414,6 @@ final int nonfairTryAcquireShared(int acquires) {
             return remaining;
     }
 }
-
 ```
 
 计算remaining=available-acquires，不足返回负值，足够则CAS扣减。公平Semaphore还检查排队前驱。
@@ -4915,11 +5437,16 @@ Latch初始3，三次countDown使3→2→1→0，所有等待者可继续。Sema
 Latch到0后，所有等待者可继续；Semaphore每次成功可能消费若干许可。它们共用传播框架，但资源是否耗尽由各自tryAcquireShared定义。
 
 
-**AbstractQueuedSynchronizer·[L670–L695](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L670-L695)**
+**AbstractQueuedSynchronizer·[L665–L695](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L665-L695)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Release action for shared mode -- signals successor and ensures
+ * propagation. (Note: For exclusive mode, release just amounts
+ * to calling unparkSuccessor of head if it needs signal.)
+ */
 private void doReleaseShared() {
     /*
      * Ensure that a release propagates, even if there are other
@@ -4984,11 +5511,24 @@ flowchart TD
 #### 源码1：public final void await() throws InterruptedException
 
 
-**AbstractQueuedSynchronizer·[L2032–L2063](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L2032-L2063)**
+**AbstractQueuedSynchronizer·[L2019–L2049](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L2019-L2049)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Implements interruptible condition wait.
+ * <ol>
+ * <li> If current thread is interrupted, throw InterruptedException.
+ * <li> Save lock state returned by {@link #getState}.
+ * <li> Invoke {@link #release} with saved state as argument,
+ *      throwing IllegalMonitorStateException if it fails.
+ * <li> Block until signalled or interrupted.
+ * <li> Reacquire by invoking specialized version of
+ *      {@link #acquire} with saved state as argument.
+ * <li> If interrupted while blocked in step 4, throw InterruptedException.
+ * </ol>
+ */
 public final void await() throws InterruptedException {
     if (Thread.interrupted())
         throw new InterruptedException();
@@ -5007,20 +5547,6 @@ public final void await() throws InterruptedException {
     if (interruptMode != 0)
         reportInterruptAfterWait(interruptMode);
 }
-
-/**
- * Implements timed condition wait.
- * <ol>
- * <li> If current thread is interrupted, throw InterruptedException.
- * <li> Save lock state returned by {@link #getState}.
- * <li> Invoke {@link #release} with saved state as argument,
- *      throwing IllegalMonitorStateException if it fails.
- * <li> Block until signalled, interrupted, or timed out.
- * <li> Reacquire by invoking specialized version of
- *      {@link #acquire} with saved state as argument.
- * <li> If interrupted while blocked in step 4, throw InterruptedException.
- * </ol>
- */
 ```
 
 先检查中断、创建条件节点、完整释放资源，然后等待节点进入同步队列，重新获取savedState。最后处理中断的不同发生阶段。
@@ -5029,11 +5555,18 @@ public final void await() throws InterruptedException {
 #### 源码2：final boolean transferForSignal(Node node)
 
 
-**AbstractQueuedSynchronizer·[L1670–L1693](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1670-L1693)**
+**AbstractQueuedSynchronizer·[L1663–L1688](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1663-L1688)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Transfers a node from a condition queue onto sync queue.
+ * Returns true if successful.
+ * @param node the node
+ * @return true if successfully transferred (else the node was
+ * cancelled before signal)
+ */
 final boolean transferForSignal(Node node) {
     /*
      * If cannot change waitStatus, the node has been cancelled.
@@ -5053,11 +5586,6 @@ final boolean transferForSignal(Node node) {
         LockSupport.unpark(node.thread);
     return true;
 }
-
-/**
- * Transfers node, if necessary, to sync queue after a cancelled wait.
- * Returns true if thread was cancelled before being signalled.
- *
 ```
 
 先把CONDITION状态CAS成同步队列状态，然后enq。必要时直接unpark，确保转移后的线程能够继续竞争。
@@ -5066,11 +5594,19 @@ final boolean transferForSignal(Node node) {
 #### 源码3：public final void signal()
 
 
-**AbstractQueuedSynchronizer·[L1937–L1945](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1937-L1945)**
+**AbstractQueuedSynchronizer·[L1929–L1943](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1929-L1943)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Moves the longest-waiting thread, if one exists, from the
+ * wait queue for this condition to the wait queue for the
+ * owning lock.
+ *
+ * @throws IllegalMonitorStateException if {@link #isHeldExclusively}
+ *         returns {@code false}
+ */
 public final void signal() {
     if (!isHeldExclusively())
         throw new IllegalMonitorStateException();
@@ -5078,8 +5614,6 @@ public final void signal() {
     if (first != null)
         doSignal(first);
 }
-
-/**
 ```
 
 要求当前线程isHeldExclusively，选择首条件节点执行doSignal。signal只进行通知转移，业务状态本身仍由调用者修改。
@@ -5105,11 +5639,17 @@ await经历条件排队、完全释放、同步队列转移和重获锁四阶段
 await开始时已经中断会先抛异常，此时没有执行fullyRelease；这是与已进入等待后被中断不同的分支。
 
 
-**AbstractQueuedSynchronizer·[L1719–L1735](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1719-L1735)**
+**AbstractQueuedSynchronizer·[L1713–L1733](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1713-L1733)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Invokes release with current state value; returns saved state.
+ * Cancels node and throws exception on failure.
+ * @param node the condition node for this wait
+ * @return previous sync state
+ */
 final int fullyRelease(Node node) {
     boolean failed = true;
     try {
@@ -5125,8 +5665,6 @@ final int fullyRelease(Node node) {
             node.waitStatus = Node.CANCELLED;
     }
 }
-
-// Instrumentation methods for conditions
 ```
 
 保存state并调用release(savedState)；失败会标记节点取消，成功返回保存的重入状态。
@@ -5180,11 +5718,15 @@ flowchart TD
 #### 源码1：final boolean nonfairTryAcquire(int acquires)
 
 
-**ReentrantLock·[L129–L151](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java#L129-L151)**
+**ReentrantLock·[L125–L146](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java#L125-L146)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Performs non-fair tryLock.  tryAcquire is implemented in
+ * subclasses, but both need nonfair try for trylock method.
+ */
 final boolean nonfairTryAcquire(int acquires) {
     final Thread current = Thread.currentThread();
     int c = getState();
@@ -5203,11 +5745,6 @@ final boolean nonfairTryAcquire(int acquires) {
     }
     return false;
 }
-
-protected final boolean tryRelease(int releases) {
-    int c = getState() - releases;
-    if (Thread.currentThread() != getExclusiveOwnerThread())
-        throw new IllegalMonitorStateException();
 ```
 
 state为0时CAS成功后设置owner；owner为当前线程时累加state。递归过深溢出还有错误检测。
@@ -5216,7 +5753,7 @@ state为0时CAS成功后设置owner；owner为当前线程时累加state。递�
 #### 源码2：protected final boolean tryRelease(int releases)
 
 
-**ReentrantLock·[L148–L161](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java#L148-L161)**
+**ReentrantLock·[L148–L159](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java#L148-L159)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -5233,8 +5770,6 @@ protected final boolean tryRelease(int releases) {
     setState(c);
     return free;
 }
-
-protected final boolean isHeldExclusively() {
 ```
 
 不是当前持有者则抛IllegalMonitorStateException。减到0才清owner并返回true，触发AQS释放后的唤醒。
@@ -5284,15 +5819,40 @@ else if (current == getExclusiveOwnerThread()) {
 可重入的当前owner再次获取无需等待其他线程，公平策略也不会把它自己的重入放到队尾。unlock不是“每次都唤醒一个人”：只有重入计数减到0才完全释放并触发相应唤醒维护。
 
 
-**ReentrantLock·[L364–L367](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java#L364-L367)**
+**ReentrantLock·[L338–L366](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java#L338-L366)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Acquires the lock only if it is not held by another thread at the time
+ * of invocation.
+ *
+ * <p>Acquires the lock if it is not held by another thread and
+ * returns immediately with the value {@code true}, setting the
+ * lock hold count to one. Even when this lock has been set to use a
+ * fair ordering policy, a call to {@code tryLock()} <em>will</em>
+ * immediately acquire the lock if it is available, whether or not
+ * other threads are currently waiting for the lock.
+ * This &quot;barging&quot; behavior can be useful in certain
+ * circumstances, even though it breaks fairness. If you want to honor
+ * the fairness setting for this lock, then use
+ * {@link #tryLock(long, TimeUnit) tryLock(0, TimeUnit.SECONDS) }
+ * which is almost equivalent (it also detects interruption).
+ *
+ * <p>If the current thread already holds this lock then the hold
+ * count is incremented by one and the method returns {@code true}.
+ *
+ * <p>If the lock is held by another thread then this method will return
+ * immediately with the value {@code false}.
+ *
+ * @return {@code true} if the lock was free and was acquired by the
+ *         current thread, or the lock was already held by the current
+ *         thread; and {@code false} otherwise
+ */
 public boolean tryLock() {
     return sync.nonfairTryAcquire(1);
 }
-
 ```
 
 无参tryLock直接nonfairTryAcquire，证明公平配置并不自动覆盖所有获取API。
@@ -5338,7 +5898,7 @@ flowchart TD
 #### 源码1：static final int SHARED_SHIFT
 
 
-**ReentrantReadWriteLock·[L262–L273](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java#L262-L273)**
+**ReentrantReadWriteLock·[L262–L270](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java#L262-L270)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -5352,9 +5912,6 @@ static final int EXCLUSIVE_MASK = (1 << SHARED_SHIFT) - 1;
 static int sharedCount(int c)    { return c >>> SHARED_SHIFT; }
 /** Returns the number of exclusive holds represented in count  */
 static int exclusiveCount(int c) { return c & EXCLUSIVE_MASK; }
-
-/**
- * A counter for per-thread read hold counts.
 ```
 
 SHARED_UNIT是1<<16，两部分通过掩码和移位提取。计数有MAX_COUNT限制，不是无限重入。
@@ -5498,11 +6055,18 @@ flowchart TD
 #### 源码1：public void put(E e) throws InterruptedException
 
 
-**ArrayBlockingQueue·[L347–L359](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java#L347-L359)**
+**ArrayBlockingQueue·[L340–L358](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java#L340-L358)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Inserts the specified element at the tail of this queue, waiting
+ * for space to become available if the queue is full.
+ *
+ * @throws InterruptedException {@inheritDoc}
+ * @throws NullPointerException {@inheritDoc}
+ */
 public void put(E e) throws InterruptedException {
     checkNotNull(e);
     final ReentrantLock lock = this.lock;
@@ -5515,7 +6079,6 @@ public void put(E e) throws InterruptedException {
         lock.unlock();
     }
 }
-
 ```
 
 在lockInterruptibly下用while判断count==items.length；await释放锁，醒来再检查。enqueue维护数组索引与通知。
@@ -5524,11 +6087,15 @@ public void put(E e) throws InterruptedException {
 #### 源码2：private E dequeue()
 
 
-**ArrayBlockingQueue·[L172–L191](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java#L172-L191)**
+**ArrayBlockingQueue·[L168–L186](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java#L168-L186)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Extracts element at current take position, advances, and signals.
+ * Call only when holding lock.
+ */
 private E dequeue() {
     // assert lock.getHoldCount() == 1;
     // assert items[takeIndex] != null;
@@ -5544,11 +6111,6 @@ private E dequeue() {
     notFull.signal();
     return x;
 }
-
-/**
- * Deletes item at array index removeIndex.
- * Utility for remove(Object) and iterator.remove.
- * Call only when holding lock.
 ```
 
 取走当前槽并置null，takeIndex环绕，count递减，通知notFull，还处理活跃迭代器。
@@ -5571,11 +6133,15 @@ private E dequeue() {
 put与take在一把锁下保护数组、索引和count，两条Condition让等待线程释放锁而非持锁忙等。offer不满足容量条件时可以立即返回false；put则循环await。线程池提交用的是offer，所以满队列下一步是扩线程或拒绝，不是自动阻塞提交者。
 
 
-**ArrayBlockingQueue·[L157–L165](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java#L157-L165)**
+**ArrayBlockingQueue·[L153–L165](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java#L153-L165)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Inserts element at current put position, advances, and signals.
+ * Call only when holding lock.
+ */
 private void enqueue(E x) {
     // assert lock.getHoldCount() == 1;
     // assert items[putIndex] == null;
@@ -5591,7 +6157,7 @@ private void enqueue(E x) {
 
 
 
-**ArrayBlockingQueue·[L398–L410](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java#L398-L410)**
+**ArrayBlockingQueue·[L398–L408](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java#L398-L408)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -5607,8 +6173,6 @@ public E take() throws InterruptedException {
         lock.unlock();
     }
 }
-
-public E poll(long timeout, TimeUnit unit) throws InterruptedException {
 ```
 
 lockInterruptibly、while空队列、await、dequeue，四步顺序与put的满队列路径对称。
@@ -5654,11 +6218,18 @@ flowchart TD
 #### 源码1：public void put(E e) throws InterruptedException
 
 
-**LinkedBlockingQueue·[L331–L359](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java#L331-L359)**
+**LinkedBlockingQueue·[L324–L359](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java#L324-L359)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Inserts the specified element at the tail of this queue, waiting if
+ * necessary for space to become available.
+ *
+ * @throws InterruptedException {@inheritDoc}
+ * @throws NullPointerException {@inheritDoc}
+ */
 public void put(E e) throws InterruptedException {
     if (e == null) throw new NullPointerException();
     // Note: convention in all put/take/etc is to preset local var
@@ -5716,11 +6287,16 @@ putLock保护尾部连接，takeLock保护头部取出；AtomicInteger count使�
 头部有哨兵角色，dequeue取的是head.next，将其item清空并把它推进为新head。Node清理与链表结构必须一起看。
 
 
-**LinkedBlockingQueue·[L209–L217](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java#L209-L217)**
+**LinkedBlockingQueue·[L204–L217](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java#L204-L217)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Removes a node from head of queue.
+ *
+ * @return the node
+ */
 private E dequeue() {
     // assert takeLock.isHeldByCurrentThread();
     // assert head.item == null;
@@ -5736,7 +6312,7 @@ private E dequeue() {
 
 
 
-**LinkedBlockingQueue·[L434–L460](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java#L434-L460)**
+**LinkedBlockingQueue·[L434–L454](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java#L434-L454)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -5762,12 +6338,6 @@ public E take() throws InterruptedException {
         signalNotFull();
     return x;
 }
-
-public E poll(long timeout, TimeUnit unit) throws InterruptedException {
-    E x = null;
-    int c = -1;
-    long nanos = unit.toNanos(timeout);
-    final AtomicInteger count = this.count;
 ```
 
 主要持takeLock，数量变化边界决定是否向生产侧signalNotFull。
@@ -5822,15 +6392,20 @@ flowchart TD
 #### 源码1：public SynchronousQueue(boolean fair)
 
 
-**SynchronousQueue·[L864–L867](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/SynchronousQueue.java#L864-L867)**
+**SynchronousQueue·[L858–L866](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/SynchronousQueue.java#L858-L866)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Creates a {@code SynchronousQueue} with the specified fairness policy.
+ *
+ * @param fair if true, waiting threads contend in FIFO order for
+ *        access; otherwise the order is unspecified.
+ */
 public SynchronousQueue(boolean fair) {
     transferer = fair ? new TransferQueue<E>() : new TransferStack<E>();
 }
-
 ```
 
 选择TransferQueue或TransferStack，不能把公平性理解成普通容器内部元素排序。
@@ -5839,11 +6414,18 @@ public SynchronousQueue(boolean fair) {
 #### 源码2：public void put(E e) throws InterruptedException
 
 
-**SynchronousQueue·[L875–L881](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/SynchronousQueue.java#L875-L881)**
+**SynchronousQueue·[L868–L881](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/SynchronousQueue.java#L868-L881)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Adds the specified element to this queue, waiting if necessary for
+ * another thread to receive it.
+ *
+ * @throws InterruptedException {@inheritDoc}
+ * @throws NullPointerException {@inheritDoc}
+ */
 public void put(E e) throws InterruptedException {
     if (e == null) throw new NullPointerException();
     if (transferer.transfer(e, false, 0) == null) {
@@ -5879,16 +6461,24 @@ transfer传入非null元素，等待匹配；失败路径处理中断。队列�
 在线程池中用它时，要顺着execute读：offer找不到接收者→尝试addWorker→若线程数或状态不允许则reject。zero capacity并不等于线程池无法执行任务。
 
 
-**SynchronousQueue·[L911–L915](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/SynchronousQueue.java#L911-L915)**
+**SynchronousQueue·[L902–L914](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/SynchronousQueue.java#L902-L914)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Inserts the specified element into this queue, if another thread is
+ * waiting to receive it.
+ *
+ * @param e the element to add
+ * @return {@code true} if the element was added to this queue, else
+ *         {@code false}
+ * @throws NullPointerException if the specified element is null
+ */
 public boolean offer(E e) {
     if (e == null) throw new NullPointerException();
     return transferer.transfer(e, true, 0) != null;
 }
-
 ```
 
 非限时等待模式传入0超时，是否匹配到接收者决定返回值。
@@ -5934,11 +6524,18 @@ flowchart TD
 #### 源码1：public E take() throws InterruptedException
 
 
-**DelayQueue·[L204–L234](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/DelayQueue.java#L204-L234)**
+**DelayQueue·[L197–L234](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/DelayQueue.java#L197-L234)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Retrieves and removes the head of this queue, waiting if necessary
+ * until an element with an expired delay is available on this queue.
+ *
+ * @return the head of this queue
+ * @throws InterruptedException {@inheritDoc}
+ */
 public E take() throws InterruptedException {
     final ReentrantLock lock = this.lock;
     lock.lockInterruptibly();
@@ -5992,11 +6589,18 @@ public E take() throws InterruptedException {
 DelayQueue本身不执行元素代表的任务，只控制何时可取。ScheduledThreadPoolExecutor在队列之外还需要worker真正run任务。把“到期可取”与“已经执行完”分开，才能理解定时任务积压。
 
 
-**DelayQueue·[L136–L148](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/DelayQueue.java#L136-L148)**
+**DelayQueue·[L129–L148](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/DelayQueue.java#L129-L148)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Inserts the specified element into this delay queue.
+ *
+ * @param e the element to add
+ * @return {@code true}
+ * @throws NullPointerException if the specified element is null
+ */
 public boolean offer(E e) {
     final ReentrantLock lock = this.lock;
     lock.lock();
@@ -6061,11 +6665,25 @@ flowchart TD
 #### 源码1：public void execute(Runnable command)
 
 
-**ThreadPoolExecutor·[L1342–L1384](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1342-L1384)**
+**ThreadPoolExecutor·[L1328–L1380](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1328-L1380)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Executes the given task sometime in the future.  The task
+ * may execute in a new thread or in an existing pooled thread.
+ *
+ * If the task cannot be submitted for execution, either because this
+ * executor has been shutdown or because its capacity has been reached,
+ * the task is handled by the current {@code RejectedExecutionHandler}.
+ *
+ * @param command the task to execute
+ * @throws RejectedExecutionException at discretion of
+ *         {@code RejectedExecutionHandler}, if the task
+ *         cannot be accepted for execution
+ * @throws NullPointerException if {@code command} is null
+ */
 public void execute(Runnable command) {
     if (command == null)
         throw new NullPointerException();
@@ -6105,10 +6723,6 @@ public void execute(Runnable command) {
     else if (!addWorker(command, false))
         reject(command);
 }
-
-/**
- * Initiates an orderly shutdown in which previously submitted
- * tasks are executed, but no new tasks will be accepted.
 ```
 
 三阶段顺序与入队后的二次检查是本章重点。池已停止时要尝试移除刚入队任务并拒绝；没有worker时补一个去消费队列。
@@ -6117,11 +6731,37 @@ public void execute(Runnable command) {
 #### 源码2：private boolean addWorker(Runnable firstTask, boolean core)
 
 
-**ThreadPoolExecutor·[L901–L930](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L901-L930)**
+**ThreadPoolExecutor·[L875–L930](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L875-L930)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Checks if a new worker can be added with respect to current
+ * pool state and the given bound (either core or maximum). If so,
+ * the worker count is adjusted accordingly, and, if possible, a
+ * new worker is created and started, running firstTask as its
+ * first task. This method returns false if the pool is stopped or
+ * eligible to shut down. It also returns false if the thread
+ * factory fails to create a thread when asked.  If the thread
+ * creation fails, either due to the thread factory returning
+ * null, or due to an exception (typically OutOfMemoryError in
+ * Thread.start()), we roll back cleanly.
+ *
+ * @param firstTask the task the new thread should run first (or
+ * null if none). Workers are created with an initial first task
+ * (in method execute()) to bypass queuing when there are fewer
+ * than corePoolSize threads (in which case we always start one),
+ * or when the queue is full (in which case we must bypass queue).
+ * Initially idle threads are usually created via
+ * prestartCoreThread or to replace other dying workers.
+ *
+ * @param core if true use corePoolSize as bound, else
+ * maximumPoolSize. (A boolean indicator is used here rather than a
+ * value to ensure reads of fresh values after checking other pool
+ * state).
+ * @return true if successful
+ */
 private boolean addWorker(Runnable firstTask, boolean core) {
     retry:
     for (;;) {
@@ -6160,15 +6800,18 @@ CAS预占workerCount，检查运行状态与core或max上限；后面还会在ma
 #### 源码3：final void reject(Runnable command)
 
 
-**ThreadPoolExecutor·[L829–L832](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L829-L832)**
+**ThreadPoolExecutor·[L825–L831](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L825-L831)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Invokes the rejected execution handler for the given command.
+ * Package-protected for use by ScheduledThreadPoolExecutor.
+ */
 final void reject(Runnable command) {
     handler.rejectedExecution(command, this);
 }
-
 ```
 
 拒绝行为由handler决定，不一定抛异常，也可能在调用者线程执行或丢弃。业务要知道具体策略。
@@ -6278,11 +6921,54 @@ RUNNING是负编码，其余状态按序递增。workerCount不是workers集合�
 #### 源码2：final void runWorker(Worker w)
 
 
-**ThreadPoolExecutor·[L1127–L1169](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1127-L1169)**
+**ThreadPoolExecutor·[L1084–L1169](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1084-L1169)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Main worker run loop.  Repeatedly gets tasks from queue and
+ * executes them, while coping with a number of issues:
+ *
+ * 1. We may start out with an initial task, in which case we
+ * don't need to get the first one. Otherwise, as long as pool is
+ * running, we get tasks from getTask. If it returns null then the
+ * worker exits due to changed pool state or configuration
+ * parameters.  Other exits result from exception throws in
+ * external code, in which case completedAbruptly holds, which
+ * usually leads processWorkerExit to replace this thread.
+ *
+ * 2. Before running any task, the lock is acquired to prevent
+ * other pool interrupts while the task is executing, and then we
+ * ensure that unless pool is stopping, this thread does not have
+ * its interrupt set.
+ *
+ * 3. Each task run is preceded by a call to beforeExecute, which
+ * might throw an exception, in which case we cause thread to die
+ * (breaking loop with completedAbruptly true) without processing
+ * the task.
+ *
+ * 4. Assuming beforeExecute completes normally, we run the task,
+ * gathering any of its thrown exceptions to send to afterExecute.
+ * We separately handle RuntimeException, Error (both of which the
+ * specs guarantee that we trap) and arbitrary Throwables.
+ * Because we cannot rethrow Throwables within Runnable.run, we
+ * wrap them within Errors on the way out (to the thread's
+ * UncaughtExceptionHandler).  Any thrown exception also
+ * conservatively causes thread to die.
+ *
+ * 5. After task.run completes, we call afterExecute, which may
+ * also throw an exception, which will also cause thread to
+ * die. According to JLS Sec 14.20, this exception is the one that
+ * will be in effect even if task.run throws.
+ *
+ * The net effect of the exception mechanics is that afterExecute
+ * and the thread's UncaughtExceptionHandler have as accurate
+ * information as we can provide about any problems encountered by
+ * user code.
+ *
+ * @param w the worker
+ */
 final void runWorker(Worker w) {
     Thread wt = Thread.currentThread();
     Runnable task = w.firstTask;
@@ -6334,11 +7020,28 @@ firstTask先执行，之后循环getTask；beforeExecute、task.run、afterExecu
 #### 源码3：private Runnable getTask()
 
 
-**ThreadPoolExecutor·[L1046–L1082](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1046-L1082)**
+**ThreadPoolExecutor·[L1029–L1082](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1029-L1082)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Performs blocking or timed wait for a task, depending on
+ * current configuration settings, or returns null if this worker
+ * must exit because of any of:
+ * 1. There are more than maximumPoolSize workers (due to
+ *    a call to setMaximumPoolSize).
+ * 2. The pool is stopped.
+ * 3. The pool is shutdown and the queue is empty.
+ * 4. This worker timed out waiting for a task, and timed-out
+ *    workers are subject to termination (that is,
+ *    {@code allowCoreThreadTimeOut || workerCount > corePoolSize})
+ *    both before and after the timed wait, and if the queue is
+ *    non-empty, this worker is not the last thread in the pool.
+ *
+ * @return task, or null if the worker must exit, in which case
+ *         workerCount is decremented
+ */
 private Runnable getTask() {
     boolean timedOut = false; // Did the last poll() time out?
 
@@ -6407,11 +7110,18 @@ ctl把生命周期与线程数绑定协调；Worker锁区分忙闲；getTask决�
 workerCount有预占阶段，所以不能简单认为它在每一瞬间都等于workers.size。
 
 
-**ThreadPoolExecutor·[L975–L987](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L975-L987)**
+**ThreadPoolExecutor·[L968–L986](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L968-L986)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Rolls back the worker thread creation.
+ * - removes worker from workers, if present
+ * - decrements worker count
+ * - rechecks for termination, in case the existence of this
+ *   worker was holding up termination
+ */
 private void addWorkerFailed(Worker w) {
     final ReentrantLock mainLock = this.mainLock;
     mainLock.lock();
@@ -6424,7 +7134,6 @@ private void addWorkerFailed(Worker w) {
         mainLock.unlock();
     }
 }
-
 ```
 
 持mainLock移除可能已登记的Worker，减少ctl计数，再tryTerminate。这是创建失败协议的一部分。
@@ -6438,11 +7147,24 @@ beforeExecute在任务前调用。任务run的异常经afterExecute参数呈现�
 直接execute的Runnable抛未捕获异常可能导致该worker异常退出；submit的FutureTask在内部捕获业务异常，外层run通常正常返回。此时afterExecute的Throwable参数可能是null，要通过Future状态等途径识别任务失败。
 
 
-**ThreadPoolExecutor·[L1001–L1039](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1001-L1039)**
+**ThreadPoolExecutor·[L988–L1027](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L988-L1027)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Performs cleanup and bookkeeping for a dying worker. Called
+ * only from worker threads. Unless completedAbruptly is set,
+ * assumes that workerCount has already been adjusted to account
+ * for exit.  This method removes thread from worker set, and
+ * possibly terminates the pool or replaces the worker if either
+ * it exited due to user task exception or if fewer than
+ * corePoolSize workers are running or queue is non-empty but
+ * there are no workers.
+ *
+ * @param w the worker
+ * @param completedAbruptly if the worker died due to user exception
+ */
 private void processWorkerExit(Worker w, boolean completedAbruptly) {
     if (completedAbruptly) // If abrupt, then workerCount wasn't adjusted
         decrementWorkerCount();
@@ -6470,18 +7192,6 @@ private void processWorkerExit(Worker w, boolean completedAbruptly) {
         addWorker(null, false);
     }
 }
-
-/**
- * Performs blocking or timed wait for a task, depending on
- * current configuration settings, or returns null if this worker
- * must exit because of any of:
- * 1. There are more than maximumPoolSize workers (due to
- *    a call to setMaximumPoolSize).
- * 2. The pool is stopped.
- * 3. The pool is shutdown and the queue is empty.
- * 4. This worker timed out waiting for a task, and timed-out
- *    workers are subject to termination (that is,
- *    {@code allowCoreThreadTimeOut || workerCount > corePoolSize})
 ```
 
 异常退出路径需要调整workerCount；随后移除Worker、汇总completedTasks，检查终止或是否补线程。正常退出的计数可能已经由getTask维护。
@@ -6521,11 +7231,22 @@ flowchart TD
 #### 源码1：public void shutdown()
 
 
-**ThreadPoolExecutor·[L1393–L1411](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1393-L1411)**
+**ThreadPoolExecutor·[L1382–L1405](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1382-L1405)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Initiates an orderly shutdown in which previously submitted
+ * tasks are executed, but no new tasks will be accepted.
+ * Invocation has no additional effect if already shut down.
+ *
+ * <p>This method does not wait for previously submitted tasks to
+ * complete execution.  Use {@link #awaitTermination awaitTermination}
+ * to do that.
+ *
+ * @throws SecurityException {@inheritDoc}
+ */
 public void shutdown() {
     final ReentrantLock mainLock = this.mainLock;
     mainLock.lock();
@@ -6539,12 +7260,6 @@ public void shutdown() {
     }
     tryTerminate();
 }
-
-/**
- * Attempts to stop all actively executing tasks, halts the
- * processing of waiting tasks, and returns a list of the tasks
- * that were awaiting execution. These tasks are drained (removed)
- * from the task queue upon return from this method.
 ```
 
 mainLock保护状态推进，interruptIdleWorkers让空闲线程重新检查运行状态；onShutdown给ScheduledThreadPoolExecutor等子类处理任务策略。
@@ -6553,11 +7268,28 @@ mainLock保护状态推进，interruptIdleWorkers让空闲线程重新检查运�
 #### 源码2：public List<Runnable> shutdownNow()
 
 
-**ThreadPoolExecutor·[L1424–L1443](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1424-L1443)**
+**ThreadPoolExecutor·[L1407–L1438](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1407-L1438)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Attempts to stop all actively executing tasks, halts the
+ * processing of waiting tasks, and returns a list of the tasks
+ * that were awaiting execution. These tasks are drained (removed)
+ * from the task queue upon return from this method.
+ *
+ * <p>This method does not wait for actively executing tasks to
+ * terminate.  Use {@link #awaitTermination awaitTermination} to
+ * do that.
+ *
+ * <p>There are no guarantees beyond best-effort attempts to stop
+ * processing actively executing tasks.  This implementation
+ * cancels tasks via {@link Thread#interrupt}, so any task that
+ * fails to respond to interrupts may never terminate.
+ *
+ * @throws SecurityException {@inheritDoc}
+ */
 public List<Runnable> shutdownNow() {
     List<Runnable> tasks;
     final ReentrantLock mainLock = this.mainLock;
@@ -6573,11 +7305,6 @@ public List<Runnable> shutdownNow() {
     tryTerminate();
     return tasks;
 }
-
-public boolean isShutdown() {
-    return ! isRunning(ctl.get());
-}
-
 ```
 
 推进STOP并interruptWorkers，随后drainQueue返回未开始任务。返回列表不代表正在执行任务已经停下。
@@ -6786,11 +7513,20 @@ CAS保证同一个FutureTask通常由一个runner执行；捕获Throwable并setE
 #### 源码3：protected void set(V v)
 
 
-**FutureTask·[L229–L236](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/FutureTask.java#L229-L236)**
+**FutureTask·[L220–L235](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/FutureTask.java#L220-L235)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Sets the result of this future to the given value unless
+ * this future has already been set or has been cancelled.
+ *
+ * <p>This method is invoked internally by the {@link #run} method
+ * upon successful completion of the computation.
+ *
+ * @param v the value
+ */
 protected void set(V v) {
     if (UNSAFE.compareAndSwapInt(this, stateOffset, NEW, COMPLETING)) {
         outcome = v;
@@ -6798,7 +7534,6 @@ protected void set(V v) {
         finishCompletion();
     }
 }
-
 ```
 
 先CAS到COMPLETING，再写outcome，再有序发布NORMAL，最后finishCompletion。读取方根据state判断outcome已可见。
@@ -6822,11 +7557,18 @@ runner CAS决定哪个线程实际run；state CAS决定谁赢得正常完成、�
 NEW允许尚未run，也允许Callable正由runner执行。完成先过COMPLETING再发布outcome与终态；get看到COMPLETING仍等待。isDone用state!=NEW判断，极短的中间发布阶段也可能为true，所以isDone不是读取半发布outcome的许可。
 
 
-**FutureTask·[L396–L438](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/FutureTask.java#L396-L438)**
+**FutureTask·[L389–L431](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/FutureTask.java#L389-L431)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Awaits completion or aborts on interrupt or timeout.
+ *
+ * @param timed true if use timed waits
+ * @param nanos time to wait, if timed
+ * @return state upon completion
+ */
 private int awaitDone(boolean timed, long nanos)
     throws InterruptedException {
     final long deadline = timed ? System.nanoTime() + nanos : 0L;
@@ -6863,20 +7605,13 @@ private int awaitDone(boolean timed, long nanos)
             LockSupport.park(this);
     }
 }
-
-/**
- * Tries to unlink a timed-out or interrupted wait node to avoid
- * accumulating garbage.  Internal nodes are simply unspliced
- * without CAS since it is harmless if they are traversed anyway
- * by releasers.  To avoid effects of unsplicing from already
- * removed nodes, the list is retraversed in case of an apparent
 ```
 
 中断检查、终态判断、等待节点CAS入栈、park和超时返回各有分支。超时返回的是等待结果，不在这里自动cancel任务。
 
 
 
-**FutureTask·[L164–L187](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/FutureTask.java#L164-L187)**
+**FutureTask·[L164–L183](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/FutureTask.java#L164-L183)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -6901,10 +7636,6 @@ public boolean cancel(boolean mayInterruptIfRunning) {
     }
     return true;
 }
-
-/**
- * @throws CancellationException {@inheritDoc}
- */
 ```
 
 竞争NEW到取消状态；cancel(true)记录INTERRUPTING，尝试中断runner，finally发布INTERRUPTED并唤醒等待者。它不等待Callable一定结束。
@@ -6960,7 +7691,7 @@ flowchart TD
 #### 源码1：static <U> CompletableFuture<U> asyncSupplyStage(Executor e,
 
 
-**CompletableFuture·[L1614–L1623](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L1614-L1623)**
+**CompletableFuture·[L1614–L1620](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L1614-L1620)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -6972,9 +7703,6 @@ static <U> CompletableFuture<U> asyncSupplyStage(Executor e,
     e.execute(new AsyncSupply<U>(d, f));
     return d;
 }
-
-@SuppressWarnings("serial")
-static final class AsyncRun extends ForkJoinTask<Void>
 ```
 
 创建新Future并向Executor提交AsyncSupply。默认supplyAsync使用asyncPool，本基线通常选择公共ForkJoinPool，不适合无节制放入长期阻塞任务。
@@ -6983,7 +7711,7 @@ static final class AsyncRun extends ForkJoinTask<Void>
 #### 源码2：public <U> CompletableFuture<U> thenApply(
 
 
-**CompletableFuture·[L1994–L1998](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L1994-L1998)**
+**CompletableFuture·[L1994–L1997](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L1994-L1997)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -6992,7 +7720,6 @@ public <U> CompletableFuture<U> thenApply(
     Function<? super T,? extends U> fn) {
     return uniApplyStage(null, fn);
 }
-
 ```
 
 普通thenApply传null执行器；thenApplyAsync走不同执行器参数。null在这里表达同步触发模式，不等于没有线程执行。
@@ -7001,11 +7728,15 @@ public <U> CompletableFuture<U> thenApply(
 #### 源码3：final void postComplete()
 
 
-**CompletableFuture·[L470–L499](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L470-L499)**
+**CompletableFuture·[L466–L491](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L466-L491)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Pops and tries to trigger all reachable dependents.  Call only
+ * when known to be done.
+ */
 final void postComplete() {
     /*
      * On each step, variable f holds current dependents to pop
@@ -7028,14 +7759,6 @@ final void postComplete() {
         }
     }
 }
-
-/** Traverses stack and unlinks dead Completions. */
-final void cleanStack() {
-    for (Completion p = null, q = stack; q != null;) {
-        Completion s = q.next;
-        if (q.isLive()) {
-            p = q;
-            q = s;
 ```
 
 从Completion栈取依赖并尝试触发，必要时切换到依赖Future继续推进，避免把所有链条简单递归展开。
@@ -7069,7 +7792,7 @@ final void cleanStack() {
 同步后继的执行线程由源是否已完成、注册与完成竞争等共同决定，不能承诺一定在主线程或池线程。
 
 
-**CompletableFuture·[L981–L1014](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L981-L1014)**
+**CompletableFuture·[L981–L1013](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L981-L1013)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -7107,7 +7830,6 @@ private <V> CompletableFuture<V> uniComposeStage(
     c.tryFire(SYNC);
     return d;
 }
-
 ```
 
 源已完成时有快速处理，未就绪则建立UniCompose依赖。返回阶段再通过复制/依赖联动，而不是把嵌套对象直接当最终value。
@@ -7144,18 +7866,30 @@ static final class ThreadPerTaskExecutor implements Executor {
 
 
 
-**CompletableFuture·[L2275–L2281](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L2275-L2281)**
+**CompletableFuture·[L2262–L2280](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L2262-L2280)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * If not already completed, completes this CompletableFuture with
+ * a {@link CancellationException}. Dependent CompletableFutures
+ * that have not already completed will also complete
+ * exceptionally, with a {@link CompletionException} caused by
+ * this {@code CancellationException}.
+ *
+ * @param mayInterruptIfRunning this value has no effect in this
+ * implementation because interrupts are not used to control
+ * processing.
+ *
+ * @return {@code true} if this task is now cancelled
+ */
 public boolean cancel(boolean mayInterruptIfRunning) {
     boolean cancelled = (result == null) &&
         internalComplete(new AltResult(new CancellationException()));
     postComplete();
     return cancelled || isCancelled();
 }
-
 ```
 
 设置取消异常result并postComplete；代码没有像FutureTask那样从runner取Thread并interrupt。
@@ -7201,11 +7935,14 @@ flowchart TD
 #### 源码1：private void setNextRunTime()
 
 
-**ScheduledThreadPoolExecutor·[L270–L277](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java#L270-L277)**
+**ScheduledThreadPoolExecutor·[L267–L276](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java#L267-L276)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Sets the next time to run for a periodic task.
+ */
 private void setNextRunTime() {
     long p = period;
     if (p > 0)
@@ -7213,7 +7950,6 @@ private void setNextRunTime() {
     else
         time = triggerTime(-p);
 }
-
 ```
 
 固定频率在原计划time上加period；固定延迟根据当前时刻重新计算。二者对任务执行耗时的处理不同。
@@ -7222,28 +7958,25 @@ private void setNextRunTime() {
 #### 源码2：public void run()
 
 
-**ScheduledThreadPoolExecutor·[L288–L304](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java#L288-L304)**
+**ScheduledThreadPoolExecutor·[L285–L298](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java#L285-L298)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-    public void run() {
-        boolean periodic = isPeriodic();
-        if (!canRunInCurrentRunState(periodic))
-            cancel(false);
-        else if (!periodic)
-            ScheduledFutureTask.super.run();
-        else if (ScheduledFutureTask.super.runAndReset()) {
-            setNextRunTime();
-            reExecutePeriodic(outerTask);
-        }
+/**
+ * Overrides FutureTask version so as to reset/requeue if periodic.
+ */
+public void run() {
+    boolean periodic = isPeriodic();
+    if (!canRunInCurrentRunState(periodic))
+        cancel(false);
+    else if (!periodic)
+        ScheduledFutureTask.super.run();
+    else if (ScheduledFutureTask.super.runAndReset()) {
+        setNextRunTime();
+        reExecutePeriodic(outerTask);
     }
 }
-
-/**
- * Returns true if can run a task given current run state
- * and run-after-shutdown parameters.
- *
 ```
 
 非周期调用普通FutureTask.run；周期任务用runAndReset，成功才setNextRunTime并reExecutePeriodic。异常阻断重入队。
@@ -7252,11 +7985,22 @@ private void setNextRunTime() {
 #### 源码3：private void delayedExecute(RunnableScheduledFuture<?> task)
 
 
-**ScheduledThreadPoolExecutor·[L324–L339](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java#L324-L339)**
+**ScheduledThreadPoolExecutor·[L313–L336](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java#L313-L336)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Main execution method for delayed or periodic tasks.  If pool
+ * is shut down, rejects the task. Otherwise adds task to queue
+ * and starts a thread, if necessary, to run it.  (We cannot
+ * prestart the thread to run the task because the task (probably)
+ * shouldn't be run yet.)  If the pool is shut down while the task
+ * is being added, cancel and remove it if required by state and
+ * run-after-shutdown parameters.
+ *
+ * @param task the task
+ */
 private void delayedExecute(RunnableScheduledFuture<?> task) {
     if (isShutdown())
         reject(task);
@@ -7270,9 +8014,6 @@ private void delayedExecute(RunnableScheduledFuture<?> task) {
             ensurePrestart();
     }
 }
-
-/**
- * Requeues a periodic task unless current run state precludes it.
 ```
 
 先检查shutdown，再加入队列，并复查关闭状态与执行策略；需要时ensurePrestart。仍有入队后的状态核验。
@@ -7298,7 +8039,7 @@ private void delayedExecute(RunnableScheduledFuture<?> task) {
 取消后的队列移除由removeOnCancel策略等控制，逻辑取消不必然立即删除所有排队痕迹。周期运行出现未处理异常会让runAndReset失败，从而不再重新排队。
 
 
-**ScheduledThreadPoolExecutor·[L239–L262](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java#L239-L262)**
+**ScheduledThreadPoolExecutor·[L239–L256](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java#L239-L256)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -7321,12 +8062,6 @@ public int compareTo(Delayed other) {
     long diff = getDelay(NANOSECONDS) - other.getDelay(NANOSECONDS);
     return (diff < 0) ? -1 : (diff > 0) ? 1 : 0;
 }
-
-/**
- * Returns {@code true} if this is a periodic (not a one-shot) action.
- *
- * @return {@code true} if periodic
- */
 ```
 
 相同类型优先比较time，完全相同时用sequenceNumber打破顺序平局；时间排序与周期执行本身是不同职责。
@@ -7372,11 +8107,29 @@ flowchart TD
 #### 源码1：public synchronized void start()
 
 
-**Thread·[L701–L731](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L701-L731)**
+**Thread·[L683–L731](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L683-L731)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Causes this thread to begin execution; the Java Virtual Machine
+ * calls the <code>run</code> method of this thread.
+ * <p>
+ * The result is that two threads are running concurrently: the
+ * current thread (which returns from the call to the
+ * <code>start</code> method) and the other thread (which executes its
+ * <code>run</code> method).
+ * <p>
+ * It is never legal to start a thread more than once.
+ * In particular, a thread may not be restarted once it has completed
+ * execution.
+ *
+ * @exception  IllegalThreadStateException  if the thread was already
+ *               started.
+ * @see        #run()
+ * @see        #stop()
+ */
 public synchronized void start() {
     /**
      * This method is not invoked for the main method thread or "system"
@@ -7416,7 +8169,7 @@ public synchronized void start() {
 #### 源码2：public void run()
 
 
-**Thread·[L748–L753](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L748-L753)**
+**Thread·[L748–L752](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L748-L752)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -7426,7 +8179,6 @@ public void run() {
         target.run();
     }
 }
-
 ```
 
 默认run只调用target.run。直接调用不会切换线程，也不会让当前调用者拥有一个新线程栈。
@@ -7435,11 +8187,50 @@ public void run() {
 #### 源码3：public void interrupt()
 
 
-**Thread·[L919–L948](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L919-L948)**
+**Thread·[L880–L932](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L880-L932)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Interrupts this thread.
+ *
+ * <p> Unless the current thread is interrupting itself, which is
+ * always permitted, the {@link #checkAccess() checkAccess} method
+ * of this thread is invoked, which may cause a {@link
+ * SecurityException} to be thrown.
+ *
+ * <p> If this thread is blocked in an invocation of the {@link
+ * Object#wait() wait()}, {@link Object#wait(long) wait(long)}, or {@link
+ * Object#wait(long, int) wait(long, int)} methods of the {@link Object}
+ * class, or of the {@link #join()}, {@link #join(long)}, {@link
+ * #join(long, int)}, {@link #sleep(long)}, or {@link #sleep(long, int)},
+ * methods of this class, then its interrupt status will be cleared and it
+ * will receive an {@link InterruptedException}.
+ *
+ * <p> If this thread is blocked in an I/O operation upon an {@link
+ * java.nio.channels.InterruptibleChannel InterruptibleChannel}
+ * then the channel will be closed, the thread's interrupt
+ * status will be set, and the thread will receive a {@link
+ * java.nio.channels.ClosedByInterruptException}.
+ *
+ * <p> If this thread is blocked in a {@link java.nio.channels.Selector}
+ * then the thread's interrupt status will be set and it will return
+ * immediately from the selection operation, possibly with a non-zero
+ * value, just as if the selector's {@link
+ * java.nio.channels.Selector#wakeup wakeup} method were invoked.
+ *
+ * <p> If none of the previous conditions hold then this thread's interrupt
+ * status will be set. </p>
+ *
+ * <p> Interrupting a thread that is not alive need not have any effect.
+ *
+ * @throws  SecurityException
+ *          if the current thread cannot modify this thread
+ *
+ * @revised 6.0
+ * @spec JSR-51
+ */
 public void interrupt() {
     if (this != Thread.currentThread())
         checkAccess();
@@ -7454,22 +8245,6 @@ public void interrupt() {
     }
     interrupt0();
 }
-
-/**
- * Tests whether the current thread has been interrupted.  The
- * <i>interrupted status</i> of the thread is cleared by this method.  In
- * other words, if this method were to be called twice in succession, the
- * second call would return false (unless the current thread were
- * interrupted again, after the first call had cleared its interrupted
- * status and before the second call had examined it).
- *
- * <p>A thread interruption ignored because a thread was not alive
- * at the time of the interrupt will be reflected by this method
- * returning false.
- *
- * @return  <code>true</code> if the current thread has been interrupted;
- *          <code>false</code> otherwise.
- * @see #isInterrupted()
 ```
 
 处理中断阻塞器与native入口。中断语义取决于目标线程正在做什么，不能从这个方法推导“任意任务立即终止”。
@@ -7493,11 +8268,28 @@ interrupted是静态方法，读并清除当前线程标记；isInterrupted查�
 Thread.start的执行顺序约束与join等待终止的可见性属于线程契约，具体调度顺序仍由平台决定。两个线程打印的先后不能凭start调用先后就唯一推断。源码阅读应标出native调用，而不是把它伪装成普通Java循环。
 
 
-**Thread·[L951–L953](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L951-L953)**
+**Thread·[L934–L953](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L934-L953)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Tests whether the current thread has been interrupted.  The
+ * <i>interrupted status</i> of the thread is cleared by this method.  In
+ * other words, if this method were to be called twice in succession, the
+ * second call would return false (unless the current thread were
+ * interrupted again, after the first call had cleared its interrupted
+ * status and before the second call had examined it).
+ *
+ * <p>A thread interruption ignored because a thread was not alive
+ * at the time of the interrupt will be reflected by this method
+ * returning false.
+ *
+ * @return  <code>true</code> if the current thread has been interrupted;
+ *          <code>false</code> otherwise.
+ * @see #isInterrupted()
+ * @revised 6.0
+ */
 public static boolean interrupted() {
     return currentThread().isInterrupted(true);
 }
@@ -7507,11 +8299,24 @@ public static boolean interrupted() {
 
 
 
-**Thread·[L968–L970](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L968-L970)**
+**Thread·[L955–L970](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L955-L970)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Tests whether this thread has been interrupted.  The <i>interrupted
+ * status</i> of the thread is unaffected by this method.
+ *
+ * <p>A thread interruption ignored because a thread was not alive
+ * at the time of the interrupt will be reflected by this method
+ * returning false.
+ *
+ * @return  <code>true</code> if this thread has been interrupted;
+ *          <code>false</code> otherwise.
+ * @see     #interrupted()
+ * @revised 6.0
+ */
 public boolean isInterrupted() {
     return isInterrupted(false);
 }
@@ -7562,11 +8367,28 @@ flowchart TD
 #### 源码1：public final Buffer clear()
 
 
-**Buffer·[L328–L333](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Buffer.java#L328-L333)**
+**Buffer·[L311–L333](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Buffer.java#L311-L333)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Clears this buffer.  The position is set to zero, the limit is set to
+ * the capacity, and the mark is discarded.
+ *
+ * <p> Invoke this method before using a sequence of channel-read or
+ * <i>put</i> operations to fill this buffer.  For example:
+ *
+ * <blockquote><pre>
+ * buf.clear();     // Prepare buffer for reading
+ * in.read(buf);    // Read data</pre></blockquote>
+ *
+ * <p> This method does not actually erase the data in the buffer, but it
+ * is named as if it did because it will most often be used in situations
+ * in which that might as well be the case. </p>
+ *
+ * @return  This buffer
+ */
 public final Buffer clear() {
     position = 0;
     limit = capacity;
@@ -7581,11 +8403,32 @@ position=0、limit=capacity、mark=-1，只改状态，没有把底层数据填�
 #### 源码2：public final Buffer flip()
 
 
-**Buffer·[L356–L361](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Buffer.java#L356-L361)**
+**Buffer·[L335–L361](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Buffer.java#L335-L361)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Flips this buffer.  The limit is set to the current position and then
+ * the position is set to zero.  If the mark is defined then it is
+ * discarded.
+ *
+ * <p> After a sequence of channel-read or <i>put</i> operations, invoke
+ * this method to prepare for a sequence of channel-write or relative
+ * <i>get</i> operations.  For example:
+ *
+ * <blockquote><pre>
+ * buf.put(magic);    // Prepend header
+ * in.read(buf);      // Read data into rest of buffer
+ * buf.flip();        // Flip buffer
+ * out.write(buf);    // Write header + data to channel</pre></blockquote>
+ *
+ * <p> This method is often used in conjunction with the {@link
+ * java.nio.ByteBuffer#compact compact} method when transferring data from
+ * one place to another.  </p>
+ *
+ * @return  This buffer
+ */
 public final Buffer flip() {
     limit = position;
     position = 0;
@@ -7600,11 +8443,26 @@ limit取旧position，然后position归0并清mark。使用旧limit作为新limi
 #### 源码3：public final Buffer rewind()
 
 
-**Buffer·[L378–L382](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Buffer.java#L378-L382)**
+**Buffer·[L363–L382](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Buffer.java#L363-L382)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Rewinds this buffer.  The position is set to zero and the mark is
+ * discarded.
+ *
+ * <p> Invoke this method before a sequence of channel-write or <i>get</i>
+ * operations, assuming that the limit has already been set
+ * appropriately.  For example:
+ *
+ * <blockquote><pre>
+ * out.write(buf);    // Write remaining data
+ * buf.rewind();      // Rewind buffer
+ * buf.get(array);    // Copy data into array</pre></blockquote>
+ *
+ * @return  This buffer
+ */
 public final Buffer rewind() {
     position = 0;
     mark = -1;
@@ -7737,23 +8595,20 @@ flowchart TD
 #### 源码2：public void run()
 
 
-**DirectBufferTemplate（构建模板原文，保留占位符）·[L89–L100](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Direct-X-Buffer.java.template#L89-L100)**
+**DirectBufferTemplate（构建模板原文，保留占位符）·[L89–L97](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Direct-X-Buffer.java.template#L89-L97)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-    public void run() {
-        if (address == 0) {
-            // Paranoia
-            return;
-        }
-        unsafe.freeMemory(address);
-        address = 0;
-        Bits.unreserveMemory(size, capacity);
+public void run() {
+    if (address == 0) {
+        // Paranoia
+        return;
     }
-
+    unsafe.freeMemory(address);
+    address = 0;
+    Bits.unreserveMemory(size, capacity);
 }
-
 ```
 
 Deallocator清理动作调用freeMemory，然后unreserveMemory。address置0避免重复释放。实际何时触发依赖引用与清理机制。
@@ -7807,11 +8662,14 @@ totalCapacity记录逻辑容量，reservedMemory记录实际native字节，count
 直接缓冲的Java对象被GC发现不可达后，还需清理机制执行Deallocator才能freeMemory。业务不应拿“对象引用设null”当作native内存立即释放的证据。
 
 
-**Bits·[L644–L671](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Bits.java#L644-L671)**
+**Bits·[L641–L671](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Bits.java#L641-L671)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+// These methods should be called whenever direct memory is allocated or
+// freed.  They allow the user to control the amount of direct memory
+// which a process may access.  All sizes are specified in bytes.
 static void reserveMemory(long size, int cap) {
 
     if (!memoryLimitSet && VM.isBooted()) {
@@ -7918,11 +8776,18 @@ filter返回StatelessOp并包装下游Sink；accept只在predicate通过时把�
 #### 源码2：final <R> R evaluate(TerminalOp<E_OUT, R> terminalOp)
 
 
-**AbstractPipeline·[L226–L243](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L226-L243)**
+**AbstractPipeline·[L219–L235](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L219-L235)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Evaluate the pipeline with a terminal operation to produce a result.
+ *
+ * @param <R> the type of result
+ * @param terminalOp the terminal operation to be applied to the pipeline.
+ * @return the result
+ */
 final <R> R evaluate(TerminalOp<E_OUT, R> terminalOp) {
     assert getOutputShape() == terminalOp.inputShape();
     if (linkedOrConsumed)
@@ -7933,14 +8798,6 @@ final <R> R evaluate(TerminalOp<E_OUT, R> terminalOp) {
            ? terminalOp.evaluateParallel(this, sourceSpliterator(terminalOp.getOpFlags()))
            : terminalOp.evaluateSequential(this, sourceSpliterator(terminalOp.getOpFlags()));
 }
-
-/**
- * Collect the elements output from the pipeline stage.
- *
- * @param generator the array generator to be used to create array instances
- * @return a flat array-backed Node that holds the collected output elements
- */
-@SuppressWarnings("unchecked")
 ```
 
 linkedOrConsumed禁止已链接或消费的流再次作为独立输入使用；再根据parallel选择顺序或并行评估。
@@ -7949,7 +8806,7 @@ linkedOrConsumed禁止已链接或消费的流再次作为独立输入使用；�
 #### 源码3：final <P_IN> void copyInto(Sink<P_IN> wrappedSink, Spliterator<P_IN> spliterator)
 
 
-**AbstractPipeline·[L477–L491](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L477-L491)**
+**AbstractPipeline·[L477–L488](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L477-L488)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -7966,9 +8823,6 @@ final <P_IN> void copyInto(Sink<P_IN> wrappedSink, Spliterator<P_IN> spliterator
         copyIntoWithCancel(wrappedSink, spliterator);
     }
 }
-
-@Override
-@SuppressWarnings("unchecked")
 ```
 
 非短路时begin、forEachRemaining、end；短路有另一套取消检查路径。终结方式影响实际遍历多少元素。
@@ -7992,7 +8846,7 @@ final <P_IN> void copyInto(Sink<P_IN> wrappedSink, Spliterator<P_IN> spliterator
 这解释了“逆向建立处理器，正向消费元素”的关系。无状态中间操作常能融合到同一次源遍历；有状态操作可能有额外阶段与缓冲。parallel会让拆分与合并参与执行，不能由简单顺序Sink图推断全部并行细节。
 
 
-**AbstractPipeline·[L514–L526](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L514-L526)**
+**AbstractPipeline·[L514–L521](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L514-L521)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -8005,11 +8859,6 @@ final <P_IN> Sink<P_IN> wrapSink(Sink<E_OUT> sink) {
     }
     return (Sink<P_IN>) sink;
 }
-
-@Override
-@SuppressWarnings("unchecked")
-final <P_IN> Spliterator<E_OUT> wrapSpliterator(Spliterator<P_IN> sourceSpliterator) {
-    if (depth == 0) {
 ```
 
 沿previousStage反向包装opWrapSink，最终返回负责接收源元素的外层Sink。
@@ -8063,11 +8912,19 @@ flowchart TD
 #### 源码1：final void externalPush(ForkJoinTask<?> task)
 
 
-**ForkJoinPool·[L2399–L2424](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ForkJoinPool.java#L2399-L2424)**
+**ForkJoinPool·[L2391–L2420](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ForkJoinPool.java#L2391-L2420)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Tries to add the given task to a submission queue at
+ * submitter's current queue. Only the (vastly) most common path
+ * is directly handled in this method, while screening for need
+ * for externalSubmit.
+ *
+ * @param task the task. Caller must ensure non-null.
+ */
 final void externalPush(ForkJoinTask<?> task) {
     WorkQueue[] ws; WorkQueue q; int m;
     int r = ThreadLocalRandom.getProbe();
@@ -8090,10 +8947,6 @@ final void externalPush(ForkJoinTask<?> task) {
     }
     externalSubmit(task);
 }
-
-/**
- * Returns common pool queue for an external thread.
- */
 ```
 
 外部线程通过提交队列路径发布，使用probe定位并协调队列访问；与worker直接操作其本地队列不同。
@@ -8102,11 +8955,18 @@ final void externalPush(ForkJoinTask<?> task) {
 #### 源码2：final void push(ForkJoinTask<?> task)
 
 
-**ForkJoinPool·[L859–L881](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ForkJoinPool.java#L859-L881)**
+**ForkJoinPool·[L852–L873](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ForkJoinPool.java#L852-L873)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Pushes a task. Call only by owner in unshared queues.  (The
+ * shared-queue version is embedded in method externalPush.)
+ *
+ * @param task the task. Caller must ensure non-null.
+ * @throws RejectedExecutionException if array cannot be resized
+ */
 final void push(ForkJoinTask<?> task) {
     ForkJoinTask<?>[] a; ForkJoinPool p;
     int b = base, s = top, n;
@@ -8122,14 +8982,6 @@ final void push(ForkJoinTask<?> task) {
             growArray();
     }
 }
-
-/**
- * Initializes or doubles the capacity of array. Call either
- * by owner or with lock held -- it is OK for base, but not
- * top, to move while resizings are in progress.
- */
-final ForkJoinTask<?>[] growArray() {
-    ForkJoinTask<?>[] oldA = array;
 ```
 
 WorkQueue.push写top侧槽位，再更新top，必要时通知或扩容。数组槽位发布有顺序要求。
@@ -8138,11 +8990,14 @@ WorkQueue.push写top侧槽位，再更新top，必要时通知或扩容。数组
 #### 源码3：final ForkJoinTask<?> poll()
 
 
-**ForkJoinPool·[L944–L966](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ForkJoinPool.java#L944-L966)**
+**ForkJoinPool·[L941–L961](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ForkJoinPool.java#L941-L961)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Takes next task, if one exists, in FIFO order.
+ */
 final ForkJoinTask<?> poll() {
     ForkJoinTask<?>[] a; int b; ForkJoinTask<?> t;
     while ((b = base) - top < 0 && (a = array) != null) {
@@ -8161,11 +9016,6 @@ final ForkJoinTask<?> poll() {
     }
     return null;
 }
-
-/**
- * Takes next task, if one exists, in order specified by mode.
- */
-final ForkJoinTask<?> nextLocalTask() {
 ```
 
 窃取/轮询路径从base侧CAS取槽位并推进base，和本地pop使用相反端的方式互相配合。
@@ -8293,7 +9143,7 @@ newProxyInstance先查找或生成代理Class，再调用接收InvocationHandler
 本期Java入口能证明取得Class与构造实例的流程；生成方法的具体字节码需要继续读ProxyGenerator，不能凭入口节选补写为“所有方法通过反射直接调用目标”。handler甚至可以不持有任何真实目标对象。
 
 
-**Proxy·[L557–L586](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/reflect/Proxy.java#L557-L586)**
+**Proxy·[L557–L583](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/reflect/Proxy.java#L557-L583)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
@@ -8325,9 +9175,6 @@ private static final class ProxyClassFactory
                 throw new IllegalArgumentException(
                     intf + " is not visible from class loader: " + loader);
             }
-            /*
-             * Verify that the Class object actually represents an
-             * interface.
 ```
 
 工厂开始校验接口类型、名称可见性与重复接口等条件；完整生成与定义还在后续代码中。
@@ -8373,11 +9220,52 @@ flowchart TD
 #### 源码1：protected Class<?> loadClass(String name, boolean resolve)
 
 
-**ClassLoader·[L395–L428](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ClassLoader.java#L395-L428)**
+**ClassLoader·[L354–L428](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ClassLoader.java#L354-L428)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Loads the class with the specified <a href="#name">binary name</a>.  The
+ * default implementation of this method searches for classes in the
+ * following order:
+ *
+ * <ol>
+ *
+ *   <li><p> Invoke {@link #findLoadedClass(String)} to check if the class
+ *   has already been loaded.  </p></li>
+ *
+ *   <li><p> Invoke the {@link #loadClass(String) <tt>loadClass</tt>} method
+ *   on the parent class loader.  If the parent is <tt>null</tt> the class
+ *   loader built-in to the virtual machine is used, instead.  </p></li>
+ *
+ *   <li><p> Invoke the {@link #findClass(String)} method to find the
+ *   class.  </p></li>
+ *
+ * </ol>
+ *
+ * <p> If the class was found using the above steps, and the
+ * <tt>resolve</tt> flag is true, this method will then invoke the {@link
+ * #resolveClass(Class)} method on the resulting <tt>Class</tt> object.
+ *
+ * <p> Subclasses of <tt>ClassLoader</tt> are encouraged to override {@link
+ * #findClass(String)}, rather than this method.  </p>
+ *
+ * <p> Unless overridden, this method synchronizes on the result of
+ * {@link #getClassLoadingLock <tt>getClassLoadingLock</tt>} method
+ * during the entire class loading process.
+ *
+ * @param  name
+ *         The <a href="#name">binary name</a> of the class
+ *
+ * @param  resolve
+ *         If <tt>true</tt> then resolve the class
+ *
+ * @return  The resulting <tt>Class</tt> object
+ *
+ * @throws  ClassNotFoundException
+ *          If the class could not be found
+ */
 protected Class<?> loadClass(String name, boolean resolve)
     throws ClassNotFoundException
 {
@@ -8420,11 +9308,31 @@ protected Class<?> loadClass(String name, boolean resolve)
 #### 源码2：protected Object getClassLoadingLock(String className)
 
 
-**ClassLoader·[L453–L461](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ClassLoader.java#L453-L461)**
+**ClassLoader·[L433–L461](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ClassLoader.java#L433-L461)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Returns the lock object for class loading operations.
+ * For backward compatibility, the default implementation of this method
+ * behaves as follows. If this ClassLoader object is registered as
+ * parallel capable, the method returns a dedicated object associated
+ * with the specified class name. Otherwise, the method returns this
+ * ClassLoader object.
+ *
+ * @param  className
+ *         The name of the to-be-loaded class
+ *
+ * @return the lock for class loading operations
+ *
+ * @throws NullPointerException
+ *         If registered as parallel capable and <tt>className</tt> is null
+ *
+ * @see #loadClass(String, boolean)
+ *
+ * @since  1.7
+ */
 protected Object getClassLoadingLock(String className) {
     Object lock = this;
     if (parallelLockMap != null) {
@@ -8694,26 +9602,56 @@ flowchart LR
 
 这是工厂的固定实现布局，不是建议所有业务都使用这些默认配置。结合任务是否阻塞、能否拒绝、队列容量和服务可接受延迟选择；仅调整maximumPoolSize不能消除无界排队。
 
-**Executors·[L88–L93](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/Executors.java#L88-L93)**
+**Executors·[L73–L92](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/Executors.java#L73-L92)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Creates a thread pool that reuses a fixed number of threads
+ * operating off a shared unbounded queue.  At any point, at most
+ * {@code nThreads} threads will be active processing tasks.
+ * If additional tasks are submitted when all threads are active,
+ * they will wait in the queue until a thread is available.
+ * If any thread terminates due to a failure during execution
+ * prior to shutdown, a new one will take its place if needed to
+ * execute subsequent tasks.  The threads in the pool will exist
+ * until it is explicitly {@link ExecutorService#shutdown shutdown}.
+ *
+ * @param nThreads the number of threads in the pool
+ * @return the newly created thread pool
+ * @throws IllegalArgumentException if {@code nThreads <= 0}
+ */
 public static ExecutorService newFixedThreadPool(int nThreads) {
     return new ThreadPoolExecutor(nThreads, nThreads,
                                   0L, TimeUnit.MILLISECONDS,
                                   new LinkedBlockingQueue<Runnable>());
 }
-
 ```
 
 这段工厂代码直接把core和max都设为nThreads，并使用默认LinkedBlockingQueue。解释配置行为应回到这里，而不是凭线程池名称猜测。
 
-**Executors·[L215–L219](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/Executors.java#L215-L219)**
+**Executors·[L199–L219](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/Executors.java#L199-L219)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Creates a thread pool that creates new threads as needed, but
+ * will reuse previously constructed threads when they are
+ * available.  These pools will typically improve the performance
+ * of programs that execute many short-lived asynchronous tasks.
+ * Calls to {@code execute} will reuse previously constructed
+ * threads if available. If no existing thread is available, a new
+ * thread will be created and added to the pool. Threads that have
+ * not been used for sixty seconds are terminated and removed from
+ * the cache. Thus, a pool that remains idle for long enough will
+ * not consume any resources. Note that pools with similar
+ * properties but different details (for example, timeout parameters)
+ * may be created using {@link ThreadPoolExecutor} constructors.
+ *
+ * @return the newly created thread pool
+ */
 public static ExecutorService newCachedThreadPool() {
     return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
                                   60L, TimeUnit.SECONDS,
@@ -8723,18 +9661,21 @@ public static ExecutorService newCachedThreadPool() {
 
 core为0，max为Integer.MAX_VALUE，使用SynchronousQueue。没有排队存储空间这一点会把更多提交压力推向创建worker。
 
-**AbstractExecutorService·[L131–L137](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/AbstractExecutorService.java#L131-L137)**
+**AbstractExecutorService·[L127–L136](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/AbstractExecutorService.java#L127-L136)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * @throws RejectedExecutionException {@inheritDoc}
+ * @throws NullPointerException       {@inheritDoc}
+ */
 public <T> Future<T> submit(Callable<T> task) {
     if (task == null) throw new NullPointerException();
     RunnableFuture<T> ftask = newTaskFor(task);
     execute(ftask);
     return ftask;
 }
-
 ```
 
 submit先newTaskFor获得RunnableFuture，再交给execute，最后返回Future。理解包装层就能区分任务异常在Future内呈现还是由worker的未捕获异常路径处理。

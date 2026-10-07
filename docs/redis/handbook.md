@@ -121,7 +121,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[networking.c · 7.2.6 · L4173–L4238](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L4173-L4238)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[networking.c · 7.2.6 · L4173–L4217](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L4173-L4217)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void *IOThreadMain(void *myid) {
@@ -169,27 +169,6 @@ void *IOThreadMain(void *myid) {
         setIOPendingCount(id, 0);
     }
 }
-
-/* Initialize the data structures needed for threaded I/O. */
-void initThreadedIO(void) {
-    server.io_threads_active = 0; /* We start with threads not active. */
-
-    /* Indicate that io-threads are currently idle */
-    io_threads_op = IO_THREADS_OP_IDLE;
-
-    /* Don't spawn any thread if the user selected a single thread:
-     * we'll handle I/O directly from the main thread. */
-    if (server.io_threads_num == 1) return;
-
-    if (server.io_threads_num > IO_THREADS_MAX_NUM) {
-        serverLog(LL_WARNING,"Fatal: too many I/O threads configured. "
-                             "The maximum number is %d.", IO_THREADS_MAX_NUM);
-        exit(1);
-    }
-
-    /* Spawn and initialize the I/O threads. */
-    for (int i = 0; i < server.io_threads_num; i++) {
-        /* Things we do for all the threads including the main thread. */
 ```
 
 **逐段阅读抓手：**关注IO_THREADS_OP_READ/WRITE以及CLIENT_PENDING_COMMAND；线程参与I/O不等于并行修改数据库。
@@ -259,9 +238,15 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[networking.c · L3769–L3816](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/networking.c#L3769-L3816)，连续节选。
+**6.2.14源码：**[networking.c · L3763–L3815](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/networking.c#L3763-L3815)，连续节选。
 
 ```c
+/* When threaded I/O is also enabled for the reading + parsing side, the
+ * readable handler will just put normal clients into a queue of clients to
+ * process (instead of serving them synchronously). This function runs
+ * the queue using the I/O threads, and process them in order to accumulate
+ * the reads in the buffers, and also parse the first command available
+ * rendering it in the client structures. */
 int handleClientsWithPendingReadsUsingThreads(void) {
     if (!server.io_threads_active || !server.io_threads_do_reads) return 0;
     int processed = listLength(server.clients_pending_read);
@@ -309,12 +294,23 @@ int handleClientsWithPendingReadsUsingThreads(void) {
         client *c = listNodeValue(ln);
         c->flags &= ~CLIENT_PENDING_READ;
         listDelNode(server.clients_pending_read,ln);
-
 ```
 
-**7.2.6源码：**[networking.c · L4443–L4494](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L4443-L4494)，连续节选。
+**7.2.6源码：**[networking.c · L4431–L4493](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L4431-L4493)，连续节选。
 
 ```c
+/* When threaded I/O is also enabled for the reading + parsing side, the
+ * readable handler will just put normal clients into a queue of clients to
+ * process (instead of serving them synchronously). This function runs
+ * the queue using the I/O threads, and process them in order to accumulate
+ * the reads in the buffers, and also parse the first command available
+ * rendering it in the client structures.
+ * This function achieves thread safety using a fan-out -> fan-in paradigm:
+ * Fan out: The main thread fans out work to the io-threads which block until
+ * setIOPendingCount() is called with a value larger than 0 by the main thread.
+ * Fan in: The main thread waits until getIOPendingCount() returns 0. Then
+ * it can safely perform post-processing and return to normal synchronous
+ * work. */
 int handleClientsWithPendingReadsUsingThreads(void) {
     if (!server.io_threads_active || !server.io_threads_do_reads) return 0;
     int processed = listLength(server.clients_pending_read);
@@ -366,7 +362,6 @@ int handleClientsWithPendingReadsUsingThreads(void) {
         c->pending_read_list_node = NULL;
 
         serverAssert(!(c->flags & CLIENT_BLOCKED));
-
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -401,9 +396,24 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ae.c · 7.2.6 · L361–L429](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/ae.c#L361-L429)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[ae.c · 7.2.6 · L346–L434](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/ae.c#L346-L434)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Process every pending time event, then every pending file event
+ * (that may be registered by time event callbacks just processed).
+ * Without special flags the function sleeps until some file event
+ * fires, or when the next time event occurs (if any).
+ *
+ * If flags is 0, the function does nothing and returns.
+ * if flags has AE_ALL_EVENTS set, all the kind of events are processed.
+ * if flags has AE_FILE_EVENTS set, file events are processed.
+ * if flags has AE_TIME_EVENTS set, time events are processed.
+ * if flags has AE_DONT_WAIT set, the function returns ASAP once all
+ * the events that can be handled without a wait are processed.
+ * if flags has AE_CALL_AFTER_SLEEP set, the aftersleep callback is called.
+ * if flags has AE_CALL_BEFORE_SLEEP set, the beforesleep callback is called.
+ *
+ * The function returns the number of events processed. */
 int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 {
     int processed = 0, numevents;
@@ -473,6 +483,11 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             int invert = fe->mask & AE_BARRIER;
 
             /* Note the "fe->mask & mask & ..." code: maybe an already
+             * processed event removed an element that fired and we still
+             * didn't processed, so we check if the event is still valid.
+             *
+             * Fire the readable event if the call sequence is not
+             * inverted. */
 ```
 
 **逐段阅读抓手：**看AE_DONT_WAIT、AE_CALL_BEFORE_SLEEP等标记；不要只画一个永久阻塞的epoll调用。
@@ -494,9 +509,17 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[server.c · 7.2.6 · L3833–L3913](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L3833-L3913)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[server.c · 7.2.6 · L3825–L3913](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L3825-L3913)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* If this function gets called we already read a whole
+ * command, arguments are in the client argv/argc fields.
+ * processCommand() execute the command or prepare the
+ * server for a bulk read from the client.
+ *
+ * If C_OK is returned the client is still alive and valid and
+ * other operations can be performed by the caller. Otherwise
+ * if C_ERR is returned the client was destroyed (i.e. after QUIT). */
 int processCommand(client *c) {
     if (!scriptIsTimedout()) {
         /* Both EXEC and scripts call call() directly so there should be
@@ -599,9 +622,44 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[server.c · 7.2.6 · L3473–L3568](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L3473-L3568)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[server.c · 7.2.6 · L3438–L3570](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L3438-L3570)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Call() is the core of Redis execution of a command.
+ *
+ * The following flags can be passed:
+ * CMD_CALL_NONE        No flags.
+ * CMD_CALL_PROPAGATE_AOF   Append command to AOF if it modified the dataset
+ *                          or if the client flags are forcing propagation.
+ * CMD_CALL_PROPAGATE_REPL  Send command to slaves if it modified the dataset
+ *                          or if the client flags are forcing propagation.
+ * CMD_CALL_PROPAGATE   Alias for PROPAGATE_AOF|PROPAGATE_REPL.
+ * CMD_CALL_FULL        Alias for SLOWLOG|STATS|PROPAGATE.
+ *
+ * The exact propagation behavior depends on the client flags.
+ * Specifically:
+ *
+ * 1. If the client flags CLIENT_FORCE_AOF or CLIENT_FORCE_REPL are set
+ *    and assuming the corresponding CMD_CALL_PROPAGATE_AOF/REPL is set
+ *    in the call flags, then the command is propagated even if the
+ *    dataset was not affected by the command.
+ * 2. If the client flags CLIENT_PREVENT_REPL_PROP or CLIENT_PREVENT_AOF_PROP
+ *    are set, the propagation into AOF or to slaves is not performed even
+ *    if the command modified the dataset.
+ *
+ * Note that regardless of the client flags, if CMD_CALL_PROPAGATE_AOF
+ * or CMD_CALL_PROPAGATE_REPL are not set, then respectively AOF or
+ * slaves propagation will never occur.
+ *
+ * Client flags are modified by the implementation of a given command
+ * using the following API:
+ *
+ * forceCommandPropagation(client *c, int flags);
+ * preventCommandPropagation(client *c);
+ * preventCommandAOF(client *c);
+ * preventCommandReplication(client *c);
+ *
+ */
 void call(client *c, int flags) {
     long long dirty;
     uint64_t client_old_flags = c->flags;
@@ -698,6 +756,8 @@ void call(client *c, int flags) {
      * re-written commands such as EXPIRE, GEOADD, etc. */
 
     /* Record the latency this command induced on the main thread.
+     * unless instructed by the caller not to log. (happens when processing
+     * a MULTI-EXEC from inside an AOF). */
 ```
 
 **逐段阅读抓手：**比较执行前后的server.dirty及传播标记；某些命令响应成功但没有发生实际修改。
@@ -754,9 +814,20 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[networking.c · 7.2.6 · L2253–L2326](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L2253-L2326)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[networking.c · 7.2.6 · L2242–L2326](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L2242-L2326)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Process the query buffer for client 'c', setting up the client argument
+ * vector for command execution. Returns C_OK if after running the function
+ * the client has a well-formed ready to be processed command, otherwise
+ * C_ERR if there is still to read more buffer to get the full command.
+ * The function also returns C_ERR when there is a protocol error: in such a
+ * case the client structure is setup to reply with the error and close
+ * the connection.
+ *
+ * This function is called if processInputBuffer() detects that the next
+ * command is in RESP format, so the first byte in the command is found
+ * to be '*'. Otherwise for inline commands processInlineBuffer() is called. */
 int processMultibulkBuffer(client *c) {
     char *newline = NULL;
     int ok;
@@ -852,9 +923,14 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[networking.c · 7.2.6 · L2520–L2595](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L2520-L2595)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[networking.c · 7.2.6 · L2515–L2595](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L2515-L2595)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* This function is called every time, in the client structure 'c', there is
+ * more query buffer to process, because we read more data from the socket
+ * or because a client was blocked and later reactivated, so there could be
+ * pending query buffer, already representing a full command, to process.
+ * return C_ERR in case the client was freed during the processing */
 int processInputBuffer(client *c) {
     /* Keep processing while there is something in the input buffer */
     while(c->qb_pos < sdslen(c->querybuf)) {
@@ -952,9 +1028,17 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[networking.c · 7.2.6 · L1939–L2012](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L1939-L2012)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[networking.c · 7.2.6 · L1931–L2011](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L1931-L2011)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Write data in output buffers to client. Return C_OK if the client
+ * is still valid after the call, C_ERR if it was freed because of some
+ * error.  If handler_installed is set, it will attempt to clear the
+ * write event.
+ *
+ * This function is called by threads, but always with handler_installed
+ * set to 0. So when handler_installed is set to 0 the function must be
+ * thread safe. */
 int writeToClient(client *c, int handler_installed) {
     /* Update total number of writes on server */
     atomicIncr(server.stat_total_writes_processed, 1);
@@ -1028,7 +1112,6 @@ int writeToClient(client *c, int handler_installed) {
         updateClientMemUsageAndBucket(c);
     return C_OK;
 }
-
 ```
 
 **逐段阅读抓手：**看sentlen与bufpos/list head；写一次成功可能只发送部分回复。
@@ -1064,7 +1147,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[server.h · 7.2.6 · L900–L915](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.h#L900-L915)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[server.h · 7.2.6 · L900–L913](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.h#L900-L913)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 struct redisObject {
@@ -1081,8 +1164,6 @@ struct redisObject {
  * Native types are checked against the OBJ_STRING, OBJ_LIST, OBJ_* defines,
  * and Module types have their registered name returned. */
 char *getObjectTypeName(robj*);
-
-/* Macro used to initialize a Redis object allocated on the stack.
 ```
 
 **逐段阅读抓手：**先读标记再解引用ptr；仅看到void*无法知道它是哪个容器。
@@ -1104,9 +1185,12 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[object.c · 7.2.6 · L92–L130](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/object.c#L92-L130)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[object.c · 7.2.6 · L89–L114](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/object.c#L89-L114)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Create a string object with encoding OBJ_ENCODING_EMBSTR, that is
+ * an object where the sds string is actually an unmodifiable string
+ * allocated in the same chunk as the object itself. */
 robj *createEmbeddedStringObject(const char *ptr, size_t len) {
     robj *o = zmalloc(sizeof(robj)+sizeof(struct sdshdr8)+len+1);
     struct sdshdr8 *sh = (void*)(o+1);
@@ -1130,22 +1214,6 @@ robj *createEmbeddedStringObject(const char *ptr, size_t len) {
     }
     return o;
 }
-
-/* Create a string object with EMBSTR encoding if it is smaller than
- * OBJ_ENCODING_EMBSTR_SIZE_LIMIT, otherwise the RAW encoding is
- * used.
- *
- * The current limit of 44 is chosen so that the biggest string object
- * we allocate as EMBSTR will still fit into the 64 byte arena of jemalloc. */
-#define OBJ_ENCODING_EMBSTR_SIZE_LIMIT 44
-robj *createStringObject(const char *ptr, size_t len) {
-    if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
-        return createEmbeddedStringObject(ptr,len);
-    else
-        return createRawStringObject(ptr,len);
-}
-
-/* Same as CreateRawStringObject, can return NULL if allocation fails */
 ```
 
 **逐段阅读抓手：**对照OBJ_ENCODING_EMBSTR_SIZE_LIMIT与createStringObject；不要把大小阈值脱离版本背诵。
@@ -1167,9 +1235,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[object.c · 7.2.6 · L635–L704](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/object.c#L635-L704)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[object.c · 7.2.6 · L634–L704](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/object.c#L634-L704)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Try to encode a string object in order to save space */
 robj *tryObjectEncodingEx(robj *o, int try_trim) {
     long value;
     sds s = o->ptr;
@@ -1266,9 +1335,10 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[object.c · L438–L497](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/object.c#L438-L497)，连续节选。
+**6.2.14源码：**[object.c · L437–L497](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/object.c#L437-L497)，连续节选。
 
 ```c
+/* Try to encode a string object in order to save space */
 robj *tryObjectEncoding(robj *o) {
     long value;
     sds s = o->ptr;
@@ -1331,9 +1401,10 @@ robj *tryObjectEncoding(robj *o) {
         emb = createEmbeddedStringObject(s,sdslen(s));
 ```
 
-**7.2.6源码：**[object.c · L635–L694](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/object.c#L635-L694)，连续节选。
+**7.2.6源码：**[object.c · L634–L694](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/object.c#L634-L694)，连续节选。
 
 ```c
+/* Try to encode a string object in order to save space */
 robj *tryObjectEncodingEx(robj *o, int try_trim) {
     long value;
     sds s = o->ptr;
@@ -1472,9 +1543,22 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[sds.c · 7.2.6 · L104–L179](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sds.c#L104-L179)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[sds.c · 7.2.6 · L91–L167](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sds.c#L91-L167)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Create a new sds string with the content specified by the 'init' pointer
+ * and 'initlen'.
+ * If NULL is used for 'init' the string is initialized with zero bytes.
+ * If SDS_NOINIT is used, the buffer is left uninitialized;
+ *
+ * The string is always null-terminated (all the sds strings are, always) so
+ * even if you create an sds string with:
+ *
+ * mystring = sdsnewlen("abc",3);
+ *
+ * You can print the string with printf() as there is an implicit \0 at the
+ * end of the string. However the string is binary safe and can contain
+ * \0 characters in the middle, as the length is stored in the sds header. */
 sds _sdsnewlen(const void *init, size_t initlen, int trymalloc) {
     void *sh;
     sds s;
@@ -1539,18 +1623,6 @@ sds _sdsnewlen(const void *init, size_t initlen, int trymalloc) {
     s[initlen] = '\0';
     return s;
 }
-
-sds sdsnewlen(const void *init, size_t initlen) {
-    return _sdsnewlen(init, initlen, 0);
-}
-
-sds sdstrynewlen(const void *init, size_t initlen) {
-    return _sdsnewlen(init, initlen, 1);
-}
-
-/* Create an empty (zero length) sds string. Even in this case the string
- * always has an implicit null term. */
-sds sdsempty(void) {
 ```
 
 **逐段阅读抓手：**hdrlen、initlen、usable各有单位；不要只统计Body忽略头部。
@@ -1572,9 +1644,21 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[sds.c · 7.2.6 · L240–L311](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sds.c#L240-L311)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[sds.c · 7.2.6 · L228–L291](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sds.c#L228-L291)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Enlarge the free space at the end of the sds string so that the caller
+ * is sure that after calling this function can overwrite up to addlen
+ * bytes after the end of the string, plus one more byte for nul term.
+ * If there's already sufficient free space, this function returns without any
+ * action, if there isn't sufficient free space, it'll allocate what's missing,
+ * and possibly more:
+ * When greedy is 1, enlarge more than needed, to avoid need for future reallocs
+ * on incremental growth.
+ * When greedy is 0, enlarge just enough so that there's free space for 'addlen'.
+ *
+ * Note: this does not change the *length* of the sds string as returned
+ * by sdslen(), but only the free buffer space we have. */
 sds _sdsMakeRoomFor(sds s, size_t addlen, int greedy) {
     void *sh, *newsh;
     size_t avail = sdsavail(s);
@@ -1627,26 +1711,6 @@ sds _sdsMakeRoomFor(sds s, size_t addlen, int greedy) {
     sdssetalloc(s, usable);
     return s;
 }
-
-/* Enlarge the free space at the end of the sds string more than needed,
- * This is useful to avoid repeated re-allocations when repeatedly appending to the sds. */
-sds sdsMakeRoomFor(sds s, size_t addlen) {
-    return _sdsMakeRoomFor(s, addlen, 1);
-}
-
-/* Unlike sdsMakeRoomFor(), this one just grows to the necessary size. */
-sds sdsMakeRoomForNonGreedy(sds s, size_t addlen) {
-    return _sdsMakeRoomFor(s, addlen, 0);
-}
-
-/* Reallocate the sds string so that it has no free space at the end. The
- * contained string remains not altered, but next concatenation operations
- * will require a reallocation.
- *
- * After the call, the passed sds string is no longer valid and all the
- * references must be substituted with the new pointer returned by the call. */
-sds sdsRemoveFreeSpace(sds s, int would_regrow) {
-    return sdsResize(s, sdslen(s), would_regrow);
 ```
 
 **逐段阅读抓手：**跟踪s、sh、newsh；返回数据指针不同于分配块基址。
@@ -1710,7 +1774,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[dict.h · 7.2.6 · L84–L103](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.h#L84-L103)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[dict.h · 7.2.6 · L84–L99](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.h#L84-L99)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 struct dict {
@@ -1729,10 +1793,6 @@ struct dict {
                                  * pointer-aligned address) of size as defined
                                  * by dictType's dictEntryBytes. */
 };
-
-/* If safe is set to 1 this is a safe iterator, that means, you can call
- * dictAdd, dictFind, and other functions against the dictionary even while
- * iterating. Otherwise it is a non safe iterator, and only dictNext()
 ```
 
 **逐段阅读抓手：**rehashidx=-1表示未迁移；pauserehash影响渐进步骤是否允许进行。
@@ -1754,9 +1814,27 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[dict.c · 7.2.6 · L451–L513](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.c#L451-L513)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[dict.c · 7.2.6 · L433–L461](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.c#L433-L461)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Low level add or find:
+ * This function adds the entry but instead of setting a value returns the
+ * dictEntry structure to the user, that will make sure to fill the value
+ * field as they wish.
+ *
+ * This function is also directly exposed to the user API to be called
+ * mainly in order to store non-pointers inside the hash value, example:
+ *
+ * entry = dictAddRaw(dict,mykey,NULL);
+ * if (entry != NULL) dictSetSignedIntegerVal(entry,1000);
+ *
+ * Return values:
+ *
+ * If key already exists NULL is returned, and "*existing" is populated
+ * with the existing entry if existing is not NULL.
+ *
+ * If key was added, the hash entry is returned to be manipulated by the caller.
+ */
 dictEntry *dictAddRaw(dict *d, void *key, dictEntry **existing)
 {
     /* Get the position for the new key or NULL if the key already exists. */
@@ -1768,58 +1846,6 @@ dictEntry *dictAddRaw(dict *d, void *key, dictEntry **existing)
 
     return dictInsertAtPosition(d, key, position);
 }
-
-/* Adds a key in the dict's hashtable at the position returned by a preceding
- * call to dictFindPositionForInsert. This is a low level function which allows
- * splitting dictAddRaw in two parts. Normally, dictAddRaw or dictAdd should be
- * used instead. */
-dictEntry *dictInsertAtPosition(dict *d, void *key, void *position) {
-    dictEntry **bucket = position; /* It's a bucket, but the API hides that. */
-    dictEntry *entry;
-    /* If rehashing is ongoing, we insert in table 1, otherwise in table 0.
-     * Assert that the provided bucket is the right table. */
-    int htidx = dictIsRehashing(d) ? 1 : 0;
-    assert(bucket >= &d->ht_table[htidx][0] &&
-           bucket <= &d->ht_table[htidx][DICTHT_SIZE_MASK(d->ht_size_exp[htidx])]);
-    size_t metasize = dictEntryMetadataSize(d);
-    if (d->type->no_value) {
-        assert(!metasize); /* Entry metadata + no value not supported. */
-        if (d->type->keys_are_odd && !*bucket) {
-            /* We can store the key directly in the destination bucket without the
-             * allocated entry.
-             *
-             * TODO: Add a flag 'keys_are_even' and if set, we can use this
-             * optimization for these dicts too. We can set the LSB bit when
-             * stored as a dict entry and clear it again when we need the key
-             * back. */
-            entry = key;
-            assert(entryIsKey(entry));
-        } else {
-            /* Allocate an entry without value. */
-            entry = createEntryNoValue(key, *bucket);
-        }
-    } else {
-        /* Allocate the memory and store the new entry.
-         * Insert the element in top, with the assumption that in a database
-         * system it is more likely that recently added entries are accessed
-         * more frequently. */
-        entry = zmalloc(sizeof(*entry) + metasize);
-        assert(entryIsNormal(entry)); /* Check alignment of allocation */
-        if (metasize > 0) {
-            memset(dictEntryMetadata(entry), 0, metasize);
-        }
-        entry->key = key;
-        entry->next = *bucket;
-    }
-    *bucket = entry;
-    d->ht_used[htidx]++;
-
-    return entry;
-}
-
-/* Add or Overwrite:
- * Add an element, discarding the old value if the key already exists.
- * Return 1 if the key was added from scratch, 0 if there was already an
 ```
 
 **逐段阅读抓手：**existing返回重复条目；调用方决定覆盖还是保持原值。
@@ -1841,9 +1867,18 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[dict.c · 7.2.6 · L295–L374](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.c#L295-L374)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[dict.c · 7.2.6 · L286–L374](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.c#L286-L374)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Performs N steps of incremental rehashing. Returns 1 if there are still
+ * keys to move from the old to the new hash table, otherwise 0 is returned.
+ *
+ * Note that a rehashing step consists in moving a bucket (that may have more
+ * than one key as we use chaining) from the old to the new hash table, however
+ * since part of the hash table may be composed of empty spaces, it is not
+ * guaranteed that this function will rehash even a single bucket, since it
+ * will visit at max N*10 empty buckets in total, otherwise the amount of
+ * work it does would be unbound and the function may block for a long time. */
 int dictRehash(dict *d, int n) {
     int empty_visits = n*10; /* Max number of empty buckets to visit. */
     unsigned long s0 = DICTHT_SIZE(d->ht_size_exp[0]);
@@ -1973,7 +2008,7 @@ typedef struct dictIterator {
     /* unsafe iterator fingerprint for misuse detection. */
 ```
 
-**7.2.6源码：**[dict.h · L84–L103](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.h#L84-L103)，连续节选。
+**7.2.6源码：**[dict.h · L84–L99](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.h#L84-L99)，连续节选。
 
 ```c
 struct dict {
@@ -1992,10 +2027,6 @@ struct dict {
                                  * pointer-aligned address) of size as defined
                                  * by dictType's dictEntryBytes. */
 };
-
-/* If safe is set to 1 this is a safe iterator, that means, you can call
- * dictAdd, dictFind, and other functions against the dictionary even while
- * iterating. Otherwise it is a non safe iterator, and only dictNext()
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -2032,7 +2063,7 @@ flowchart TB
 
 ```
 
-**固定7.2.6源码：**[dict.c · L668–L702](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.c#L668-L702)。连续原文窗口，完整分支见链接。
+**固定7.2.6源码：**[dict.c · L668–L688](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.c#L668-L688)。连续原文窗口，完整分支见链接。
 
 ```c
 dictEntry *dictFind(dict *d, const void *key)
@@ -2056,20 +2087,6 @@ dictEntry *dictFind(dict *d, const void *key)
     }
     return NULL;
 }
-
-void *dictFetchValue(dict *d, const void *key) {
-    dictEntry *he;
-
-    he = dictFind(d,key);
-    return he ? dictGetVal(he) : NULL;
-}
-
-/* Find an element from the table, also get the plink of the entry. The entry
- * is returned if the element is found, and the user should later call
- * `dictTwoPhaseUnlinkFree` with it in order to unlink and release it. Otherwise if
- * the key is not found, NULL is returned. These two functions should be used in pair.
- * `dictTwoPhaseUnlinkFind` pauses rehash and `dictTwoPhaseUnlinkFree` resumes rehash.
- *
 ```
 
 ## 本章纸面推演
@@ -2102,9 +2119,93 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[dict.c · 7.2.6 · L1284–L1359](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.c#L1284-L1359)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[dict.c · 7.2.6 · L1200–L1290](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.c#L1200-L1290)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* dictScan() is used to iterate over the elements of a dictionary.
+ *
+ * Iterating works the following way:
+ *
+ * 1) Initially you call the function using a cursor (v) value of 0.
+ * 2) The function performs one step of the iteration, and returns the
+ *    new cursor value you must use in the next call.
+ * 3) When the returned cursor is 0, the iteration is complete.
+ *
+ * The function guarantees all elements present in the
+ * dictionary get returned between the start and end of the iteration.
+ * However it is possible some elements get returned multiple times.
+ *
+ * For every element returned, the callback argument 'fn' is
+ * called with 'privdata' as first argument and the dictionary entry
+ * 'de' as second argument.
+ *
+ * HOW IT WORKS.
+ *
+ * The iteration algorithm was designed by Pieter Noordhuis.
+ * The main idea is to increment a cursor starting from the higher order
+ * bits. That is, instead of incrementing the cursor normally, the bits
+ * of the cursor are reversed, then the cursor is incremented, and finally
+ * the bits are reversed again.
+ *
+ * This strategy is needed because the hash table may be resized between
+ * iteration calls.
+ *
+ * dict.c hash tables are always power of two in size, and they
+ * use chaining, so the position of an element in a given table is given
+ * by computing the bitwise AND between Hash(key) and SIZE-1
+ * (where SIZE-1 is always the mask that is equivalent to taking the rest
+ *  of the division between the Hash of the key and SIZE).
+ *
+ * For example if the current hash table size is 16, the mask is
+ * (in binary) 1111. The position of a key in the hash table will always be
+ * the last four bits of the hash output, and so forth.
+ *
+ * WHAT HAPPENS IF THE TABLE CHANGES IN SIZE?
+ *
+ * If the hash table grows, elements can go anywhere in one multiple of
+ * the old bucket: for example let's say we already iterated with
+ * a 4 bit cursor 1100 (the mask is 1111 because hash table size = 16).
+ *
+ * If the hash table will be resized to 64 elements, then the new mask will
+ * be 111111. The new buckets you obtain by substituting in ??1100
+ * with either 0 or 1 can be targeted only by keys we already visited
+ * when scanning the bucket 1100 in the smaller hash table.
+ *
+ * By iterating the higher bits first, because of the inverted counter, the
+ * cursor does not need to restart if the table size gets bigger. It will
+ * continue iterating using cursors without '1100' at the end, and also
+ * without any other combination of the final 4 bits already explored.
+ *
+ * Similarly when the table size shrinks over time, for example going from
+ * 16 to 8, if a combination of the lower three bits (the mask for size 8
+ * is 111) were already completely explored, it would not be visited again
+ * because we are sure we tried, for example, both 0111 and 1111 (all the
+ * variations of the higher bit) so we don't need to test it again.
+ *
+ * WAIT... YOU HAVE *TWO* TABLES DURING REHASHING!
+ *
+ * Yes, this is true, but we always iterate the smaller table first, then
+ * we test all the expansions of the current cursor into the larger
+ * table. For example if the current cursor is 101 and we also have a
+ * larger table of size 16, we also test (0)101 and (1)101 inside the larger
+ * table. This reduces the problem back to having only one table, where
+ * the larger one, if it exists, is just an expansion of the smaller one.
+ *
+ * LIMITATIONS
+ *
+ * This iterator is completely stateless, and this is a huge advantage,
+ * including no additional memory used.
+ *
+ * The disadvantages resulting from this design are:
+ *
+ * 1) It is possible we return elements more than once. However this is usually
+ *    easy to deal with in the application level.
+ * 2) The iterator must return multiple elements per call, as it needs to always
+ *    return all the keys chained in a given bucket, and all the expansions, so
+ *    we are sure we don't miss keys moving during rehashing.
+ * 3) The reverse cursor is somewhat hard to understand at first, but this
+ *    comment is supposed to help.
+ */
 unsigned long dictScan(dict *d,
                        unsigned long v,
                        dictScanFunction *fn,
@@ -2112,75 +2213,6 @@ unsigned long dictScan(dict *d,
 {
     return dictScanDefrag(d, v, fn, NULL, privdata);
 }
-
-/* Like dictScan, but additionally reallocates the memory used by the dict
- * entries using the provided allocation function. This feature was added for
- * the active defrag feature.
- *
- * The 'defragfns' callbacks are called with a pointer to memory that callback
- * can reallocate. The callbacks should return a new memory address or NULL,
- * where NULL means that no reallocation happened and the old memory is still
- * valid. */
-unsigned long dictScanDefrag(dict *d,
-                             unsigned long v,
-                             dictScanFunction *fn,
-                             dictDefragFunctions *defragfns,
-                             void *privdata)
-{
-    int htidx0, htidx1;
-    const dictEntry *de, *next;
-    unsigned long m0, m1;
-
-    if (dictSize(d) == 0) return 0;
-
-    /* This is needed in case the scan callback tries to do dictFind or alike. */
-    dictPauseRehashing(d);
-
-    if (!dictIsRehashing(d)) {
-        htidx0 = 0;
-        m0 = DICTHT_SIZE_MASK(d->ht_size_exp[htidx0]);
-
-        /* Emit entries at cursor */
-        if (defragfns) {
-            dictDefragBucket(d, &d->ht_table[htidx0][v & m0], defragfns);
-        }
-        de = d->ht_table[htidx0][v & m0];
-        while (de) {
-            next = dictGetNext(de);
-            fn(privdata, de);
-            de = next;
-        }
-
-        /* Set unmasked bits so incrementing the reversed cursor
-         * operates on the masked bits */
-        v |= ~m0;
-
-        /* Increment the reverse cursor */
-        v = rev(v);
-        v++;
-        v = rev(v);
-
-    } else {
-        htidx0 = 0;
-        htidx1 = 1;
-
-        /* Make sure t0 is the smaller and t1 is the bigger table */
-        if (DICTHT_SIZE(d->ht_size_exp[htidx0]) > DICTHT_SIZE(d->ht_size_exp[htidx1])) {
-            htidx0 = 1;
-            htidx1 = 0;
-        }
-
-        m0 = DICTHT_SIZE_MASK(d->ht_size_exp[htidx0]);
-        m1 = DICTHT_SIZE_MASK(d->ht_size_exp[htidx1]);
-
-        /* Emit entries at cursor */
-        if (defragfns) {
-            dictDefragBucket(d, &d->ht_table[htidx0][v & m0], defragfns);
-        }
-        de = d->ht_table[htidx0][v & m0];
-        while (de) {
-            next = dictGetNext(de);
-            fn(privdata, de);
 ```
 
 **逐段阅读抓手：**对照两张表的size mask；图模型不包含所有特殊无value字典优化。
@@ -2202,9 +2234,20 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[db.c · 7.2.6 · L955–L1031](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L955-L1031)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[db.c · 7.2.6 · L944–L1031](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L944-L1031)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* This command implements SCAN, HSCAN and SSCAN commands.
+ * If object 'o' is passed, then it must be a Hash, Set or Zset object, otherwise
+ * if 'o' is NULL the command will operate on the dictionary associated with
+ * the current database.
+ *
+ * When 'o' is not NULL the function assumes that the first argument in
+ * the client arguments vector is a key so it skips it before iterating
+ * in order to parse options.
+ *
+ * In the case of a Hash object the function returns both the field and value
+ * of every element on the Hash. */
 void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
     int i, j;
     listNode *node;
@@ -2303,7 +2346,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[db.c · 7.2.6 · L785–L815](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L785-L815)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[db.c · 7.2.6 · L785–L811](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L785-L811)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void keysCommand(client *c) {
@@ -2333,10 +2376,6 @@ void keysCommand(client *c) {
     dictReleaseIterator(di);
     setDeferredArrayLen(c,replylen,numkeys);
 }
-
-/* Data used by the dict scan callback. */
-typedef struct {
-    list *keys;   /* elements that collect from dict */
 ```
 
 **逐段阅读抓手：**看dict迭代循环所在同一命令调用内；总复杂度与单次阻塞要分开。
@@ -2394,9 +2433,14 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[listpack.c · 7.2.6 · L347–L404](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/listpack.c#L347-L404)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[listpack.c · 7.2.6 · L342–L382](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/listpack.c#L342-L382)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Store a reverse-encoded variable length field, representing the length
+ * of the previous element of size 'l', in the target buffer 'buf'.
+ * The function returns the number of bytes used to encode it, from
+ * 1 to 5. If 'buf' is NULL the function just returns the number of bytes
+ * needed in order to encode the backlen. */
 static inline unsigned long lpEncodeBacklen(unsigned char *buf, uint64_t l) {
     if (l <= 127) {
         if (buf) buf[0] = l;
@@ -2433,28 +2477,6 @@ static inline unsigned long lpEncodeBacklen(unsigned char *buf, uint64_t l) {
         return 5;
     }
 }
-
-/* Decode the backlen and returns it. If the encoding looks invalid (more than
- * 5 bytes are used), UINT64_MAX is returned to report the problem. */
-static inline uint64_t lpDecodeBacklen(unsigned char *p) {
-    uint64_t val = 0;
-    uint64_t shift = 0;
-    do {
-        val |= (uint64_t)(p[0] & 127) << shift;
-        if (!(p[0] & 128)) break;
-        shift += 7;
-        p--;
-        if (shift > 28) return UINT64_MAX;
-    } while(1);
-    return val;
-}
-
-/* Encode the string element pointed by 's' of size 'len' in the target
- * buffer 's'. The function should be called with 'buf' having always enough
- * space for encoding the string. This is done by calling lpEncodeGetType()
- * before calling this function. */
-static inline void lpEncodeString(unsigned char *buf, unsigned char *s, uint32_t len) {
-    if (len < 64) {
 ```
 
 **逐段阅读抓手：**lpEncodeBacklen是可变长编码；不要把backlen永远画成固定1字节。
@@ -2476,9 +2498,37 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[listpack.c · 7.2.6 · L780–L866](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/listpack.c#L780-L866)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[listpack.c · 7.2.6 · L752–L866](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/listpack.c#L752-L866)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Insert, delete or replace the specified string element 'elestr' of length
+ * 'size' or integer element 'eleint' at the specified position 'p', with 'p'
+ * being a listpack element pointer obtained with lpFirst(), lpLast(), lpNext(),
+ * lpPrev() or lpSeek().
+ *
+ * The element is inserted before, after, or replaces the element pointed
+ * by 'p' depending on the 'where' argument, that can be LP_BEFORE, LP_AFTER
+ * or LP_REPLACE.
+ * 
+ * If both 'elestr' and `eleint` are NULL, the function removes the element
+ * pointed by 'p' instead of inserting one.
+ * If `eleint` is non-NULL, 'size' is the length of 'eleint', the function insert
+ * or replace with a 64 bit integer, which is stored in the 'eleint' buffer.
+ * If 'elestr` is non-NULL, 'size' is the length of 'elestr', the function insert
+ * or replace with a string, which is stored in the 'elestr' buffer.
+ * 
+ * Returns NULL on out of memory or when the listpack total length would exceed
+ * the max allowed size of 2^32-1, otherwise the new pointer to the listpack
+ * holding the new element is returned (and the old pointer passed is no longer
+ * considered valid)
+ *
+ * If 'newp' is not NULL, at the end of a successful call '*newp' will be set
+ * to the address of the element just added, so that it will be possible to
+ * continue an interaction with lpNext() and lpPrev().
+ *
+ * For deletion operations (both 'elestr' and 'eleint' set to NULL) 'newp' is
+ * set to the next element, on the right of the deleted one, or to NULL if the
+ * deleted element was the last one. */
 unsigned char *lpInsert(unsigned char *lp, unsigned char *elestr, unsigned char *eleint,
                         uint32_t size, unsigned char *p, int where, unsigned char **newp)
 {
@@ -2587,9 +2637,14 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[listpack.c · 7.2.6 · L1238–L1285](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/listpack.c#L1238-L1285)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[listpack.c · 7.2.6 · L1233–L1280](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/listpack.c#L1233-L1280)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Seek the specified element and returns the pointer to the seeked element.
+ * Positive indexes specify the zero-based element to seek from the head to
+ * the tail, negative indexes specify elements starting from the tail, where
+ * -1 means the last element, -2 the penultimate and so forth. If the index
+ * is out of range, NULL is returned. */
 unsigned char *lpSeek(unsigned char *lp, long index) {
     int forward = 1; /* Seek forward by default. */
 
@@ -2633,11 +2688,6 @@ unsigned char *lpSeek(unsigned char *lp, long index) {
         return ele;
     }
 }
-
-/* Same as lpFirst but without validation assert, to be used right before lpValidateNext. */
-unsigned char *lpValidateFirst(unsigned char *lp) {
-    unsigned char *p = lp + LP_HDR_SIZE; /* Skip the header. */
-    if (p[0] == LP_EOF) return NULL;
 ```
 
 **逐段阅读抓手：**lpSeek处理负索引；数组下标语义不等于底层直接随机寻址。
@@ -2664,9 +2714,29 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[ziplist.c · L751–L833](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/ziplist.c#L751-L833)，连续节选。
+**6.2.14源码：**[ziplist.c · L731–L833](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/ziplist.c#L731-L833)，连续节选。
 
 ```c
+/* When an entry is inserted, we need to set the prevlen field of the next
+ * entry to equal the length of the inserted entry. It can occur that this
+ * length cannot be encoded in 1 byte and the next entry needs to be grow
+ * a bit larger to hold the 5-byte encoded prevlen. This can be done for free,
+ * because this only happens when an entry is already being inserted (which
+ * causes a realloc and memmove). However, encoding the prevlen may require
+ * that this entry is grown as well. This effect may cascade throughout
+ * the ziplist when there are consecutive entries with a size close to
+ * ZIP_BIG_PREVLEN, so we need to check that the prevlen can be encoded in
+ * every consecutive entry.
+ *
+ * Note that this effect can also happen in reverse, where the bytes required
+ * to encode the prevlen field can shrink. This effect is deliberately ignored,
+ * because it can cause a "flapping" effect where a chain prevlen fields is
+ * first grown and then shrunk again after consecutive inserts. Rather, the
+ * field is allowed to stay larger than necessary, because a large prevlen
+ * field implies the ziplist is holding large entries anyway.
+ *
+ * The pointer "p" points to the first entry that does NOT need to be
+ * updated, i.e. consecutive fields MAY need an update. */
 unsigned char *__ziplistCascadeUpdate(unsigned char *zl, unsigned char *p) {
     zlentry cur;
     size_t prevlen, prevlensize, prevoffset; /* Informat of the last changed entry. */
@@ -2752,9 +2822,14 @@ unsigned char *__ziplistCascadeUpdate(unsigned char *zl, unsigned char *p) {
                 rawlen - cur.prevrawlensize);
 ```
 
-**7.2.6源码：**[listpack.c · L347–L404](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/listpack.c#L347-L404)，连续节选。
+**7.2.6源码：**[listpack.c · L342–L382](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/listpack.c#L342-L382)，连续节选。
 
 ```c
+/* Store a reverse-encoded variable length field, representing the length
+ * of the previous element of size 'l', in the target buffer 'buf'.
+ * The function returns the number of bytes used to encode it, from
+ * 1 to 5. If 'buf' is NULL the function just returns the number of bytes
+ * needed in order to encode the backlen. */
 static inline unsigned long lpEncodeBacklen(unsigned char *buf, uint64_t l) {
     if (l <= 127) {
         if (buf) buf[0] = l;
@@ -2791,28 +2866,6 @@ static inline unsigned long lpEncodeBacklen(unsigned char *buf, uint64_t l) {
         return 5;
     }
 }
-
-/* Decode the backlen and returns it. If the encoding looks invalid (more than
- * 5 bytes are used), UINT64_MAX is returned to report the problem. */
-static inline uint64_t lpDecodeBacklen(unsigned char *p) {
-    uint64_t val = 0;
-    uint64_t shift = 0;
-    do {
-        val |= (uint64_t)(p[0] & 127) << shift;
-        if (!(p[0] & 128)) break;
-        shift += 7;
-        p--;
-        if (shift > 28) return UINT64_MAX;
-    } while(1);
-    return val;
-}
-
-/* Encode the string element pointed by 's' of size 'len' in the target
- * buffer 's'. The function should be called with 'buf' having always enough
- * space for encoding the string. This is done by calling lpEncodeGetType()
- * before calling this function. */
-static inline void lpEncodeString(unsigned char *buf, unsigned char *s, uint32_t len) {
-    if (len < 64) {
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -2932,9 +2985,13 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[quicklist.c · 7.2.6 · L570–L627](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/quicklist.c#L570-L627)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[quicklist.c · 7.2.6 · L566–L592](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/quicklist.c#L566-L592)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Add new entry to head node of quicklist.
+ *
+ * Returns 0 if used existing head.
+ * Returns 1 if new head created. */
 int quicklistPushHead(quicklist *quicklist, void *value, size_t sz) {
     quicklistNode *orig_head = quicklist->head;
 
@@ -2958,41 +3015,6 @@ int quicklistPushHead(quicklist *quicklist, void *value, size_t sz) {
     quicklist->head->count++;
     return (orig_head != quicklist->head);
 }
-
-/* Add new entry to tail node of quicklist.
- *
- * Returns 0 if used existing tail.
- * Returns 1 if new tail created. */
-int quicklistPushTail(quicklist *quicklist, void *value, size_t sz) {
-    quicklistNode *orig_tail = quicklist->tail;
-    if (unlikely(isLargeElement(sz))) {
-        __quicklistInsertPlainNode(quicklist, quicklist->tail, value, sz, 1);
-        return 1;
-    }
-
-    if (likely(
-            _quicklistNodeAllowInsert(quicklist->tail, quicklist->fill, sz))) {
-        quicklist->tail->entry = lpAppend(quicklist->tail->entry, value, sz);
-        quicklistNodeUpdateSz(quicklist->tail);
-    } else {
-        quicklistNode *node = quicklistCreateNode();
-        node->entry = lpAppend(lpNew(0), value, sz);
-
-        quicklistNodeUpdateSz(node);
-        _quicklistInsertNodeAfter(quicklist, quicklist->tail, node);
-    }
-    quicklist->count++;
-    quicklist->tail->count++;
-    return (orig_tail != quicklist->tail);
-}
-
-/* Create new node consisting of a pre-formed listpack.
- * Used for loading RDBs where entire listpacks have been stored
- * to be retrieved later. */
-void quicklistAppendListpack(quicklist *quicklist, unsigned char *zl) {
-    quicklistNode *node = quicklistCreateNode();
-
-    node->entry = zl;
 ```
 
 **逐段阅读抓手：**看_allowInsert与isLargeElement；plain分支不能漏。
@@ -3014,9 +3036,16 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[blocked.c · 7.2.6 · L368–L431](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/blocked.c#L368-L431)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[blocked.c · 7.2.6 · L361–L419](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/blocked.c#L361-L419)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Set a client in blocking mode for the specified key, with the specified timeout.
+ * The 'type' argument is BLOCKED_LIST,BLOCKED_ZSET or BLOCKED_STREAM depending on the kind of operation we are
+ * waiting for an empty key in order to awake the client. The client is blocked
+ * for all the 'numkeys' keys as in the 'keys' argument.
+ * The client will unblocked as soon as one of the keys in 'keys' value was updated.
+ * the parameter unblock_on_nokey can be used to force client to be unblocked even in the case the key
+ * is updated to become unavailable, either by type change (override), deletion or swapdb */
 void blockForKeys(client *c, int btype, robj **keys, int numkeys, mstime_t timeout, int unblock_on_nokey) {
     dictEntry *db_blocked_entry, *db_blocked_existing_entry, *client_blocked_entry;
     list *l;
@@ -3069,18 +3098,6 @@ void blockForKeys(client *c, int btype, robj **keys, int numkeys, mstime_t timeo
         c->flags |= CLIENT_PENDING_COMMAND;
     blockClient(c,btype);
 }
-
-/* Helper function to unblock a client that's waiting in a blocking operation such as BLPOP.
- * Internal function for unblockClient() */
-static void unblockClientWaitingData(client *c) {
-    dictEntry *de;
-    dictIterator *di;
-
-    if (dictSize(c->bstate.keys) == 0)
-        return;
-
-    di = dictGetIterator(c->bstate.keys);
-    /* The client may wait for multiple keys, so unblock it for every key. */
 ```
 
 **逐段阅读抓手：**blockForKeys是通用基础设施，List与Stream的返回内容和状态仍由对应命令处理。
@@ -3107,9 +3124,13 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[quicklist.c · L492–L540](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/quicklist.c#L492-L540)，连续节选。
+**6.2.14源码：**[quicklist.c · L488–L510](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/quicklist.c#L488-L510)，连续节选。
 
 ```c
+/* Add new entry to head node of quicklist.
+ *
+ * Returns 0 if used existing head.
+ * Returns 1 if new head created. */
 int quicklistPushHead(quicklist *quicklist, void *value, size_t sz) {
     quicklistNode *orig_head = quicklist->head;
     assert(sz < UINT32_MAX); /* TODO: add support for quicklist nodes that are sds encoded (not zipped) */
@@ -3129,41 +3150,15 @@ int quicklistPushHead(quicklist *quicklist, void *value, size_t sz) {
     quicklist->head->count++;
     return (orig_head != quicklist->head);
 }
-
-/* Add new entry to tail node of quicklist.
- *
- * Returns 0 if used existing tail.
- * Returns 1 if new tail created. */
-int quicklistPushTail(quicklist *quicklist, void *value, size_t sz) {
-    quicklistNode *orig_tail = quicklist->tail;
-    assert(sz < UINT32_MAX); /* TODO: add support for quicklist nodes that are sds encoded (not zipped) */
-    if (likely(
-            _quicklistNodeAllowInsert(quicklist->tail, quicklist->fill, sz))) {
-        quicklist->tail->zl =
-            ziplistPush(quicklist->tail->zl, value, sz, ZIPLIST_TAIL);
-        quicklistNodeUpdateSz(quicklist->tail);
-    } else {
-        quicklistNode *node = quicklistCreateNode();
-        node->zl = ziplistPush(ziplistNew(), value, sz, ZIPLIST_TAIL);
-
-        quicklistNodeUpdateSz(node);
-        _quicklistInsertNodeAfter(quicklist, quicklist->tail, node);
-    }
-    quicklist->count++;
-    quicklist->tail->count++;
-    return (orig_tail != quicklist->tail);
-}
-
-/* Create new node consisting of a pre-formed ziplist.
- * Used for loading RDBs where entire ziplists have been stored
- * to be retrieved later. */
-void quicklistAppendZiplist(quicklist *quicklist, unsigned char *zl) {
-    quicklistNode *node = quicklistCreateNode();
 ```
 
-**7.2.6源码：**[quicklist.c · L570–L627](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/quicklist.c#L570-L627)，连续节选。
+**7.2.6源码：**[quicklist.c · L566–L592](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/quicklist.c#L566-L592)，连续节选。
 
 ```c
+/* Add new entry to head node of quicklist.
+ *
+ * Returns 0 if used existing head.
+ * Returns 1 if new head created. */
 int quicklistPushHead(quicklist *quicklist, void *value, size_t sz) {
     quicklistNode *orig_head = quicklist->head;
 
@@ -3187,41 +3182,6 @@ int quicklistPushHead(quicklist *quicklist, void *value, size_t sz) {
     quicklist->head->count++;
     return (orig_head != quicklist->head);
 }
-
-/* Add new entry to tail node of quicklist.
- *
- * Returns 0 if used existing tail.
- * Returns 1 if new tail created. */
-int quicklistPushTail(quicklist *quicklist, void *value, size_t sz) {
-    quicklistNode *orig_tail = quicklist->tail;
-    if (unlikely(isLargeElement(sz))) {
-        __quicklistInsertPlainNode(quicklist, quicklist->tail, value, sz, 1);
-        return 1;
-    }
-
-    if (likely(
-            _quicklistNodeAllowInsert(quicklist->tail, quicklist->fill, sz))) {
-        quicklist->tail->entry = lpAppend(quicklist->tail->entry, value, sz);
-        quicklistNodeUpdateSz(quicklist->tail);
-    } else {
-        quicklistNode *node = quicklistCreateNode();
-        node->entry = lpAppend(lpNew(0), value, sz);
-
-        quicklistNodeUpdateSz(node);
-        _quicklistInsertNodeAfter(quicklist, quicklist->tail, node);
-    }
-    quicklist->count++;
-    quicklist->tail->count++;
-    return (orig_tail != quicklist->tail);
-}
-
-/* Create new node consisting of a pre-formed listpack.
- * Used for loading RDBs where entire listpacks have been stored
- * to be retrieved later. */
-void quicklistAppendListpack(quicklist *quicklist, unsigned char *zl) {
-    quicklistNode *node = quicklistCreateNode();
-
-    node->entry = zl;
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -3256,7 +3216,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_hash.c · 7.2.6 · L200–L284](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L200-L284)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_hash.c · 7.2.6 · L200–L271](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L200-L271)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 int hashTypeSet(robj *o, sds field, sds value, int flags) {
@@ -3331,19 +3291,6 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
     if (flags & HASH_SET_TAKE_VALUE && value) sdsfree(value);
     return update;
 }
-
-/* Delete an element from a hash.
- * Return 1 on deleted and 0 on not found. */
-int hashTypeDelete(robj *o, sds field) {
-    int deleted = 0;
-
-    if (o->encoding == OBJ_ENCODING_LISTPACK) {
-        unsigned char *zl, *fptr;
-
-        zl = o->ptr;
-        fptr = lpFirst(zl);
-        if (fptr != NULL) {
-            fptr = lpFind(zl, fptr, (unsigned char*)field, sdslen(field), 1);
 ```
 
 **逐段阅读抓手：**HSET返回新增字段数，不是本次成功更新总字段数。
@@ -3365,9 +3312,12 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_hash.c · 7.2.6 · L40–L83](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L40-L83)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_hash.c · 7.2.6 · L37–L68](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L37-L68)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Check the length of a number of objects to see if we need to convert a
+ * listpack to a real hash. Note that we only check string encoded objects
+ * as their string length can be queried in constant time. */
 void hashTypeTryConversion(robj *o, robj **argv, int start, int end) {
     int i;
     size_t sum = 0;
@@ -3397,21 +3347,6 @@ void hashTypeTryConversion(robj *o, robj **argv, int start, int end) {
     if (!lpSafeToAdd(o->ptr, sum))
         hashTypeConvert(o, OBJ_ENCODING_HT);
 }
-
-/* Get the value from a listpack encoded hash, identified by field.
- * Returns -1 when the field cannot be found. */
-int hashTypeGetFromListpack(robj *o, sds field,
-                            unsigned char **vstr,
-                            unsigned int *vlen,
-                            long long *vll)
-{
-    unsigned char *zl, *fptr = NULL, *vptr = NULL;
-
-    serverAssert(o->encoding == OBJ_ENCODING_LISTPACK);
-
-    zl = o->ptr;
-    fptr = lpFirst(zl);
-    if (fptr != NULL) {
 ```
 
 **逐段阅读抓手：**先看参数转换检查，再看写入后的数量判断；两个入口不能只选一个。
@@ -3433,7 +3368,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_hash.c · 7.2.6 · L455–L521](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L455-L521)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_hash.c · 7.2.6 · L455–L493](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L455-L493)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void hashTypeConvertListpack(robj *o, int enc) {
@@ -3475,34 +3410,6 @@ void hashTypeConvertListpack(robj *o, int enc) {
         serverPanic("Unknown hash encoding");
     }
 }
-
-void hashTypeConvert(robj *o, int enc) {
-    if (o->encoding == OBJ_ENCODING_LISTPACK) {
-        hashTypeConvertListpack(o, enc);
-    } else if (o->encoding == OBJ_ENCODING_HT) {
-        serverPanic("Not implemented");
-    } else {
-        serverPanic("Unknown hash encoding");
-    }
-}
-
-/* This is a helper function for the COPY command.
- * Duplicate a hash object, with the guarantee that the returned object
- * has the same encoding as the original one.
- *
- * The resulting object always has refcount set to 1 */
-robj *hashTypeDup(robj *o) {
-    robj *hobj;
-    hashTypeIterator *hi;
-
-    serverAssert(o->type == OBJ_HASH);
-
-    if(o->encoding == OBJ_ENCODING_LISTPACK) {
-        unsigned char *zl = o->ptr;
-        size_t sz = lpBytes(zl);
-        unsigned char *new_zl = zmalloc(sz);
-        memcpy(new_zl, zl, sz);
-        hobj = createObject(OBJ_HASH, new_zl);
 ```
 
 **逐段阅读抓手：**注意field/value的内存所有权；复制与析构由上层/回调协调。
@@ -3707,9 +3614,15 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_set.c · 7.2.6 · L46–L68](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_set.c#L46-L68)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_set.c · 7.2.6 · L40–L57](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_set.c#L40-L57)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Factory method to return a set that *can* hold "value". When the object has
+ * an integer-encodable value, an intset will be returned. Otherwise a listpack
+ * or a regular hash table.
+ *
+ * The size hint indicates approximately how many items will be added which is
+ * used to determine the initial representation. */
 robj *setTypeCreate(sds value, size_t size_hint) {
     if (isSdsRepresentableAsLongLong(value,NULL) == C_OK && size_hint <= server.set_max_intset_entries)
         return createIntsetObject();
@@ -3722,17 +3635,6 @@ robj *setTypeCreate(sds value, size_t size_hint) {
     dictExpand(o->ptr, size_hint);
     return o;
 }
-
-/* Check if the existing set should be converted to another encoding based off the
- * the size hint. */
-void setTypeMaybeConvert(robj *set, size_t size_hint) {
-    if ((set->encoding == OBJ_ENCODING_LISTPACK && size_hint > server.set_max_listpack_entries)
-        || (set->encoding == OBJ_ENCODING_INTSET && size_hint > server.set_max_intset_entries))
-    {
-        setTypeConvertAndExpand(set, OBJ_ENCODING_HT, size_hint, 1);
-    }
-}
-
 ```
 
 **逐段阅读抓手：**size_hint与set_max_*配置共同决定初始表示。
@@ -3754,9 +3656,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[intset.c · 7.2.6 · L206–L250](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/intset.c#L206-L250)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[intset.c · 7.2.6 · L205–L233](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/intset.c#L205-L233)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Insert an integer in the intset */
 intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
     uint8_t valenc = _intsetValueEncoding(value);
     uint32_t pos;
@@ -3785,23 +3688,6 @@ intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
     is->length = intrev32ifbe(intrev32ifbe(is->length)+1);
     return is;
 }
-
-/* Delete integer from intset */
-intset *intsetRemove(intset *is, int64_t value, int *success) {
-    uint8_t valenc = _intsetValueEncoding(value);
-    uint32_t pos;
-    if (success) *success = 0;
-
-    if (valenc <= intrev32ifbe(is->encoding) && intsetSearch(is,value,&pos)) {
-        uint32_t len = intrev32ifbe(is->length);
-
-        /* We know we can delete */
-        if (success) *success = 1;
-
-        /* Overwrite value with tail and update length */
-        if (pos < (len-1)) intsetMoveTail(is,pos+1,pos);
-        is = intsetResize(is,len-1);
-        is->length = intrev32ifbe(len-1);
 ```
 
 **逐段阅读抓手：**success指针区分新增与已存在；成员数量不是数组字节长度。
@@ -3823,9 +3709,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[intset.c · 7.2.6 · L159–L200](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/intset.c#L159-L200)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[intset.c · 7.2.6 · L158–L182](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/intset.c#L158-L182)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Upgrades the intset to a larger encoding and inserts the given integer. */
 static intset *intsetUpgradeAndAdd(intset *is, int64_t value) {
     uint8_t curenc = intrev32ifbe(is->encoding);
     uint8_t newenc = _intsetValueEncoding(value);
@@ -3850,24 +3737,6 @@ static intset *intsetUpgradeAndAdd(intset *is, int64_t value) {
     is->length = intrev32ifbe(intrev32ifbe(is->length)+1);
     return is;
 }
-
-static void intsetMoveTail(intset *is, uint32_t from, uint32_t to) {
-    void *src, *dst;
-    uint32_t bytes = intrev32ifbe(is->length)-from;
-    uint32_t encoding = intrev32ifbe(is->encoding);
-
-    if (encoding == INTSET_ENC_INT64) {
-        src = (int64_t*)is->contents+from;
-        dst = (int64_t*)is->contents+to;
-        bytes *= sizeof(int64_t);
-    } else if (encoding == INTSET_ENC_INT32) {
-        src = (int32_t*)is->contents+from;
-        dst = (int32_t*)is->contents+to;
-        bytes *= sizeof(int32_t);
-    } else {
-        src = (int16_t*)is->contents+from;
-        dst = (int16_t*)is->contents+to;
-        bytes *= sizeof(int16_t);
 ```
 
 **逐段阅读抓手：**prepend与value符号相关；升级新值必在已有窄范围之外。
@@ -3894,28 +3763,28 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[t_set.c · L42–L55](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/t_set.c#L42-L55)，连续节选。
+**6.2.14源码：**[t_set.c · L39–L46](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/t_set.c#L39-L46)，连续节选。
 
 ```c
+/* Factory method to return a set that *can* hold "value". When the object has
+ * an integer-encodable value, an intset will be returned. Otherwise a regular
+ * hash table. */
 robj *setTypeCreate(sds value) {
     if (isSdsRepresentableAsLongLong(value,NULL) == C_OK)
         return createIntsetObject();
     return createSetObject();
 }
-
-/* Add the specified value into a set.
- *
- * If the value was already member of the set, nothing is done and 0 is
- * returned, otherwise the new element is added and 1 is returned. */
-int setTypeAdd(robj *subject, sds value) {
-    long long llval;
-    if (subject->encoding == OBJ_ENCODING_HT) {
-        dict *ht = subject->ptr;
 ```
 
-**7.2.6源码：**[t_set.c · L46–L67](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_set.c#L46-L67)，连续节选。
+**7.2.6源码：**[t_set.c · L40–L57](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_set.c#L40-L57)，连续节选。
 
 ```c
+/* Factory method to return a set that *can* hold "value". When the object has
+ * an integer-encodable value, an intset will be returned. Otherwise a listpack
+ * or a regular hash table.
+ *
+ * The size hint indicates approximately how many items will be added which is
+ * used to determine the initial representation. */
 robj *setTypeCreate(sds value, size_t size_hint) {
     if (isSdsRepresentableAsLongLong(value,NULL) == C_OK && size_hint <= server.set_max_intset_entries)
         return createIntsetObject();
@@ -3927,16 +3796,6 @@ robj *setTypeCreate(sds value, size_t size_hint) {
     robj *o = createSetObject();
     dictExpand(o->ptr, size_hint);
     return o;
-}
-
-/* Check if the existing set should be converted to another encoding based off the
- * the size hint. */
-void setTypeMaybeConvert(robj *set, size_t size_hint) {
-    if ((set->encoding == OBJ_ENCODING_LISTPACK && size_hint > server.set_max_listpack_entries)
-        || (set->encoding == OBJ_ENCODING_INTSET && size_hint > server.set_max_intset_entries))
-    {
-        setTypeConvertAndExpand(set, OBJ_ENCODING_HT, size_hint, 1);
-    }
 }
 ```
 
@@ -3956,9 +3815,10 @@ flowchart LR
 
 ```
 
-**固定7.2.6源码：**[intset.c · L159–L197](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/intset.c#L159-L197)。连续原文窗口，完整分支见链接。
+**固定7.2.6源码：**[intset.c · L158–L182](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/intset.c#L158-L182)。连续原文窗口，完整分支见链接。
 
 ```c
+/* Upgrades the intset to a larger encoding and inserts the given integer. */
 static intset *intsetUpgradeAndAdd(intset *is, int64_t value) {
     uint8_t curenc = intrev32ifbe(is->encoding);
     uint8_t newenc = _intsetValueEncoding(value);
@@ -3983,21 +3843,6 @@ static intset *intsetUpgradeAndAdd(intset *is, int64_t value) {
     is->length = intrev32ifbe(intrev32ifbe(is->length)+1);
     return is;
 }
-
-static void intsetMoveTail(intset *is, uint32_t from, uint32_t to) {
-    void *src, *dst;
-    uint32_t bytes = intrev32ifbe(is->length)-from;
-    uint32_t encoding = intrev32ifbe(is->encoding);
-
-    if (encoding == INTSET_ENC_INT64) {
-        src = (int64_t*)is->contents+from;
-        dst = (int64_t*)is->contents+to;
-        bytes *= sizeof(int64_t);
-    } else if (encoding == INTSET_ENC_INT32) {
-        src = (int32_t*)is->contents+from;
-        dst = (int32_t*)is->contents+to;
-        bytes *= sizeof(int32_t);
-    } else {
 ```
 
 ## 本章纸面推演
@@ -4030,9 +3875,54 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_zset.c · 7.2.6 · L1363–L1457](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_zset.c#L1363-L1457)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_zset.c · 7.2.6 · L1318–L1457](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_zset.c#L1318-L1457)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Add a new element or update the score of an existing element in a sorted
+ * set, regardless of its encoding.
+ *
+ * The set of flags change the command behavior. 
+ *
+ * The input flags are the following:
+ *
+ * ZADD_INCR: Increment the current element score by 'score' instead of updating
+ *            the current element score. If the element does not exist, we
+ *            assume 0 as previous score.
+ * ZADD_NX:   Perform the operation only if the element does not exist.
+ * ZADD_XX:   Perform the operation only if the element already exist.
+ * ZADD_GT:   Perform the operation on existing elements only if the new score is 
+ *            greater than the current score.
+ * ZADD_LT:   Perform the operation on existing elements only if the new score is 
+ *            less than the current score.
+ *
+ * When ZADD_INCR is used, the new score of the element is stored in
+ * '*newscore' if 'newscore' is not NULL.
+ *
+ * The returned flags are the following:
+ *
+ * ZADD_NAN:     The resulting score is not a number.
+ * ZADD_ADDED:   The element was added (not present before the call).
+ * ZADD_UPDATED: The element score was updated.
+ * ZADD_NOP:     No operation was performed because of NX or XX.
+ *
+ * Return value:
+ *
+ * The function returns 1 on success, and sets the appropriate flags
+ * ADDED or UPDATED to signal what happened during the operation (note that
+ * none could be set if we re-added an element using the same score it used
+ * to have, or in the case a zero increment is used).
+ *
+ * The function returns 0 on error, currently only when the increment
+ * produces a NAN condition, or when the 'score' value is NAN since the
+ * start.
+ *
+ * The command as a side effect of adding a new element may convert the sorted
+ * set internal encoding from listpack to hashtable+skiplist.
+ *
+ * Memory management of 'ele':
+ *
+ * The function does not take ownership of the 'ele' SDS string, but copies
+ * it if needed. */
 int zsetAdd(robj *zobj, double score, sds ele, int in_flags, int *out_flags, double *newscore) {
     /* Turn options into simple to check vars. */
     int incr = (in_flags & ZADD_IN_INCR) != 0;
@@ -4149,9 +4039,12 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_zset.c · 7.2.6 · L135–L229](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_zset.c#L135-L229)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_zset.c · 7.2.6 · L132–L190](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_zset.c#L132-L190)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Insert a new node in the skiplist. Assumes the element does not already
+ * exist (up to the caller to enforce that). The skiplist takes ownership
+ * of the passed SDS string 'ele'. */
 zskiplistNode *zslInsert(zskiplist *zsl, double score, sds ele) {
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     unsigned long rank[ZSKIPLIST_MAXLEVEL];
@@ -4208,45 +4101,6 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, sds ele) {
     zsl->length++;
     return x;
 }
-
-/* Internal function used by zslDelete, zslDeleteRangeByScore and
- * zslDeleteRangeByRank. */
-void zslDeleteNode(zskiplist *zsl, zskiplistNode *x, zskiplistNode **update) {
-    int i;
-    for (i = 0; i < zsl->level; i++) {
-        if (update[i]->level[i].forward == x) {
-            update[i]->level[i].span += x->level[i].span - 1;
-            update[i]->level[i].forward = x->level[i].forward;
-        } else {
-            update[i]->level[i].span -= 1;
-        }
-    }
-    if (x->level[0].forward) {
-        x->level[0].forward->backward = x->backward;
-    } else {
-        zsl->tail = x->backward;
-    }
-    while(zsl->level > 1 && zsl->header->level[zsl->level-1].forward == NULL)
-        zsl->level--;
-    zsl->length--;
-}
-
-/* Delete an element with matching score/element from the skiplist.
- * The function returns 1 if the node was found and deleted, otherwise
- * 0 is returned.
- *
- * If 'node' is NULL the deleted node is freed by zslFreeNode(), otherwise
- * it is not freed (but just unlinked) and *node is set to the node pointer,
- * so that it is possible for the caller to reuse the node (including the
- * referenced SDS string at node->ele). */
-int zslDelete(zskiplist *zsl, double score, sds ele, zskiplistNode **node) {
-    zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
-    int i;
-
-    x = zsl->header;
-    for (i = zsl->level-1; i >= 0; i--) {
-        while (x->level[i].forward &&
-                (x->level[i].forward->score < score ||
 ```
 
 **逐段阅读抓手：**span记录跨越的底层元素数；跨多层跳跃时rank按span累计。
@@ -4268,9 +4122,13 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_zset.c · 7.2.6 · L478–L507](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_zset.c#L478-L507)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_zset.c · 7.2.6 · L474–L499](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_zset.c#L474-L499)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Find the rank for an element by both score and key.
+ * Returns 0 when the element cannot be found, rank otherwise.
+ * Note that the rank is 1-based due to the span of zsl->header to the
+ * first element. */
 unsigned long zslGetRank(zskiplist *zsl, double score, sds ele) {
     zskiplistNode *x;
     unsigned long rank = 0;
@@ -4293,14 +4151,6 @@ unsigned long zslGetRank(zskiplist *zsl, double score, sds ele) {
     }
     return 0;
 }
-
-/* Finds an element by its rank. The rank argument needs to be 1-based. */
-zskiplistNode* zslGetElementByRank(zskiplist *zsl, unsigned long rank) {
-    zskiplistNode *x;
-    unsigned long traversed = 0;
-    int i;
-
-    x = zsl->header;
 ```
 
 **逐段阅读抓手：**内部rank与对外0-based结果要区分；不能直接打印函数返回值当命令结果。
@@ -4354,9 +4204,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[bitops.c · 7.2.6 · L532–L585](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/bitops.c#L532-L585)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[bitops.c · 7.2.6 · L531–L576](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/bitops.c#L531-L576)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* SETBIT key offset bitvalue */
 void setbitCommand(client *c) {
     robj *o;
     char *err = "bit is not an integer or out of range";
@@ -4402,15 +4253,6 @@ void setbitCommand(client *c) {
     /* Return original value. */
     addReply(c, bitval ? shared.cone : shared.czero);
 }
-
-/* GETBIT key offset */
-void getbitCommand(client *c) {
-    robj *o;
-    char llbuf[32];
-    uint64_t bitoffset;
-    size_t byte, bit;
-    size_t bitval = 0;
-
 ```
 
 **逐段阅读抓手：**看getBitOffsetFromArgument与字节位序；序号与字节长度单位不同。
@@ -4432,9 +4274,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[hyperloglog.c · 7.2.6 · L1063–L1086](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/hyperloglog.c#L1063-L1086)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[hyperloglog.c · 7.2.6 · L1062–L1070](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/hyperloglog.c#L1062-L1070)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Call hllDenseAdd() or hllSparseAdd() according to the HLL encoding. */
 int hllAdd(robj *o, unsigned char *ele, size_t elesize) {
     struct hllhdr *hdr = o->ptr;
     switch(hdr->encoding) {
@@ -4443,22 +4286,6 @@ int hllAdd(robj *o, unsigned char *ele, size_t elesize) {
     default: return -1; /* Invalid representation. */
     }
 }
-
-/* Merge by computing MAX(registers[i],hll[i]) the HyperLogLog 'hll'
- * with an array of uint8_t HLL_REGISTERS registers pointed by 'max'.
- *
- * The hll object must be already validated via isHLLObjectOrReply()
- * or in some other way.
- *
- * If the HyperLogLog is sparse and is found to be invalid, C_ERR
- * is returned, otherwise the function always succeeds. */
-int hllMerge(uint8_t *max, robj *hll) {
-    struct hllhdr *hdr = hll->ptr;
-    int i;
-
-    if (hdr->encoding == HLL_DENSE) {
-        uint8_t val;
-
 ```
 
 **逐段阅读抓手：**hllAdd根据encoding转到不同路径；这里的统计状态不是业务成员对象。
@@ -4480,9 +4307,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[geo.c · 7.2.6 · L445–L514](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/geo.c#L445-L514)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[geo.c · 7.2.6 · L444–L503](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/geo.c#L444-L503)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* GEOADD key [CH] [NX|XX] long lat name [long2 lat2 name2 ... longN latN nameN] */
 void geoaddCommand(client *c) {
     int xx = 0, nx = 0, longidx = 2;
     int i;
@@ -4542,17 +4370,6 @@ void geoaddCommand(client *c) {
     replaceClientCommandVector(c,argc,argv);
     zaddCommand(c);
 }
-
-#define SORT_NONE 0
-#define SORT_ASC 1
-#define SORT_DESC 2
-
-#define RADIUS_COORDS (1<<0)    /* Search around coordinates. */
-#define RADIUS_MEMBER (1<<1)    /* Search around member. */
-#define RADIUS_NOSTORE (1<<2)   /* Do not accept STORE/STOREDIST option. */
-#define GEOSEARCH (1<<3)        /* GEOSEARCH command variant (different arguments supported) */
-#define GEOSEARCHSTORE (1<<4)   /* GEOSEARCHSTORE just accept STOREDIST option */
-
 ```
 
 **逐段阅读抓手：**geoaddCommand重写为ZADD相关操作；继续读查询函数才能理解候选筛选。
@@ -4588,55 +4405,22 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[db.c · 7.2.6 · L151–L196](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L151-L196)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[db.c · 7.2.6 · L142–L154](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L142-L154)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Lookup a key for read operations, or return NULL if the key is not found
+ * in the specified DB.
+ *
+ * This API should not be used when we write to the key after obtaining
+ * the object linked to the key, but only for read only operations.
+ *
+ * This function is equivalent to lookupKey(). The point of using this function
+ * rather than lookupKey() directly is to indicate that the purpose is to read
+ * the key. */
 robj *lookupKeyReadWithFlags(redisDb *db, robj *key, int flags) {
     serverAssert(!(flags & LOOKUP_WRITE));
     return lookupKey(db, key, flags);
 }
-
-/* Like lookupKeyReadWithFlags(), but does not use any flag, which is the
- * common case. */
-robj *lookupKeyRead(redisDb *db, robj *key) {
-    return lookupKeyReadWithFlags(db,key,LOOKUP_NONE);
-}
-
-/* Lookup a key for write operations, and as a side effect, if needed, expires
- * the key if its TTL is reached. It's equivalent to lookupKey() with the
- * LOOKUP_WRITE flag added.
- *
- * Returns the linked value object if the key exists or NULL if the key
- * does not exist in the specified DB. */
-robj *lookupKeyWriteWithFlags(redisDb *db, robj *key, int flags) {
-    return lookupKey(db, key, flags | LOOKUP_WRITE);
-}
-
-robj *lookupKeyWrite(redisDb *db, robj *key) {
-    return lookupKeyWriteWithFlags(db, key, LOOKUP_NONE);
-}
-
-robj *lookupKeyReadOrReply(client *c, robj *key, robj *reply) {
-    robj *o = lookupKeyRead(c->db, key);
-    if (!o) addReplyOrErrorObject(c, reply);
-    return o;
-}
-
-robj *lookupKeyWriteOrReply(client *c, robj *key, robj *reply) {
-    robj *o = lookupKeyWrite(c->db, key);
-    if (!o) addReplyOrErrorObject(c, reply);
-    return o;
-}
-
-/* Add the key to the DB. It's up to the caller to increment the reference
- * counter of the value if needed.
- *
- * If the update_if_existing argument is false, the the program is aborted
- * if the key already exists, otherwise, it can fall back to dbOverwite. */
-static void dbAddInternal(redisDb *db, robj *key, robj *val, int update_if_existing) {
-    dictEntry *existing;
-    dictEntry *de = dictAddRaw(db->dict, key->ptr, &existing);
-    if (update_if_existing && existing) {
 ```
 
 **逐段阅读抓手：**先看lookupKey的flags，再看expireIfNeeded；性能诊断读取可能刻意避免touch。
@@ -4658,7 +4442,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_string.c · 7.2.6 · L84–L172](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_string.c#L84-L172)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_string.c · 7.2.6 · L84–L150](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_string.c#L84-L150)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire, int unit, robj *ok_reply, robj *abort_reply) {
@@ -4728,28 +4512,6 @@ void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire,
         replaceClientCommandVector(c, argc, argv);
     }
 }
-
-/*
- * Extract the `expire` argument of a given GET/SET command as an absolute timestamp in milliseconds.
- *
- * "client" is the client that sent the `expire` argument.
- * "expire" is the `expire` argument to be extracted.
- * "flags" represents the behavior of the command (e.g. PX or EX).
- * "unit" is the original unit of the given `expire` argument (e.g. UNIT_SECONDS).
- * "milliseconds" is output argument.
- *
- * If return C_OK, "milliseconds" output argument will be set to the resulting absolute timestamp.
- * If return C_ERR, an error reply has been added to the given client.
- */
-static int getExpireMillisecondsOrReply(client *c, robj *expire, int flags, int unit, long long *milliseconds) {
-    int ret = getLongLongFromObjectOrReply(c, expire, milliseconds, NULL);
-    if (ret != C_OK) {
-        return ret;
-    }
-
-    if (*milliseconds <= 0 || (unit == UNIT_SECONDS && *milliseconds > LLONG_MAX / 1000)) {
-        /* Negative value provided or multiplication is gonna overflow. */
-        addReplyErrorExpireTime(c);
 ```
 
 **逐段阅读抓手：**注意SET_KEEPTTL与已有过期时间；条件失败不能当作已获锁。
@@ -4771,24 +4533,15 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[db.c · 7.2.6 · L603–L617](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L603-L617)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[db.c · 7.2.6 · L601–L606](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L601-L606)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Note that the 'c' argument may be NULL if the key was modified out of
+ * a context of a client. */
 void signalModifiedKey(client *c, redisDb *db, robj *key) {
     touchWatchedKey(db,key);
     trackingInvalidateKey(c,key,1);
 }
-
-void signalFlushedDb(int dbid, int async) {
-    int startdb, enddb;
-    if (dbid == -1) {
-        startdb = 0;
-        enddb = server.dbnum-1;
-    } else {
-        startdb = enddb = dbid;
-    }
-
-    for (int j = startdb; j <= enddb; j++) {
 ```
 
 **逐段阅读抓手：**同Key被修改即使最终值看似一样，也要按命令实现判断通知与dirty。
@@ -4824,9 +4577,13 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[db.c · 7.2.6 · L1653–L1683](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L1653-L1683)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[db.c · 7.2.6 · L1649–L1665](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L1649-L1665)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Set an expire to the specified key. If the expire is set in the context
+ * of an user calling a command 'c' is the client, otherwise 'c' is set
+ * to NULL. The 'when' parameter is the absolute unix time in milliseconds
+ * after which the key will no longer be considered valid. */
 void setExpire(client *c, redisDb *db, robj *key, long long when) {
     dictEntry *kde, *de;
 
@@ -4840,24 +4597,6 @@ void setExpire(client *c, redisDb *db, robj *key, long long when) {
     if (c && writable_slave && !(c->flags & CLIENT_MASTER))
         rememberSlaveKeyWithExpire(db,key);
 }
-
-/* Return the expire time of the specified key, or -1 if no expire
- * is associated with this key (i.e. the key is non volatile) */
-long long getExpire(redisDb *db, robj *key) {
-    dictEntry *de;
-
-    /* No expire? return ASAP */
-    if (dictSize(db->expires) == 0 ||
-       (de = dictFind(db->expires,key->ptr)) == NULL) return -1;
-
-    return dictGetSignedIntegerVal(de);
-}
-
-/* Delete the specified expired key and propagate expire. */
-void deleteExpiredKeyAndPropagate(redisDb *db, robj *keyobj) {
-    mstime_t expire_latency;
-    latencyStartMonitor(expire_latency);
-    dbGenericDelete(db,keyobj,server.lazyfree_lazy_expire,DB_FLAG_KEY_EXPIRED);
 ```
 
 **逐段阅读抓手：**expires中的key可复用主字典Key内存；所有权与删除顺序由实现管理。
@@ -4879,9 +4618,38 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[db.c · 7.2.6 · L1775–L1838](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L1775-L1838)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[db.c · 7.2.6 · L1746–L1818](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L1746-L1818)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* This function is called when we are going to perform some operation
+ * in a given key, but such key may be already logically expired even if
+ * it still exists in the database. The main way this function is called
+ * is via lookupKey*() family of functions.
+ *
+ * The behavior of the function depends on the replication role of the
+ * instance, because by default replicas do not delete expired keys. They
+ * wait for DELs from the master for consistency matters. However even
+ * replicas will try to have a coherent return value for the function,
+ * so that read commands executed in the replica side will be able to
+ * behave like if the key is expired even if still present (because the
+ * master has yet to propagate the DEL).
+ *
+ * In masters as a side effect of finding a key which is expired, such
+ * key will be evicted from the database. Also this may trigger the
+ * propagation of a DEL/UNLINK command in AOF / replication stream.
+ *
+ * On replicas, this function does not delete expired keys by default, but
+ * it still returns 1 if the key is logically expired. To force deletion
+ * of logically expired keys even on replicas, use the EXPIRE_FORCE_DELETE_EXPIRED
+ * flag. Note though that if the current client is executing
+ * replicated commands from the master, keys are never considered expired.
+ *
+ * On the other hand, if you just want expiration check, but need to avoid
+ * the actual key deletion and propagation of the deletion, use the
+ * EXPIRE_AVOID_DELETE_EXPIRED flag.
+ *
+ * The return value of the function is 0 if the key is still valid,
+ * otherwise the function returns 1 if the key is expired. */
 int expireIfNeeded(redisDb *db, robj *key, int flags) {
     if (server.lazy_expire_disabled) return 0;
     if (!keyIsExpired(db,key)) return 0;
@@ -4926,26 +4694,6 @@ int expireIfNeeded(redisDb *db, robj *key, int flags) {
     }
     return 1;
 }
-
-/* -----------------------------------------------------------------------------
- * API to get key arguments from commands
- * ---------------------------------------------------------------------------*/
-
-/* Prepare the getKeysResult struct to hold numkeys, either by using the
- * pre-allocated keysbuf or by allocating a new array on the heap.
- *
- * This function must be called at least once before starting to populate
- * the result, and can be called repeatedly to enlarge the result array.
- */
-keyReference *getKeysPrepareResult(getKeysResult *result, int numkeys) {
-    /* GETKEYS_RESULT_INIT initializes keys to NULL, point it to the pre-allocated stack
-     * buffer here. */
-    if (!result->keys) {
-        serverAssert(!result->numkeys);
-        result->keys = result->keysbuf;
-    }
-
-    /* Resize if necessary */
 ```
 
 **逐段阅读抓手：**读keyIsExpired与expireIfNeeded两个函数；一个是判定，一个决定处理。
@@ -5096,9 +4844,33 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[evict.c · 7.2.6 · L538–L633](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/evict.c#L538-L633)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[evict.c · 7.2.6 · L514–L633](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/evict.c#L514-L633)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Check that memory usage is within the current "maxmemory" limit.  If over
+ * "maxmemory", attempt to free memory by evicting data (if it's safe to do so).
+ *
+ * It's possible for Redis to suddenly be significantly over the "maxmemory"
+ * setting.  This can happen if there is a large allocation (like a hash table
+ * resize) or even if the "maxmemory" setting is manually adjusted.  Because of
+ * this, it's important to evict for a managed period of time - otherwise Redis
+ * would become unresponsive while evicting.
+ *
+ * The goal of this function is to improve the memory situation - not to
+ * immediately resolve it.  In the case that some items have been evicted but
+ * the "maxmemory" limit has not been achieved, an aeTimeProc will be started
+ * which will continue to evict items until memory limits are achieved or
+ * nothing more is evictable.
+ *
+ * This should be called before execution of commands.  If EVICT_FAIL is
+ * returned, commands which will result in increased memory usage should be
+ * rejected.
+ *
+ * Returns:
+ *   EVICT_OK       - memory is OK or it's not possible to perform evictions now
+ *   EVICT_RUNNING  - memory is over the limit, but eviction is still processing
+ *   EVICT_FAIL     - memory is over the limit, and there's nothing to evict
+ * */
 int performEvictions(void) {
     /* Note, we don't goto update_metrics here because this check skips eviction
      * as if it wasn't triggered. it's a fake EVICT_OK. */
@@ -5216,9 +4988,18 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[evict.c · 7.2.6 · L146–L230](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/evict.c#L146-L230)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[evict.c · 7.2.6 · L137–L230](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/evict.c#L137-L230)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* This is a helper function for performEvictions(), it is used in order
+ * to populate the evictionPool with a few entries every time we want to
+ * expire a key. Keys with idle time bigger than one of the current
+ * keys are added. Keys are always added if there are free entries.
+ *
+ * We insert keys on place in ascending order, so keys with the smaller
+ * idle time are on the left, and keys with the higher idle time on the
+ * right. */
+
 void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionPoolEntry *pool) {
     int j, k, count;
     dictEntry *samples[server.maxmemory_samples];
@@ -5325,9 +5106,19 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[evict.c · 7.2.6 · L319–L347](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/evict.c#L319-L347)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[evict.c · 7.2.6 · L309–L326](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/evict.c#L309-L326)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* If the object decrement time is reached decrement the LFU counter but
+ * do not update LFU fields of the object, we update the access time
+ * and counter in an explicit way when the object is really accessed.
+ * And we will times halve the counter according to the times of
+ * elapsed time than server.lfu_decay_time.
+ * Return the object frequency counter.
+ *
+ * This function is used in order to scan the dataset for the best object
+ * to fit: as we check for the candidate, we incrementally decrement the
+ * counter of the scanned objects if needed. */
 unsigned long LFUDecrAndReturn(robj *o) {
     unsigned long ldt = o->lru >> 8;
     unsigned long counter = o->lru & 255;
@@ -5336,27 +5127,6 @@ unsigned long LFUDecrAndReturn(robj *o) {
         counter = (num_periods > counter) ? 0 : counter - num_periods;
     return counter;
 }
-
-/* We don't want to count AOF buffers and slaves output buffers as
- * used memory: the eviction should use mostly data size, because
- * it can cause feedback-loop when we push DELs into them, putting
- * more and more DELs will make them bigger, if we count them, we
- * need to evict more keys, and then generate more DELs, maybe cause
- * massive eviction loop, even all keys are evicted.
- *
- * This function returns the sum of AOF and replication buffer. */
-size_t freeMemoryGetNotCountedMemory(void) {
-    size_t overhead = 0;
-
-    /* Since all replicas and replication backlog share global replication
-     * buffer, we think only the part of exceeding backlog size is the extra
-     * separate consumption of replicas.
-     *
-     * Note that although the backlog is also initially incrementally grown
-     * (pushing DELs consumes memory), it'll eventually stop growing and
-     * remain constant in size, so even if its creation will cause some
-     * eviction, it's capped, and also here to stay (no resonance effect)
-     *
 ```
 
 **逐段阅读抓手：**lru字段在LFU模式复用；看LFULogIncr再理解增长规则。
@@ -5392,9 +5162,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[db.c · 7.2.6 · L357–L417](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L357-L417)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[db.c · 7.2.6 · L356–L388](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L356-L388)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Helper for sync and async delete. */
 int dbGenericDelete(redisDb *db, robj *key, int async, int flags) {
     dictEntry **plink;
     int table;
@@ -5427,35 +5198,6 @@ int dbGenericDelete(redisDb *db, robj *key, int async, int flags) {
         return 0;
     }
 }
-
-/* Delete a key, value, and associated expiration entry if any, from the DB */
-int dbSyncDelete(redisDb *db, robj *key) {
-    return dbGenericDelete(db, key, 0, DB_FLAG_KEY_DELETED);
-}
-
-/* Delete a key, value, and associated expiration entry if any, from the DB. If
- * the value consists of many allocations, it may be freed asynchronously. */
-int dbAsyncDelete(redisDb *db, robj *key) {
-    return dbGenericDelete(db, key, 1, DB_FLAG_KEY_DELETED);
-}
-
-/* This is a wrapper whose behavior depends on the Redis lazy free
- * configuration. Deletes the key synchronously or asynchronously. */
-int dbDelete(redisDb *db, robj *key) {
-    return dbGenericDelete(db, key, server.lazyfree_lazy_server_del, DB_FLAG_KEY_DELETED);
-}
-
-/* Prepare the string object stored at 'key' to be modified destructively
- * to implement commands like SETBIT or APPEND.
- *
- * An object is usually ready to be modified unless one of the two conditions
- * are true:
- *
- * 1) The object 'o' is shared (refcount > 1), we don't want to affect
- *    other users.
- * 2) The object encoding is not "RAW".
- *
- * If the object is found in one of the above conditions (or both) by the
 ```
 
 **逐段阅读抓手：**key对象与value对象的所有权不同；不要把一整个数据库dict任意无锁跨线程使用。
@@ -5477,9 +5219,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[lazyfree.c · 7.2.6 · L160–L187](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/lazyfree.c#L160-L187)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[lazyfree.c · 7.2.6 · L159–L172](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/lazyfree.c#L159-L172)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Free an object, if the object is huge enough, free it in async way. */
 void freeObjAsync(robj *key, robj *obj, int dbid) {
     size_t free_effort = lazyfreeGetFreeEffort(key,obj,dbid);
     /* Note that if the object is shared, to reclaim it now it is not
@@ -5492,21 +5235,6 @@ void freeObjAsync(robj *key, robj *obj, int dbid) {
     } else {
         decrRefCount(obj);
     }
-}
-
-/* Empty a Redis DB asynchronously. What the function does actually is to
- * create a new empty set of hash tables and scheduling the old ones for
- * lazy freeing. */
-void emptyDbAsync(redisDb *db) {
-    dict *oldht1 = db->dict, *oldht2 = db->expires;
-    db->dict = dictCreate(&dbDictType);
-    db->expires = dictCreate(&dbExpiresDictType);
-    if (server.cluster_enabled) {
-        slotToKeyDestroy(db);
-        slotToKeyInit(db);
-    }
-    atomicIncr(lazyfree_objects,dictSize(oldht1));
-    bioCreateLazyFreeJob(lazyfreeFreeDatabase,2,oldht1,oldht2);
 }
 ```
 
@@ -5529,7 +5257,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[zmalloc.c · 7.2.6 · L365–L392](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/zmalloc.c#L365-L392)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[zmalloc.c · 7.2.6 · L365–L381](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/zmalloc.c#L365-L381)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void zfree(void *ptr) {
@@ -5549,17 +5277,6 @@ void zfree(void *ptr) {
     free(realptr);
 #endif
 }
-
-/* Similar to zfree, '*usable' is set to the usable size being freed. */
-void zfree_usable(void *ptr, size_t *usable) {
-#ifndef HAVE_MALLOC_SIZE
-    void *realptr;
-    size_t oldsize;
-#endif
-
-    if (ptr == NULL) return;
-#ifdef HAVE_MALLOC_SIZE
-    update_zmalloc_stat_free(*usable = zmalloc_size(ptr));
 ```
 
 **逐段阅读抓手：**源码只展示封装释放；内存归还策略要结合实际构建使用的allocator。
@@ -5595,9 +5312,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[multi.c · 7.2.6 · L60–L99](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/multi.c#L60-L99)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[multi.c · 7.2.6 · L59–L96](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/multi.c#L59-L96)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Add a new command into the MULTI commands queue */
 void queueMultiCommand(client *c, uint64_t cmd_flags) {
     multiCmd *mc;
 
@@ -5635,9 +5353,6 @@ void queueMultiCommand(client *c, uint64_t cmd_flags) {
     c->argv_len_sum = 0;
     c->argv_len = 0;
 }
-
-void discardTransaction(client *c) {
-    freeClientMultiState(c);
 ```
 
 **逐段阅读抓手：**参数引用计数确保排队后内容仍有效；EXEC前并未调用各写命令proc。
@@ -5778,9 +5493,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[multi.c · 7.2.6 · L300–L342](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/multi.c#L300-L342)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[multi.c · 7.2.6 · L299–L329](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/multi.c#L299-L329)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Watch for the specified key */
 void watchForKey(client *c, robj *key) {
     list *clients = NULL;
     listIter li;
@@ -5811,19 +5527,6 @@ void watchForKey(client *c, robj *key) {
     listAddNodeTail(c->watched_keys, wk);
     watchedKeyLinkToClients(clients, wk);
 }
-
-/* Unwatch all the keys watched by this client. To clean the EXEC dirty
- * flag is up to the caller. */
-void unwatchAllKeys(client *c) {
-    listIter li;
-    listNode *ln;
-
-    if (listLength(c->watched_keys) == 0) return;
-    listRewind(c->watched_keys,&li);
-    while((ln = listNext(&li))) {
-        list *clients;
-        watchedKey *wk;
-
 ```
 
 **逐段阅读抓手：**观察watch记录中的db、key、expired；不要只考虑普通SET修改。
@@ -5881,7 +5584,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[eval.c · 7.2.6 · L472–L554](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/eval.c#L472-L554)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[eval.c · 7.2.6 · L472–L539](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/eval.c#L472-L539)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void evalGenericCommand(client *c, int evalsha) {
@@ -5952,21 +5655,6 @@ void evalGenericCommand(client *c, int evalsha) {
     lua_pop(lua,1); /* Remove the error handler. */
     scriptResetRun(&rctx);
 }
-
-void evalCommand(client *c) {
-    /* Explicitly feed monitor here so that lua commands appear after their
-     * script command. */
-    replicationFeedMonitors(c,server.monitors,c->db->id,c->argv,c->argc);
-    if (!(c->flags & CLIENT_LUA_DEBUG))
-        evalGenericCommand(c,0);
-    else
-        evalGenericCommandWithDebugging(c,0);
-}
-
-void evalRoCommand(client *c) {
-    evalCommand(c);
-}
-
 ```
 
 **逐段阅读抓手：**区分脚本标识和业务幂等键；SHA只代表脚本内容。
@@ -5988,9 +5676,14 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[script.c · 7.2.6 · L513–L578](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L513-L578)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[script.c · 7.2.6 · L508–L573](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L508-L573)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Call a Redis command.
+ * The reply is written to the run_ctx client and it is
+ * up to the engine to take and parse.
+ * The err out variable is set only if error occurs and describe the error.
+ * If err is set on reply is written to the run_ctx client. */
 void scriptCall(scriptRunCtx *run_ctx, sds *err) {
     client *c = run_ctx->c;
 
@@ -6052,11 +5745,6 @@ error:
     afterErrorReply(c, *err, sdslen(*err), 0);
     incrCommandStatsOnError(cmd, ERROR_COMMAND_REJECTED);
 }
-
-long long scriptRunDuration(void) {
-    serverAssert(scriptIsRunning());
-    return elapsedMs(curr_run_ctx->start_time);
-}
 ```
 
 **逐段阅读抓手：**不能只看Lua封装；真正限制在公共script运行框架中。
@@ -6078,7 +5766,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[functions.c · 7.2.6 · L621–L691](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/functions.c#L621-L691)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[functions.c · 7.2.6 · L621–L658](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/functions.c#L621-L658)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 static void fcallCommandGeneric(client *c, int ro) {
@@ -6119,39 +5807,6 @@ static void fcallCommandGeneric(client *c, int ro) {
                  c->argv + 3 + numkeys, c->argc - 3 - numkeys);
     scriptResetRun(&run_ctx);
 }
-
-/*
- * FCALL <FUNCTION NAME> nkeys <key1 .. keyn> <arg1 .. argn>
- */
-void fcallCommand(client *c) {
-    fcallCommandGeneric(c, 0);
-}
-
-/*
- * FCALL_RO <FUNCTION NAME> nkeys <key1 .. keyn> <arg1 .. argn>
- */
-void fcallroCommand(client *c) {
-    fcallCommandGeneric(c, 1);
-}
-
-/*
- * FUNCTION DUMP
- *
- * Returns a binary payload representing all the libraries.
- * Can be loaded using FUNCTION RESTORE
- *
- * The payload structure is the same as on RDB. Each library
- * is saved separately with the following information:
- * * Library name
- * * Engine name
- * * Library description
- * * Library code
- * RDB_OPCODE_FUNCTION2 is saved before each library to present
- * that the payload is a library.
- * RDB version and crc64 is saved at the end of the payload.
- * The RDB version is saved for backward compatibility.
- * crc64 is saved so we can verify the payload content.
- */
 ```
 
 **逐段阅读抓手：**查看functionsSave/functionsLoad等相关入口，再理解库生命周期。
@@ -6178,9 +5833,15 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[scripting.c · L1002–L1016](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/scripting.c#L1002-L1016)，连续节选。
+**6.2.14源码：**[scripting.c · L996–L1014](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/scripting.c#L996-L1014)，连续节选。
 
 ```c
+/* redis.replicate_commands()
+ *
+ * Turn on single commands replication if the script never called
+ * a write command so far, and returns true. Otherwise if the script
+ * already started to write, returns false and stick to whole scripts
+ * replication, which is our default. */
 int luaRedisReplicateCommandsCommand(lua_State *lua) {
     if (server.lua_write_dirty) {
         lua_pushboolean(lua,0);
@@ -6194,13 +5855,16 @@ int luaRedisReplicateCommandsCommand(lua_State *lua) {
     }
     return 1;
 }
-
-/* redis.breakpoint()
 ```
 
-**7.2.6源码：**[script.c · L513–L562](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L513-L562)，连续节选。
+**7.2.6源码：**[script.c · L508–L562](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L508-L562)，连续节选。
 
 ```c
+/* Call a Redis command.
+ * The reply is written to the run_ctx client and it is
+ * up to the engine to take and parse.
+ * The err out variable is set only if error occurs and describe the error.
+ * If err is set on reply is written to the run_ctx client. */
 void scriptCall(scriptRunCtx *run_ctx, sds *err) {
     client *c = run_ctx->c;
 
@@ -6271,9 +5935,10 @@ flowchart TB
 
 ```
 
-**固定7.2.6源码：**[script.c · L287–L327](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L287-L327)。连续原文窗口，完整分支见链接。
+**固定7.2.6源码：**[script.c · L286–L317](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L286-L317)。连续原文窗口，完整分支见链接。
 
 ```c
+/* Kill the current running script */
 void scriptKill(client *c, int is_eval) {
     if (!curr_run_ctx) {
         addReplyError(c, "-NOTBUSY No scripts in execution right now.");
@@ -6305,16 +5970,6 @@ void scriptKill(client *c, int is_eval) {
     curr_run_ctx->flags |= SCRIPT_KILLED;
     addReply(c, shared.ok);
 }
-
-static int scriptVerifyCommandArity(struct redisCommand *cmd, int argc, sds *err) {
-    if (!cmd || ((cmd->arity > 0 && cmd->arity != argc) || (argc < -cmd->arity))) {
-        if (cmd)
-            *err = sdsnew("Wrong number of args calling Redis command from script");
-        else
-            *err = sdsnew("Unknown Redis command called from script");
-        return C_ERR;
-    }
-    return C_OK;
 ```
 
 ## 本章纸面推演
@@ -6347,9 +6002,17 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[rdb.c · 7.2.6 · L1376–L1465](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/rdb.c#L1376-L1465)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[rdb.c · 7.2.6 · L1368–L1414](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/rdb.c#L1368-L1414)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Produces a dump of the database in RDB format sending it to the specified
+ * Redis I/O channel. On success C_OK is returned, otherwise C_ERR
+ * is returned and part of the output, or all the output, can be
+ * missing because of I/O errors.
+ *
+ * When the function returns C_ERR and if 'error' is not NULL, the
+ * integer pointed by 'error' is set to the value of errno just after the I/O
+ * error. */
 int rdbSaveRio(int req, rio *rdb, int *error, int rdbflags, rdbSaveInfo *rsi) {
     char magic[10];
     uint64_t cksum;
@@ -6389,57 +6052,6 @@ werr:
     if (error) *error = errno;
     return C_ERR;
 }
-
-/* This is just a wrapper to rdbSaveRio() that additionally adds a prefix
- * and a suffix to the generated RDB dump. The prefix is:
- *
- * $EOF:<40 bytes unguessable hex string>\r\n
- *
- * While the suffix is the 40 bytes hex string we announced in the prefix.
- * This way processes receiving the payload can understand when it ends
- * without doing any processing of the content. */
-int rdbSaveRioWithEOFMark(int req, rio *rdb, int *error, rdbSaveInfo *rsi) {
-    char eofmark[RDB_EOF_MARK_SIZE];
-
-    startSaving(RDBFLAGS_REPLICATION);
-    getRandomHexChars(eofmark,RDB_EOF_MARK_SIZE);
-    if (error) *error = 0;
-    if (rioWrite(rdb,"$EOF:",5) == 0) goto werr;
-    if (rioWrite(rdb,eofmark,RDB_EOF_MARK_SIZE) == 0) goto werr;
-    if (rioWrite(rdb,"\r\n",2) == 0) goto werr;
-    if (rdbSaveRio(req,rdb,error,RDBFLAGS_NONE,rsi) == C_ERR) goto werr;
-    if (rioWrite(rdb,eofmark,RDB_EOF_MARK_SIZE) == 0) goto werr;
-    stopSaving(1);
-    return C_OK;
-
-werr: /* Write error. */
-    /* Set 'error' only if not already set by rdbSaveRio() call. */
-    if (error && *error == 0) *error = errno;
-    stopSaving(0);
-    return C_ERR;
-}
-
-static int rdbSaveInternal(int req, const char *filename, rdbSaveInfo *rsi, int rdbflags) {
-    char cwd[MAXPATHLEN]; /* Current working dir path for error messages. */
-    rio rdb;
-    int error = 0;
-    int saved_errno;
-    char *err_op;    /* For a detailed log */
-
-    FILE *fp = fopen(filename,"w");
-    if (!fp) {
-        saved_errno = errno;
-        char *str_err = strerror(errno);
-        char *cwdp = getcwd(cwd,MAXPATHLEN);
-        serverLog(LL_WARNING,
-            "Failed opening the temp RDB file %s (in server root dir %s) "
-            "for saving: %s",
-            filename,
-            cwdp ? cwdp : "unknown",
-            str_err);
-        errno = saved_errno;
-        return C_ERR;
-    }
 ```
 
 **逐段阅读抓手：**rio抽象支持不同输出介质；RDB既用于本地文件也参与复制。
@@ -6461,7 +6073,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[rdb.c · 7.2.6 · L1559–L1619](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/rdb.c#L1559-L1619)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[rdb.c · 7.2.6 · L1559–L1593](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/rdb.c#L1559-L1593)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 int rdbSaveBackground(int req, char *filename, rdbSaveInfo *rsi, int rdbflags) {
@@ -6499,32 +6111,6 @@ int rdbSaveBackground(int req, char *filename, rdbSaveInfo *rsi, int rdbflags) {
     }
     return C_OK; /* unreached */
 }
-
-/* Note that we may call this function in signal handle 'sigShutdownHandler',
- * so we need guarantee all functions we call are async-signal-safe.
- * If we call this function from signal handle, we won't call bg_unlink that
- * is not async-signal-safe. */
-void rdbRemoveTempFile(pid_t childpid, int from_signal) {
-    char tmpfile[256];
-    char pid[32];
-
-    /* Generate temp rdb file name using async-signal safe functions. */
-    ll2string(pid, sizeof(pid), childpid);
-    redis_strlcpy(tmpfile, "temp-", sizeof(tmpfile));
-    redis_strlcat(tmpfile, pid, sizeof(tmpfile));
-    redis_strlcat(tmpfile, ".rdb", sizeof(tmpfile));
-
-    if (from_signal) {
-        /* bg_unlink is not async-signal-safe, but in this case we don't really
-         * need to close the fd, it'll be released when the process exists. */
-        int fd = open(tmpfile, O_RDONLY|O_NONBLOCK);
-        UNUSED(fd);
-        unlink(tmpfile);
-    } else {
-        bg_unlink(tmpfile);
-    }
-}
-
 ```
 
 **逐段阅读抓手：**fork耗时与子进程保存耗时是两个指标；响应时延可能先受fork影响。
@@ -6546,105 +6132,17 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[rdb.c · 7.2.6 · L3010–L3105](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/rdb.c#L3010-L3105)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[rdb.c · 7.2.6 · L3008–L3015](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/rdb.c#L3008-L3015)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Load an RDB file from the rio stream 'rdb'. On success C_OK is returned,
+ * otherwise C_ERR is returned and 'errno' is set accordingly. */
 int rdbLoadRio(rio *rdb, int rdbflags, rdbSaveInfo *rsi) {
     functionsLibCtx* functions_lib_ctx = functionsLibCtxGetCurrent();
     rdbLoadingCtx loading_ctx = { .dbarray = server.db, .functions_lib_ctx = functions_lib_ctx };
     int retval = rdbLoadRioWithLoadingCtx(rdb,rdbflags,rsi,&loading_ctx);
     return retval;
 }
-
-
-/* Load an RDB file from the rio stream 'rdb'. On success C_OK is returned,
- * otherwise C_ERR is returned.
- * The rdb_loading_ctx argument holds objects to which the rdb will be loaded to,
- * currently it only allow to set db object and functionLibCtx to which the data
- * will be loaded (in the future it might contains more such objects). */
-int rdbLoadRioWithLoadingCtx(rio *rdb, int rdbflags, rdbSaveInfo *rsi, rdbLoadingCtx *rdb_loading_ctx) {
-    uint64_t dbid = 0;
-    int type, rdbver;
-    redisDb *db = rdb_loading_ctx->dbarray+0;
-    char buf[1024];
-    int error;
-    long long empty_keys_skipped = 0;
-
-    rdb->update_cksum = rdbLoadProgressCallback;
-    rdb->max_processing_chunk = server.loading_process_events_interval_bytes;
-    if (rioRead(rdb,buf,9) == 0) goto eoferr;
-    buf[9] = '\0';
-    if (memcmp(buf,"REDIS",5) != 0) {
-        serverLog(LL_WARNING,"Wrong signature trying to load DB from file");
-        return C_ERR;
-    }
-    rdbver = atoi(buf+5);
-    if (rdbver < 1 || rdbver > RDB_VERSION) {
-        serverLog(LL_WARNING,"Can't handle RDB format version %d",rdbver);
-        return C_ERR;
-    }
-
-    /* Key-specific attributes, set by opcodes before the key type. */
-    long long lru_idle = -1, lfu_freq = -1, expiretime = -1, now = mstime();
-    long long lru_clock = LRU_CLOCK();
-
-    while(1) {
-        sds key;
-        robj *val;
-
-        /* Read type. */
-        if ((type = rdbLoadType(rdb)) == -1) goto eoferr;
-
-        /* Handle special types. */
-        if (type == RDB_OPCODE_EXPIRETIME) {
-            /* EXPIRETIME: load an expire associated with the next key
-             * to load. Note that after loading an expire we need to
-             * load the actual type, and continue. */
-            expiretime = rdbLoadTime(rdb);
-            expiretime *= 1000;
-            if (rioGetReadError(rdb)) goto eoferr;
-            continue; /* Read next opcode. */
-        } else if (type == RDB_OPCODE_EXPIRETIME_MS) {
-            /* EXPIRETIME_MS: milliseconds precision expire times introduced
-             * with RDB v3. Like EXPIRETIME but no with more precision. */
-            expiretime = rdbLoadMillisecondTime(rdb,rdbver);
-            if (rioGetReadError(rdb)) goto eoferr;
-            continue; /* Read next opcode. */
-        } else if (type == RDB_OPCODE_FREQ) {
-            /* FREQ: LFU frequency. */
-            uint8_t byte;
-            if (rioRead(rdb,&byte,1) == 0) goto eoferr;
-            lfu_freq = byte;
-            continue; /* Read next opcode. */
-        } else if (type == RDB_OPCODE_IDLE) {
-            /* IDLE: LRU idle time. */
-            uint64_t qword;
-            if ((qword = rdbLoadLen(rdb,NULL)) == RDB_LENERR) goto eoferr;
-            lru_idle = qword;
-            continue; /* Read next opcode. */
-        } else if (type == RDB_OPCODE_EOF) {
-            /* EOF: End of file, exit the main loop. */
-            break;
-        } else if (type == RDB_OPCODE_SELECTDB) {
-            /* SELECTDB: Select the specified database. */
-            if ((dbid = rdbLoadLen(rdb,NULL)) == RDB_LENERR) goto eoferr;
-            if (dbid >= (unsigned)server.dbnum) {
-                serverLog(LL_WARNING,
-                    "FATAL: Data file was created with a Redis "
-                    "server configured to handle more than %d "
-                    "databases. Exiting\n", server.dbnum);
-                exit(1);
-            }
-            db = rdb_loading_ctx->dbarray+dbid;
-            continue; /* Read next opcode. */
-        } else if (type == RDB_OPCODE_RESIZEDB) {
-            /* RESIZEDB: Hint about the size of the keys in the currently
-             * selected data base, in order to avoid useless rehashing. */
-            uint64_t db_size, expires_size;
-            if ((db_size = rdbLoadLen(rdb,NULL)) == RDB_LENERR)
-                goto eoferr;
-            if ((expires_size = rdbLoadLen(rdb,NULL)) == RDB_LENERR)
-                goto eoferr;
 ```
 
 **逐段阅读抓手：**RDB内的过期时间不是加载时重新获得同样TTL；它保存绝对时间语义。
@@ -6701,9 +6199,17 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[aof.c · 7.2.6 · L1322–L1387](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L1322-L1387)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[aof.c · 7.2.6 · L1314–L1361](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L1314-L1361)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Write the given command to the aof file.
+ * dictid - dictionary id the command should be applied to,
+ *          this is used in order to decide if a `select` command
+ *          should also be written to the aof. Value of -1 means
+ *          to avoid writing `select` command in any case.
+ * argv   - The command to write to the aof.
+ * argc   - Number of values in argv
+ */
 void feedAppendOnlyFile(int dictid, robj **argv, int argc) {
     sds buf = sdsempty();
 
@@ -6744,32 +6250,6 @@ void feedAppendOnlyFile(int dictid, robj **argv, int argc) {
 
     sdsfree(buf);
 }
-
-/* ----------------------------------------------------------------------------
- * AOF loading
- * ------------------------------------------------------------------------- */
-
-/* In Redis commands are always executed in the context of a client, so in
- * order to load the append only file we need to create a fake client. */
-struct client *createAOFClient(void) {
-    struct client *c = createClient(NULL);
-
-    c->id = CLIENT_ID_AOF; /* So modules can identify it's the AOF client. */
-
-    /*
-     * The AOF client should never be blocked (unlike master
-     * replication connection).
-     * This is because blocking the AOF client might cause
-     * deadlock (because potentially no one will unblock it).
-     * Also, if the AOF client will be blocked just for
-     * background processing there is a chance that the
-     * command execution order will be violated.
-     */
-    c->flags = CLIENT_DENY_BLOCKING;
-
-    /* We set the fake client as a slave waiting for the synchronization
-     * so that Redis will not try to send replies to this client. */
-    c->replstate = SLAVE_STATE_WAIT_BGSAVE_START;
 ```
 
 **逐段阅读抓手：**过期时间重写与对象命令重写可能发生在上层；不能只找feed中的一个字符串。
@@ -6791,9 +6271,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[aof.c · 7.2.6 · L1066–L1163](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L1066-L1163)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[aof.c · 7.2.6 · L1065–L1163](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L1065-L1163)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+#define AOF_WRITE_LOG_ERROR_RATE 30 /* Seconds between errors logging. */
 void flushAppendOnlyFile(int force) {
     ssize_t nwritten;
     int sync_in_progress = 0;
@@ -7110,9 +6591,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[aof.c · 7.2.6 · L600–L670](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L600-L670)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[aof.c · 7.2.6 · L599–L610](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L599-L610)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Persist the aofManifest information pointed to by am to disk. */
 int persistAofManifest(aofManifest *am) {
     if (am->dirty == 0) {
         return C_OK;
@@ -7124,66 +6606,6 @@ int persistAofManifest(aofManifest *am) {
     if (ret == C_OK) am->dirty = 0;
     return ret;
 }
-
-/* Called in `loadAppendOnlyFiles` when we upgrade from a old version redis.
- *
- * 1) Create AOF directory use 'server.aof_dirname' as the name.
- * 2) Use 'server.aof_filename' to construct a BASE type aofInfo and add it to
- *    aofManifest, then persist the manifest file to AOF directory.
- * 3) Move the old AOF file (server.aof_filename) to AOF directory.
- *
- * If any of the above steps fails or crash occurs, this will not cause any
- * problems, and redis will retry the upgrade process when it restarts.
- */
-void aofUpgradePrepare(aofManifest *am) {
-    serverAssert(!aofFileExist(server.aof_filename));
-
-    /* Create AOF directory use 'server.aof_dirname' as the name. */
-    if (dirCreateIfMissing(server.aof_dirname) == -1) {
-        serverLog(LL_WARNING, "Can't open or create append-only dir %s: %s",
-            server.aof_dirname, strerror(errno));
-        exit(1);
-    }
-
-    /* Manually construct a BASE type aofInfo and add it to aofManifest. */
-    if (am->base_aof_info) aofInfoFree(am->base_aof_info);
-    aofInfo *ai = aofInfoCreate();
-    ai->file_name = sdsnew(server.aof_filename);
-    ai->file_seq = 1;
-    ai->file_type = AOF_FILE_TYPE_BASE;
-    am->base_aof_info = ai;
-    am->curr_base_file_seq = 1;
-    am->dirty = 1;
-
-    /* Persist the manifest file to AOF directory. */
-    if (persistAofManifest(am) != C_OK) {
-        exit(1);
-    }
-
-    /* Move the old AOF file to AOF directory. */
-    sds aof_filepath = makePath(server.aof_dirname, server.aof_filename);
-    if (rename(server.aof_filename, aof_filepath) == -1) {
-        serverLog(LL_WARNING,
-            "Error trying to move the old AOF file %s into dir %s: %s",
-            server.aof_filename,
-            server.aof_dirname,
-            strerror(errno));
-        sdsfree(aof_filepath);
-        exit(1);
-    }
-    sdsfree(aof_filepath);
-
-    serverLog(LL_NOTICE, "Successfully migrated an old-style AOF file (%s) into the AOF directory (%s).",
-        server.aof_filename, server.aof_dirname);
-}
-
-/* When AOFRW success, the previous BASE and INCR AOFs will
- * become HISTORY type and be moved into 'history_aof_list'.
- *
- * The function will traverse the 'history_aof_list' and submit
- * the delete task to the bio thread.
- */
-int aofDelHistoryFiles(void) {
 ```
 
 **逐段阅读抓手：**看临时manifest、rename与目录同步相关处理；有效清单切换是关键确认点。
@@ -7205,9 +6627,23 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[aof.c · 7.2.6 · L2427–L2514](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L2427-L2514)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[aof.c · 7.2.6 · L2413–L2495](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L2413-L2495)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* This is how rewriting of the append only file in background works:
+ *
+ * 1) The user calls BGREWRITEAOF
+ * 2) Redis calls this function, that forks():
+ *    2a) the child rewrite the append only file in a temp file.
+ *    2b) the parent open a new INCR AOF file to continue writing.
+ * 3) When the child finished '2a' exists.
+ * 4) The parent will trap the exit code, if it's OK, it will:
+ *    4a) get a new BASE file name and mark the previous (if we have) as the HISTORY type
+ *    4b) rename(2) the temp file in new BASE file name
+ *    4c) mark the rewritten INCR AOFs as history type
+ *    4d) persist AOF manifest file
+ *    4e) Delete the history files use bio
+ */
 int rewriteAppendOnlyFileBackground(void) {
     pid_t childpid;
 
@@ -7277,25 +6713,6 @@ int rewriteAppendOnlyFileBackground(void) {
     }
     return C_OK; /* unreached */
 }
-
-void bgrewriteaofCommand(client *c) {
-    if (server.child_type == CHILD_TYPE_AOF) {
-        addReplyError(c,"Background append only file rewriting already in progress");
-    } else if (hasActiveChildProcess() || server.in_exec) {
-        server.aof_rewrite_scheduled = 1;
-        /* When manually triggering AOFRW we reset the count 
-         * so that it can be executed immediately. */
-        server.stat_aofrw_consecutive_failures = 0;
-        addReplyStatus(c,"Background append only file rewriting scheduled");
-    } else if (rewriteAppendOnlyFileBackground() == C_OK) {
-        addReplyStatus(c,"Background append only file rewriting started");
-    } else {
-        addReplyError(c,"Can't execute an AOF background rewriting. "
-                        "Please check the server logs for more information.");
-    }
-}
-
-void aofRemoveTempFile(pid_t childpid) {
 ```
 
 **逐段阅读抓手：**区分BASE生成与有效manifest更新；新BASE存在不等于已正式启用。
@@ -7317,9 +6734,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[aof.c · 7.2.6 · L1651–L1737](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L1651-L1737)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[aof.c · 7.2.6 · L1650–L1737](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L1650-L1737)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Load the AOF files according the aofManifest pointed by am. */
 int loadAppendOnlyFiles(aofManifest *am) {
     serverAssert(am != NULL);
     int status, ret = AOF_OK;
@@ -7433,9 +6851,11 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[aof.c · L1851–L1939](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/aof.c#L1851-L1939)，连续节选。
+**6.2.14源码：**[aof.c · L1849–L1939](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/aof.c#L1849-L1939)，连续节选。
 
 ```c
+/* A background append only file rewriting (BGREWRITEAOF) terminated its work.
+ * Handle this. */
 void backgroundRewriteDoneHandler(int exitcode, int bysignal) {
     if (!bysignal && exitcode == 0) {
         int newfd, oldfd;
@@ -7527,9 +6947,23 @@ void backgroundRewriteDoneHandler(int exitcode, int bysignal) {
          * it exists, because we reference it with "oldfd". */
 ```
 
-**7.2.6源码：**[aof.c · L2427–L2505](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L2427-L2505)，连续节选。
+**7.2.6源码：**[aof.c · L2413–L2495](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L2413-L2495)，连续节选。
 
 ```c
+/* This is how rewriting of the append only file in background works:
+ *
+ * 1) The user calls BGREWRITEAOF
+ * 2) Redis calls this function, that forks():
+ *    2a) the child rewrite the append only file in a temp file.
+ *    2b) the parent open a new INCR AOF file to continue writing.
+ * 3) When the child finished '2a' exists.
+ * 4) The parent will trap the exit code, if it's OK, it will:
+ *    4a) get a new BASE file name and mark the previous (if we have) as the HISTORY type
+ *    4b) rename(2) the temp file in new BASE file name
+ *    4c) mark the rewritten INCR AOFs as history type
+ *    4d) persist AOF manifest file
+ *    4e) Delete the history files use bio
+ */
 int rewriteAppendOnlyFileBackground(void) {
     pid_t childpid;
 
@@ -7599,16 +7033,6 @@ int rewriteAppendOnlyFileBackground(void) {
     }
     return C_OK; /* unreached */
 }
-
-void bgrewriteaofCommand(client *c) {
-    if (server.child_type == CHILD_TYPE_AOF) {
-        addReplyError(c,"Background append only file rewriting already in progress");
-    } else if (hasActiveChildProcess() || server.in_exec) {
-        server.aof_rewrite_scheduled = 1;
-        /* When manually triggering AOFRW we reset the count 
-         * so that it can be executed immediately. */
-        server.stat_aofrw_consecutive_failures = 0;
-        addReplyStatus(c,"Background append only file rewriting scheduled");
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -7640,9 +7064,10 @@ sequenceDiagram
 
 ```
 
-**固定7.2.6源码：**[aof.c · L527–L597](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L527-L597)。连续原文窗口，完整分支见链接。
+**固定7.2.6源码：**[aof.c · L526–L597](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L526-L597)。连续原文窗口，完整分支见链接。
 
 ```c
+/* Write the formatted manifest string to disk. */
 int writeAofManifestFile(sds buf) {
     int ret = C_OK;
     ssize_t nwritten;
@@ -7746,9 +7171,14 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L740–L825](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L740-L825)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L735–L825](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L735-L825)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* This function handles the PSYNC command from the point of view of a
+ * master receiving a request for partial resynchronization.
+ *
+ * On success return C_OK, otherwise C_ERR is returned and we proceed
+ * with the usual full resync. */
 int masterTryPartialResynchronization(client *c, long long psync_offset) {
     long long psync_len;
     char *master_replid = c->argv[1]->ptr;
@@ -7856,9 +7286,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L937–L1033](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L937-L1033)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L936–L1032](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L936-L1032)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* SYNC and PSYNC command implementation. */
 void syncCommand(client *c) {
     /* ignore SYNC if already slave or in monitor mode */
     if (c->flags & CLIENT_SLAVE) return;
@@ -7955,7 +7386,6 @@ void syncCommand(client *c) {
          * so that we don't expect to receive REPLCONF ACK feedbacks. */
         c->flags |= CLIENT_PRE_PSYNC;
     }
-
 ```
 
 **逐段阅读抓手：**全量同步状态机跨多个函数；syncCommand只负责入口与安排。
@@ -7977,9 +7407,14 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L331–L421](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L331-L421)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L326–L420](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L326-L420)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Append bytes into the global replication buffer list, replication backlog and
+ * all replica clients use replication buffers collectively, this function replace
+ * 'addReply*', 'feedReplicationBacklog' for replicas and replication backlog,
+ * First we add buffer into global replication buffer block list, and then
+ * update replica / replication-backlog referenced node and block position. */
 void feedReplicationBuffer(char *s, size_t len) {
     static long long repl_block_id = 0;
 
@@ -8070,7 +7505,6 @@ void feedReplicationBuffer(char *s, size_t len) {
         }
         if (add_new_block) {
             createReplicationBacklogIndex(listLast(server.repl_buffer_blocks));
-
 ```
 
 **逐段阅读抓手：**跟踪refcount、repl_buffer_blocks与backlog位置；与6.2环形backlog不同。
@@ -8097,9 +7531,13 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[replication.c · L159–L189](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/replication.c#L159-L189)，连续节选。
+**6.2.14源码：**[replication.c · L155–L182](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/replication.c#L155-L182)，连续节选。
 
 ```c
+/* Add data to the replication backlog.
+ * This function also increments the global replication offset stored at
+ * server.master_repl_offset, because there is no case where we want to feed
+ * the backlog without incrementing the offset. */
 void feedReplicationBacklog(void *ptr, size_t len) {
     unsigned char *p = ptr;
 
@@ -8124,18 +7562,16 @@ void feedReplicationBacklog(void *ptr, size_t len) {
     server.repl_backlog_off = server.master_repl_offset -
                               server.repl_backlog_histlen + 1;
 }
-
-/* Wrapper for feedReplicationBacklog() that takes Redis string objects
- * as input. */
-void feedReplicationBacklogWithObject(robj *o) {
-    char llstr[LONG_STR_SIZE];
-    void *p;
-    size_t len;
 ```
 
-**7.2.6源码：**[replication.c · L331–L412](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L331-L412)，连续节选。
+**7.2.6源码：**[replication.c · L326–L412](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L326-L412)，连续节选。
 
 ```c
+/* Append bytes into the global replication buffer list, replication backlog and
+ * all replica clients use replication buffers collectively, this function replace
+ * 'addReply*', 'feedReplicationBacklog' for replicas and replication backlog,
+ * First we add buffer into global replication buffer block list, and then
+ * update replica / replication-backlog referenced node and block position. */
 void feedReplicationBuffer(char *s, size_t len) {
     static long long repl_block_id = 0;
 
@@ -8271,9 +7707,11 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L3529–L3560](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3529-L3560)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L3527–L3559](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3527-L3559)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* WAIT for N replicas to acknowledge the processing of our latest
+ * write command (and all the previous commands). */
 void waitCommand(client *c) {
     mstime_t timeout;
     long numreplicas, ackreplicas;
@@ -8305,7 +7743,6 @@ void waitCommand(client *c) {
      * before returning to the event loop. */
     replicationRequestAckFromSlaves();
 }
-
 ```
 
 **逐段阅读抓手：**c->woff不是全局“最后一个Key”的版本；限定当前连接此前写入。
@@ -8327,9 +7764,11 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L3563–L3610](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3563-L3610)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L3561–L3601](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3561-L3601)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* WAIT for N replicas and / or local master to acknowledge our latest
+ * write command got synced to the disk. */
 void waitaofCommand(client *c) {
     mstime_t timeout;
     long numreplicas, numlocal, ackreplicas, acklocal;
@@ -8369,15 +7808,6 @@ void waitaofCommand(client *c) {
      * before returning to the event loop. */
     replicationRequestAckFromSlaves();
 }
-
-/* This is called by unblockClient() to perform the blocking op type
- * specific cleanup. We just remove the client from the list of clients
- * waiting for replica acks. Never call it directly, call unblockClient()
- * instead. */
-void unblockClientWaitingReplicas(client *c) {
-    listNode *ln = listSearchKey(server.clients_waiting_acks,c);
-    serverAssert(ln != NULL);
-    listDelNode(server.clients_waiting_acks,ln);
 ```
 
 **逐段阅读抓手：**numlocal范围与AOF启用条件要看参数检查；不是所有部署都可直接请求本地确认。
@@ -8399,9 +7829,11 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L3495–L3510](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3495-L3510)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L3493–L3508](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3493-L3508)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Return the number of slaves that already acknowledged the specified
+ * replication offset. */
 int replicationCountAcksByOffset(long long offset) {
     listIter li;
     listNode *ln;
@@ -8416,8 +7848,6 @@ int replicationCountAcksByOffset(long long offset) {
     }
     return count;
 }
-
-/* Return the number of replicas that already acknowledged the specified
 ```
 
 **逐段阅读抓手：**ACK计数只检查在线Replica进度；它本身不执行选主。
@@ -8444,9 +7874,11 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[replication.c · L3189–L3218](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/replication.c#L3189-L3218)，连续节选。
+**6.2.14源码：**[replication.c · L3187–L3218](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/replication.c#L3187-L3218)，连续节选。
 
 ```c
+/* WAIT for N replicas to acknowledge the processing of our latest
+ * write command (and all the previous commands). */
 void waitCommand(client *c) {
     mstime_t timeout;
     long numreplicas, ackreplicas;
@@ -8479,9 +7911,11 @@ void waitCommand(client *c) {
     blockClient(c,BLOCKED_WAIT);
 ```
 
-**7.2.6源码：**[replication.c · L3563–L3610](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3563-L3610)，连续节选。
+**7.2.6源码：**[replication.c · L3561–L3601](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3561-L3601)，连续节选。
 
 ```c
+/* WAIT for N replicas and / or local master to acknowledge our latest
+ * write command got synced to the disk. */
 void waitaofCommand(client *c) {
     mstime_t timeout;
     long numreplicas, numlocal, ackreplicas, acklocal;
@@ -8521,15 +7955,6 @@ void waitaofCommand(client *c) {
      * before returning to the event loop. */
     replicationRequestAckFromSlaves();
 }
-
-/* This is called by unblockClient() to perform the blocking op type
- * specific cleanup. We just remove the client from the list of clients
- * waiting for replica acks. Never call it directly, call unblockClient()
- * instead. */
-void unblockClientWaitingReplicas(client *c) {
-    listNode *ln = listSearchKey(server.clients_waiting_acks,c);
-    serverAssert(ln != NULL);
-    listDelNode(server.clients_waiting_acks,ln);
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -8589,9 +8014,15 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[sentinel.c · 7.2.6 · L4611–L4655](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sentinel.c#L4611-L4655)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[sentinel.c · 7.2.6 · L4605–L4644](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sentinel.c#L4605-L4644)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Is this instance down according to the configured quorum?
+ *
+ * Note that ODOWN is a weak quorum, it only means that enough Sentinels
+ * reported in a given time range that the instance was not reachable.
+ * However messages can be delayed so there are no strong guarantees about
+ * N instances agreeing at the same time about the down state. */
 void sentinelCheckObjectivelyDown(sentinelRedisInstance *master) {
     dictIterator *di;
     dictEntry *de;
@@ -8626,17 +8057,6 @@ void sentinelCheckObjectivelyDown(sentinelRedisInstance *master) {
         }
     }
 }
-
-/* Receive the SENTINEL is-master-down-by-addr reply, see the
- * sentinelAskMasterStateToOtherSentinels() function for more information. */
-void sentinelReceiveIsMasterDownReply(redisAsyncContext *c, void *reply, void *privdata) {
-    sentinelRedisInstance *ri = privdata;
-    instanceLink *link = c->data;
-    redisReply *r;
-
-    if (!reply || !link) return;
-    link->pending_commands--;
-    r = reply;
 ```
 
 **逐段阅读抓手：**quorum用于客观下线及授权条件；不要只把它翻译成全部系统多数。
@@ -8658,9 +8078,15 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[sentinel.c · 7.2.6 · L4805–L4889](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sentinel.c#L4805-L4889)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[sentinel.c · 7.2.6 · L4799–L4868](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sentinel.c#L4799-L4868)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Scan all the Sentinels attached to this master to check if there
+ * is a leader for the specified epoch.
+ *
+ * To be a leader for a given epoch, we should have the majority of
+ * the Sentinels we know (ever seen since the last SENTINEL RESET) that
+ * reported the same instance as leader for the same epoch. */
 char *sentinelGetLeader(sentinelRedisInstance *master, uint64_t epoch) {
     dict *counters;
     dictIterator *di;
@@ -8725,27 +8151,6 @@ char *sentinelGetLeader(sentinelRedisInstance *master, uint64_t epoch) {
     dictRelease(counters);
     return winner;
 }
-
-/* Send SLAVEOF to the specified instance, always followed by a
- * CONFIG REWRITE command in order to store the new configuration on disk
- * when possible (that is, if the Redis instance is recent enough to support
- * config rewriting, and if the server was started with a configuration file).
- *
- * If Host is NULL the function sends "SLAVEOF NO ONE".
- *
- * The command returns C_OK if the SLAVEOF command was accepted for
- * (later) delivery otherwise C_ERR. The command replies are just
- * discarded. */
-int sentinelSendSlaveOf(sentinelRedisInstance *ri, const sentinelAddr *addr) {
-    char portstr[32];
-    const char *host;
-    int retval;
-
-    /* If host is NULL we send SLAVEOF NO ONE that will turn the instance
-    * into a master. */
-    if (!addr) {
-        host = "NO";
-        memcpy(portstr,"ONE",4);
 ```
 
 **逐段阅读抓手：**voters/majority与master.quorum分别出现；这是常见面试追问点。
@@ -8768,7 +8173,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-**源码对照：**[sentinel.c · 7.2.6 · L5331–L5369](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sentinel.c#L5331-L5369)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[sentinel.c · 7.2.6 · L5331–L5353](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sentinel.c#L5331-L5353)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void sentinelFailoverStateMachine(sentinelRedisInstance *ri) {
@@ -8794,22 +8199,6 @@ void sentinelFailoverStateMachine(sentinelRedisInstance *ri) {
             break;
     }
 }
-
-/* Abort a failover in progress:
- *
- * This function can only be called before the promoted slave acknowledged
- * the slave -> master switch. Otherwise the failover can't be aborted and
- * will reach its end (possibly by timeout). */
-void sentinelAbortFailover(sentinelRedisInstance *ri) {
-    serverAssert(ri->flags & SRI_FAILOVER_IN_PROGRESS);
-    serverAssert(ri->failover_state <= SENTINEL_FAILOVER_STATE_WAIT_PROMOTION);
-
-    ri->flags &= ~(SRI_FAILOVER_IN_PROGRESS|SRI_FORCE_FAILOVER);
-    ri->failover_state = SENTINEL_FAILOVER_STATE_NONE;
-    ri->failover_state_change_time = mstime();
-    if (ri->promoted_slave) {
-        ri->promoted_slave->flags &= ~SRI_PROMOTED;
-        ri->promoted_slave = NULL;
 ```
 
 **逐段阅读抓手：**继续读sentinelSelectSlave的过滤与排序；高offset并非唯一条件。
@@ -8836,9 +8225,15 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[sentinel.c · L4471–L4541](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/sentinel.c#L4471-L4541)，连续节选。
+**6.2.14源码：**[sentinel.c · L4465–L4534](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/sentinel.c#L4465-L4534)，连续节选。
 
 ```c
+/* Scan all the Sentinels attached to this master to check if there
+ * is a leader for the specified epoch.
+ *
+ * To be a leader for a given epoch, we should have the majority of
+ * the Sentinels we know (ever seen since the last SENTINEL RESET) that
+ * reported the same instance as leader for the same epoch. */
 char *sentinelGetLeader(sentinelRedisInstance *master, uint64_t epoch) {
     dict *counters;
     dictIterator *di;
@@ -8903,18 +8298,17 @@ char *sentinelGetLeader(sentinelRedisInstance *master, uint64_t epoch) {
     dictRelease(counters);
     return winner;
 }
-
-/* Send SLAVEOF to the specified instance, always followed by a
- * CONFIG REWRITE command in order to store the new configuration on disk
- * when possible (that is, if the Redis instance is recent enough to support
- * config rewriting, and if the server was started with a configuration file).
- *
- * If Host is NULL the function sends "SLAVEOF NO ONE".
 ```
 
-**7.2.6源码：**[sentinel.c · L4805–L4875](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sentinel.c#L4805-L4875)，连续节选。
+**7.2.6源码：**[sentinel.c · L4799–L4868](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sentinel.c#L4799-L4868)，连续节选。
 
 ```c
+/* Scan all the Sentinels attached to this master to check if there
+ * is a leader for the specified epoch.
+ *
+ * To be a leader for a given epoch, we should have the majority of
+ * the Sentinels we know (ever seen since the last SENTINEL RESET) that
+ * reported the same instance as leader for the same epoch. */
 char *sentinelGetLeader(sentinelRedisInstance *master, uint64_t epoch) {
     dict *counters;
     dictIterator *di;
@@ -8979,13 +8373,6 @@ char *sentinelGetLeader(sentinelRedisInstance *master, uint64_t epoch) {
     dictRelease(counters);
     return winner;
 }
-
-/* Send SLAVEOF to the specified instance, always followed by a
- * CONFIG REWRITE command in order to store the new configuration on disk
- * when possible (that is, if the Redis instance is recent enough to support
- * config rewriting, and if the server was started with a configuration file).
- *
- * If Host is NULL the function sends "SLAVEOF NO ONE".
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -9008,7 +8395,7 @@ flowchart TB
 
 ```
 
-**固定7.2.6源码：**[sentinel.c · L5062–L5107](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sentinel.c#L5062-L5107)。连续原文窗口，完整分支见链接。
+**固定7.2.6源码：**[sentinel.c · L5062–L5105](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/sentinel.c#L5062-L5105)。连续原文窗口，完整分支见链接。
 
 ```c
 sentinelRedisInstance *sentinelSelectSlave(sentinelRedisInstance *master) {
@@ -9055,8 +8442,6 @@ sentinelRedisInstance *sentinelSelectSlave(sentinelRedisInstance *master) {
     zfree(instance);
     return selected;
 }
-
-/* ---------------- Failover state machine implementation ------------------- */
 ```
 
 ## 本章纸面推演
@@ -9089,9 +8474,15 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[cluster.c · 7.2.6 · L1352–L1375](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1352-L1375)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[cluster.c · 7.2.6 · L1346–L1371](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1346-L1371)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* We have 16384 hash slots. The hash slot of a given key is obtained
+ * as the least significant 14 bits of the crc16 of the key.
+ *
+ * However if the key contains the {...} pattern, only the part between
+ * { and } is hashed. This may be useful in the future to force certain
+ * keys to be in the same node (assuming no resharding is in progress). */
 unsigned int keyHashSlot(char *key, int keylen) {
     int s, e; /* start-end indexes of { and } */
 
@@ -9112,10 +8503,6 @@ unsigned int keyHashSlot(char *key, int keylen) {
      * what is in the middle between { and }. */
     return crc16(key+s+1,e-s-1) & 0x3FFF;
 }
-
-/* -----------------------------------------------------------------------------
- * CLUSTER node API
- * -------------------------------------------------------------------------- */
 ```
 
 **逐段阅读抓手：**空括号与多个括号的处理按函数顺序判断；不要用正则想当然替代源码。
@@ -9137,9 +8524,41 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[cluster.c · 7.2.6 · L7239–L7333](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L7239-L7333)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[cluster.c · 7.2.6 · L7207–L7333](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L7207-L7333)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Return the pointer to the cluster node that is able to serve the command.
+ * For the function to succeed the command should only target either:
+ *
+ * 1) A single key (even multiple times like RPOPLPUSH mylist mylist).
+ * 2) Multiple keys in the same hash slot, while the slot is stable (no
+ *    resharding in progress).
+ *
+ * On success the function returns the node that is able to serve the request.
+ * If the node is not 'myself' a redirection must be performed. The kind of
+ * redirection is specified setting the integer passed by reference
+ * 'error_code', which will be set to CLUSTER_REDIR_ASK or
+ * CLUSTER_REDIR_MOVED.
+ *
+ * When the node is 'myself' 'error_code' is set to CLUSTER_REDIR_NONE.
+ *
+ * If the command fails NULL is returned, and the reason of the failure is
+ * provided via 'error_code', which will be set to:
+ *
+ * CLUSTER_REDIR_CROSS_SLOT if the request contains multiple keys that
+ * don't belong to the same hash slot.
+ *
+ * CLUSTER_REDIR_UNSTABLE if the request contains multiple keys
+ * belonging to the same slot, but the slot is not stable (in migration or
+ * importing state, likely because a resharding is in progress).
+ *
+ * CLUSTER_REDIR_DOWN_UNBOUND if the request addresses a slot which is
+ * not bound to any node. In this case the cluster global state should be
+ * already "down" but it is fragile to rely on the update of the global state,
+ * so we also handle it here.
+ *
+ * CLUSTER_REDIR_DOWN_STATE and CLUSTER_REDIR_DOWN_RO_STATE if the cluster is
+ * down but the user attempts to execute a command that addresses one or more keys. */
 clusterNode *getNodeByQuery(client *c, struct redisCommand *cmd, robj **argv, int argc, int *hashslot, int *error_code) {
     clusterNode *n = NULL;
     robj *firstkey = NULL;
@@ -9256,9 +8675,16 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[cluster.c · 7.2.6 · L7458–L7513](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L7458-L7513)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[cluster.c · 7.2.6 · L7451–L7484](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L7451-L7484)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Send the client the right redirection code, according to error_code
+ * that should be set to one of CLUSTER_REDIR_* macros.
+ *
+ * If CLUSTER_REDIR_ASK or CLUSTER_REDIR_MOVED error codes
+ * are used, then the node 'n' should not be NULL, but should be the
+ * node we want to mention in the redirection. Moreover hashslot should
+ * be set to the hash slot that caused the redirection. */
 void clusterRedirectClient(client *c, clusterNode *n, int hashslot, int error_code) {
     if (error_code == CLUSTER_REDIR_CROSS_SLOT) {
         addReplyError(c,"-CROSSSLOT Keys in request don't hash to the same slot");
@@ -9286,35 +8712,6 @@ void clusterRedirectClient(client *c, clusterNode *n, int hashslot, int error_co
         serverPanic("getNodeByQuery() unknown error.");
     }
 }
-
-/* This function is called by the function processing clients incrementally
- * to detect timeouts, in order to handle the following case:
- *
- * 1) A client blocks with BLPOP or similar blocking operation.
- * 2) The master migrates the hash slot elsewhere or turns into a slave.
- * 3) The client may remain blocked forever (or up to the max timeout time)
- *    waiting for a key change that will never happen.
- *
- * If the client is found to be blocked into a hash slot this node no
- * longer handles, the client is sent a redirection error, and the function
- * returns 1. Otherwise 0 is returned and no operation is performed. */
-int clusterRedirectBlockedClientIfNeeded(client *c) {
-    if (c->flags & CLIENT_BLOCKED &&
-        (c->bstate.btype == BLOCKED_LIST ||
-         c->bstate.btype == BLOCKED_ZSET ||
-         c->bstate.btype == BLOCKED_STREAM ||
-         c->bstate.btype == BLOCKED_MODULE))
-    {
-        dictEntry *de;
-        dictIterator *di;
-
-        /* If the cluster is down, unblock the client with the right error.
-         * If the cluster is configured to allow reads on cluster down, we
-         * still want to emit this error since a write will be required
-         * to unblock them which may never come.  */
-        if (server.cluster->state == CLUSTER_FAIL) {
-            clusterRedirectClient(c,NULL,0,CLUSTER_REDIR_DOWN_STATE);
-            return 1;
 ```
 
 **逐段阅读抓手：**错误码到回复字符串映射在此；完整迁移判断在getNodeByQuery。
@@ -9341,9 +8738,15 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[cluster.c · L752–L775](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/cluster.c#L752-L775)，连续节选。
+**6.2.14源码：**[cluster.c · L746–L771](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/cluster.c#L746-L771)，连续节选。
 
 ```c
+/* We have 16384 hash slots. The hash slot of a given key is obtained
+ * as the least significant 14 bits of the crc16 of the key.
+ *
+ * However if the key contains the {...} pattern, only the part between
+ * { and } is hashed. This may be useful in the future to force certain
+ * keys to be in the same node (assuming no resharding is in progress). */
 unsigned int keyHashSlot(char *key, int keylen) {
     int s, e; /* start-end indexes of { and } */
 
@@ -9364,15 +8767,17 @@ unsigned int keyHashSlot(char *key, int keylen) {
      * what is in the middle between { and }. */
     return crc16(key+s+1,e-s-1) & 0x3FFF;
 }
-
-/* -----------------------------------------------------------------------------
- * CLUSTER node API
- * -------------------------------------------------------------------------- */
 ```
 
-**7.2.6源码：**[cluster.c · L1352–L1375](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1352-L1375)，连续节选。
+**7.2.6源码：**[cluster.c · L1346–L1371](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1346-L1371)，连续节选。
 
 ```c
+/* We have 16384 hash slots. The hash slot of a given key is obtained
+ * as the least significant 14 bits of the crc16 of the key.
+ *
+ * However if the key contains the {...} pattern, only the part between
+ * { and } is hashed. This may be useful in the future to force certain
+ * keys to be in the same node (assuming no resharding is in progress). */
 unsigned int keyHashSlot(char *key, int keylen) {
     int s, e; /* start-end indexes of { and } */
 
@@ -9393,10 +8798,6 @@ unsigned int keyHashSlot(char *key, int keylen) {
      * what is in the middle between { and }. */
     return crc16(key+s+1,e-s-1) & 0x3FFF;
 }
-
-/* -----------------------------------------------------------------------------
- * CLUSTER node API
- * -------------------------------------------------------------------------- */
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -9431,9 +8832,30 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[cluster.c · 7.2.6 · L1956–L2016](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1956-L2016)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[cluster.c · 7.2.6 · L1935–L1983](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1935-L1983)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* This function checks if a given node should be marked as FAIL.
+ * It happens if the following conditions are met:
+ *
+ * 1) We received enough failure reports from other master nodes via gossip.
+ *    Enough means that the majority of the masters signaled the node is
+ *    down recently.
+ * 2) We believe this node is in PFAIL state.
+ *
+ * If a failure is detected we also inform the whole cluster about this
+ * event trying to force every other node to set the FAIL flag for the node.
+ *
+ * Note that the form of agreement used here is weak, as we collect the majority
+ * of masters state during some time, and even if we force agreement by
+ * propagating the FAIL message, because of partitions we may not reach every
+ * node. However:
+ *
+ * 1) Either we reach the majority and eventually the FAIL state will propagate
+ *    to all the cluster.
+ * 2) Or there is no majority so no slave promotion will be authorized and the
+ *    FAIL flag will be cleared after some time.
+ */
 void markNodeAsFailingIfNeeded(clusterNode *node) {
     int failures;
     int needed_quorum = (server.cluster->size / 2) + 1;
@@ -9462,39 +8884,6 @@ void markNodeAsFailingIfNeeded(clusterNode *node) {
     clusterSendFail(node->name);
     clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG);
 }
-
-/* This function is called only if a node is marked as FAIL, but we are able
- * to reach it again. It checks if there are the conditions to undo the FAIL
- * state. */
-void clearNodeFailureIfNeeded(clusterNode *node) {
-    mstime_t now = mstime();
-
-    serverAssert(nodeFailed(node));
-
-    /* For slaves we always clear the FAIL flag if we can contact the
-     * node again. */
-    if (nodeIsSlave(node) || node->numslots == 0) {
-        serverLog(LL_NOTICE,
-            "Clear FAIL state for node %.40s (%s):%s is reachable again.",
-                node->name,node->human_nodename,
-                nodeIsSlave(node) ? "replica" : "master without slots");
-        node->flags &= ~CLUSTER_NODE_FAIL;
-        clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG);
-    }
-
-    /* If it is a master and...
-     * 1) The FAIL state is old enough.
-     * 2) It is yet serving slots from our point of view (not failed over).
-     * Apparently no one is going to fix these slots, clear the FAIL flag. */
-    if (nodeIsMaster(node) && node->numslots > 0 &&
-        (now - node->fail_time) >
-        (server.cluster_node_timeout * CLUSTER_FAIL_UNDO_TIME_MULT))
-    {
-        serverLog(LL_NOTICE,
-            "Clear FAIL state for node %.40s (%s): is reachable again and nobody is serving its slots after some time.",
-                node->name, node->human_nodename);
-        node->flags &= ~CLUSTER_NODE_FAIL;
-        clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG);
 ```
 
 **逐段阅读抓手：**报告有有效期；陈旧意见不能无限期凑票。
@@ -9516,9 +8905,17 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[cluster.c · 7.2.6 · L4183–L4279](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L4183-L4279)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[cluster.c · 7.2.6 · L4175–L4281](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L4175-L4281)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* This function is called if we are a slave node and our master serving
+ * a non-zero amount of hash slots is in FAIL state.
+ *
+ * The goal of this function is:
+ * 1) To check if we are able to perform a failover, is our data updated?
+ * 2) Try to get elected by masters.
+ * 3) Perform the failover informing all the other nodes.
+ */
 void clusterHandleSlaveFailover(void) {
     mstime_t data_age;
     mstime_t auth_age = mstime() - server.cluster->failover_auth_time;
@@ -9616,6 +9013,8 @@ void clusterHandleSlaveFailover(void) {
             server.cluster->failover_auth_rank,
             replicationGetSlaveOffset());
         /* Now that we have a scheduled election, broadcast our offset
+         * to all the other slaves so that they'll updated their offsets
+         * if our offset is better. */
 ```
 
 **逐段阅读抓手：**函数前面可能有声明，节选从真正定义开始；看failover_auth_*状态。
@@ -9763,9 +9162,11 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-**源码对照：**[pubsub.c · 7.2.6 · L246–L288](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/pubsub.c#L246-L288)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[pubsub.c · 7.2.6 · L244–L269](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/pubsub.c#L244-L269)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Subscribe a client to a channel. Returns 1 if the operation succeeded, or
+ * 0 if the client was already subscribed to that channel. */
 int pubsubSubscribeChannel(client *c, robj *channel, pubsubtype type) {
     dictEntry *de;
     list *clients = NULL;
@@ -9790,25 +9191,6 @@ int pubsubSubscribeChannel(client *c, robj *channel, pubsubtype type) {
     addReplyPubsubSubscribed(c,channel,type);
     return retval;
 }
-
-/* Unsubscribe a client from a channel. Returns 1 if the operation succeeded, or
- * 0 if the client was not subscribed to the specified channel. */
-int pubsubUnsubscribeChannel(client *c, robj *channel, int notify, pubsubtype type) {
-    dictEntry *de;
-    list *clients;
-    listNode *ln;
-    int retval = 0;
-
-    /* Remove the channel from the client -> channels hash table */
-    incrRefCount(channel); /* channel may be just a pointer to the same object
-                            we have in the hash tables. Protect it... */
-    if (dictDelete(type.clientPubSubChannels(c),channel) == DICT_OK) {
-        retval = 1;
-        /* Remove the client from the channel -> clients list hash table */
-        de = dictFind(*type.serverPubSubChannels, channel);
-        serverAssertWithInfo(c,NULL,de != NULL);
-        clients = dictGetVal(de);
-        ln = listSearchKey(clients,c);
 ```
 
 **逐段阅读抓手：**查看重复订阅时返回值；模式订阅和普通频道不是同一张映射。
@@ -9830,80 +9212,13 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[pubsub.c · 7.2.6 · L525–L595](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/pubsub.c#L525-L595)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[pubsub.c · 7.2.6 · L524–L527](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/pubsub.c#L524-L527)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Publish a message to all the subscribers. */
 int pubsubPublishMessage(robj *channel, robj *message, int sharded) {
     return pubsubPublishMessageInternal(channel, message, sharded? pubSubShardType : pubSubType);
 }
-
-/*-----------------------------------------------------------------------------
- * Pubsub commands implementation
- *----------------------------------------------------------------------------*/
-
-/* SUBSCRIBE channel [channel ...] */
-void subscribeCommand(client *c) {
-    int j;
-    if ((c->flags & CLIENT_DENY_BLOCKING) && !(c->flags & CLIENT_MULTI)) {
-        /**
-         * A client that has CLIENT_DENY_BLOCKING flag on
-         * expect a reply per command and so can not execute subscribe.
-         *
-         * Notice that we have a special treatment for multi because of
-         * backward compatibility
-         */
-        addReplyError(c, "SUBSCRIBE isn't allowed for a DENY BLOCKING client");
-        return;
-    }
-    for (j = 1; j < c->argc; j++)
-        pubsubSubscribeChannel(c,c->argv[j],pubSubType);
-    c->flags |= CLIENT_PUBSUB;
-}
-
-/* UNSUBSCRIBE [channel ...] */
-void unsubscribeCommand(client *c) {
-    if (c->argc == 1) {
-        pubsubUnsubscribeAllChannels(c,1);
-    } else {
-        int j;
-
-        for (j = 1; j < c->argc; j++)
-            pubsubUnsubscribeChannel(c,c->argv[j],1,pubSubType);
-    }
-    if (clientTotalPubSubSubscriptionCount(c) == 0) c->flags &= ~CLIENT_PUBSUB;
-}
-
-/* PSUBSCRIBE pattern [pattern ...] */
-void psubscribeCommand(client *c) {
-    int j;
-    if ((c->flags & CLIENT_DENY_BLOCKING) && !(c->flags & CLIENT_MULTI)) {
-        /**
-         * A client that has CLIENT_DENY_BLOCKING flag on
-         * expect a reply per command and so can not execute subscribe.
-         *
-         * Notice that we have a special treatment for multi because of
-         * backward compatibility
-         */
-        addReplyError(c, "PSUBSCRIBE isn't allowed for a DENY BLOCKING client");
-        return;
-    }
-
-    for (j = 1; j < c->argc; j++)
-        pubsubSubscribePattern(c,c->argv[j]);
-    c->flags |= CLIENT_PUBSUB;
-}
-
-/* PUNSUBSCRIBE [pattern [pattern ...]] */
-void punsubscribeCommand(client *c) {
-    if (c->argc == 1) {
-        pubsubUnsubscribeAllPatterns(c,1);
-    } else {
-        int j;
-
-        for (j = 1; j < c->argc; j++)
-            pubsubUnsubscribePattern(c,c->argv[j],1);
-    }
-    if (clientTotalPubSubSubscriptionCount(c) == 0) c->flags &= ~CLIENT_PUBSUB;
 ```
 
 **逐段阅读抓手：**接收计数是本次协议投递信息；与消费业务成功数不同。
@@ -9925,32 +9240,16 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[pubsub.c · 7.2.6 · L703–L725](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/pubsub.c#L703-L725)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[pubsub.c · 7.2.6 · L702–L708](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/pubsub.c#L702-L708)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* SPUBLISH <shardchannel> <message> */
 void spublishCommand(client *c) {
     int receivers = pubsubPublishMessageAndPropagateToCluster(c->argv[1],c->argv[2],1);
     if (!server.cluster_enabled)
         forceCommandPropagation(c,PROPAGATE_REPL);
     addReplyLongLong(c,receivers);
 }
-
-/* SSUBSCRIBE shardchannel [shardchannel ...] */
-void ssubscribeCommand(client *c) {
-    if (c->flags & CLIENT_DENY_BLOCKING) {
-        /* A client that has CLIENT_DENY_BLOCKING flag on
-         * expect a reply per command and so can not execute subscribe. */
-        addReplyError(c, "SSUBSCRIBE isn't allowed for a DENY BLOCKING client");
-        return;
-    }
-
-    for (int j = 1; j < c->argc; j++) {
-        /* A channel is only considered to be added, if a
-         * subscriber exists for it. And if a subscriber
-         * already exists the slotToChannel doesn't needs
-         * to be incremented. */
-        if (server.cluster_enabled &
-            (dictFind(*pubSubShardType.serverPubSubChannels, c->argv[j]) == NULL)) {
 ```
 
 **逐段阅读抓手：**sharded参数进入pubsubPublishMessage；路径不同不表示消息语义变成Stream。
@@ -9977,9 +9276,10 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[pubsub.c · L306–L352](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/pubsub.c#L306-L352)，连续节选。
+**6.2.14源码：**[pubsub.c · L305–L350](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/pubsub.c#L305-L350)，连续节选。
 
 ```c
+/* Publish a message */
 int pubsubPublishMessage(robj *channel, robj *message) {
     int receivers = 0;
     dictEntry *de;
@@ -10025,36 +9325,18 @@ int pubsubPublishMessage(robj *channel, robj *message) {
     }
     return receivers;
 }
-
-/*-----------------------------------------------------------------------------
 ```
 
-**7.2.6源码：**[pubsub.c · L703–L725](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/pubsub.c#L703-L725)，连续节选。
+**7.2.6源码：**[pubsub.c · L702–L708](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/pubsub.c#L702-L708)，连续节选。
 
 ```c
+/* SPUBLISH <shardchannel> <message> */
 void spublishCommand(client *c) {
     int receivers = pubsubPublishMessageAndPropagateToCluster(c->argv[1],c->argv[2],1);
     if (!server.cluster_enabled)
         forceCommandPropagation(c,PROPAGATE_REPL);
     addReplyLongLong(c,receivers);
 }
-
-/* SSUBSCRIBE shardchannel [shardchannel ...] */
-void ssubscribeCommand(client *c) {
-    if (c->flags & CLIENT_DENY_BLOCKING) {
-        /* A client that has CLIENT_DENY_BLOCKING flag on
-         * expect a reply per command and so can not execute subscribe. */
-        addReplyError(c, "SSUBSCRIBE isn't allowed for a DENY BLOCKING client");
-        return;
-    }
-
-    for (int j = 1; j < c->argc; j++) {
-        /* A channel is only considered to be added, if a
-         * subscriber exists for it. And if a subscriber
-         * already exists the slotToChannel doesn't needs
-         * to be incremented. */
-        if (server.cluster_enabled &
-            (dictFind(*pubSubShardType.serverPubSubChannels, c->argv[j]) == NULL)) {
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -10089,7 +9371,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[stream.h · 7.2.6 · L16–L47](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/stream.h#L16-L47)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[stream.h · 7.2.6 · L16–L46](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/stream.h#L16-L46)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 typedef struct stream {
@@ -10123,7 +9405,6 @@ typedef struct streamIterator {
     unsigned char *lp;      /* Current listpack. */
     unsigned char *lp_ele;  /* Current listpack cursor. */
     unsigned char *lp_flags; /* Current entry flags pointer. */
-    /* Buffers used to hold the string of lpGet() when the element is
 ```
 
 **逐段阅读抓手：**rax节点保存的块与消息字段对不同；先画对象所有权再读迭代器。
@@ -10145,9 +9426,28 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_stream.c · 7.2.6 · L427–L524](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L427-L524)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_stream.c · 7.2.6 · L408–L527](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L408-L527)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Adds a new item into the stream 's' having the specified number of
+ * field-value pairs as specified in 'numfields' and stored into 'argv'.
+ * Returns the new entry ID populating the 'added_id' structure.
+ *
+ * If 'use_id' is not NULL, the ID is not auto-generated by the function,
+ * but instead the passed ID is used to add the new entry. In this case
+ * adding the entry may fail as specified later in this comment.
+ * 
+ * When 'use_id' is used alongside with a zero 'seq-given', the sequence
+ * part of the passed ID is ignored and the function will attempt to use an
+ * auto-generated sequence.
+ *
+ * The function returns C_OK if the item was added, this is always true
+ * if the ID was generated by the function. However the function may return
+ * C_ERR in several cases:
+ * 1. If an ID was given via 'use_id', but adding it failed since the
+ *    current top ID is greater or equal. errno will be set to EDOM.
+ * 2. If a size of a single element or the sum of the elements is too big to
+ *    be stored into the stream. errno will be set to ERANGE. */
 int streamAppendItem(stream *s, robj **argv, int64_t numfields, streamID *added_id, streamID *use_id, int seq_given) {
 
     /* Generate the new entry ID. */
@@ -10246,6 +9546,9 @@ int streamAppendItem(stream *s, robj **argv, int64_t numfields, streamID *added_
      * entry flags will specify this fact and the entry fields and number
      * of fields will be omitted (see later in the code of this function).
      *
+     * The "0" entry at the end is the same as the 'lp-count' entry in the
+     * regular stream entries (see below), and marks the fact that there are
+     * no more entries, when we scan the stream from right to left. */
 ```
 
 **逐段阅读抓手：**auto_id、use_id与seq_given参数表达不同输入；不要只读命令层字符串解析。
@@ -10396,9 +9699,13 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_stream.c · 7.2.6 · L2482–L2504](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L2482-L2504)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_stream.c · 7.2.6 · L2478–L2494](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L2478-L2494)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Create a new consumer group in the context of the stream 's', having the
+ * specified name, last server ID and reads counter. If a consumer group with
+ * the same name already exists NULL is returned, otherwise the pointer to the
+ * consumer group is returned. */
 streamCG *streamCreateCG(stream *s, char *name, size_t namelen, streamID *id, long long entries_read) {
     if (s->cgroups == NULL) s->cgroups = raxNew();
     if (raxFind(s->cgroups,(unsigned char*)name,namelen) != raxNotFound)
@@ -10412,16 +9719,6 @@ streamCG *streamCreateCG(stream *s, char *name, size_t namelen, streamID *id, lo
     raxInsert(s->cgroups,(unsigned char*)name,namelen,cg,NULL);
     return cg;
 }
-
-/* Free a consumer group and all its associated data. */
-void streamFreeCG(streamCG *cg) {
-    raxFreeWithCallback(cg->pel,(void(*)(void*))streamFreeNACK);
-    raxFreeWithCallback(cg->consumers,(void(*)(void*))streamFreeConsumer);
-    zfree(cg);
-}
-
-/* Lookup the consumer group in the specified stream and returns its
- * pointer, otherwise if there is no such group, NULL is returned. */
 ```
 
 **逐段阅读抓手：**Stream消息与PEL记录是不同对象；PEL可引用已被删除的消息ID。
@@ -10443,9 +9740,17 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_stream.c · 7.2.6 · L2820–L2870](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L2820-L2870)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_stream.c · 7.2.6 · L2812–L2867](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L2812-L2867)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* XACK <key> <group> <id> <id> ... <id>
+ * Acknowledge a message as processed. In practical terms we just check the
+ * pending entries list (PEL) of the group, and delete the PEL entry both from
+ * the group and the consumer (pending messages are referenced in both places).
+ *
+ * Return value of the command is the number of messages successfully
+ * acknowledged, that is, the IDs we were actually able to resolve in the PEL.
+ */
 void xackCommand(client *c) {
     streamCG *group = NULL;
     robj *o = lookupKeyRead(c->db,c->argv[1]);
@@ -10494,9 +9799,6 @@ void xackCommand(client *c) {
 cleanup:
     if (ids != static_ids) zfree(ids);
 }
-
-/* XPENDING <key> <group> [[IDLE <idle>] <start> <stop> <count> [<consumer>]]
- *
 ```
 
 **逐段阅读抓手：**返回移除PEL条数；已不存在的ID不会再次计作成功删除。
@@ -10518,9 +9820,25 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_stream.c · 7.2.6 · L3338–L3436](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L3338-L3436)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_stream.c · 7.2.6 · L3322–L3436](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L3322-L3436)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* XAUTOCLAIM <key> <group> <consumer> <min-idle-time> <start> [COUNT <count>] [JUSTID]
+ *
+ * Changes ownership of one or multiple messages in the Pending Entries List
+ * of a given stream consumer group.
+ *
+ * For each PEL entry, if its idle time greater or equal to <min-idle-time>,
+ * then the message new owner becomes the specified <consumer>.
+ * If the minimum idle time specified is zero, messages are claimed
+ * regardless of their idle time.
+ *
+ * This command creates the consumer as side effect if it does not yet
+ * exists. Moreover the command reset the idle time of the message to 0.
+ *
+ * The command returns an array of messages that the user
+ * successfully claimed, so that the caller is able to understand
+ * what messages it is now in charge of. */
 void xautoclaimCommand(client *c) {
     streamCG *group = NULL;
     robj *o = lookupKeyRead(c->db,c->argv[1]);
@@ -10646,9 +9964,25 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[t_stream.c · L3058–L3151](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/t_stream.c#L3058-L3151)，连续节选。
+**6.2.14源码：**[t_stream.c · L3042–L3151](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/t_stream.c#L3042-L3151)，连续节选。
 
 ```c
+/* XAUTOCLAIM <key> <group> <consumer> <min-idle-time> <start> [COUNT <count>] [JUSTID]
+ *
+ * Gets ownership of one or multiple messages in the Pending Entries List
+ * of a given stream consumer group.
+ *
+ * For each PEL entry, if its idle time greater or equal to <min-idle-time>,
+ * then the message new owner becomes the specified <consumer>.
+ * If the minimum idle time specified is zero, messages are claimed
+ * regardless of their idle time.
+ *
+ * This command creates the consumer as side effect if it does not yet
+ * exists. Moreover the command reset the idle time of the message to 0.
+ *
+ * The command returns an array of messages that the user
+ * successfully claimed, so that the caller is able to understand
+ * what messages it is now in charge of. */
 void xautoclaimCommand(client *c) {
     streamCG *group = NULL;
     robj *o = lookupKeyRead(c->db,c->argv[1]);
@@ -10745,9 +10079,25 @@ void xautoclaimCommand(client *c) {
         /* Increment the delivery attempts counter unless JUSTID option provided */
 ```
 
-**7.2.6源码：**[t_stream.c · L3338–L3436](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L3338-L3436)，连续节选。
+**7.2.6源码：**[t_stream.c · L3322–L3436](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L3322-L3436)，连续节选。
 
 ```c
+/* XAUTOCLAIM <key> <group> <consumer> <min-idle-time> <start> [COUNT <count>] [JUSTID]
+ *
+ * Changes ownership of one or multiple messages in the Pending Entries List
+ * of a given stream consumer group.
+ *
+ * For each PEL entry, if its idle time greater or equal to <min-idle-time>,
+ * then the message new owner becomes the specified <consumer>.
+ * If the minimum idle time specified is zero, messages are claimed
+ * regardless of their idle time.
+ *
+ * This command creates the consumer as side effect if it does not yet
+ * exists. Moreover the command reset the idle time of the message to 0.
+ *
+ * The command returns an array of messages that the user
+ * successfully claimed, so that the caller is able to understand
+ * what messages it is now in charge of. */
 void xautoclaimCommand(client *c) {
     streamCG *group = NULL;
     robj *o = lookupKeyRead(c->db,c->argv[1]);
@@ -10925,19 +10275,12 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_string.c · 7.2.6 · L337–L346](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_string.c#L337-L346)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_string.c · 7.2.6 · L337–L339](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_string.c#L337-L339)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void getCommand(client *c) {
     getGenericCommand(c);
 }
-
-/*
- * GETEX <key> [PERSIST][EX seconds][PX milliseconds][EXAT seconds-timestamp][PXAT milliseconds-timestamp]
- *
- * The getexCommand() function implements extended options and variants of the GET command. Unlike GET
- * command this command is not read-only.
- *
 ```
 
 **逐段阅读抓手：**getCommand本身不知道数据库查询、业务版本或回源限流。
@@ -11209,9 +10552,14 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[script.c · 7.2.6 · L513–L545](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L513-L545)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[script.c · 7.2.6 · L508–L544](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L508-L544)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Call a Redis command.
+ * The reply is written to the run_ctx client and it is
+ * up to the engine to take and parse.
+ * The err out variable is set only if error occurs and describe the error.
+ * If err is set on reply is written to the run_ctx client. */
 void scriptCall(scriptRunCtx *run_ctx, sds *err) {
     client *c = run_ctx->c;
 
@@ -11244,7 +10592,6 @@ void scriptCall(scriptRunCtx *run_ctx, sds *err) {
     if (scriptVerifyWriteCommandAllow(run_ctx, err) != C_OK) {
         goto error;
     }
-
 ```
 
 **逐段阅读抓手：**这里引用脚本命令公共执行路径，而非虚构一段上游不存在的锁脚本。
@@ -11266,9 +10613,11 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L3529–L3550](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3529-L3550)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L3527–L3550](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3527-L3550)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* WAIT for N replicas to acknowledge the processing of our latest
+ * write command (and all the previous commands). */
 void waitCommand(client *c) {
     mstime_t timeout;
     long numreplicas, ackreplicas;
@@ -11349,9 +10698,12 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[slowlog.c · 7.2.6 · L123–L175](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/slowlog.c#L123-L175)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[slowlog.c · 7.2.6 · L120–L132](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/slowlog.c#L120-L132)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Push a new entry into the slow log.
+ * This function will make sure to trim the slow log accordingly to the
+ * configured max length. */
 void slowlogPushEntryIfNeeded(client *c, robj **argv, int argc, long long duration) {
     if (server.slowlog_log_slower_than < 0) return; /* Slowlog disabled */
     if (duration >= server.slowlog_log_slower_than)
@@ -11362,49 +10714,6 @@ void slowlogPushEntryIfNeeded(client *c, robj **argv, int argc, long long durati
     while (listLength(server.slowlog) > server.slowlog_max_len)
         listDelNode(server.slowlog,listLast(server.slowlog));
 }
-
-/* Remove all the entries from the current slow log. */
-void slowlogReset(void) {
-    while (listLength(server.slowlog) > 0)
-        listDelNode(server.slowlog,listLast(server.slowlog));
-}
-
-/* The SLOWLOG command. Implements all the subcommands needed to handle the
- * Redis slow log. */
-void slowlogCommand(client *c) {
-    if (c->argc == 2 && !strcasecmp(c->argv[1]->ptr,"help")) {
-        const char *help[] = {
-"GET [<count>]",
-"    Return top <count> entries from the slowlog (default: 10, -1 mean all).",
-"    Entries are made of:",
-"    id, timestamp, time in microseconds, arguments array, client IP and port,",
-"    client name",
-"LEN",
-"    Return the length of the slowlog.",
-"RESET",
-"    Reset the slowlog.",
-NULL
-        };
-        addReplyHelp(c, help);
-    } else if (c->argc == 2 && !strcasecmp(c->argv[1]->ptr,"reset")) {
-        slowlogReset();
-        addReply(c,shared.ok);
-    } else if (c->argc == 2 && !strcasecmp(c->argv[1]->ptr,"len")) {
-        addReplyLongLong(c,listLength(server.slowlog));
-    } else if ((c->argc == 2 || c->argc == 3) &&
-               !strcasecmp(c->argv[1]->ptr,"get"))
-    {
-        long count = 10;
-        listIter li;
-        listNode *ln;
-        slowlogEntry *se;
-
-        if (c->argc == 3) {
-            /* Consume count arg. */
-            if (getRangeLongFromObjectOrReply(c, c->argv[2], -1,
-                    LONG_MAX, &count, "count should be greater than or equal to -1") != C_OK)
-                return;
-
 ```
 
 **逐段阅读抓手：**记录参数也可能包含业务数据；本手册只展示公开源码，不包含真实慢日志。
@@ -11426,9 +10735,28 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[server.c · 7.2.6 · L1260–L1343](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L1260-L1343)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[server.c · 7.2.6 · L1241–L1343](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L1241-L1343)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* This is our timer interrupt, called server.hz times per second.
+ * Here is where we do a number of things that need to be done asynchronously.
+ * For instance:
+ *
+ * - Active expired keys collection (it is also performed in a lazy way on
+ *   lookup).
+ * - Software watchdog.
+ * - Update some statistic.
+ * - Incremental rehashing of the DBs hash tables.
+ * - Triggering BGSAVE / AOF rewrite, and handling of terminated children.
+ * - Clients timeout of different kinds.
+ * - Replication reconnection.
+ * - Many more...
+ *
+ * Everything directly called here will be called server.hz times per second,
+ * so in order to throttle execution of things we want to do less frequently
+ * a macro is used: run_with_period(milliseconds) { .... }
+ */
+
 int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     int j;
     UNUSED(eventLoop);
@@ -11534,9 +10862,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[server.c · 7.2.6 · L6596–L6674](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L6596-L6674)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[server.c · 7.2.6 · L6595–L6664](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L6595-L6664)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* purpose is one of CHILD_TYPE_ types */
 int redisFork(int purpose) {
     if (isMutuallyExclusiveChildType(purpose)) {
         if (hasActiveChildProcess()) {
@@ -11606,16 +10935,6 @@ int redisFork(int purpose) {
     }
     return childpid;
 }
-
-void sendChildCowInfo(childInfoType info_type, char *pname) {
-    sendChildInfoGeneric(info_type, 0, -1, pname);
-}
-
-void sendChildInfo(childInfoType info_type, size_t keys, char *pname) {
-    sendChildInfoGeneric(info_type, keys, -1, pname);
-}
-
-/* Try to release pages back to the OS directly (bypassing the allocator),
 ```
 
 **逐段阅读抓手：**fork耗时不是RDB文件写完耗时；COW值也不是数据集精确大小。
@@ -11651,9 +10970,24 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[server.c · 7.2.6 · L3244–L3279](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L3244-L3279)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[server.c · 7.2.6 · L3229–L3257](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L3229-L3257)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Propagate the specified command (in the context of the specified database id)
+ * to AOF and Slaves.
+ *
+ * flags are an xor between:
+ * + PROPAGATE_NONE (no propagation of command at all)
+ * + PROPAGATE_AOF (propagate into the AOF file if is enabled)
+ * + PROPAGATE_REPL (propagate into the replication link)
+ *
+ * This is an internal low-level function and should not be called!
+ *
+ * The API for propagating commands is alsoPropagate().
+ *
+ * dbid value of -1 is saved to indicate that the called do not want
+ * to replicate SELECT for this command (used for database neutral commands).
+ */
 static void propagateNow(int dbid, robj **argv, int argc, int target) {
     if (!shouldPropagate(target))
         return;
@@ -11668,28 +11002,6 @@ static void propagateNow(int dbid, robj **argv, int argc, int target) {
     if (target & PROPAGATE_REPL)
         replicationFeedSlaves(server.slaves,dbid,argv,argc);
 }
-
-/* Used inside commands to schedule the propagation of additional commands
- * after the current command is propagated to AOF / Replication.
- *
- * dbid is the database ID the command should be propagated into.
- * Arguments of the command to propagate are passed as an array of redis
- * objects pointers of len 'argc', using the 'argv' vector.
- *
- * The function does not take a reference to the passed 'argv' vector,
- * so it is up to the caller to release the passed argv (but it is usually
- * stack allocated).  The function automatically increments ref count of
- * passed objects, so the caller does not need to. */
-void alsoPropagate(int dbid, robj **argv, int argc, int target) {
-    robj **argvcopy;
-    int j;
-
-    if (!shouldPropagate(target))
-        return;
-
-    argvcopy = zmalloc(sizeof(robj*)*argc);
-    for (j = 0; j < argc; j++) {
-        argvcopy[j] = argv[j];
 ```
 
 **逐段阅读抓手：**propagateNow分别向AOF和复制传播；它不是每次都同步等待二者完成。
@@ -11712,9 +11024,17 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-**源码对照：**[t_stream.c · 7.2.6 · L2820–L2853](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L2820-L2853)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_stream.c · 7.2.6 · L2812–L2854](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L2812-L2854)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* XACK <key> <group> <id> <id> ... <id>
+ * Acknowledge a message as processed. In practical terms we just check the
+ * pending entries list (PEL) of the group, and delete the PEL entry both from
+ * the group and the consumer (pending messages are referenced in both places).
+ *
+ * Return value of the command is the number of messages successfully
+ * acknowledged, that is, the IDs we were actually able to resolve in the PEL.
+ */
 void xackCommand(client *c) {
     streamCG *group = NULL;
     robj *o = lookupKeyRead(c->db,c->argv[1]);
@@ -11749,6 +11069,7 @@ void xackCommand(client *c) {
 
         /* Lookup the ID in the group PEL: it will have a reference to the
          * NACK structure that will have a reference to the consumer, so that
+         * we are able to remove the entry from both PELs. */
 ```
 
 **逐段阅读抓手：**XACK只管理PEL；外部业务事实来自应用数据库。
@@ -11770,9 +11091,11 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L3563–L3602](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3563-L3602)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L3561–L3601](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3561-L3601)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* WAIT for N replicas and / or local master to acknowledge our latest
+ * write command got synced to the disk. */
 void waitaofCommand(client *c) {
     mstime_t timeout;
     long numreplicas, numlocal, ackreplicas, acklocal;
@@ -11812,7 +11135,6 @@ void waitaofCommand(client *c) {
      * before returning to the event loop. */
     replicationRequestAckFromSlaves();
 }
-
 ```
 
 **逐段阅读抓手：**不要把所有确认叠加成默认保证；指出是否启用AOF和对应等待命令。

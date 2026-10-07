@@ -1,0 +1,5471 @@
+[
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/String.java",
+    "old": [
+      114,
+      121
+    ],
+    "new": [
+      114,
+      120
+    ],
+    "reasons": []
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/String.java",
+    "old": [
+      165,
+      169
+    ],
+    "new": [
+      156,
+      167
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/String.java",
+    "old": [
+      1465,
+      1480
+    ],
+    "new": [
+      1452,
+      1476
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/String.java",
+    "old": [
+      976,
+      1000
+    ],
+    "new": [
+      961,
+      996
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/AbstractStringBuilder.java",
+    "old": [
+      121,
+      128
+    ],
+    "new": [
+      114,
+      127
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/AbstractStringBuilder.java",
+    "old": [
+      148,
+      158
+    ],
+    "new": [
+      137,
+      157
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/AbstractStringBuilder.java",
+    "old": [
+      444,
+      455
+    ],
+    "new": [
+      426,
+      452
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/String.java",
+    "old": [
+      599,
+      603
+    ],
+    "new": [
+      584,
+      601
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/Integer.java",
+    "old": [
+      829,
+      834
+    ],
+    "new": [
+      814,
+      833
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/Integer.java",
+    "old": [
+      973,
+      980
+    ],
+    "new": [
+      963,
+      978
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/ArrayList.java",
+    "old": [
+      463,
+      468
+    ],
+    "new": [
+      457,
+      467
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/ArrayList.java",
+    "old": [
+      258,
+      270
+    ],
+    "new": [
+      252,
+      268
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/ArrayList.java",
+    "old": [
+      497,
+      511
+    ],
+    "new": [
+      488,
+      510
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/ArrayList.java",
+    "old": [
+      860,
+      873
+    ],
+    "new": [
+      860,
+      870
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/ArrayList.java",
+    "old": [
+      1026,
+      1035
+    ],
+    "new": [
+      1026,
+      1033
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/ArrayList.java",
+    "old": [
+      559,
+      567
+    ],
+    "new": [
+      555,
+      567
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/LinkedList.java",
+    "old": [
+      140,
+      151
+    ],
+    "new": [
+      137,
+      150
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/LinkedList.java",
+    "old": [
+      566,
+      581
+    ],
+    "new": [
+      563,
+      580
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/LinkedList.java",
+    "old": [
+      209,
+      238
+    ],
+    "new": [
+      206,
+      233
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/LinkedList.java",
+    "old": [
+      758,
+      762
+    ],
+    "new": [
+      750,
+      761
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      448,
+      460
+    ],
+    "new": [
+      439,
+      459
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      379,
+      389
+    ],
+    "new": [
+      376,
+      387
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      338,
+      341
+    ],
+    "new": [
+      322,
+      341
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      626,
+      659
+    ],
+    "new": [
+      616,
+      659
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      626,
+      672
+    ],
+    "new": [
+      616,
+      667
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      568,
+      593
+    ],
+    "new": [
+      561,
+      586
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      678,
+      706
+    ],
+    "new": [
+      669,
+      706
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      756,
+      775
+    ],
+    "new": [
+      752,
+      775
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      2162,
+      2207
+    ],
+    "new": [
+      2152,
+      2207
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      1882,
+      1908
+    ],
+    "new": [
+      1877,
+      1907
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      1923,
+      1931
+    ],
+    "new": [
+      1916,
+      1931
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      814,
+      856
+    ],
+    "new": [
+      804,
+      853
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      2054,
+      2079
+    ],
+    "new": [
+      2044,
+      2079
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashSet.java",
+    "old": [
+      219,
+      222
+    ],
+    "new": [
+      207,
+      221
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashSet.java",
+    "old": [
+      235,
+      238
+    ],
+    "new": [
+      223,
+      237
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/LinkedHashMap.java",
+    "old": [
+      305,
+      332
+    ],
+    "new": [
+      305,
+      328
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/LinkedHashMap.java",
+    "old": [
+      297,
+      304
+    ],
+    "new": [
+      297,
+      303
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/LinkedHashMap.java",
+    "old": [
+      283,
+      296
+    ],
+    "new": [
+      283,
+      295
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/TreeMap.java",
+    "old": [
+      535,
+      568
+    ],
+    "new": [
+      517,
+      568
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/TreeMap.java",
+    "old": [
+      2257,
+      2291
+    ],
+    "new": [
+      2256,
+      2291
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/PriorityQueue.java",
+    "old": [
+      651,
+      663
+    ],
+    "new": [
+      651,
+      662
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/PriorityQueue.java",
+    "old": [
+      586,
+      601
+    ],
+    "new": [
+      586,
+      597
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/PriorityQueue.java",
+    "old": [
+      693,
+      713
+    ],
+    "new": [
+      693,
+      709
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2223,
+      2245
+    ],
+    "new": [
+      2220,
+      2244
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      594,
+      598
+    ],
+    "new": [
+      594,
+      597
+    ],
+    "reasons": []
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      754,
+      765
+    ],
+    "new": [
+      754,
+      756
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      1010,
+      1072
+    ],
+    "new": [
+      1009,
+      1072
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      934,
+      959
+    ],
+    "new": [
+      923,
+      952
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2365,
+      2394
+    ],
+    "new": [
+      2361,
+      2394
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2295,
+      2318
+    ],
+    "new": [
+      2292,
+      2313
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      1643,
+      1675
+    ],
+    "new": [
+      1621,
+      1675
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2256,
+      2282
+    ],
+    "new": [
+      2246,
+      2282
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2223,
+      2244
+    ],
+    "new": [
+      2220,
+      2244
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2834,
+      2865
+    ],
+    "new": [
+      2829,
+      2861
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java",
+    "old": [
+      434,
+      448
+    ],
+    "new": [
+      428,
+      447
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java",
+    "old": [
+      1081,
+      1084
+    ],
+    "new": [
+      1071,
+      1083
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java",
+    "old": [
+      612,
+      616
+    ],
+    "new": [
+      606,
+      616
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java",
+    "old": [
+      326,
+      353
+    ],
+    "new": [
+      319,
+      353
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java",
+    "old": [
+      356,
+      382
+    ],
+    "new": [
+      356,
+      379
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java",
+    "old": [
+      304,
+      308
+    ],
+    "new": [
+      300,
+      307
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      161,
+      173
+    ],
+    "new": [
+      153,
+      173
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      329,
+      339
+    ],
+    "new": [
+      329,
+      337
+    ],
+    "reasons": [
+      "remove dangling next comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      239,
+      244
+    ],
+    "new": [
+      228,
+      244
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      194,
+      205
+    ],
+    "new": [
+      188,
+      205
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      253,
+      256
+    ],
+    "new": [
+      246,
+      255
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      434,
+      443
+    ],
+    "new": [
+      424,
+      441
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      452,
+      470
+    ],
+    "new": [
+      443,
+      467
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      610,
+      644
+    ],
+    "new": [
+      599,
+      644
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      670,
+      686
+    ],
+    "new": [
+      646,
+      684
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      475,
+      508
+    ],
+    "new": [
+      469,
+      506
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      541,
+      616
+    ],
+    "new": [
+      526,
+      597
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      691,
+      739
+    ],
+    "new": [
+      686,
+      739
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/atomic/AtomicInteger.java",
+    "old": [
+      185,
+      188
+    ],
+    "new": [
+      180,
+      187
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/atomic/AtomicInteger.java",
+    "old": [
+      237,
+      246
+    ],
+    "new": [
+      227,
+      244
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/sun/misc/Unsafe.java",
+    "old": [
+      1031,
+      1037
+    ],
+    "new": [
+      1020,
+      1037
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/atomic/AtomicInteger.java",
+    "old": [
+      132,
+      135
+    ],
+    "new": [
+      123,
+      134
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/atomic/LongAdder.java",
+    "old": [
+      84,
+      99
+    ],
+    "new": [
+      79,
+      93
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/atomic/LongAdder.java",
+    "old": [
+      118,
+      129
+    ],
+    "new": [
+      109,
+      128
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/atomic/Striped64.java",
+    "old": [
+      214,
+      242
+    ],
+    "new": [
+      202,
+      242
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/LockSupport.java",
+    "old": [
+      139,
+      142
+    ],
+    "new": [
+      128,
+      142
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/LockSupport.java",
+    "old": [
+      172,
+      178
+    ],
+    "new": [
+      144,
+      177
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/LockSupport.java",
+    "old": [
+      211,
+      219
+    ],
+    "new": [
+      179,
+      218
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      1197,
+      1201
+    ],
+    "new": [
+      1185,
+      1201
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      857,
+      882
+    ],
+    "new": [
+      849,
+      877
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      795,
+      818
+    ],
+    "new": [
+      786,
+      818
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      583,
+      601
+    ],
+    "new": [
+      578,
+      597
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      638,
+      663
+    ],
+    "new": [
+      633,
+      663
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CountDownLatch.java",
+    "old": [
+      172,
+      175
+    ],
+    "new": [
+      172,
+      174
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CountDownLatch.java",
+    "old": [
+      176,
+      188
+    ],
+    "new": [
+      176,
+      186
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/Semaphore.java",
+    "old": [
+      177,
+      186
+    ],
+    "new": [
+      177,
+      185
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      670,
+      695
+    ],
+    "new": [
+      665,
+      695
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      2032,
+      2063
+    ],
+    "new": [
+      2019,
+      2049
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      1670,
+      1693
+    ],
+    "new": [
+      1663,
+      1688
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      1937,
+      1945
+    ],
+    "new": [
+      1929,
+      1943
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      1719,
+      1735
+    ],
+    "new": [
+      1713,
+      1733
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java",
+    "old": [
+      129,
+      151
+    ],
+    "new": [
+      125,
+      146
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java",
+    "old": [
+      148,
+      161
+    ],
+    "new": [
+      148,
+      159
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java",
+    "old": [
+      364,
+      367
+    ],
+    "new": [
+      338,
+      366
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java",
+    "old": [
+      262,
+      273
+    ],
+    "new": [
+      262,
+      270
+    ],
+    "reasons": [
+      "remove dangling next comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java",
+    "old": [
+      347,
+      359
+    ],
+    "new": [
+      340,
+      358
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java",
+    "old": [
+      172,
+      191
+    ],
+    "new": [
+      168,
+      186
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java",
+    "old": [
+      157,
+      165
+    ],
+    "new": [
+      153,
+      165
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java",
+    "old": [
+      398,
+      410
+    ],
+    "new": [
+      398,
+      408
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java",
+    "old": [
+      331,
+      359
+    ],
+    "new": [
+      324,
+      359
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java",
+    "old": [
+      209,
+      217
+    ],
+    "new": [
+      204,
+      217
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java",
+    "old": [
+      434,
+      460
+    ],
+    "new": [
+      434,
+      454
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/SynchronousQueue.java",
+    "old": [
+      864,
+      867
+    ],
+    "new": [
+      858,
+      866
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/SynchronousQueue.java",
+    "old": [
+      875,
+      881
+    ],
+    "new": [
+      868,
+      881
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/SynchronousQueue.java",
+    "old": [
+      911,
+      915
+    ],
+    "new": [
+      902,
+      914
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/DelayQueue.java",
+    "old": [
+      204,
+      234
+    ],
+    "new": [
+      197,
+      234
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/DelayQueue.java",
+    "old": [
+      136,
+      148
+    ],
+    "new": [
+      129,
+      148
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      1342,
+      1384
+    ],
+    "new": [
+      1328,
+      1380
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      901,
+      930
+    ],
+    "new": [
+      875,
+      930
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      829,
+      832
+    ],
+    "new": [
+      825,
+      831
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      1127,
+      1169
+    ],
+    "new": [
+      1084,
+      1169
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      1046,
+      1082
+    ],
+    "new": [
+      1029,
+      1082
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      975,
+      987
+    ],
+    "new": [
+      968,
+      986
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      1001,
+      1039
+    ],
+    "new": [
+      988,
+      1027
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      1393,
+      1411
+    ],
+    "new": [
+      1382,
+      1405
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      1424,
+      1443
+    ],
+    "new": [
+      1407,
+      1438
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/FutureTask.java",
+    "old": [
+      229,
+      236
+    ],
+    "new": [
+      220,
+      235
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/FutureTask.java",
+    "old": [
+      396,
+      438
+    ],
+    "new": [
+      389,
+      431
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/FutureTask.java",
+    "old": [
+      164,
+      187
+    ],
+    "new": [
+      164,
+      183
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CompletableFuture.java",
+    "old": [
+      1614,
+      1623
+    ],
+    "new": [
+      1614,
+      1620
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CompletableFuture.java",
+    "old": [
+      1994,
+      1998
+    ],
+    "new": [
+      1994,
+      1997
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CompletableFuture.java",
+    "old": [
+      470,
+      499
+    ],
+    "new": [
+      466,
+      491
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CompletableFuture.java",
+    "old": [
+      981,
+      1014
+    ],
+    "new": [
+      981,
+      1013
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CompletableFuture.java",
+    "old": [
+      2275,
+      2281
+    ],
+    "new": [
+      2262,
+      2280
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java",
+    "old": [
+      270,
+      277
+    ],
+    "new": [
+      267,
+      276
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java",
+    "old": [
+      288,
+      304
+    ],
+    "new": [
+      285,
+      298
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java",
+    "old": [
+      324,
+      339
+    ],
+    "new": [
+      313,
+      336
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java",
+    "old": [
+      239,
+      262
+    ],
+    "new": [
+      239,
+      256
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/Thread.java",
+    "old": [
+      701,
+      731
+    ],
+    "new": [
+      683,
+      731
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/Thread.java",
+    "old": [
+      748,
+      753
+    ],
+    "new": [
+      748,
+      752
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/Thread.java",
+    "old": [
+      919,
+      948
+    ],
+    "new": [
+      880,
+      932
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/Thread.java",
+    "old": [
+      951,
+      953
+    ],
+    "new": [
+      934,
+      953
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/Thread.java",
+    "old": [
+      968,
+      970
+    ],
+    "new": [
+      955,
+      970
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/nio/Buffer.java",
+    "old": [
+      328,
+      333
+    ],
+    "new": [
+      311,
+      333
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/nio/Buffer.java",
+    "old": [
+      356,
+      361
+    ],
+    "new": [
+      335,
+      361
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/nio/Buffer.java",
+    "old": [
+      378,
+      382
+    ],
+    "new": [
+      363,
+      382
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/nio/Direct-X-Buffer.java.template",
+    "old": [
+      89,
+      100
+    ],
+    "new": [
+      89,
+      97
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/nio/Bits.java",
+    "old": [
+      644,
+      671
+    ],
+    "new": [
+      641,
+      671
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/stream/AbstractPipeline.java",
+    "old": [
+      226,
+      243
+    ],
+    "new": [
+      219,
+      235
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/stream/AbstractPipeline.java",
+    "old": [
+      477,
+      491
+    ],
+    "new": [
+      477,
+      488
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/stream/AbstractPipeline.java",
+    "old": [
+      514,
+      526
+    ],
+    "new": [
+      514,
+      521
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ForkJoinPool.java",
+    "old": [
+      2399,
+      2424
+    ],
+    "new": [
+      2391,
+      2420
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ForkJoinPool.java",
+    "old": [
+      859,
+      881
+    ],
+    "new": [
+      852,
+      873
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ForkJoinPool.java",
+    "old": [
+      944,
+      966
+    ],
+    "new": [
+      941,
+      961
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/reflect/Proxy.java",
+    "old": [
+      557,
+      586
+    ],
+    "new": [
+      557,
+      583
+    ],
+    "reasons": [
+      "remove dangling next comment"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ClassLoader.java",
+    "old": [
+      395,
+      428
+    ],
+    "new": [
+      354,
+      428
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ClassLoader.java",
+    "old": [
+      453,
+      461
+    ],
+    "new": [
+      433,
+      461
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/Executors.java",
+    "old": [
+      88,
+      93
+    ],
+    "new": [
+      73,
+      92
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/Executors.java",
+    "old": [
+      215,
+      219
+    ],
+    "new": [
+      199,
+      219
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/AbstractExecutorService.java",
+    "old": [
+      131,
+      137
+    ],
+    "new": [
+      127,
+      136
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java",
+    "old": [
+      877,
+      904
+    ],
+    "new": [
+      877,
+      890
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      268,
+      280
+    ],
+    "new": [
+      268,
+      273
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java",
+    "old": [
+      139,
+      153
+    ],
+    "new": [
+      139,
+      144
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java",
+    "old": [
+      877,
+      904
+    ],
+    "new": [
+      877,
+      890
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/offset/ConsumerOffsetManager.java",
+    "old": [
+      198,
+      222
+    ],
+    "new": [
+      198,
+      203
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java",
+    "old": [
+      212,
+      266
+    ],
+    "new": [
+      212,
+      224
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java",
+    "old": [
+      700,
+      746
+    ],
+    "new": [
+      700,
+      745
+    ],
+    "reasons": []
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java",
+    "old": [
+      1094,
+      1146
+    ],
+    "new": [
+      1094,
+      1145
+    ],
+    "reasons": []
+  },
+  {
+    "book": "rocketmq",
+    "file": "remoting/src/main/java/org/apache/rocketmq/remoting/netty/NettyRemotingAbstract.java",
+    "old": [
+      342,
+      391
+    ],
+    "new": [
+      336,
+      391
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/latency/MQFaultStrategy.java",
+    "old": [
+      137,
+      179
+    ],
+    "new": [
+      137,
+      162
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "remoting/src/main/java/org/apache/rocketmq/remoting/protocol/RemotingCommand.java",
+    "old": [
+      387,
+      420
+    ],
+    "new": [
+      387,
+      419
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "remoting/src/main/java/org/apache/rocketmq/remoting/netty/NettyRemotingAbstract.java",
+    "old": [
+      468,
+      490
+    ],
+    "new": [
+      462,
+      485
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "remoting/src/main/java/org/apache/rocketmq/remoting/netty/ResponseFuture.java",
+    "old": [
+      62,
+      91
+    ],
+    "new": [
+      62,
+      80
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      1064,
+      1092
+    ],
+    "new": [
+      1064,
+      1091
+    ],
+    "reasons": []
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      676,
+      731
+    ],
+    "new": [
+      676,
+      730
+    ],
+    "reasons": []
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java",
+    "old": [
+      351,
+      412
+    ],
+    "new": [
+      351,
+      408
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java",
+    "old": [
+      548,
+      598
+    ],
+    "new": [
+      548,
+      573
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java",
+    "old": [
+      512,
+      546
+    ],
+    "new": [
+      512,
+      545
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/MappedFile.java",
+    "old": [
+      315,
+      347
+    ],
+    "new": [
+      315,
+      336
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java",
+    "old": [
+      548,
+      580
+    ],
+    "new": [
+      548,
+      573
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      1317,
+      1355
+    ],
+    "new": [
+      1317,
+      1336
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      1342,
+      1360
+    ],
+    "new": [
+      1342,
+      1357
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      2529,
+      2610
+    ],
+    "new": [
+      2529,
+      2607
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java",
+    "old": [
+      797,
+      863
+    ],
+    "new": [
+      797,
+      860
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/queue/RocksDBConsumeQueueStore.java",
+    "old": [
+      233,
+      268
+    ],
+    "new": [
+      233,
+      256
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      1235,
+      1258
+    ],
+    "new": [
+      1235,
+      1253
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      268,
+      277
+    ],
+    "new": [
+      268,
+      273
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/index/IndexFile.java",
+    "old": [
+      116,
+      175
+    ],
+    "new": [
+      116,
+      174
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/index/IndexFile.java",
+    "old": [
+      204,
+      260
+    ],
+    "new": [
+      204,
+      259
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      1307,
+      1361
+    ],
+    "new": [
+      1307,
+      1354
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/PullMessageProcessor.java",
+    "old": [
+      302,
+      369
+    ],
+    "new": [
+      302,
+      368
+    ],
+    "reasons": []
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      808,
+      879
+    ],
+    "new": [
+      808,
+      811
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/longpolling/PullRequestHoldService.java",
+    "old": [
+      45,
+      64
+    ],
+    "new": [
+      45,
+      58
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java",
+    "old": [
+      268,
+      346
+    ],
+    "new": [
+      268,
+      345
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java",
+    "old": [
+      428,
+      504
+    ],
+    "new": [
+      428,
+      503
+    ],
+    "reasons": []
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java",
+    "old": [
+      129,
+      186
+    ],
+    "new": [
+      129,
+      168
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java",
+    "old": [
+      353,
+      409
+    ],
+    "new": [
+      353,
+      408
+    ],
+    "reasons": []
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java",
+    "old": [
+      187,
+      225
+    ],
+    "new": [
+      187,
+      223
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java",
+    "old": [
+      187,
+      247
+    ],
+    "new": [
+      187,
+      223
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java",
+    "old": [
+      351,
+      394
+    ],
+    "new": [
+      351,
+      358
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/offset/ConsumerOrderInfoManager.java",
+    "old": [
+      143,
+      185
+    ],
+    "new": [
+      143,
+      160
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java",
+    "old": [
+      59,
+      83
+    ],
+    "new": [
+      59,
+      74
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java",
+    "old": [
+      122,
+      159
+    ],
+    "new": [
+      122,
+      155
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/consumer/store/LocalFileOffsetStore.java",
+    "old": [
+      140,
+      172
+    ],
+    "new": [
+      140,
+      170
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java",
+    "old": [
+      759,
+      787
+    ],
+    "new": [
+      759,
+      785
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/AbstractSendMessageProcessor.java",
+    "old": [
+      92,
+      164
+    ],
+    "new": [
+      92,
+      163
+    ],
+    "reasons": []
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/filter/ExpressionMessageFilter.java",
+    "old": [
+      117,
+      161
+    ],
+    "new": [
+      117,
+      159
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageBridge.java",
+    "old": [
+      219,
+      240
+    ],
+    "new": [
+      219,
+      233
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/EndTransactionProcessor.java",
+    "old": [
+      130,
+      193
+    ],
+    "new": [
+      130,
+      189
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageBridge.java",
+    "old": [
+      203,
+      224
+    ],
+    "new": [
+      203,
+      213
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageBridge.java",
+    "old": [
+      219,
+      240
+    ],
+    "new": [
+      219,
+      233
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/schedule/ScheduleMessageService.java",
+    "old": [
+      334,
+      371
+    ],
+    "new": [
+      334,
+      364
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java",
+    "old": [
+      830,
+      873
+    ],
+    "new": [
+      830,
+      871
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java",
+    "old": [
+      1238,
+      1275
+    ],
+    "new": [
+      1238,
+      1267
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java",
+    "old": [
+      830,
+      873
+    ],
+    "new": [
+      830,
+      871
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAService.java",
+    "old": [
+      68,
+      110
+    ],
+    "new": [
+      68,
+      76
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAClient.java",
+    "old": [
+      184,
+      245
+    ],
+    "new": [
+      184,
+      229
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/controller/ReplicasManager.java",
+    "old": [
+      137,
+      182
+    ],
+    "new": [
+      137,
+      161
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/ha/autoswitch/AutoSwitchHAService.java",
+    "old": [
+      115,
+      165
+    ],
+    "new": [
+      115,
+      162
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/controller/ReplicasManager.java",
+    "old": [
+      237,
+      287
+    ],
+    "new": [
+      237,
+      279
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java",
+    "old": [
+      109,
+      151
+    ],
+    "new": [
+      109,
+      111
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java",
+    "old": [
+      178,
+      217
+    ],
+    "new": [
+      178,
+      195
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java",
+    "old": [
+      109,
+      151
+    ],
+    "new": [
+      109,
+      111
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/PopReviveService.java",
+    "old": [
+      469,
+      526
+    ],
+    "new": [
+      469,
+      524
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/PopReviveService.java",
+    "old": [
+      526,
+      579
+    ],
+    "new": [
+      526,
+      576
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java",
+    "old": [
+      191,
+      232
+    ],
+    "new": [
+      191,
+      224
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java",
+    "old": [
+      951,
+      983
+    ],
+    "new": [
+      951,
+      982
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerService.java",
+    "old": [
+      436,
+      484
+    ],
+    "new": [
+      435,
+      455
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerRocksdbStore.java",
+    "old": [
+      140,
+      160
+    ],
+    "new": [
+      140,
+      157
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "common/src/main/java/org/apache/rocketmq/common/consumer/ReceiptHandle.java",
+    "old": [
+      43,
+      81
+    ],
+    "new": [
+      43,
+      47
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java",
+    "old": [
+      384,
+      417
+    ],
+    "new": [
+      384,
+      416
+    ],
+    "reasons": []
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      361,
+      386
+    ],
+    "new": [
+      361,
+      379
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      233,
+      254
+    ],
+    "new": [
+      233,
+      240
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      1574,
+      1597
+    ],
+    "new": [
+      1574,
+      1576
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java",
+    "old": [
+      306,
+      314
+    ],
+    "new": [
+      306,
+      310
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java",
+    "old": [
+      298,
+      306
+    ],
+    "new": [
+      298,
+      302
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java",
+    "old": [
+      306,
+      314
+    ],
+    "new": [
+      306,
+      310
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java",
+    "old": [
+      1296,
+      1307
+    ],
+    "new": [
+      1296,
+      1306
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ProcessQueue.java",
+    "old": [
+      432,
+      462
+    ],
+    "new": [
+      432,
+      460
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerService.java",
+    "old": [
+      490,
+      506
+    ],
+    "new": [
+      490,
+      504
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/networking.c",
+    "old": [
+      4173,
+      4238
+    ],
+    "new": [
+      4173,
+      4217
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/networking.c",
+    "old": [
+      3769,
+      3816
+    ],
+    "new": [
+      3763,
+      3815
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/networking.c",
+    "old": [
+      4443,
+      4494
+    ],
+    "new": [
+      4431,
+      4493
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/ae.c",
+    "old": [
+      361,
+      429
+    ],
+    "new": [
+      346,
+      434
+    ],
+    "reasons": [
+      "include current documentation",
+      "complete internal comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/server.c",
+    "old": [
+      3833,
+      3913
+    ],
+    "new": [
+      3825,
+      3913
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/server.c",
+    "old": [
+      3473,
+      3568
+    ],
+    "new": [
+      3438,
+      3570
+    ],
+    "reasons": [
+      "include current documentation",
+      "complete internal comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/networking.c",
+    "old": [
+      2253,
+      2326
+    ],
+    "new": [
+      2242,
+      2326
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/networking.c",
+    "old": [
+      2520,
+      2595
+    ],
+    "new": [
+      2515,
+      2595
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/networking.c",
+    "old": [
+      1939,
+      2012
+    ],
+    "new": [
+      1931,
+      2011
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/server.h",
+    "old": [
+      900,
+      915
+    ],
+    "new": [
+      900,
+      913
+    ],
+    "reasons": [
+      "remove dangling next comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/object.c",
+    "old": [
+      92,
+      130
+    ],
+    "new": [
+      89,
+      114
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/object.c",
+    "old": [
+      635,
+      704
+    ],
+    "new": [
+      634,
+      704
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/object.c",
+    "old": [
+      438,
+      497
+    ],
+    "new": [
+      437,
+      497
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/object.c",
+    "old": [
+      635,
+      694
+    ],
+    "new": [
+      634,
+      694
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/sds.c",
+    "old": [
+      104,
+      179
+    ],
+    "new": [
+      91,
+      167
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/sds.c",
+    "old": [
+      240,
+      311
+    ],
+    "new": [
+      228,
+      291
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/dict.h",
+    "old": [
+      84,
+      103
+    ],
+    "new": [
+      84,
+      99
+    ],
+    "reasons": [
+      "remove dangling next comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/dict.c",
+    "old": [
+      451,
+      513
+    ],
+    "new": [
+      433,
+      461
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/dict.c",
+    "old": [
+      295,
+      374
+    ],
+    "new": [
+      286,
+      374
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/dict.h",
+    "old": [
+      84,
+      103
+    ],
+    "new": [
+      84,
+      99
+    ],
+    "reasons": [
+      "remove dangling next comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/dict.c",
+    "old": [
+      668,
+      702
+    ],
+    "new": [
+      668,
+      688
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/dict.c",
+    "old": [
+      1284,
+      1359
+    ],
+    "new": [
+      1200,
+      1290
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/db.c",
+    "old": [
+      955,
+      1031
+    ],
+    "new": [
+      944,
+      1031
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/db.c",
+    "old": [
+      785,
+      815
+    ],
+    "new": [
+      785,
+      811
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/listpack.c",
+    "old": [
+      347,
+      404
+    ],
+    "new": [
+      342,
+      382
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/listpack.c",
+    "old": [
+      780,
+      866
+    ],
+    "new": [
+      752,
+      866
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/listpack.c",
+    "old": [
+      1238,
+      1285
+    ],
+    "new": [
+      1233,
+      1280
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/ziplist.c",
+    "old": [
+      751,
+      833
+    ],
+    "new": [
+      731,
+      833
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/listpack.c",
+    "old": [
+      347,
+      404
+    ],
+    "new": [
+      342,
+      382
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/quicklist.c",
+    "old": [
+      570,
+      627
+    ],
+    "new": [
+      566,
+      592
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/blocked.c",
+    "old": [
+      368,
+      431
+    ],
+    "new": [
+      361,
+      419
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/quicklist.c",
+    "old": [
+      492,
+      540
+    ],
+    "new": [
+      488,
+      510
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/quicklist.c",
+    "old": [
+      570,
+      627
+    ],
+    "new": [
+      566,
+      592
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_hash.c",
+    "old": [
+      200,
+      284
+    ],
+    "new": [
+      200,
+      271
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_hash.c",
+    "old": [
+      40,
+      83
+    ],
+    "new": [
+      37,
+      68
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_hash.c",
+    "old": [
+      455,
+      521
+    ],
+    "new": [
+      455,
+      493
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_set.c",
+    "old": [
+      46,
+      68
+    ],
+    "new": [
+      40,
+      57
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/intset.c",
+    "old": [
+      206,
+      250
+    ],
+    "new": [
+      205,
+      233
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/intset.c",
+    "old": [
+      159,
+      200
+    ],
+    "new": [
+      158,
+      182
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_set.c",
+    "old": [
+      42,
+      55
+    ],
+    "new": [
+      39,
+      46
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_set.c",
+    "old": [
+      46,
+      67
+    ],
+    "new": [
+      40,
+      57
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/intset.c",
+    "old": [
+      159,
+      197
+    ],
+    "new": [
+      158,
+      182
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_zset.c",
+    "old": [
+      1363,
+      1457
+    ],
+    "new": [
+      1318,
+      1457
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_zset.c",
+    "old": [
+      135,
+      229
+    ],
+    "new": [
+      132,
+      190
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_zset.c",
+    "old": [
+      478,
+      507
+    ],
+    "new": [
+      474,
+      499
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/bitops.c",
+    "old": [
+      532,
+      585
+    ],
+    "new": [
+      531,
+      576
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/hyperloglog.c",
+    "old": [
+      1063,
+      1086
+    ],
+    "new": [
+      1062,
+      1070
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/geo.c",
+    "old": [
+      445,
+      514
+    ],
+    "new": [
+      444,
+      503
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/db.c",
+    "old": [
+      151,
+      196
+    ],
+    "new": [
+      142,
+      154
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_string.c",
+    "old": [
+      84,
+      172
+    ],
+    "new": [
+      84,
+      150
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/db.c",
+    "old": [
+      603,
+      617
+    ],
+    "new": [
+      601,
+      606
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/db.c",
+    "old": [
+      1653,
+      1683
+    ],
+    "new": [
+      1649,
+      1665
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/db.c",
+    "old": [
+      1775,
+      1838
+    ],
+    "new": [
+      1746,
+      1818
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/evict.c",
+    "old": [
+      538,
+      633
+    ],
+    "new": [
+      514,
+      633
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/evict.c",
+    "old": [
+      146,
+      230
+    ],
+    "new": [
+      137,
+      230
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/evict.c",
+    "old": [
+      319,
+      347
+    ],
+    "new": [
+      309,
+      326
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/db.c",
+    "old": [
+      357,
+      417
+    ],
+    "new": [
+      356,
+      388
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/lazyfree.c",
+    "old": [
+      160,
+      187
+    ],
+    "new": [
+      159,
+      172
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/zmalloc.c",
+    "old": [
+      365,
+      392
+    ],
+    "new": [
+      365,
+      381
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/multi.c",
+    "old": [
+      60,
+      99
+    ],
+    "new": [
+      59,
+      96
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/multi.c",
+    "old": [
+      300,
+      342
+    ],
+    "new": [
+      299,
+      329
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/eval.c",
+    "old": [
+      472,
+      554
+    ],
+    "new": [
+      472,
+      539
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/script.c",
+    "old": [
+      513,
+      578
+    ],
+    "new": [
+      508,
+      573
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/functions.c",
+    "old": [
+      621,
+      691
+    ],
+    "new": [
+      621,
+      658
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/scripting.c",
+    "old": [
+      1002,
+      1016
+    ],
+    "new": [
+      996,
+      1014
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/script.c",
+    "old": [
+      513,
+      562
+    ],
+    "new": [
+      508,
+      562
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/script.c",
+    "old": [
+      287,
+      327
+    ],
+    "new": [
+      286,
+      317
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/rdb.c",
+    "old": [
+      1376,
+      1465
+    ],
+    "new": [
+      1368,
+      1414
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/rdb.c",
+    "old": [
+      1559,
+      1619
+    ],
+    "new": [
+      1559,
+      1593
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/rdb.c",
+    "old": [
+      3010,
+      3105
+    ],
+    "new": [
+      3008,
+      3015
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      1322,
+      1387
+    ],
+    "new": [
+      1314,
+      1361
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      1066,
+      1163
+    ],
+    "new": [
+      1065,
+      1163
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      600,
+      670
+    ],
+    "new": [
+      599,
+      610
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      2427,
+      2514
+    ],
+    "new": [
+      2413,
+      2495
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      1651,
+      1737
+    ],
+    "new": [
+      1650,
+      1737
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      1851,
+      1939
+    ],
+    "new": [
+      1849,
+      1939
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      2427,
+      2505
+    ],
+    "new": [
+      2413,
+      2495
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      527,
+      597
+    ],
+    "new": [
+      526,
+      597
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      740,
+      825
+    ],
+    "new": [
+      735,
+      825
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      937,
+      1033
+    ],
+    "new": [
+      936,
+      1032
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      331,
+      421
+    ],
+    "new": [
+      326,
+      420
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      159,
+      189
+    ],
+    "new": [
+      155,
+      182
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      331,
+      412
+    ],
+    "new": [
+      326,
+      412
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      3529,
+      3560
+    ],
+    "new": [
+      3527,
+      3559
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      3563,
+      3610
+    ],
+    "new": [
+      3561,
+      3601
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      3495,
+      3510
+    ],
+    "new": [
+      3493,
+      3508
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      3189,
+      3218
+    ],
+    "new": [
+      3187,
+      3218
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      3563,
+      3610
+    ],
+    "new": [
+      3561,
+      3601
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/sentinel.c",
+    "old": [
+      4611,
+      4655
+    ],
+    "new": [
+      4605,
+      4644
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/sentinel.c",
+    "old": [
+      4805,
+      4889
+    ],
+    "new": [
+      4799,
+      4868
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/sentinel.c",
+    "old": [
+      5331,
+      5369
+    ],
+    "new": [
+      5331,
+      5353
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/sentinel.c",
+    "old": [
+      4471,
+      4541
+    ],
+    "new": [
+      4465,
+      4534
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/sentinel.c",
+    "old": [
+      4805,
+      4875
+    ],
+    "new": [
+      4799,
+      4868
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/sentinel.c",
+    "old": [
+      5062,
+      5107
+    ],
+    "new": [
+      5062,
+      5105
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      1352,
+      1375
+    ],
+    "new": [
+      1346,
+      1371
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      7239,
+      7333
+    ],
+    "new": [
+      7207,
+      7333
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      7458,
+      7513
+    ],
+    "new": [
+      7451,
+      7484
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      752,
+      775
+    ],
+    "new": [
+      746,
+      771
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      1352,
+      1375
+    ],
+    "new": [
+      1346,
+      1371
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      1956,
+      2016
+    ],
+    "new": [
+      1935,
+      1983
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      4183,
+      4279
+    ],
+    "new": [
+      4175,
+      4281
+    ],
+    "reasons": [
+      "include current documentation",
+      "complete internal comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/pubsub.c",
+    "old": [
+      246,
+      288
+    ],
+    "new": [
+      244,
+      269
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/pubsub.c",
+    "old": [
+      525,
+      595
+    ],
+    "new": [
+      524,
+      527
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/pubsub.c",
+    "old": [
+      703,
+      725
+    ],
+    "new": [
+      702,
+      708
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/pubsub.c",
+    "old": [
+      306,
+      352
+    ],
+    "new": [
+      305,
+      350
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/pubsub.c",
+    "old": [
+      703,
+      725
+    ],
+    "new": [
+      702,
+      708
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/stream.h",
+    "old": [
+      16,
+      47
+    ],
+    "new": [
+      16,
+      46
+    ],
+    "reasons": [
+      "remove dangling next comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      427,
+      524
+    ],
+    "new": [
+      408,
+      527
+    ],
+    "reasons": [
+      "include current documentation",
+      "complete internal comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      2482,
+      2504
+    ],
+    "new": [
+      2478,
+      2494
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      2820,
+      2870
+    ],
+    "new": [
+      2812,
+      2867
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      3338,
+      3436
+    ],
+    "new": [
+      3322,
+      3436
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      3058,
+      3151
+    ],
+    "new": [
+      3042,
+      3151
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      3338,
+      3436
+    ],
+    "new": [
+      3322,
+      3436
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_string.c",
+    "old": [
+      337,
+      346
+    ],
+    "new": [
+      337,
+      339
+    ],
+    "reasons": [
+      "trim following declaration/comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/script.c",
+    "old": [
+      513,
+      545
+    ],
+    "new": [
+      508,
+      544
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      3529,
+      3550
+    ],
+    "new": [
+      3527,
+      3550
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/slowlog.c",
+    "old": [
+      123,
+      175
+    ],
+    "new": [
+      120,
+      132
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/server.c",
+    "old": [
+      1260,
+      1343
+    ],
+    "new": [
+      1241,
+      1343
+    ],
+    "reasons": [
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/server.c",
+    "old": [
+      6596,
+      6674
+    ],
+    "new": [
+      6595,
+      6664
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/server.c",
+    "old": [
+      3244,
+      3279
+    ],
+    "new": [
+      3229,
+      3257
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      2820,
+      2853
+    ],
+    "new": [
+      2812,
+      2854
+    ],
+    "reasons": [
+      "include current documentation",
+      "complete internal comment"
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      3563,
+      3602
+    ],
+    "new": [
+      3561,
+      3601
+    ],
+    "reasons": [
+      "trim following declaration/comment",
+      "include current documentation"
+    ]
+  }
+]
