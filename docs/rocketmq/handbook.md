@@ -2637,9 +2637,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DefaultMappedFile.java · L548–L573](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L548-L573)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMappedFile.java · L547–L573](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L547-L573)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public int commit(final int commitLeastPages) {
     if (writeBuffer == null) {
         //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
@@ -2687,9 +2688,13 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DefaultMappedFile.java · L512–L545](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L512-L545)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMappedFile.java · L508–L545](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L508-L545)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+/**
+ * @return The current flushed position
+ */
+@Override
 public int flush(final int flushLeastPages) {
     if (!isWriteable()) {
         return this.getFlushedPosition();
@@ -2778,9 +2783,10 @@ public int commit(final int commitLeastPages) {
 }
 ```
 
-<strong>5.3.4源码：</strong>[DefaultMappedFile.java · L548–L573](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L548-L573)，连续节选。
+<strong>5.3.4源码：</strong>[DefaultMappedFile.java · L547–L573](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L547-L573)，连续节选。
 
 ```java
+@Override
 public int commit(final int commitLeastPages) {
     if (writeBuffer == null) {
         //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
@@ -3713,9 +3719,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-<strong>源码对照：</strong>[DefaultMessageStore.java · L1307–L1354](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1307-L1354)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessageStore.java · L1306–L1354](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1306-L1354)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public QueryMessageResult queryMessage(String topic, String key, int maxNum, long begin, long end) {
     QueryMessageResult queryMessageResult = new QueryMessageResult();
 
@@ -3952,9 +3959,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-<strong>源码对照：</strong>[DefaultMessageStore.java · L808–L811](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L808-L811)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessageStore.java · L807–L811](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L807-L811)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public GetMessageResult getMessage(final String group, final String topic, final int queueId, final long offset,
     final int maxMsgNums, final MessageFilter messageFilter) {
     return getMessage(group, topic, queueId, offset, maxMsgNums, MAX_PULL_MSG_SIZE, messageFilter);
@@ -4772,9 +4780,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L187–L223](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L187-L223)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L186–L223](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L186-L223)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public void submitConsumeRequest(
     final List<MessageExt> msgs,
     final ProcessQueue processQueue,
@@ -5417,9 +5426,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[RemoteBrokerOffsetStore.java · L59–L74](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L59-L74)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RemoteBrokerOffsetStore.java · L58–L74](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L58-L74)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public void updateOffset(MessageQueue mq, long offset, boolean increaseOnly) {
     if (mq != null) {
         ControllableOffset offsetOld = this.offsetTable.get(mq);
@@ -5457,9 +5467,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[RemoteBrokerOffsetStore.java · L122–L155](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L122-L155)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RemoteBrokerOffsetStore.java · L121–L155](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L121-L155)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public void persistAll(Set<MessageQueue> mqs) {
     if (null == mqs || mqs.isEmpty())
         return;
@@ -5514,9 +5525,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-<strong>源码对照：</strong>[LocalFileOffsetStore.java · L140–L170](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/LocalFileOffsetStore.java#L140-L170)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[LocalFileOffsetStore.java · L139–L170](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/consumer/store/LocalFileOffsetStore.java#L139-L170)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public void persistAll(Set<MessageQueue> mqs) {
     if (null == mqs || mqs.isEmpty()) {
         return;
@@ -5874,9 +5886,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[ExpressionMessageFilter.java · L60–L114](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/filter/ExpressionMessageFilter.java#L60-L114)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ExpressionMessageFilter.java · L59–L114](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/filter/ExpressionMessageFilter.java#L59-L114)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public boolean isMatchedByConsumeQueue(Long tagsCode, ConsumeQueueExt.CqExtUnit cqExtUnit) {
     if (null == subscriptionData) {
         return true;
@@ -5952,9 +5965,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-<strong>源码对照：</strong>[ExpressionMessageFilter.java · L117–L159](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/filter/ExpressionMessageFilter.java#L117-L159)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ExpressionMessageFilter.java · L116–L159](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/filter/ExpressionMessageFilter.java#L116-L159)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public boolean isMatchedByCommitLog(ByteBuffer msgBuffer, Map<String, String> properties) {
     if (subscriptionData == null) {
         return true;
@@ -6373,9 +6387,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[TransactionalMessageServiceImpl.java · L162–L249](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L162-L249)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[TransactionalMessageServiceImpl.java · L161–L249](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L161-L249)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public void check(long transactionTimeout, int transactionCheckMax,
     AbstractTransactionalMessageCheckListener listener) {
     try {
@@ -6943,9 +6958,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DefaultHAService.java · L68–L76](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAService.java#L68-L76)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultHAService.java · L67–L76](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAService.java#L67-L76)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public void init(final DefaultMessageStore defaultMessageStore) throws IOException {
     this.defaultMessageStore = defaultMessageStore;
     this.acceptSocketService = new DefaultAcceptSocketService(defaultMessageStore.getMessageStoreConfig());
@@ -7198,9 +7214,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[AutoSwitchHAService.java · L115–L162](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/autoswitch/AutoSwitchHAService.java#L115-L162)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[AutoSwitchHAService.java · L114–L162](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/autoswitch/AutoSwitchHAService.java#L114-L162)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public boolean changeToMaster(int masterEpoch) throws RocksDBException {
     final int lastEpoch = this.epochCache.lastEpoch();
     if (masterEpoch < lastEpoch) {
@@ -7270,9 +7287,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DLedgerCommitLog.java · L539–L608](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L539-L608)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DLedgerCommitLog.java · L538–L608](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L538-L608)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
 
     StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
@@ -7370,9 +7388,10 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[DLedgerCommitLog.java · L425–L472](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L425-L472)，连续节选。
+<strong>4.9.8源码：</strong>[DLedgerCommitLog.java · L424–L472](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L424-L472)，连续节选。
 
 ```java
+@Override
 public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
 
     StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
@@ -7650,9 +7669,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DefaultMessagingProcessor.java · L178–L195](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java#L178-L195)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessagingProcessor.java · L177–L195](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java#L177-L195)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public CompletableFuture<PopResult> popMessage(
     ProxyContext ctx,
     QueueSelector queueSelector,
@@ -8462,9 +8482,11 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[PopConsumerRocksdbStore.java · L140–L157](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerRocksdbStore.java#L140-L157)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PopConsumerRocksdbStore.java · L138–L157](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerRocksdbStore.java#L138-L157)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
+// https://github.com/facebook/rocksdb/issues/10300
 public List<PopConsumerRecord> scanExpiredRecords(long lower, long upper, int maxCount) {
     // In RocksDB, we can use SstPartitionerFixedPrefixFactory in cfOptions
     // and new ColumnFamilyOptions().useFixedLengthPrefixExtractor() to
@@ -8539,9 +8561,10 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[RemoteBrokerOffsetStore.java · L115–L144](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L115-L144)，连续节选。
+<strong>4.9.8源码：</strong>[RemoteBrokerOffsetStore.java · L114–L144](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L114-L144)，连续节选。
 
 ```java
+@Override
 public void persistAll(Set<MessageQueue> mqs) {
     if (null == mqs || mqs.isEmpty())
         return;
@@ -8730,9 +8753,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-<strong>源码对照：</strong>[DefaultMessageStore.java · L1574–L1576](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1574-L1576)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessageStore.java · L1573–L1576](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1573-L1576)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public long dispatchBehindBytes() {
     return this.reputMessageService.behind();
 }
@@ -9216,9 +9240,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-<strong>源码对照：</strong>[TransactionalMessageServiceImpl.java · L597–L623](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L597-L623)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[TransactionalMessageServiceImpl.java · L596–L623](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L596-L623)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public boolean deletePrepareMessage(MessageExt messageExt) {
     Integer queueId = messageExt.getQueueId();
     MessageQueueOpContext mqContext = deleteContext.get(queueId);
@@ -9321,9 +9346,10 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DefaultMappedFile.java · L653–L674](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L653-L674)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMappedFile.java · L652–L674](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/logfile/DefaultMappedFile.java#L652-L674)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
+@Override
 public SelectMappedBufferResult selectMappedBuffer(int pos, int size) {
     int readPosition = getReadPosition();
     if ((pos + size) <= readPosition) {

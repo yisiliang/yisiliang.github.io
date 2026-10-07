@@ -751,11 +751,12 @@ flowchart TD
 #### 源码1：public E next()
 
 
-**ArrayList·[L860–L870](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L860-L870)**
+**ArrayList·[L859–L870](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/ArrayList.java#L859-L870)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+@SuppressWarnings("unchecked")
 public E next() {
     checkForComodification();
     int i = cursor;
@@ -2579,11 +2580,12 @@ flowchart TD
 #### 源码1：private void siftUpComparable(int k, E x)
 
 
-**PriorityQueue·[L651–L662](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L651-L662)**
+**PriorityQueue·[L650–L662](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L650-L662)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+@SuppressWarnings("unchecked")
 private void siftUpComparable(int k, E x) {
     Comparable<? super E> key = (Comparable<? super E>) x;
     while (k > 0) {
@@ -2604,11 +2606,12 @@ private void siftUpComparable(int k, E x) {
 #### 源码2：public E poll()
 
 
-**PriorityQueue·[L586–L597](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L586-L597)**
+**PriorityQueue·[L585–L597](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L585-L597)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+@SuppressWarnings("unchecked")
 public E poll() {
     if (size == 0)
         return null;
@@ -2648,11 +2651,12 @@ public E poll() {
 迭代器走数组位置不是连续poll，因此遍历结果并非优先级顺序。remove(Object)还要先定位元素，不能只看堆修复就宣称任意删除都是O(log n)。
 
 
-**PriorityQueue·[L693–L709](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L693-L709)**
+**PriorityQueue·[L692–L709](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/PriorityQueue.java#L692-L709)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+@SuppressWarnings("unchecked")
 private void siftDownComparable(int k, E x) {
     Comparable<? super E> key = (Comparable<? super E>)x;
     int half = size >>> 1;        // loop while a non-leaf
@@ -2794,11 +2798,28 @@ flowchart TD
 #### 源码1：static final <K,V> Node<K,V> tabAt(
 
 
-**ConcurrentHashMap·[L754–L756](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L754-L756)**
+**ConcurrentHashMap·[L737–L756](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L737-L756)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/*
+ * Volatile access methods are used for table elements as well as
+ * elements of in-progress next table while resizing.  All uses of
+ * the tab arguments must be null checked by callers.  All callers
+ * also paranoically precheck that tab's length is not zero (or an
+ * equivalent check), thus ensuring that any index argument taking
+ * the form of a hash value anded with (length - 1) is a valid
+ * index.  Note that, to be correct wrt arbitrary concurrency
+ * errors by users, these checks must operate on local variables,
+ * which accounts for some odd-looking inline assignments below.
+ * Note that calls to setTabAt always occur within locked regions,
+ * and so in principle require only release ordering, not
+ * full volatile semantics, but are currently coded as volatile
+ * writes to be conservative.
+ */
+
+@SuppressWarnings("unchecked")
 static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
     return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
 }
@@ -8169,11 +8190,24 @@ public synchronized void start() {
 #### 源码2：public void run()
 
 
-**Thread·[L748–L752](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L748-L752)**
+**Thread·[L735–L752](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Thread.java#L735-L752)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * If this thread was constructed using a separate
+ * <code>Runnable</code> run object, then that
+ * <code>Runnable</code> object's <code>run</code> method is called;
+ * otherwise, this method does nothing and returns.
+ * <p>
+ * Subclasses of <code>Thread</code> should override this method.
+ *
+ * @see     #start()
+ * @see     #stop()
+ * @see     #Thread(ThreadGroup, Runnable, String)
+ */
+@Override
 public void run() {
     if (target != null) {
         target.run();
@@ -8743,11 +8777,12 @@ flowchart TD
 #### 源码1：public final Stream<P_OUT> filter(
 
 
-**ReferencePipeline·[L160–L179](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/ReferencePipeline.java#L160-L179)**
+**ReferencePipeline·[L159–L179](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/ReferencePipeline.java#L159-L179)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+@Override
 public final Stream<P_OUT> filter(Predicate<? super P_OUT> predicate) {
     Objects.requireNonNull(predicate);
     return new StatelessOp<P_OUT, P_OUT>(this, StreamShape.REFERENCE,
@@ -8806,11 +8841,12 @@ linkedOrConsumed禁止已链接或消费的流再次作为独立输入使用；�
 #### 源码3：final <P_IN> void copyInto(Sink<P_IN> wrappedSink, Spliterator<P_IN> spliterator)
 
 
-**AbstractPipeline·[L477–L488](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L477-L488)**
+**AbstractPipeline·[L476–L488](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L476-L488)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+@Override
 final <P_IN> void copyInto(Sink<P_IN> wrappedSink, Spliterator<P_IN> spliterator) {
     Objects.requireNonNull(wrappedSink);
 
@@ -8846,11 +8882,13 @@ final <P_IN> void copyInto(Sink<P_IN> wrappedSink, Spliterator<P_IN> spliterator
 这解释了“逆向建立处理器，正向消费元素”的关系。无状态中间操作常能融合到同一次源遍历；有状态操作可能有额外阶段与缓冲。parallel会让拆分与合并参与执行，不能由简单顺序Sink图推断全部并行细节。
 
 
-**AbstractPipeline·[L514–L521](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L514-L521)**
+**AbstractPipeline·[L512–L521](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L512-L521)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+@Override
+@SuppressWarnings("unchecked")
 final <P_IN> Sink<P_IN> wrapSink(Sink<E_OUT> sink) {
     Objects.requireNonNull(sink);
 
@@ -9080,11 +9118,57 @@ flowchart TD
 #### 源码1：public static Object newProxyInstance(ClassLoader loader,
 
 
-**Proxy·[L703–L736](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/reflect/Proxy.java#L703-L736)**
+**Proxy·[L657–L736](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/reflect/Proxy.java#L657-L736)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+/**
+ * Returns an instance of a proxy class for the specified interfaces
+ * that dispatches method invocations to the specified invocation
+ * handler.
+ *
+ * <p>{@code Proxy.newProxyInstance} throws
+ * {@code IllegalArgumentException} for the same reasons that
+ * {@code Proxy.getProxyClass} does.
+ *
+ * @param   loader the class loader to define the proxy class
+ * @param   interfaces the list of interfaces for the proxy class
+ *          to implement
+ * @param   h the invocation handler to dispatch method invocations to
+ * @return  a proxy instance with the specified invocation handler of a
+ *          proxy class that is defined by the specified class loader
+ *          and that implements the specified interfaces
+ * @throws  IllegalArgumentException if any of the restrictions on the
+ *          parameters that may be passed to {@code getProxyClass}
+ *          are violated
+ * @throws  SecurityException if a security manager, <em>s</em>, is present
+ *          and any of the following conditions is met:
+ *          <ul>
+ *          <li> the given {@code loader} is {@code null} and
+ *               the caller's class loader is not {@code null} and the
+ *               invocation of {@link SecurityManager#checkPermission
+ *               s.checkPermission} with
+ *               {@code RuntimePermission("getClassLoader")} permission
+ *               denies access;</li>
+ *          <li> for each proxy interface, {@code intf},
+ *               the caller's class loader is not the same as or an
+ *               ancestor of the class loader for {@code intf} and
+ *               invocation of {@link SecurityManager#checkPackageAccess
+ *               s.checkPackageAccess()} denies access to {@code intf};</li>
+ *          <li> any of the given proxy interfaces is non-public and the
+ *               caller class is not in the same {@linkplain Package runtime package}
+ *               as the non-public interface and the invocation of
+ *               {@link SecurityManager#checkPermission s.checkPermission} with
+ *               {@code ReflectPermission("newProxyInPackage.{package name}")}
+ *               permission denies access.</li>
+ *          </ul>
+ * @throws  NullPointerException if the {@code interfaces} array
+ *          argument or any of its elements are {@code null}, or
+ *          if the invocation handler, {@code h}, is
+ *          {@code null}
+ */
+@CallerSensitive
 public static Object newProxyInstance(ClassLoader loader,
                                       Class<?>[] interfaces,
                                       InvocationHandler h)

@@ -39,7 +39,10 @@ def bounds(lines,tree,a,b):
             multi=name is not None and name.text==b'rehash' and any('expungeStaleEntries();' in x for x in lines[first.start_point.row:first.end_point.row+1])
             if not multi:
                 b=end; reasons.append('trim following declaration/comment')
-        if a==first.start_point.row+1:
+        annotation_prefix='\n'.join(lines[first.start_point.row:a-1])
+        if a==first.start_point.row+1 or (annotation_prefix.lstrip().startswith('@') and not re.sub(r'@\w+(?:\([^\n]*\))?|/\*.*?\*/|//[^\n]*', '', annotation_prefix, flags=re.S).strip()):
+            if a!=first.start_point.row+1:
+                a=first.start_point.row+1; reasons.append('include function annotations')
             p=a-2
             while p>=0 and (not lines[p].strip() or lines[p].lstrip().startswith('@')): p-=1
             cs=[n for n in comments if n.end_point.row==p]
@@ -71,12 +74,12 @@ def load_sources(d):
     return result
 
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('--apply',action='store_true');ap.add_argument('--baseline',action='store_true',help='rebuild from committed handbooks');args=ap.parse_args();report=[]
+    ap=argparse.ArgumentParser();ap.add_argument('--apply',action='store_true');ap.add_argument('--baseline',action='store_true',help='rebuild from committed handbooks');ap.add_argument('--baseline-ref',default='HEAD');args=ap.parse_args();report=[]
     for book in ['jdk-source','rocketmq','redis']:
         d=ROOT/'docs'/book;src=load_sources(d);md=(d/'handbook.md').read_text();ht=(d/'index.html').read_text();changes={};cards=[]
         if args.baseline:
-            md=subprocess.check_output(['git','show',f'HEAD:docs/{book}/handbook.md'],cwd=ROOT,text=True)
-            ht=subprocess.check_output(['git','show',f'HEAD:docs/{book}/index.html'],cwd=ROOT,text=True)
+            md=subprocess.check_output(['git','show',f'{args.baseline_ref}:docs/{book}/handbook.md'],cwd=ROOT,text=True)
+            ht=subprocess.check_output(['git','show',f'{args.baseline_ref}:docs/{book}/index.html'],cwd=ROOT,text=True)
         for m in re.finditer(r'<section class="source-card">.*?</section>',ht,re.S):
             links=list(URL.finditer(ht[:m.start()])); assert links,(book,m.start())
             u=links[-1];sha,f,a,b=u.groups();a,b=int(a),int(b)
