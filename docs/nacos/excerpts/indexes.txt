@@ -1,0 +1,13 @@
+    private void handleClientOperation(ClientOperationEvent event) {
+        Service service = event.getService();
+        String clientId = event.getClientId();
+        if (event instanceof ClientOperationEvent.ClientRegisterServiceEvent) {
+            addPublisherIndexes(service, clientId);
+        } else if (event instanceof ClientOperationEvent.ClientDeregisterServiceEvent) {
+            removePublisherIndexes(service, clientId);
+        } else if (event instanceof ClientOperationEvent.ClientSubscribeServiceEvent) {
+            addSubscriberIndexes(service, clientId);
+        } else if (event instanceof ClientOperationEvent.ClientUnsubscribeServiceEvent) {
+            removeSubscriberIndexes(service, clientId);
+        }
+    }

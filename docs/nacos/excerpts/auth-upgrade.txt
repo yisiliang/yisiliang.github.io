@@ -1,0 +1,20 @@
+    public synchronized void doCheck() {
+        if (enforced.get()) {
+            persistStateIfNecessary();
+            return;
+        }
+        Collection<Member> members = serverMemberManager.allMembers();
+        if (members == null || members.isEmpty()) {
+            return;
+        }
+        for (Member each : members) {
+            if (!Boolean.TRUE.equals(
+                each.getExtendVal(MemberMetaDataConstants.SUPPORT_JRAFT_AUTH))) {
+                return;
+            }
+        }
+        enforced.set(true);
+        Loggers.RAFT.info(
+            "All Nacos servers support JRaft authentication; enforcement is enabled");
+        persistStateIfNecessary();
+    }

@@ -1,0 +1,25 @@
+    public PromptVersionInfo queryPrompt(String namespaceId, String promptKey, String version,
+        String label)
+        throws NacosException {
+        AiResource meta = requireReadableMeta(namespaceId, promptKey);
+        
+        PromptVersionInfoPojo info = requireVersionInfo(meta);
+        String resolved = resolveClientVersion(info, version, label);
+        if (StringUtils.isBlank(resolved)) {
+            throw new NacosApiException(NacosException.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND,
+                "Prompt version not found: " + promptKey);
+        }
+        
+        // Verify version is online
+        AiResourceVersion versionRow = resourceManager.findVersion(namespaceId, promptKey,
+            RESOURCE_TYPE_PROMPT, resolved);
+        if (versionRow == null || !VERSION_STATUS_ONLINE.equalsIgnoreCase(versionRow.getStatus())) {
+            throw new NacosApiException(NacosException.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND,
+                "Prompt version not online: " + promptKey + "@" + resolved);
+        }
+        
+        PromptVersionInfo result = loadPromptFromStorage(namespaceId, promptKey, resolved);
+        result.setSrcUser(versionRow.getAuthor());
+        result.setCommitMsg(versionRow.getDesc());
+        return result;
+    }

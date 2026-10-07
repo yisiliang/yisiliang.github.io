@@ -1,0 +1,65 @@
+    private String getConfigInner(String tenant, String dataId, String group, long timeoutMs)
+        throws NacosException {
+        group = blank2defaultGroup(group);
+        ParamUtils.checkKeyParam(dataId, group);
+        ConfigResponse cr = new ConfigResponse();
+        
+        cr.setDataId(dataId);
+        cr.setTenant(tenant);
+        cr.setGroup(group);
+        
+        // We first try to use local failover content if exists.
+        // A config content for failover is not created by client program automatically,
+        // but is maintained by user.
+        // This is designed for certain scenario like client emergency reboot,
+        // changing config needed in the same time, while nacos server is down.
+        String content =
+            LocalConfigInfoProcessor.getFailover(worker.getAgentName(), dataId, group, tenant);
+        if (content != null) {
+            LOGGER.warn("[{}] [get-config] get failover ok, dataId={}, group={}, tenant={}",
+                worker.getAgentName(),
+                dataId, group, tenant);
+            cr.setContent(content);
+            String encryptedDataKey =
+                LocalEncryptedDataKeyProcessor.getEncryptDataKeyFailover(worker.getAgentName(),
+                    dataId, group, tenant);
+            cr.setEncryptedDataKey(encryptedDataKey);
+            configFilterChainManager.doFilter(null, cr);
+            content = cr.getContent();
+            return content;
+        }
+        
+        try {
+            ConfigResponse response =
+                worker.getServerConfig(dataId, group, tenant, timeoutMs, false);
+            cr.setContent(response.getContent());
+            cr.setEncryptedDataKey(response.getEncryptedDataKey());
+            configFilterChainManager.doFilter(null, cr);
+            content = cr.getContent();
+            
+            return content;
+        } catch (NacosException ioe) {
+            if (NacosException.NO_RIGHT == ioe.getErrCode()) {
+                throw ioe;
+            }
+            LOGGER.warn(
+                "[{}] [get-config] get from server error, dataId={}, group={}, tenant={}, msg={}",
+                worker.getAgentName(), dataId, group, tenant, ioe.toString());
+        }
+        
+        content =
+            LocalConfigInfoProcessor.getSnapshot(worker.getAgentName(), dataId, group, tenant);
+        if (content != null) {
+            LOGGER.warn("[{}] [get-config] get snapshot ok, dataId={}, group={}, tenant={}",
+                worker.getAgentName(),
+                dataId, group, tenant);
+        }
+        cr.setContent(content);
+        String encryptedDataKey =
+            LocalEncryptedDataKeyProcessor.getEncryptDataKeySnapshot(worker.getAgentName(),
+                dataId, group, tenant);
+        cr.setEncryptedDataKey(encryptedDataKey);
+        configFilterChainManager.doFilter(null, cr);
+        content = cr.getContent();
+        return content;
+    }

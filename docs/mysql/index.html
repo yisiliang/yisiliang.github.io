@@ -1,0 +1,1018 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MySQL8.4源码学习 · 源码之下，系统之上</title><meta name="description" content="27章MySQL8.4源码学习：SQL执行链、InnoDB索引页、MVCC、redo/undo、锁、binlog提交恢复与GTID复制。"><style>*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:90px}body{margin:0;font:16px/1.9 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background:#f4f6fa;color:#26374a}a{color:#3265a3;text-decoration:none}a:hover{text-decoration:underline}header{position:fixed;z-index:10;inset:0 0 auto;height:64px;background:#fff;border-bottom:1px solid #dce3ed;display:flex;gap:18px;align-items:center;padding:0 24px}header strong{font-size:17px}header .back{margin-left:auto;font-size:13px}button,input{font:inherit;border:1px solid #cfdae8;background:#fff;border-radius:6px;padding:5px 10px}button{cursor:pointer;color:#375e8d}aside{position:fixed;top:64px;bottom:0;width:278px;background:#fff;padding:22px 14px;overflow:auto;border-right:1px solid #dce3ed}aside input{width:100%;font-size:13px;margin-bottom:16px}nav a{display:block;font-size:13px;line-height:1.6;color:#647489;padding:8px;border-radius:6px}nav a:hover,nav a.active{background:#eaf2ff;color:#27588f}main{margin:64px 0 0 278px;padding:30px 36px 80px}.hero,article,footer{max-width:1040px;margin:auto}.hero{background:linear-gradient(130deg,#112338,#244969);color:#fff;border-radius:16px;padding:38px 42px;margin-bottom:26px}.hero small{letter-spacing:3px;color:#a9c7df}.hero h1{font-size:36px;line-height:1.35;margin:15px 0}.hero p{color:#c5d7e7}.badges{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;margin:20px 0}.badges span{border:1px solid #ffffff40;padding:3px 10px;border-radius:20px}.hero a{color:#e6f4ff}.hero .actions{display:flex;gap:18px;flex-wrap:wrap}article{background:#fff;border:1px solid #dce3ed;border-radius:14px;padding:34px 42px}section{padding:12px 0 28px;border-bottom:1px solid #e2e8f1}section h2{font-size:25px;line-height:1.5;margin:24px 0 20px}section p{margin:16px 0}blockquote{background:#edf4ff;border-left:4px solid #5488ba;padding:12px 20px;margin:20px 0;color:#45627f}.source{border:1px solid #dbe4ee;border-radius:10px;overflow:hidden;margin:20px 0}.source-bar{background:#eef3f9;font-size:12px;padding:9px 14px;display:flex;gap:10px;justify-content:space-between}.source-bar button{font-size:12px}.source-scroll{overflow:auto;background:#142234}pre{margin:0;padding:18px;font:13px/1.7 Menlo,Consolas,monospace;color:#d4dfed}code{font-family:Menlo,Consolas,monospace}figure{margin:24px 0;padding:8px;border:1px solid #dbe4ee;border-radius:10px;background:#fbfdff;overflow:auto}figure svg{display:block;min-width:770px;width:100%;height:auto}figcaption{font-size:12px;color:#71859c;padding:6px 12px}.hljs-keyword,.hljs-literal{color:#e9a7ff}.hljs-string{color:#a3dbb3}.hljs-comment{color:#91a2b7}.hljs-number{color:#ffd28d}.hljs-title{color:#8bd5ff}.hljs-type{color:#a8ceec}th,td{border:1px solid #dbe4ee;padding:10px;text-align:left;vertical-align:top}footer{padding:24px;color:#7a899a;font-size:12px}#menu{display:none}.hide{display:none}body.dark{background:#101927;color:#dce5ef}body.dark article,body.dark aside,body.dark header{background:#19273a;border-color:#33465d}body.dark a{color:#9fc8f1}body.dark blockquote{background:#22374e;color:#c2d5e8}body.dark section{border-color:#33465d}body.dark h2{color:#e9f1fb}@media(max-width:850px){#menu{display:block}aside{display:none;z-index:9;width:278px;box-shadow:0 20px 50px #16243b44}body.open aside{display:block}main{margin-left:0;padding:18px 12px 50px}article{padding:20px}.hero{padding:28px}.hero h1{font-size:28px}header{padding:0 12px;gap:8px}header strong{font-size:14px}header .back{font-size:11px}section h2{font-size:23px}.source-bar{display:block}.source-bar button{margin-top:6px}figure svg{min-width:720px}pre{font-size:12px}}@media print{header,aside,.hero,#menu,button{display:none}main{margin:0;padding:0}article{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap;background:#eee;color:#222}figure svg{min-width:0}}
+/* Keep long fixed-SHA source paths inside the mobile reading column. */
+article p,article blockquote{overflow-wrap:anywhere}table{display:block;max-width:100%;overflow-x:auto}
+</style><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script></head><body><header><button id="menu" aria-label="展开目录">☰</button><strong>MySQL源码学习</strong><button id="theme">明暗</button><a class="back" href="../">返回首页</a></header><aside><input id="search" aria-label="筛选目录" placeholder="搜索目录，例如MVCC、redo"><nav><a href="#chapter-01">01 · 阅读地图：先分清三本账</a><a href="#chapter-02">02 · 连接与THD：会话状态的所有者</a><a href="#chapter-03">03 · COM_QUERY：字节进入SQL执行入口</a><a href="#chapter-04">04 · 词法与语法：文本如何成为查询结构</a><a href="#chapter-05">05 · 打开表与MDL：结构为什么不能随意变化</a><a href="#chapter-06">06 · 优化器：成本是在选计划，不是在保证速度</a><a href="#chapter-07">07 · 迭代执行器：一行一行往上拉</a><a href="#chapter-08">08 · handler边界：SQL执行器如何进入InnoDB</a><a href="#chapter-09">09 · 聚簇与二级索引：记录与定位键的区别</a><a href="#chapter-10">10 · 页、槽与分裂：B+树的物理变化</a><a href="#chapter-11">11 · Buffer Pool：缓存页为什么还需要状态机</a><a href="#chapter-12">12 · LRU与flush list：淘汰和持久化是两条轴</a><a href="#chapter-13">13 · mini-transaction与redo：物理一致性的最小单元</a><a href="#chapter-14">14 · Redo流水线：write LSN和flush LSN为什么不同</a><a href="#chapter-15">15 · WAL、刷脏页与doublewrite</a><a href="#chapter-16">16 · Undo与版本链：UPDATE之前的值在哪里</a><a href="#chapter-17">17 · ReadView：逐个条件推演可见性</a><a href="#chapter-18">18 · RR与RC：快照读取和锁定读取不是一条路</a><a href="#chapter-19">19 · 行锁、gap与next-key：锁的是索引范围</a><a href="#chapter-20">20 · 死锁检测：等待图和牺牲者选择</a><a href="#chapter-21">21 · 事务提交：内存可见、redo可靠与锁释放</a><a href="#chapter-22">22 · Binlog与redo两阶段提交：对齐两个事实</a><a href="#chapter-23">23 · 组提交与故障窗口：三阶段不是三次事务</a><a href="#chapter-24">24 · Checkpoint与恢复：日志何时允许复用</a><a href="#chapter-25">25 · Purge：为什么长事务拖住历史清理</a><a href="#chapter-26">26 · 复制与GTID：应用日志不是重放数据页</a><a href="#chapter-27">27 · 诊断与实验：把计划、锁和LSN放回同一现场</a><a href="#labs">SQL实验与核验</a></nav></aside><main><div class="hero"><small>DATABASE · SOURCE NOTES</small><h1>一条SQL，三本账。<br>从请求到提交恢复。</h1><p>Server解释语义，InnoDB维护页与版本，binlog记录事务历史。沿真实调用链阅读，追踪条件和失败窗口。</p><div class="badges"><span>MySQL8.4.0固定基线</span><span>27章机制研究</span><span>27张图</span><span>30段真实源码</span></div><div class="actions"><a href="#chapter-01">开始阅读 →</a><a href="mysql-offline.zip">下载离线包 ↓</a><a href="handbook.md">Markdown原稿</a></div></div><article><blockquote>固定提交dc86e412f18b36ce271f791026714e8caa0ec919。实验尚未执行；机制图与源码节选均可离线阅读。窗口可能从函数中间开始或结束，完整上下文见固定链接。</blockquote><section id="chapter-01"><h2>01 · 阅读地图：先分清三本账</h2><p>研究MySQL不能把SQL执行、存储引擎和复制日志揉成一个黑箱。Server层拥有连接上下文THD、语法树、优化器和协议结果；handler把访问动作交给引擎；InnoDB管理页、记录版本、事务与物理恢复；binlog描述对外复制的事务历史。下文固定mysql-8.4.0，选择8.4 LTS起点是为了稳定源码坐标，不意味着部署时应使用这个早期补丁。</p><p>阅读时一直保留三个问题：记录当前由哪个事务改过？哪些页修改已经能从redo重做？Server认为哪些事务已经写入binlog？前三者分别涉及DB_TRX_ID/undo链、LSN和XID/GTID，编号不能互换。COMMIT时交叉这些账本，恢复时再对账。</p><p>本章节选的ha_commit_trans是Server级提交入口，不是InnoDB单独提交。参数all区分完整事务与语句级提交边界；同一连接里还存在语句事务与完整事务的不同参与者列表。把函数名中的commit直接解释为“磁盘页全部写完”，后面的两阶段提交就会读错。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-1"><title id="mysql-title-1">图1：阅读地图：先分清三本账</title><defs><marker id="mysql-arrow-1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图01 · 阅读地图：先分清三本账</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">SQL语义 / THD</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">handler契约</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">InnoDB页 / 事务</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">binlog事件</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-1)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-1)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-1)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/handler.cc#L1786-L1827" target="_blank" rel="noopener">固定SHA源码：sql/handler.cc · L1786–L1827</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">        <span class="hljs-built_in">check_readonly</span>(thd, <span class="hljs-literal">true</span>)) {
+      <span class="hljs-built_in">ha_rollback_trans</span>(thd, all);
+      error = <span class="hljs-number">1</span>;
+      <span class="hljs-keyword">goto</span> end;
+    }
+
+    <span class="hljs-keyword">if</span> (!trn_ctx-&gt;<span class="hljs-built_in">no_2pc</span>(trx_scope) &amp;&amp; (trn_ctx-&gt;<span class="hljs-built_in">rw_ha_count</span>(trx_scope) &gt; <span class="hljs-number">1</span>))
+      error = tc_log-&gt;<span class="hljs-built_in">prepare</span>(thd, all);
+  }
+  <span class="hljs-comment">/*
+    The state of XA transaction is changed to Prepared, intermediately.
+    It&#x27;s going to change to the regular NOTR at the end.
+    The fact of the Prepared state is of interest to binary logger.
+  */</span>
+  <span class="hljs-keyword">if</span> (!error &amp;&amp; all &amp;&amp; xid_state-&gt;<span class="hljs-built_in">has_state</span>(XID_STATE::XA_IDLE)) {
+    <span class="hljs-built_in">assert</span>(
+        thd-&gt;lex-&gt;sql_command == SQLCOM_XA_COMMIT &amp;&amp;
+        <span class="hljs-built_in">static_cast</span>&lt;Sql_cmd_xa_commit *&gt;(thd-&gt;lex-&gt;m_sql_cmd)-&gt;<span class="hljs-built_in">get_xa_opt</span>() ==
+            XA_ONE_PHASE);
+
+    xid_state-&gt;<span class="hljs-built_in">set_state</span>(XID_STATE::XA_PREPARED);
+  }
+  <span class="hljs-keyword">if</span> (error || (error = tc_log-&gt;<span class="hljs-built_in">commit</span>(thd, all))) {
+    <span class="hljs-built_in">ha_rollback_trans</span>(thd, all);
+    error = <span class="hljs-number">1</span>;
+    <span class="hljs-keyword">goto</span> end;
+  }
+<span class="hljs-comment">/*
+        Mark multi-statement (any autocommit mode) or single-statement
+        (autocommit=1) transaction as rolled back
+*/</span>
+<span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> HAVE_PSI_TRANSACTION_INTERFACE</span>
+  <span class="hljs-keyword">if</span> (is_real_trans &amp;&amp; thd-&gt;m_transaction_psi != <span class="hljs-literal">nullptr</span>) {
+    <span class="hljs-built_in">MYSQL_COMMIT_TRANSACTION</span>(thd-&gt;m_transaction_psi);
+    thd-&gt;m_transaction_psi = <span class="hljs-literal">nullptr</span>;
+  }
+<span class="hljs-meta">#<span class="hljs-keyword">endif</span></span>
+  <span class="hljs-built_in">DBUG_EXECUTE_IF</span>(<span class="hljs-string">&quot;crash_commit_after&quot;</span>,
+                  <span class="hljs-keyword">if</span> (!thd-&gt;is_operating_gtid_table_implicitly)
+                      <span class="hljs-built_in">DBUG_SUICIDE</span>(););
+end:
+  <span class="hljs-keyword">if</span> (release_mdl &amp;&amp; mdl_request.ticket) {
+</code></pre></div></div></section><section id="chapter-02"><h2>02 · 连接与THD：会话状态的所有者</h2><p>默认每连接线程路径由handle_connection持有channel_info，建立THD，完成连接准备，然后反复do_command。线程缓存可以复用工作线程，所以连接生命周期与操作系统线程生命周期不能画成永久一一对应。企业线程池插件、X Protocol均不在这条默认Classic Protocol路径内。</p><p>THD不只是“线程编号”：它带着当前SQL、LEX、诊断区、事务上下文、会话变量、killed标记与MDL上下文。客户端执行SET SESSION会改变后续语句解释或执行条件，但不会改变别的THD。读调用链时，应分别看会话长期对象与每语句mem_root分配的短期对象。</p><p>循环退出会触发连接资源和会话清理。KILL QUERY与KILL CONNECTION在语句取消和连接终止上的语义不同；执行器读取killed后发送错误，而连接断开还会引发未完成事务回滚。连接池归还连接前若未重置事务或会话变量，就可能把前一个请求的状态交给下一个请求，这是应用层复用边界，不是InnoDB读错了数据。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-2"><title id="mysql-title-2">图2：连接与THD：会话状态的所有者</title><defs><marker id="mysql-arrow-2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图02 · 连接与THD：会话状态的所有者</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">socket / channel</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">创建THD</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">认证与初始化</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">do_command循环</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-2)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-2)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-2)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/conn_handler/connection_handler_per_thread.cc#L299-L316" target="_blank" rel="noopener">固定SHA源码：sql/conn_handler/connection_handler_per_thread.cc · L299–L316</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">thd_prepare_connection</span>(thd))
+      handler_manager-&gt;<span class="hljs-built_in">inc_aborted_connects</span>();
+    <span class="hljs-keyword">else</span> {
+      <span class="hljs-keyword">while</span> (<span class="hljs-built_in">thd_connection_alive</span>(thd)) {
+        <span class="hljs-keyword">if</span> (<span class="hljs-built_in">do_command</span>(thd)) <span class="hljs-keyword">break</span>;
+      }
+      <span class="hljs-built_in">end_connection</span>(thd);
+    }
+    <span class="hljs-built_in">close_connection</span>(thd, <span class="hljs-number">0</span>, <span class="hljs-literal">false</span>, <span class="hljs-literal">false</span>);
+
+    thd-&gt;<span class="hljs-built_in">get_stmt_da</span>()-&gt;<span class="hljs-built_in">reset_diagnostics_area</span>();
+    thd-&gt;<span class="hljs-built_in">release_resources</span>();
+
+    <span class="hljs-comment">// Clean up errors now, before possibly waiting for a new connection.</span>
+<span class="hljs-meta">#<span class="hljs-keyword">if</span> OPENSSL_VERSION_NUMBER &lt; 0x10100000L</span>
+    <span class="hljs-built_in">ERR_remove_thread_state</span>(<span class="hljs-literal">nullptr</span>);
+<span class="hljs-meta">#<span class="hljs-keyword">endif</span> <span class="hljs-comment">/* OPENSSL_VERSION_NUMBER &lt; 0x10100000L */</span></span>
+</code></pre></div></div></section><section id="chapter-03"><h2>03 · COM_QUERY：字节进入SQL执行入口</h2><p>do_command读取并解释协议命令后进入dispatch_command。COM_QUERY分支先把查询文本复制到THD，再初始化Parser_state和digest状态，最后dispatch_sql_command。这里还要处理查询属性、多语句和错误清理，不能把“收到文本”与“SQL合法”视为同一时点。</p><p>alloc_query失败时直接跳出，Parser_state初始化失败也不执行SQL。m_input.m_has_digest和m_compute_digest决定语句摘要处理；摘要服务于监控聚合，不是结果缓存。原查询文本和归一化digest是不同信息，不能仅凭digest追溯某一次请求的参数。</p><p>prepared statement使用COM_STMT_PREPARE/EXECUTE另外的协议分支，参数类型与文本解析重用边界不同。本手册主线选择COM_QUERY是为了让解析→优化→执行链更直观。长SQL、语法错误或分号多语句应先核对协议入口，再沿诊断区追踪；不要一上来去找B+树代码。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-3"><title id="mysql-title-3">图3：COM_QUERY：字节进入SQL执行入口</title><defs><marker id="mysql-arrow-3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图03 · COM_QUERY：字节进入SQL执行入口</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">命令字节COM_QUERY</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">alloc_query</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">Parser_state初始化</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">dispatch_sql_command</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-3)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-3)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-3)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/sql_parse.cc#L2079-L2114" target="_blank" rel="noopener">固定SHA源码：sql/sql_parse.cc · L2079–L2114</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">    <span class="hljs-keyword">case</span> COM_QUERY: {
+      <span class="hljs-comment">/*
+        IMPORTANT <span class="hljs-doctag">NOTE:</span>
+
+        Every execution path for COM_QUERY should call once
+          MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES()
+      */</span>
+      <span class="hljs-built_in">assert</span>(thd-&gt;m_digest == <span class="hljs-literal">nullptr</span>);
+      thd-&gt;m_digest = &amp;thd-&gt;m_digest_state;
+      thd-&gt;m_digest-&gt;<span class="hljs-built_in">reset</span>(thd-&gt;m_token_array, max_digest_length);
+
+      <span class="hljs-keyword">if</span> (<span class="hljs-built_in">alloc_query</span>(thd, com_data-&gt;com_query.query,
+                      com_data-&gt;com_query.length)) {
+        <span class="hljs-built_in">MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES</span>(thd-&gt;m_statement_psi, <span class="hljs-literal">false</span>);
+        <span class="hljs-keyword">break</span>;  <span class="hljs-comment">// fatal error is set</span>
+      }
+
+      <span class="hljs-type">const</span> <span class="hljs-type">char</span> *packet_end = thd-&gt;<span class="hljs-built_in">query</span>().str + thd-&gt;<span class="hljs-built_in">query</span>().length;
+
+      <span class="hljs-keyword">if</span> (opt_general_log_raw)
+        query_logger.<span class="hljs-built_in">general_log_write</span>(thd, command, thd-&gt;<span class="hljs-built_in">query</span>().str,
+                                       thd-&gt;<span class="hljs-built_in">query</span>().length);
+
+      <span class="hljs-built_in">DBUG_PRINT</span>(<span class="hljs-string">&quot;query&quot;</span>, (<span class="hljs-string">&quot;%-.4096s&quot;</span>, thd-&gt;<span class="hljs-built_in">query</span>().str));
+
+<span class="hljs-meta">#<span class="hljs-keyword">if</span> defined(ENABLED_PROFILING)</span>
+      thd-&gt;profiling-&gt;<span class="hljs-built_in">set_query_source</span>(thd-&gt;<span class="hljs-built_in">query</span>().str, thd-&gt;<span class="hljs-built_in">query</span>().length);
+<span class="hljs-meta">#<span class="hljs-keyword">endif</span></span>
+
+      <span class="hljs-type">const</span> LEX_CSTRING orig_query = thd-&gt;<span class="hljs-built_in">query</span>();
+
+      Parser_state parser_state;
+      <span class="hljs-keyword">if</span> (parser_state.<span class="hljs-built_in">init</span>(thd, thd-&gt;<span class="hljs-built_in">query</span>().str, thd-&gt;<span class="hljs-built_in">query</span>().length)) {
+        <span class="hljs-built_in">MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES</span>(thd-&gt;m_statement_psi, <span class="hljs-literal">false</span>);
+        <span class="hljs-keyword">break</span>;
+      }
+</code></pre></div></div></section><section id="chapter-04"><h2>04 · 词法与语法：文本如何成为查询结构</h2><p>lex_one_token负责从Lex_input_stream取字符并分类，关键字和标识符通过字符集、转义及SQL模式解释。sql/sql_yacc.yy声明Bison语法与语义动作，语法树随后形成Query_expression、Query_block、Item等结构。parse_sql在sql_parse.cc包装解析过程，错误写入THD诊断区。</p><p>WHERE a=1在这里是表达式树，不是已经选好了索引；表名出现也不意味着表已经成功打开。语法合法之后，名称解析还需要把列引用绑定到表和字段，对聚合、类型转换等做语义检查。词法、语法、解析后准备阶段各自有不同失败条件。</p><p>源码中有大量解析上下文与mem_root对象。生命周期边界解释了为什么不能保存某个Item指针给下一次COM_QUERY继续用。排查SQL注入也要在协议和解析边界思考：参数绑定传入值与字符串拼接改变语法结构是不同操作，索引优化无法弥补错误的查询结构。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-4"><title id="mysql-title-4">图4：词法与语法：文本如何成为查询结构</title><defs><marker id="mysql-arrow-4" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图04 · 词法与语法：文本如何成为查询结构</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">Lex_input_stream</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">lex_one_token</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">sql_yacc.yy语法</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">LEX / Query_block / Item</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-4)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-4)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-4)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/sql_lex.cc#L1432-L1456" target="_blank" rel="noopener">固定SHA源码：sql/sql_lex.cc · L1432–L1456</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title">lex_one_token</span><span class="hljs-params">(Lexer_yystype *yylval, THD *thd)</span> </span>{
+  uchar c = <span class="hljs-number">0</span>;
+  <span class="hljs-type">bool</span> comment_closed;
+  <span class="hljs-type">int</span> tokval, result_state;
+  uint length;
+  <span class="hljs-keyword">enum</span> <span class="hljs-title class_">my_lex_states</span> state;
+  Lex_input_stream *lip = &amp;thd-&gt;m_parser_state-&gt;m_lip;
+  <span class="hljs-type">const</span> CHARSET_INFO *cs = thd-&gt;<span class="hljs-built_in">charset</span>();
+  <span class="hljs-type">const</span> my_lex_states *state_map = cs-&gt;state_maps-&gt;main_map;
+  <span class="hljs-type">const</span> uchar *ident_map = cs-&gt;ident_map;
+
+  lip-&gt;yylval = yylval;  <span class="hljs-comment">// The global state</span>
+
+  lip-&gt;<span class="hljs-built_in">start_token</span>();
+  state = lip-&gt;next_state;
+  lip-&gt;next_state = MY_LEX_START;
+  <span class="hljs-keyword">for</span> (;;) {
+    <span class="hljs-keyword">switch</span> (state) {
+      <span class="hljs-keyword">case</span> MY_LEX_START:  <span class="hljs-comment">// Start of token</span>
+        <span class="hljs-comment">// Skip starting whitespace</span>
+        <span class="hljs-keyword">while</span> (state_map[c = lip-&gt;<span class="hljs-built_in">yyPeek</span>()] == MY_LEX_SKIP) {
+          <span class="hljs-keyword">if</span> (c == <span class="hljs-string">&#x27;\n&#x27;</span>) lip-&gt;yylineno++;
+
+          lip-&gt;<span class="hljs-built_in">yySkip</span>();
+        }
+</code></pre></div></div></section><section id="chapter-05"><h2>05 · 打开表与MDL：结构为什么不能随意变化</h2><p>Server需要在执行期间确保表结构与已准备的访问对象一致，MDL即元数据锁。MDL_context属于THD，MDL_ticket记录已经授予的锁，MDL_request描述请求的对象和锁类型。普通事务访问表与ALTER TABLE之间因此会产生等待，哪怕没有冲突的数据行。</p><p>MDL与InnoDB行锁不是同一套锁：前者保护对象定义/名称和操作边界，后者保护索引记录与范围。长事务即使已经停止跑SQL，也可能持有到事务结束的MDL票据，阻挡需要更强锁的DDL。新的普通查询还可能受等待队列影响，看起来像“ALTER卡住全库”，实际需要看对象粒度和队列。</p><p>本章节选是MDL_context::acquire_lock入口窗口；继续从MDL_context::acquire_lock追等待和授予逻辑。诊断实验使用performance_schema.metadata_locks，区分GRANTED/PENDING并连接threads。仅观察PROCESSLIST的Waiting for table metadata lock能定位方向，却不能直接判定谁持有阻塞票据。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-5"><title id="mysql-title-5">图5：打开表与MDL：结构为什么不能随意变化</title><defs><marker id="mysql-arrow-5" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图05 · 打开表与MDL：结构为什么不能随意变化</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">Query_block引用表</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">取得MDL</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">打开TABLE</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">执行与释放</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-5)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-5)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-5)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/mdl.cc#L3371-L3427" target="_blank" rel="noopener">固定SHA源码：sql/mdl.cc · L3371–L3427</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">  <span class="hljs-keyword">if</span> (lock_wait_timeout == <span class="hljs-number">0</span>) {
+    <span class="hljs-comment">/*
+      Resort to try_acquire_lock() in case of zero timeout.
+
+      This allows to avoid unnecessary deadlock detection attempt and &quot;fake&quot;
+      deadlocks which might result from it.
+      In case of failure to acquire lock, try_acquire_lock() preserves
+      invariants by updating MDL_lock::fast_path_state and obtrusive locks
+      count. It also performs SE notification if needed.
+    */</span>
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">try_acquire_lock</span>(mdl_request)) <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+
+    <span class="hljs-keyword">if</span> (!mdl_request-&gt;ticket) {
+      <span class="hljs-comment">/* We have failed to acquire lock instantly. */</span>
+      <span class="hljs-built_in">DEBUG_SYNC</span>(<span class="hljs-built_in">get_thd</span>(), <span class="hljs-string">&quot;mdl_acquire_lock_wait&quot;</span>);
+      <span class="hljs-built_in">my_error</span>(ER_LOCK_WAIT_TIMEOUT, <span class="hljs-built_in">MYF</span>(<span class="hljs-number">0</span>));
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+    }
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+  }
+
+  <span class="hljs-comment">/* Normal, non-zero timeout case. */</span>
+
+  MDL_lock *lock;
+  MDL_ticket *ticket = <span class="hljs-literal">nullptr</span>;
+  <span class="hljs-keyword">struct</span> <span class="hljs-title class_">timespec</span> abs_timeout;
+  MDL_wait::enum_wait_status wait_status;
+  <span class="hljs-comment">/* Do some work outside the critical section. */</span>
+  <span class="hljs-built_in">set_timespec</span>(&amp;abs_timeout, lock_wait_timeout);
+
+  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">try_acquire_lock_impl</span>(mdl_request, &amp;ticket)) <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+
+  <span class="hljs-keyword">if</span> (mdl_request-&gt;ticket) {
+    <span class="hljs-comment">/*
+      We have managed to acquire lock without waiting.
+      MDL_lock, MDL_context and MDL_request were updated
+      accordingly, so we can simply return success.
+    */</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+  }
+
+  <span class="hljs-comment">/*
+    Our attempt to acquire lock without waiting has failed.
+    As a result of this attempt we got MDL_ticket with m_lock
+    member pointing to the corresponding MDL_lock object which
+    has MDL_lock::m_rwlock write-locked.
+  */</span>
+  lock = ticket-&gt;m_lock;
+
+  lock-&gt;m_waiting.<span class="hljs-built_in">add_ticket</span>(ticket);
+
+  <span class="hljs-comment">/*
+    Once we added a pending ticket to the waiting queue,
+    we must ensure that our wait slot is empty, so
+    that our lock request can be scheduled. Do that in the
+    critical section formed by the acquired write lock on MDL_lock.
+  */</span>
+</code></pre></div></div></section><section id="chapter-06"><h2>06 · 优化器：成本是在选计划，不是在保证速度</h2><p>JOIN::optimize组织查询块优化，处理条件、表依赖、常量表、连接顺序和访问路径。8.4源码同时有传统优化器与其他优化路径，不能看见JOIN就把所有SQL都归为单一算法。统计估计参与成本比较，最终执行器面对真实数据，估计行数和实际行数可以严重不同。</p><p>同一个联合索引(a,b)既可能缩小扫描范围，也可能提供顺序、覆盖输出或ICP过滤。优化器判断的是这些收益与回表、随机读、排序成本的组合，不是“出现索引就一定用”。隐式类型转换、条件选择性、数据分布偏斜会改变候选路径的可用性或成本。</p><p>使用EXPLAIN FORMAT=TREE看结构，用EXPLAIN ANALYZE看执行测量，再用optimizer_trace追为何某候选被拒绝。ANALYZE会真实执行查询，不能把写入或昂贵SQL当无副作用解释命令。计划变化的失败后果常是放大扫描与回表次数，先比estimated/actual rows，再考虑更新统计或设计索引，而不是盲目FORCE INDEX。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-6"><title id="mysql-title-6">图6：优化器：成本是在选计划，不是在保证速度</title><defs><marker id="mysql-arrow-6" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图06 · 优化器：成本是在选计划，不是在保证速度</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">JOIN::optimize</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">条件 / 统计信息</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">候选访问路径</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">选择与构造执行器</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-6)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-6)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-6)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/sql_optimizer.cc#L362-L389" target="_blank" rel="noopener">固定SHA源码：sql/sql_optimizer.cc · L362–L389</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">bool</span> <span class="hljs-title">JOIN::optimize</span><span class="hljs-params">(<span class="hljs-type">bool</span> finalize_access_paths)</span> </span>{
+  DBUG_TRACE;
+
+  uint no_jbuf_after = UINT_MAX;
+  Query_block *<span class="hljs-type">const</span> set_operand_block =
+      <span class="hljs-built_in">query_expression</span>()-&gt;<span class="hljs-built_in">non_simple_result_query_block</span>();
+
+  <span class="hljs-built_in">assert</span>(query_block-&gt;leaf_table_count == <span class="hljs-number">0</span> ||
+         thd-&gt;lex-&gt;<span class="hljs-built_in">is_query_tables_locked</span>() ||
+         query_block == set_operand_block);
+  <span class="hljs-built_in">assert</span>(tables == <span class="hljs-number">0</span> &amp;&amp; primary_tables == <span class="hljs-number">0</span> &amp;&amp; tables_list == (Table_ref *)<span class="hljs-number">1</span>);
+
+  <span class="hljs-comment">// to prevent double initialization on EXPLAIN</span>
+  <span class="hljs-keyword">if</span> (optimized) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+
+  <span class="hljs-built_in">DEBUG_SYNC</span>(thd, <span class="hljs-string">&quot;before_join_optimize&quot;</span>);
+
+  <span class="hljs-built_in">THD_STAGE_INFO</span>(thd, stage_optimizing);
+
+  Opt_trace_context *<span class="hljs-type">const</span> trace = &amp;thd-&gt;opt_trace;
+  <span class="hljs-function"><span class="hljs-type">const</span> Opt_trace_object <span class="hljs-title">trace_wrapper</span><span class="hljs-params">(trace)</span></span>;
+  <span class="hljs-function">Opt_trace_object <span class="hljs-title">trace_optimize</span><span class="hljs-params">(trace, <span class="hljs-string">&quot;join_optimization&quot;</span>)</span></span>;
+  trace_optimize.<span class="hljs-built_in">add_select_number</span>(query_block-&gt;select_number);
+  <span class="hljs-function">Opt_trace_array <span class="hljs-title">trace_steps</span><span class="hljs-params">(trace, <span class="hljs-string">&quot;steps&quot;</span>)</span></span>;
+
+  <span class="hljs-built_in">count_field_types</span>(query_block, &amp;tmp_table_param, *fields, <span class="hljs-literal">false</span>, <span class="hljs-literal">false</span>);
+
+  <span class="hljs-built_in">assert</span>(tmp_table_param.sum_func_count == <span class="hljs-number">0</span> || !group_list.<span class="hljs-built_in">empty</span>() ||
+</code></pre></div></div></section><section id="chapter-07"><h2>07 · 迭代执行器：一行一行往上拉</h2><p>Query_expression::ExecuteIteratorQuery初始化结果发送并驱动根迭代器。FilterIterator::Read不断调用m_source-&gt;Read，返回值非零立即传播；得到行后m_condition-&gt;val_int，未匹配时UnlockRow并继续。匹配才返回0。因此一个父节点请求一行可能触发子节点扫描很多行。</p><p>Read契约中0表示行，-1通常表示EOF，正数表示错误；不同适配层负责把引擎错误转换过来。thd()-&gt;killed与表达式求值错误在过滤过程检查，使取消和异常能沿树上传播。LIMIT通常可提前停止上游请求，但排序、聚合或物化可能先消费大量输入才能给出第一行。</p><p>这条链解释了为何“只返回10行”仍很慢：输出行数与底层检查行数不同。查看迭代器actual rows、loops和首行耗时，才能分清过滤浪费、嵌套循环放大与阻塞算子。不要拿客户端收到的结果条数衡量InnoDB做了多少工作。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-7"><title id="mysql-title-7">图7：迭代执行器：一行一行往上拉</title><defs><marker id="mysql-arrow-7" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图07 · 迭代执行器：一行一行往上拉</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">父节点Read</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">子节点Read</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">条件求值</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">返回行 / EOF / error</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-7)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-7)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-7)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/iterators/composite_iterators.cc#L91-L114" target="_blank" rel="noopener">固定SHA源码：sql/iterators/composite_iterators.cc · L91–L114</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">FilterIterator::Read</span><span class="hljs-params">()</span> </span>{
+  <span class="hljs-keyword">for</span> (;;) {
+    <span class="hljs-type">int</span> err = m_source-&gt;<span class="hljs-built_in">Read</span>();
+    <span class="hljs-keyword">if</span> (err != <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span> err;
+
+    <span class="hljs-type">bool</span> matched = m_condition-&gt;<span class="hljs-built_in">val_int</span>();
+
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">thd</span>()-&gt;killed) {
+      <span class="hljs-built_in">thd</span>()-&gt;<span class="hljs-built_in">send_kill_message</span>();
+      <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>;
+    }
+
+    <span class="hljs-comment">/* check for errors evaluating the condition */</span>
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">thd</span>()-&gt;<span class="hljs-built_in">is_error</span>()) <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>;
+
+    <span class="hljs-keyword">if</span> (!matched) {
+      m_source-&gt;<span class="hljs-built_in">UnlockRow</span>();
+      <span class="hljs-keyword">continue</span>;
+    }
+
+    <span class="hljs-comment">// Successful row.</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+  }
+}
+</code></pre></div></div></section><section id="chapter-08"><h2>08 · handler边界：SQL执行器如何进入InnoDB</h2><p>TableScanIterator::Read调用table()-&gt;file-&gt;ha_rnd_next，把记录写到Server的record buffer；handler包装层处理监控、访问状态和错误，再进入存储引擎虚函数。索引读取对应ha_index_read_map等入口。InnoDB的index_read/general_fetch把查询转成row_search_mvcc所需的搜索与游标状态。</p><p>关键对象prebuilt保存索引、事务、搜索tuple、row template与persistent cursor。Server记录格式和InnoDB页内记录格式不相同，row template参与转换。查询使用哪条索引、是否锁定读和读视图等状态经过这个边界，故handler不是“文件读取函数”。</p><p>一条SELECT可能多次跨越边界：二级索引定位、聚簇索引读取、迭代取下一条。在覆盖、ICP、MVCC验证等不同条件下是否回聚簇索引还要看具体分支。引擎报告锁等待或死锁时，Server适配成SQL错误；应用看到1213不意味着解析器失败。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-8"><title id="mysql-title-8">图8：handler边界：SQL执行器如何进入InnoDB</title><defs><marker id="mysql-arrow-8" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图08 · handler边界：SQL执行器如何进入InnoDB</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">TableScanIterator</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">ha_rnd_next包装</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">ha_innobase</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">row_search_mvcc</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-8)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-8)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-8)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/iterators/basic_row_iterators.cc#L291-L312" target="_blank" rel="noopener">固定SHA源码：sql/iterators/basic_row_iterators.cc · L291–L312</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">TableScanIterator::Read</span><span class="hljs-params">()</span> </span>{
+  <span class="hljs-type">int</span> tmp;
+  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">table</span>()-&gt;<span class="hljs-built_in">is_union_or_table</span>()) {
+    <span class="hljs-keyword">while</span> ((tmp = <span class="hljs-built_in">table</span>()-&gt;file-&gt;<span class="hljs-built_in">ha_rnd_next</span>(m_record))) {
+      <span class="hljs-comment">/*
+       ha_rnd_next can return RECORD_DELETED for MyISAM when one thread is
+       reading and another deleting without locks.
+       */</span>
+      <span class="hljs-keyword">if</span> (tmp == HA_ERR_RECORD_DELETED &amp;&amp; !<span class="hljs-built_in">thd</span>()-&gt;killed) <span class="hljs-keyword">continue</span>;
+      <span class="hljs-keyword">return</span> <span class="hljs-built_in">HandleError</span>(tmp);
+    }
+    <span class="hljs-keyword">if</span> (m_examined_rows != <span class="hljs-literal">nullptr</span>) {
+      ++*m_examined_rows;
+    }
+  } <span class="hljs-keyword">else</span> {
+    <span class="hljs-keyword">while</span> (<span class="hljs-literal">true</span>) {
+      <span class="hljs-keyword">if</span> (m_remaining_dups == <span class="hljs-number">0</span>) {  <span class="hljs-comment">// always initially</span>
+        <span class="hljs-keyword">while</span> ((tmp = <span class="hljs-built_in">table</span>()-&gt;file-&gt;<span class="hljs-built_in">ha_rnd_next</span>(m_record))) {
+          <span class="hljs-keyword">if</span> (tmp == HA_ERR_RECORD_DELETED &amp;&amp; !<span class="hljs-built_in">thd</span>()-&gt;killed) <span class="hljs-keyword">continue</span>;
+          <span class="hljs-keyword">return</span> <span class="hljs-built_in">HandleError</span>(tmp);
+        }
+        <span class="hljs-keyword">if</span> (m_examined_rows != <span class="hljs-literal">nullptr</span>) {
+</code></pre></div></div></section><section id="chapter-09"><h2>09 · 聚簇与二级索引：记录与定位键的区别</h2><p>InnoDB聚簇索引叶子包含行数据，二级索引叶子包含二级键和聚簇定位信息。btr_cur_search_to_nth_level沿树找到指定层的记录位置，搜索使用tuple、比较模式和latch_mode。cursor记录当前页内位置；B+树的页结构与Server层的逻辑行迭代不可混淆。</p><p>主键宽度因此不仅影响聚簇树，也放大每个二级索引的定位字段。按二级键扫描再回聚簇树读取非覆盖字段，会增加另一组树查找与页访问。所谓覆盖索引也要考虑MVCC：二级记录不能像聚簇记录一样直接从完整undo链还原旧行，必要时仍需聚簇验证。</p><p>随机主键和顺序主键改变插入分布、页分裂及局部性，却不能推出“所有业务必须自增主键”。读写热点、分布式ID与业务唯一约束都要一起评估。源码追踪先固定index-&gt;is_clustered()分支，再比较两种访问路径；只画两棵树但忽略ReadView，就解释不全回表。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-9"><title id="mysql-title-9">图9：聚簇与二级索引：记录与定位键的区别</title><defs><marker id="mysql-arrow-9" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图09 · 聚簇与二级索引：记录与定位键的区别</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">索引根页</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">内部节点 / 分隔键</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">叶子记录</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">二级→主键→聚簇</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-9)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-9)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-9)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/btr/btr0cur.cc#L1539-L1580" target="_blank" rel="noopener">固定SHA源码：storage/innobase/btr/btr0cur.cc · L1539–L1580</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">    <span class="hljs-comment">/* Go to the child node */</span>
+    page_id.<span class="hljs-built_in">reset</span>(space, <span class="hljs-built_in">btr_node_ptr_get_child_page_no</span>(node_ptr, offsets));
+
+    n_blocks++;
+
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">UNIV_UNLIKELY</span>(height == <span class="hljs-number">0</span> &amp;&amp; <span class="hljs-built_in">dict_index_is_ibuf</span>(index))) {
+      <span class="hljs-comment">/* We&#x27;re doing a search on an ibuf tree and we&#x27;re one
+      level above the leaf page. */</span>
+
+      <span class="hljs-built_in">ut_ad</span>(level == <span class="hljs-number">0</span>);
+
+      fetch = cursor-&gt;m_fetch_mode;
+      rw_latch = RW_NO_LATCH;
+      <span class="hljs-keyword">goto</span> retry_page_get;
+    }
+
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">dict_index_is_spatial</span>(index) &amp;&amp; page_mode &gt;= PAGE_CUR_CONTAIN &amp;&amp;
+        page_mode != PAGE_CUR_RTREE_INSERT) {
+      <span class="hljs-built_in">ut_ad</span>(need_path);
+      <span class="hljs-type">rtr_node_path_t</span> *path = cursor-&gt;rtr_info-&gt;path;
+
+      <span class="hljs-keyword">if</span> (!path-&gt;<span class="hljs-built_in">empty</span>() &amp;&amp; found) {
+<span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> UNIV_DEBUG</span>
+        <span class="hljs-type">node_visit_t</span> last_visit = path-&gt;<span class="hljs-built_in">back</span>();
+
+        <span class="hljs-built_in">ut_ad</span>(last_visit.page_no == page_id.<span class="hljs-built_in">page_no</span>());
+<span class="hljs-meta">#<span class="hljs-keyword">endif</span> <span class="hljs-comment">/* UNIV_DEBUG */</span></span>
+
+        path-&gt;<span class="hljs-built_in">pop_back</span>();
+
+<span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> UNIV_DEBUG</span>
+        <span class="hljs-keyword">if</span> (page_mode == PAGE_CUR_RTREE_LOCATE &amp;&amp;
+            (latch_mode != BTR_MODIFY_LEAF)) {
+          <span class="hljs-type">btr_pcur_t</span> *cur = cursor-&gt;rtr_info-&gt;parent_path-&gt;<span class="hljs-built_in">back</span>().cursor;
+          <span class="hljs-type">rec_t</span> *my_node_ptr = cur-&gt;<span class="hljs-built_in">get_rec</span>();
+
+          offsets = <span class="hljs-built_in">rec_get_offsets</span>(my_node_ptr, index, offsets,
+                                    ULINT_UNDEFINED, UT_LOCATION_HERE, &amp;heap);
+
+          <span class="hljs-type">page_no_t</span> my_page_no =
+              <span class="hljs-built_in">btr_node_ptr_get_child_page_no</span>(my_node_ptr, offsets);
+
+</code></pre></div></div></section><section id="chapter-10"><h2>10 · 页、槽与分裂：B+树的物理变化</h2><p>索引页有页头、infimum/supremum、用户记录、目录槽和空闲空间。页内记录逻辑顺序与物理存储位置不必一致；目录槽帮助缩小查找区间，再顺着记录链定位。页大小是实例建库相关配置，默认16KiB不代表所有表都必然16KiB。</p><p>btr_page_split_and_insert在无法满足插入时处理分裂，把记录分到新页并调整父节点与链。这个动作必须在mini-transaction保护下同时维护多个物理关系，并生成恢复所需日志；不能用“插入一行只改一块页”的成本模型。delete-mark与purge后物理清理也不能画为同一步。</p><p>页分裂会造成写放大、空间碎片与latch竞争，顺序插入也可能产生热点。逻辑事务锁保护业务并发语义，页latch保护短时结构一致性；持有latch去等待长事务锁会破坏并发设计，因此源码刻意控制不同临界区。性能诊断应先分清锁等待与页级争用。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-10"><title id="mysql-title-10">图10：页、槽与分裂：B+树的物理变化</title><defs><marker id="mysql-arrow-10" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图10 · 页、槽与分裂：B+树的物理变化</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">插入目标叶页</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">空间不足</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">分配 / 分裂页</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">更新父节点与兄弟链</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-10)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-10)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-10)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/btr/btr0btr.cc#L2423-L2482" target="_blank" rel="noopener">固定SHA源码：storage/innobase/btr/btr0btr.cc · L2423–L2482</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">  <span class="hljs-comment">/* 2. Allocate a new page to the index */</span>
+  new_block = <span class="hljs-built_in">btr_page_alloc</span>(cursor-&gt;index, hint_page_no, direction,
+                             <span class="hljs-built_in">btr_page_get_level</span>(page), mtr, mtr);
+
+  <span class="hljs-comment">/* New page could not be allocated */</span>
+  <span class="hljs-keyword">if</span> (!new_block) {
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">nullptr</span>;
+  }
+
+  new_page = <span class="hljs-built_in">buf_block_get_frame</span>(new_block);
+  new_page_zip = <span class="hljs-built_in">buf_block_get_page_zip</span>(new_block);
+  <span class="hljs-built_in">btr_page_create</span>(new_block, new_page_zip, cursor-&gt;index,
+                  <span class="hljs-built_in">btr_page_get_level</span>(page), mtr);
+
+  <span class="hljs-comment">/* 3. Calculate the first record on the upper half-page, and the
+  first record (move_limit) on original page which ends up on the
+  upper half */</span>
+
+  <span class="hljs-keyword">if</span> (split_rec) {
+    first_rec = move_limit = split_rec;
+
+    *offsets = <span class="hljs-built_in">rec_get_offsets</span>(split_rec, cursor-&gt;index, *offsets, n_uniq,
+                               UT_LOCATION_HERE, heap);
+
+    insert_left = <span class="hljs-built_in">cmp_dtuple_rec</span>(tuple, split_rec, cursor-&gt;index, *offsets) &lt; <span class="hljs-number">0</span>;
+
+    <span class="hljs-keyword">if</span> (!insert_left &amp;&amp; new_page_zip &amp;&amp; n_iterations &gt; <span class="hljs-number">0</span>) {
+      <span class="hljs-comment">/* If a compressed page has already been split,
+      avoid further splits by inserting the record
+      to an empty page. */</span>
+      split_rec = <span class="hljs-literal">nullptr</span>;
+      <span class="hljs-keyword">goto</span> insert_empty;
+    }
+  } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (insert_left) {
+    <span class="hljs-built_in">ut_a</span>(n_iterations &gt; <span class="hljs-number">0</span>);
+    first_rec = <span class="hljs-built_in">page_rec_get_next</span>(<span class="hljs-built_in">page_get_infimum_rec</span>(page));
+    move_limit = <span class="hljs-built_in">page_rec_get_next</span>(<span class="hljs-built_in">btr_cur_get_rec</span>(cursor));
+  } <span class="hljs-keyword">else</span> {
+  insert_empty:
+    <span class="hljs-built_in">ut_ad</span>(!split_rec);
+    <span class="hljs-built_in">ut_ad</span>(!insert_left);
+    buf = ut::<span class="hljs-built_in">new_arr_withkey</span>&lt;byte&gt;(
+        UT_NEW_THIS_FILE_PSI_KEY,
+        ut::Count{<span class="hljs-built_in">rec_get_converted_size</span>(cursor-&gt;index, tuple)});
+
+    first_rec = <span class="hljs-built_in">rec_convert_dtuple_to_rec</span>(buf, cursor-&gt;index, tuple);
+    move_limit = <span class="hljs-built_in">page_rec_get_next</span>(<span class="hljs-built_in">btr_cur_get_rec</span>(cursor));
+  }
+
+  <span class="hljs-comment">/* 4. Do first the modifications in the tree structure */</span>
+
+  <span class="hljs-built_in">btr_attach_half_pages</span>(flags, cursor-&gt;index, block, first_rec, new_block,
+                        direction, mtr);
+
+  <span class="hljs-comment">/* If the split is made on the leaf level and the insert will fit
+  on the appropriate half-page, we may release the tree x-latch.
+  We can then move the records after releasing the tree latch,
+  thus reducing the tree latch contention. */</span>
+
+  <span class="hljs-keyword">if</span> (split_rec) {
+</code></pre></div></div></section><section id="chapter-11"><h2>11 · Buffer Pool：缓存页为什么还需要状态机</h2><p>buf_page_get_gen以page_id(space,page_no)定位页，结合page_size、锁模式和mtr返回buf_block_t。page hash解决是否缓存，LRU解决替换倾向，flush list解决脏页刷写；这三张结构的职责不同。block内存固定与页latch也不是同一个保护手段。</p><p>读线程撞到正在读取的页需要等待I/O完成，不能拿尚未完整装入的frame继续解释记录。被buffer-fixed或I/O-fixed的页不允许随意淘汰；脏页即使位于LRU尾端，也先需要满足写回条件。缓存不足因此可以同时引发读I/O、脏页刷写和请求等待。</p><p>Buffer Pool命中率是总体指标，不能解释所有慢查询。某次执行大量随机回表、冷数据或高并发热点页时，平均命中率仍可能很好。观察读请求、物理读、等待空闲页和脏页趋势，再结合执行计划。扩大内存只是一个手段，不会修正扫描范围太大或锁阻塞。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-11"><title id="mysql-title-11">图11：Buffer Pool：缓存页为什么还需要状态机</title><defs><marker id="mysql-arrow-11" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图11 · Buffer Pool：缓存页为什么还需要状态机</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">page_id查hash</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">已有页 / I/O中</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">缺页分配与读盘</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">固定页并取得latch</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-11)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-11)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-11)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/buf/buf0buf.cc#L4419-L4444" target="_blank" rel="noopener">固定SHA源码：storage/innobase/buf/buf0buf.cc · L4419–L4444</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">  <span class="hljs-keyword">if</span> (mode == Page_fetch::NORMAL &amp;&amp; !<span class="hljs-built_in">fsp_is_system_temporary</span>(page_id.<span class="hljs-built_in">space</span>())) {
+    <span class="hljs-function">Buf_fetch_normal <span class="hljs-title">fetch</span><span class="hljs-params">(page_id, page_size)</span></span>;
+
+    fetch.m_rw_latch = rw_latch;
+    fetch.m_guess = guess;
+    fetch.m_mode = mode;
+    fetch.m_file = location.filename;
+    fetch.m_line = location.line;
+    fetch.m_mtr = mtr;
+    fetch.m_dirty_with_no_latch = dirty_with_no_latch;
+
+    <span class="hljs-keyword">return</span> (fetch.<span class="hljs-built_in">single_page</span>());
+
+  } <span class="hljs-keyword">else</span> {
+    Buf_fetch_other <span class="hljs-built_in">fetch</span>(page_id, page_size);
+
+    fetch.m_rw_latch = rw_latch;
+    fetch.m_guess = guess;
+    fetch.m_mode = mode;
+    fetch.m_file = location.filename;
+    fetch.m_line = location.line;
+    fetch.m_mtr = mtr;
+    fetch.m_dirty_with_no_latch = dirty_with_no_latch;
+
+    <span class="hljs-keyword">return</span> (fetch.<span class="hljs-built_in">single_page</span>());
+  }
+</code></pre></div></div></section><section id="chapter-12"><h2>12 · LRU与flush list：淘汰和持久化是两条轴</h2><p>InnoDB采用带old/young分区的LRU策略减轻大扫描污染。buf_LRU_add_block_low根据old参数插入链表并维护长度；提升与访问时间策略决定是否年轻化，不是每次命中都移到链表头。预读页和单次扫描页若立刻霸占热区，会把业务热点挤出。</p><p>flush list按脏页最早修改信息服务checkpoint推进。一个页很热仍可能需要刷盘，一个页很冷也可能是干净页可直接淘汰。这就是为何LRU list与flush list都要存在：前者按访问局部性，后者按恢复与日志复用约束。</p><p>读盘压力导致LRU刷写，redo空间压力导致flush list刷写，两者可同时发生但触发原因不同。调参时先看是free page不足还是checkpoint age增长，再评估I/O能力与redo容量。仅看到“后台正在刷盘”就统一增加Buffer Pool，可能把问题延后而没有改善持续写入能力。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-12"><title id="mysql-title-12">图12：LRU与flush list：淘汰和持久化是两条轴</title><defs><marker id="mysql-arrow-12" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图12 · LRU与flush list：淘汰和持久化是两条轴</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">读入old区域</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">访问提升young</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">LRU淘汰候选</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">dirty进入flush list</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-12)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-12)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-12)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/buf/buf0lru.cc#L1647-L1678" target="_blank" rel="noopener">固定SHA源码：storage/innobase/buf/buf0lru.cc · L1647–L1678</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-keyword">inline</span> <span class="hljs-type">void</span> <span class="hljs-title">buf_LRU_add_block_low</span><span class="hljs-params">(<span class="hljs-type">buf_page_t</span> *bpage, <span class="hljs-type">bool</span> old)</span> </span>{
+  <span class="hljs-type">buf_pool_t</span> *buf_pool = <span class="hljs-built_in">buf_pool_from_bpage</span>(bpage);
+
+  <span class="hljs-built_in">ut_ad</span>(<span class="hljs-built_in">mutex_own</span>(&amp;buf_pool-&gt;LRU_list_mutex));
+
+  <span class="hljs-built_in">ut_a</span>(<span class="hljs-built_in">buf_page_in_file</span>(bpage));
+  <span class="hljs-built_in">ut_ad</span>(!bpage-&gt;in_LRU_list);
+
+  <span class="hljs-keyword">if</span> (!old || (<span class="hljs-built_in">UT_LIST_GET_LEN</span>(buf_pool-&gt;LRU) &lt; BUF_LRU_OLD_MIN_LEN)) {
+    <span class="hljs-built_in">UT_LIST_ADD_FIRST</span>(buf_pool-&gt;LRU, bpage);
+
+    bpage-&gt;freed_page_clock = buf_pool-&gt;freed_page_clock;
+  } <span class="hljs-keyword">else</span> {
+<span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> UNIV_LRU_DEBUG</span>
+    <span class="hljs-comment">/* buf_pool-&gt;LRU_old must be the first item in the LRU list
+    whose &quot;old&quot; flag is set. */</span>
+    <span class="hljs-built_in">ut_a</span>(buf_pool-&gt;LRU_old-&gt;old);
+    <span class="hljs-built_in">ut_a</span>(!<span class="hljs-built_in">UT_LIST_GET_PREV</span>(LRU, buf_pool-&gt;LRU_old) ||
+         !<span class="hljs-built_in">UT_LIST_GET_PREV</span>(LRU, buf_pool-&gt;LRU_old)-&gt;old);
+    <span class="hljs-built_in">ut_a</span>(!<span class="hljs-built_in">UT_LIST_GET_NEXT</span>(LRU, buf_pool-&gt;LRU_old) ||
+         <span class="hljs-built_in">UT_LIST_GET_NEXT</span>(LRU, buf_pool-&gt;LRU_old)-&gt;old);
+<span class="hljs-meta">#<span class="hljs-keyword">endif</span> <span class="hljs-comment">/* UNIV_LRU_DEBUG */</span></span>
+    <span class="hljs-built_in">UT_LIST_INSERT_AFTER</span>(buf_pool-&gt;LRU, buf_pool-&gt;LRU_old, bpage);
+
+    buf_pool-&gt;LRU_old_len++;
+  }
+
+  <span class="hljs-built_in">ut_d</span>(bpage-&gt;in_LRU_list = <span class="hljs-literal">true</span>);
+
+  <span class="hljs-built_in">incr_LRU_size_in_bytes</span>(bpage, buf_pool);
+
+  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">UT_LIST_GET_LEN</span>(buf_pool-&gt;LRU) &gt; BUF_LRU_OLD_MIN_LEN) {
+</code></pre></div></div></section><section id="chapter-13"><h2>13 · mini-transaction与redo：物理一致性的最小单元</h2><p>SQL事务可跨多个表、语句和秒级时间；mini-transaction(mtr)保护短时间的一组页访问与物理修改。mtr维护memo记录固定页和latch资源，日志缓冲收集本次物理修改，提交后释放资源。mtr_commit不等于用户COMMIT，也不意味着SQL事务对其他会话可见。</p><p>redo不是简单重放原SQL，而是描述页/记录等底层变化的恢复日志。某次SQL UPDATE可以产生多个mtr；undo页的修改也需要redo保护，否则崩溃后无法可靠回滚未提交事务。区分“undo用于回退逻辑版本”和“redo保护undo页物理恢复”能消除二者互斥的误解。</p><p>原子物理修改组在恢复时需要保持完整边界，LSN把日志和页修改关联。读源码应从mtr内部日志提交路径再走log writer，不要把memcpy写到log buffer当成已经落盘。内存中页内容、可写出日志和已持久化日志是不同状态。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-13"><title id="mysql-title-13">图13：mini-transaction与redo：物理一致性的最小单元</title><defs><marker id="mysql-arrow-13" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图13 · mini-transaction与redo：物理一致性的最小单元</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">mtr_start</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">固定页 / 页latch</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">页修改与redo buffer</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">mtr_commit释放</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-13)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-13)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-13)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/mtr/mtr0mtr.cc#L659-L689" target="_blank" rel="noopener">固定SHA源码：storage/innobase/mtr/mtr0mtr.cc · L659–L689</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">mtr_t::commit</span><span class="hljs-params">()</span> </span>{
+  <span class="hljs-built_in">ut_ad</span>(<span class="hljs-built_in">is_active</span>());
+  <span class="hljs-built_in">ut_ad</span>(!<span class="hljs-built_in">is_inside_ibuf</span>());
+  <span class="hljs-built_in">ut_ad</span>(m_impl.m_magic_n == MTR_MAGIC_N);
+  m_impl.m_state = MTR_STATE_COMMITTING;
+
+  <span class="hljs-built_in">DBUG_EXECUTE_IF</span>(<span class="hljs-string">&quot;mtr_commit_crash&quot;</span>, <span class="hljs-built_in">DBUG_SUICIDE</span>(););
+
+  <span class="hljs-function">Command <span class="hljs-title">cmd</span><span class="hljs-params">(<span class="hljs-keyword">this</span>)</span></span>;
+
+  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">has_any_log_record</span>() ||
+      (<span class="hljs-built_in">has_modifications</span>() &amp;&amp; m_impl.m_log_mode == MTR_LOG_NO_REDO)) {
+    <span class="hljs-built_in">ut_ad</span>(!srv_read_only_mode || m_impl.m_log_mode == MTR_LOG_NO_REDO);
+
+    cmd.<span class="hljs-built_in">execute</span>();
+  } <span class="hljs-keyword">else</span> {
+    cmd.<span class="hljs-built_in">release_all</span>();
+    cmd.<span class="hljs-built_in">release_resources</span>();
+  }
+<span class="hljs-meta">#<span class="hljs-keyword">ifndef</span> UNIV_HOTBACKUP</span>
+  <span class="hljs-built_in">check_nolog_and_unmark</span>();
+<span class="hljs-meta">#<span class="hljs-keyword">endif</span> <span class="hljs-comment">/* !UNIV_HOTBACKUP */</span></span>
+
+  <span class="hljs-built_in">ut_d</span>(<span class="hljs-built_in">remove_from_debug_list</span>());
+}
+
+<span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> UNIV_DEBUG</span>
+<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">mtr_t::remove_from_debug_list</span><span class="hljs-params">()</span> <span class="hljs-type">const</span> </span>{
+  <span class="hljs-keyword">auto</span> it = s_my_thread_active_mtrs.<span class="hljs-built_in">find</span>(<span class="hljs-keyword">this</span>);
+  <span class="hljs-comment">/* We have to find the MTR that is about to be committed in local context. We
+  are not sharing MTRs between threads. */</span>
+</code></pre></div></div></section><section id="chapter-14"><h2>14 · Redo流水线：write LSN和flush LSN为什么不同</h2><p>log_write_up_to(log,end_lsn,flush_to_disk)表达的目标非常具体：至少写到end_lsn；如果flush_to_disk为true，还要达到磁盘持久化水位。writer与flusher处理不同步骤，write_lsn不是flushed_to_disk_lsn，OS cache写入与持久化不能混为一谈。</p><p>txn生成redo后可先让后台线程批量推进，前台请求等待目标水位。多个事务的LSN落入一次写/刷的覆盖范围，所以“每个COMMIT需要持久化保证”不等于“每个事务独立发一次fsync”。等待事件、通知与忙等优化负责协调，源码函数返回的Wait_stats支持监控等待代价。</p><p>日志空间是循环利用的有限资源。生成速度长期快于checkpoint推进时，最终会限制写入；扩大redo容量提供更大缓冲窗口，却不能让慢磁盘永久追上写入速率。崩溃类型也要区分：进程退出、操作系统崩溃和存储设备丢失，对OS cache中尚未flush的日志影响不同。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-14"><title id="mysql-title-14">图14：Redo流水线：write LSN和flush LSN为什么不同</title><defs><marker id="mysql-arrow-14" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图14 · Redo流水线：write LSN和flush LSN为什么不同</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">redo生成 / buffer</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">write_lsn</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">flushed_to_disk_lsn</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">提交或刷页等待</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-14)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-14)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-14)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/log/log0write.cc#L1135-L1207" target="_blank" rel="noopener">固定SHA源码：storage/innobase/log/log0write.cc · L1135–L1207</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">retry:
+  <span class="hljs-keyword">if</span> (log.writer_threads_paused.<span class="hljs-built_in">load</span>(std::memory_order_acquire)) {
+    <span class="hljs-comment">/* the log writer threads are paused not to waste CPU resource. */</span>
+    wait_stats +=
+        <span class="hljs-built_in">log_self_write_up_to</span>(log, end_lsn, flush_to_disk, &amp;interrupted);
+
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">UNIV_UNLIKELY</span>(interrupted)) {
+      <span class="hljs-comment">/* the log writer threads might be working. retry. */</span>
+      <span class="hljs-keyword">goto</span> retry;
+    }
+
+    <span class="hljs-built_in">DEBUG_SYNC_C</span>(<span class="hljs-string">&quot;log_flushed_by_self&quot;</span>);
+    <span class="hljs-keyword">return</span> wait_stats;
+  }
+
+  <span class="hljs-comment">/* the log writer threads are working for high concurrency scale */</span>
+  <span class="hljs-keyword">if</span> (flush_to_disk) {
+    <span class="hljs-keyword">if</span> (log.flushed_to_disk_lsn.<span class="hljs-built_in">load</span>() &gt;= end_lsn) {
+      <span class="hljs-built_in">DEBUG_SYNC_C</span>(<span class="hljs-string">&quot;log_flushed_by_writer&quot;</span>);
+      <span class="hljs-keyword">return</span> wait_stats;
+    }
+
+    <span class="hljs-keyword">if</span> (srv_flush_log_at_trx_commit != <span class="hljs-number">1</span>) {
+      <span class="hljs-comment">/* We need redo flushed, but because trx != 1, we have
+      disabled notifications sent from log_writer to log_flusher.
+
+      The log_flusher might be sleeping for 1 second, and we need
+      quick response here. Log_writer avoids waking up log_flusher,
+      so we must do it ourselves here.
+
+      However, before we wake up log_flusher, we must ensure that
+      log.write_lsn &gt;= lsn. Otherwise log_flusher could flush some
+      data which was ready for lsn values smaller than end_lsn and
+      return to sleeping for next 1 second. */</span>
+
+      <span class="hljs-keyword">if</span> (log.write_lsn.<span class="hljs-built_in">load</span>() &lt; end_lsn) {
+        wait_stats += <span class="hljs-built_in">log_wait_for_write</span>(log, end_lsn, &amp;interrupted);
+      }
+    }
+
+    <span class="hljs-comment">/* Wait until log gets flushed up to end_lsn. */</span>
+    wait_stats += <span class="hljs-built_in">log_wait_for_flush</span>(log, end_lsn, &amp;interrupted);
+
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">UNIV_UNLIKELY</span>(interrupted)) {
+      <span class="hljs-comment">/* the log writer threads might be paused. retry. */</span>
+      <span class="hljs-keyword">goto</span> retry;
+    }
+
+    <span class="hljs-built_in">DEBUG_SYNC_C</span>(<span class="hljs-string">&quot;log_flushed_by_writer&quot;</span>);
+  } <span class="hljs-keyword">else</span> {
+    <span class="hljs-keyword">if</span> (log.write_lsn.<span class="hljs-built_in">load</span>() &gt;= end_lsn) {
+      <span class="hljs-keyword">return</span> wait_stats;
+    }
+
+    <span class="hljs-comment">/* Wait until log gets written up to end_lsn. */</span>
+    wait_stats += <span class="hljs-built_in">log_wait_for_write</span>(log, end_lsn, &amp;interrupted);
+
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">UNIV_UNLIKELY</span>(interrupted)) {
+      <span class="hljs-comment">/* the log writer threads might be paused. retry. */</span>
+      <span class="hljs-keyword">goto</span> retry;
+    }
+  }
+
+  <span class="hljs-keyword">return</span> wait_stats;
+}
+
+<span class="hljs-comment">/** @} */</span>
+
+<span class="hljs-comment">/**************************************************/</span> <span class="hljs-comment">/**
+
+ @name Log threads waiting strategy
+
+ *******************************************************/</span>
+</code></pre></div></div></section><section id="chapter-15"><h2>15 · WAL、刷脏页与doublewrite</h2><p>buf_flush_write_block_low在写脏页前取get_newest_lsn，若log_sys-&gt;flushed_to_disk_lsn落后则调用log_write_up_to(...,true)。这段代码直接体现WAL：数据页不能先于恢复它所需的日志被可靠写出。COMMIT通常不等待所有被改数据页刷盘，因此已提交事务仍可以对应内存脏页。</p><p>WAL解决的是写出顺序，doublewrite解决的是页写入撕裂风险。存储系统可能把一页只写了一部分；redo依赖页可解析，损坏页不一定仅靠redo就能补齐。doublewrite在支持的模式中保留可恢复页副本，再写最终位置；8.4具体模式、压缩/原子写能力需要分别看dblwr实现和配置。</p><p>oldest_modification服务脏页最早日志需求，newest LSN服务刷页前redo保证，两者不应该互换。刷写线程给页设I/O固定以防同时搬移或淘汰。若看到写延迟上升，应分别看redo flush、doublewrite与数据文件I/O，而不是把它们都归成“数据页fsync”。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-15"><title id="mysql-title-15">图15：WAL、刷脏页与doublewrite</title><defs><marker id="mysql-arrow-15" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图15 · WAL、刷脏页与doublewrite</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">脏页newest LSN</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">先持久化redo</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">doublewrite保护</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">写最终数据页</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-15)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-15)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-15)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/buf/buf0flu.cc#L1198-L1224" target="_blank" rel="noopener">固定SHA源码：storage/innobase/buf/buf0flu.cc · L1198–L1224</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-meta">#<span class="hljs-keyword">endif</span> <span class="hljs-comment">/* UNIV_IBUF_COUNT_DEBUG */</span></span>
+
+  <span class="hljs-built_in">ut_ad</span>(<span class="hljs-built_in">recv_recovery_is_on</span>() || bpage-&gt;<span class="hljs-built_in">get_newest_lsn</span>() != <span class="hljs-number">0</span>);
+
+  <span class="hljs-comment">/* Force the log to the disk before writing the modified block */</span>
+  <span class="hljs-keyword">if</span> (!srv_read_only_mode) {
+    <span class="hljs-type">const</span> <span class="hljs-type">lsn_t</span> flush_to_lsn = bpage-&gt;<span class="hljs-built_in">get_newest_lsn</span>();
+
+    <span class="hljs-comment">/* Do the check before calling log_write_up_to() because in most
+    cases it would allow to avoid call, and because of that we don&#x27;t
+    want those calls because they would have bad impact on the counter
+    of calls, which is monitored to save CPU on spinning in log threads. */</span>
+
+    <span class="hljs-keyword">if</span> (log_sys-&gt;flushed_to_disk_lsn.<span class="hljs-built_in">load</span>() &lt; flush_to_lsn) {
+      Wait_stats wait_stats;
+
+      wait_stats = <span class="hljs-built_in">log_write_up_to</span>(*log_sys, flush_to_lsn, <span class="hljs-literal">true</span>);
+
+      <span class="hljs-built_in">MONITOR_INC_WAIT_STATS_EX</span>(MONITOR_ON_LOG_, _PAGE_WRITTEN, wait_stats);
+    }
+  }
+
+  <span class="hljs-keyword">switch</span> (<span class="hljs-built_in">buf_page_get_state</span>(bpage)) {
+    <span class="hljs-keyword">case</span> BUF_BLOCK_POOL_WATCH:
+    <span class="hljs-keyword">case</span> BUF_BLOCK_ZIP_PAGE: <span class="hljs-comment">/* The page should be dirty. */</span>
+    <span class="hljs-keyword">case</span> BUF_BLOCK_NOT_USED:
+    <span class="hljs-keyword">case</span> BUF_BLOCK_READY_FOR_USE:
+</code></pre></div></div></section><section id="chapter-16"><h2>16 · Undo与版本链：UPDATE之前的值在哪里</h2><p>聚簇记录带有事务标识DB_TRX_ID和回滚指针DB_ROLL_PTR；有无显式主键还影响隐藏行ID。修改产生的undo保存构建前版本和回滚所需信息。undo不是全行无限复制的概念模型，实际会记录相应字段与操作信息，具体还涉及LOB。</p><p>row_vers_build_for_consistent_read读取当前事务ID，反复trx_undo_prev_version_build得到prev_version，再对前版本事务ID调用view-&gt;changes_visible。一旦可见，把该版本复制到结果内存；若前版本为空，说明该行在此视图时点尚不存在。记录当前的值不一定就是本次SELECT应返回的值。</p><p>版本链的寿命受到最老视图与purge边界约束。不能把“事务提交”画成“undo立即删除”：读者还可能需要它。源码对无法建立历史版本返回DB_MISSING_HISTORY，说明恢复和purge边界有明确不变量。应用长期打开读事务，会让历史积压、空间占用和追链成本持续增长。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-16"><title id="mysql-title-16">图16：Undo与版本链：UPDATE之前的值在哪里</title><defs><marker id="mysql-arrow-16" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图16 · Undo与版本链：UPDATE之前的值在哪里</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">聚簇记录DB_ROLL_PTR</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">undo记录</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">构造previous version</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">再次检查ReadView</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-16)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-16)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-16)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/row/row0vers.cc#L1280-L1334" target="_blank" rel="noopener">固定SHA源码：storage/innobase/row/row0vers.cc · L1280–L1334</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">  version = rec;
+
+  <span class="hljs-keyword">for</span> (;;) {
+    <span class="hljs-type">mem_heap_t</span> *prev_heap = heap;
+
+    heap = <span class="hljs-built_in">mem_heap_create</span>(<span class="hljs-number">1024</span>, UT_LOCATION_HERE);
+
+    <span class="hljs-keyword">if</span> (vrow) {
+      *vrow = <span class="hljs-literal">nullptr</span>;
+    }
+
+    <span class="hljs-comment">/* If purge can&#x27;t see the record then we can&#x27;t rely on
+    the UNDO log record. */</span>
+
+    <span class="hljs-type">bool</span> purge_sees =
+        <span class="hljs-built_in">trx_undo_prev_version_build</span>(rec, mtr, version, index, *offsets, heap,
+                                    &amp;prev_version, <span class="hljs-literal">nullptr</span>, vrow, <span class="hljs-number">0</span>, lob_undo);
+
+    err = (purge_sees) ? DB_SUCCESS : DB_MISSING_HISTORY;
+
+    <span class="hljs-keyword">if</span> (prev_heap != <span class="hljs-literal">nullptr</span>) {
+      <span class="hljs-built_in">mem_heap_free</span>(prev_heap);
+    }
+
+    <span class="hljs-keyword">if</span> (prev_version == <span class="hljs-literal">nullptr</span>) {
+      <span class="hljs-comment">/* It was a freshly inserted version */</span>
+      *old_vers = <span class="hljs-literal">nullptr</span>;
+      <span class="hljs-built_in">ut_ad</span>(!vrow || !(*vrow));
+      <span class="hljs-keyword">break</span>;
+    }
+
+    *offsets = <span class="hljs-built_in">rec_get_offsets</span>(prev_version, index, *offsets, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, offset_heap);
+
+<span class="hljs-meta">#<span class="hljs-keyword">if</span> defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG</span>
+    <span class="hljs-built_in">ut_a</span>(!<span class="hljs-built_in">rec_offs_any_null_extern</span>(index, prev_version, *offsets));
+<span class="hljs-meta">#<span class="hljs-keyword">endif</span> <span class="hljs-comment">/* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */</span></span>
+
+    trx_id = <span class="hljs-built_in">row_get_rec_trx_id</span>(prev_version, index, *offsets);
+
+    <span class="hljs-keyword">if</span> (view-&gt;<span class="hljs-built_in">changes_visible</span>(trx_id, index-&gt;table-&gt;name)) {
+      <span class="hljs-comment">/* The view already sees this version: we can copy
+      it to in_heap and return */</span>
+
+      buf =
+          <span class="hljs-built_in">static_cast</span>&lt;byte *&gt;(<span class="hljs-built_in">mem_heap_alloc</span>(in_heap, <span class="hljs-built_in">rec_offs_size</span>(*offsets)));
+
+      *old_vers = <span class="hljs-built_in">rec_copy</span>(buf, prev_version, *offsets);
+      <span class="hljs-built_in">rec_offs_make_valid</span>(*old_vers, index, *offsets);
+
+      <span class="hljs-keyword">if</span> (vrow &amp;&amp; *vrow) {
+        *vrow = <span class="hljs-built_in">dtuple_copy</span>(*vrow, in_heap);
+        <span class="hljs-built_in">dtuple_dup_v_fld</span>(*vrow, in_heap);
+      }
+      <span class="hljs-keyword">break</span>;
+</code></pre></div></div></section><section id="chapter-17"><h2>17 · ReadView：逐个条件推演可见性</h2><p>ReadView::prepare记录创建者ID、下一事务ID作为m_low_limit_id、创建时活动读写事务集合m_ids；m_up_limit_id取活动集合最小值或low。名字容易误导：up是“全部可见的低端边界”，low是“全部不可见的高端边界”，不能仅按英文大小猜方向。</p><p>changes_visible严格按条件检查：id&lt;up或等于creator直接可见；id&gt;=low不可见；中间区若m_ids为空可见，否则二分查活动集合，不在集合才可见。举例up=100、low=110、ids=[100,105]、creator=108：99可见，100和105不可见，103可见，108自己的版本可见，110不可见。</p><p>事务ID100后来提交并不会修改已经创建视图的m_ids，所以老视图仍不能直接看见100的新版本，而是追undo；新视图才重新捕获活动集合。判定条件解释了“提交了别人还看不到”的原因，也解释了自己写入在快照事务中仍可见。ReadView不复制整张表，只存边界和活动事务信息。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 610" role="img" aria-labelledby="mysql-title-17"><title id="mysql-title-17">图17：ReadView可见性：匹配即早返回</title><defs><marker id="mysql-arrow-17" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="24" y="28" font-size="16" fill="#24364c">图17 · ReadView可见性：匹配即早返回</text><rect x="65" y="65" width="380" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="255.0" y="96.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="255.0" dy="0">id &lt; m_up_limit_id</tspan><tspan x="255.0" dy="23">或 id == m_creator_trx_id</tspan></text><rect x="595" y="75" width="225" height="52" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="707.5" y="106.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="707.5" dy="0">return true · 可见</tspan></text><path d="M445 101 L585 101" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-17)"/><text x="500" y="88" font-size="13" fill="#45627f">是</text><path d="M255 137 L255 195" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-17)"/><text x="272" y="171" font-size="13" fill="#45627f">否</text><rect x="65" y="205" width="380" height="64" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="255.0" y="242.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="255.0" dy="0">id &gt;= m_low_limit_id</tspan></text><rect x="595" y="211" width="225" height="52" rx="12" fill="#ffe3e1" stroke="#a5b6ce"/><text x="707.5" y="242.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="707.5" dy="0">return false · 不可见</tspan></text><path d="M445 237 L585 237" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-17)"/><text x="500" y="224" font-size="13" fill="#45627f">是</text><path d="M255 269 L255 327" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-17)"/><text x="272" y="305" font-size="13" fill="#45627f">否</text><rect x="65" y="337" width="380" height="64" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="255.0" y="374.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="255.0" dy="0">m_ids.empty()</tspan></text><rect x="595" y="343" width="225" height="52" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="707.5" y="374.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="707.5" dy="0">return true · 可见</tspan></text><path d="M445 369 L585 369" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-17)"/><text x="500" y="356" font-size="13" fill="#45627f">是</text><path d="M255 401 L255 450" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-17)"/><text x="272" y="430" font-size="13" fill="#45627f">否</text><rect x="65" y="460" width="380" height="64" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="255.0" y="487.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="255.0" dy="0">binary_search(m_ids, id)</tspan><tspan x="255.0" dy="23">活动集合是否命中？</tspan></text><rect x="560" y="429" width="290" height="52" rx="12" fill="#ffe3e1" stroke="#a5b6ce"/><text x="705.0" y="460.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="705.0" dy="0">命中 → return false · 不可见</tspan></text><rect x="560" y="510" width="290" height="52" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="705.0" y="541.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="705.0" dy="0">未命中 → return true · 可见</tspan></text><path d="M445 486 L485 486 L485 455 L550 455" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-17)"/><text x="499" y="444" font-size="13" fill="#45627f">是</text><path d="M445 501 L485 501 L485 536 L550 536" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-17)"/><text x="499" y="559" font-size="13" fill="#45627f">否</text><text x="24" y="590" font-size="12" fill="#657892">任一return结束判断；不可见的当前记录由行读取路径追undo，ReadView自身不扫描历史链。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p>图中每个return均为早返回；只有上一条件未命中才继续下一个判断。最后的活动集合命中意味着不可见，而不是继续向“可见”节点流动。</p><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/include/read0types.h#L163-L184" target="_blank" rel="noopener">固定SHA源码：storage/innobase/include/read0types.h · L163–L184</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">  [[nodiscard]] <span class="hljs-function"><span class="hljs-type">bool</span> <span class="hljs-title">changes_visible</span><span class="hljs-params">(<span class="hljs-type">trx_id_t</span> id,
+                                     <span class="hljs-type">const</span> <span class="hljs-type">table_name_t</span> &amp;name)</span> <span class="hljs-type">const</span> </span>{
+    <span class="hljs-built_in">ut_ad</span>(id &gt; <span class="hljs-number">0</span>);
+
+    <span class="hljs-keyword">if</span> (id &lt; m_up_limit_id || id == m_creator_trx_id) {
+      <span class="hljs-keyword">return</span> (<span class="hljs-literal">true</span>);
+    }
+
+    <span class="hljs-built_in">check_trx_id_sanity</span>(id, name);
+
+    <span class="hljs-keyword">if</span> (id &gt;= m_low_limit_id) {
+      <span class="hljs-keyword">return</span> (<span class="hljs-literal">false</span>);
+
+    } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (m_ids.<span class="hljs-built_in">empty</span>()) {
+      <span class="hljs-built_in">return</span> (<span class="hljs-literal">true</span>);
+    }
+
+    <span class="hljs-type">const</span> <span class="hljs-type">ids_t</span>::value_type *p = m_ids.<span class="hljs-built_in">data</span>();
+
+    <span class="hljs-keyword">return</span> (!std::<span class="hljs-built_in">binary_search</span>(p, p + m_ids.<span class="hljs-built_in">size</span>(), id));
+  }
+
+</code></pre></div></div><h3>ReadView::prepare：边界由活动集合产生</h3><p>m_ids保存视图创建时的活动读写事务ID，m_up_limit_id取集合首项；m_low_limit_no服务purge，不能拿它替代changes_visible中的m_low_limit_id。</p><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/read/read0read.cc#L447-L471">固定SHA源码 · storage/innobase/read/read0read.cc · L447–L471</a></p><div class="source"><div class="source-bar"><span>补充关键条件证据</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">ReadView::prepare</span><span class="hljs-params">(<span class="hljs-type">trx_id_t</span> id)</span> </span>{
+  <span class="hljs-built_in">ut_ad</span>(<span class="hljs-built_in">trx_sys_mutex_own</span>());
+
+  m_creator_trx_id = id;
+
+  m_low_limit_no = <span class="hljs-built_in">trx_get_serialisation_min_trx_no</span>();
+
+  m_low_limit_id = <span class="hljs-built_in">trx_sys_get_next_trx_id_or_no</span>();
+
+  <span class="hljs-built_in">ut_a</span>(m_low_limit_no &lt;= m_low_limit_id);
+
+  <span class="hljs-keyword">if</span> (!trx_sys-&gt;rw_trx_ids.<span class="hljs-built_in">empty</span>()) {
+    <span class="hljs-built_in">copy_trx_ids</span>(trx_sys-&gt;rw_trx_ids);
+  } <span class="hljs-keyword">else</span> {
+    m_ids.<span class="hljs-built_in">clear</span>();
+  }
+
+  <span class="hljs-comment">/* The first active transaction has the smallest id. */</span>
+  m_up_limit_id = !m_ids.<span class="hljs-built_in">empty</span>() ? m_ids.<span class="hljs-built_in">front</span>() : m_low_limit_id;
+
+  <span class="hljs-built_in">ut_a</span>(m_up_limit_id &lt;= m_low_limit_id);
+
+  <span class="hljs-built_in">ut_d</span>(m_view_low_limit_no = m_low_limit_no);
+  m_closed = <span class="hljs-literal">false</span>;
+}
+</code></pre></div></div></section><section id="chapter-18"><h2>18 · RR与RC：快照读取和锁定读取不是一条路</h2><p>trx_assign_read_view仅在当前事务没有活动视图时调用MVCC::view_open。普通RR事务通常在首次一致性读创建并复用视图，而不是无条件在BEGIN立即拍照；START TRANSACTION WITH CONSISTENT SNAPSHOT是需要单独理解的入口。RC语句边界会关闭相应视图，使下一次一致性读获得更新的快照。</p><p>SELECT ... FOR UPDATE和UPDATE属于需要锁协调的访问，不能用一致性读ReadView的结果解释。RR事务可能先读到旧快照，再用锁定读看到较新已提交值，自己的写入也能影响之后结果。这不是隔离实现自相矛盾，而是语句读取模式不同。</p><p>同一事务混用两类读取时，业务判定若基于快照读而写入未携带条件或锁，仍可能发生竞态。实验需要两个会话且明确提交顺序；单会话重复SELECT无法证明隔离效果。下文lab记录RR、RC与锁定读的预期变化，实际输出待在目标8.4环境执行确认。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-18"><title id="mysql-title-18">图18：RR与RC：快照读取和锁定读取不是一条路</title><defs><marker id="mysql-arrow-18" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图18 · RR与RC：快照读取和锁定读取不是一条路</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">第一次一致性读</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">trx_assign_read_view</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">RR复用 / RC更新</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">locking read取锁</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-18)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-18)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-18)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/trx/trx0trx.cc#L2315-L2330" target="_blank" rel="noopener">固定SHA源码：storage/innobase/trx/trx0trx.cc · L2315–L2330</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function">ReadView *<span class="hljs-title">trx_assign_read_view</span><span class="hljs-params">(<span class="hljs-type">trx_t</span> *trx)</span> <span class="hljs-comment">/*!&lt; in/out: active transaction */</span>
+</span>{
+  <span class="hljs-built_in">ut_ad</span>(<span class="hljs-built_in">trx_can_be_handled_by_current_thread_or_is_hp_victim</span>(trx));
+  <span class="hljs-built_in">ut_ad</span>(trx-&gt;state.<span class="hljs-built_in">load</span>(std::memory_order_relaxed) == TRX_STATE_ACTIVE);
+
+  <span class="hljs-keyword">if</span> (srv_read_only_mode) {
+    <span class="hljs-built_in">ut_ad</span>(trx-&gt;read_view == <span class="hljs-literal">nullptr</span>);
+    <span class="hljs-keyword">return</span> (<span class="hljs-literal">nullptr</span>);
+
+  } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (!MVCC::<span class="hljs-built_in">is_view_active</span>(trx-&gt;read_view)) {
+    trx_sys-&gt;mvcc-&gt;<span class="hljs-built_in">view_open</span>(trx-&gt;read_view, trx);
+  }
+
+  <span class="hljs-keyword">return</span> (trx-&gt;read_view);
+}
+
+</code></pre></div></div></section><section id="chapter-19"><h2>19 · 行锁、gap与next-key：锁的是索引范围</h2><p>lock_rec_lock以mode、block、heap_no、index和事务线程请求记录锁，先走fast path，不满足时slow path处理冲突和等待。记录锁对象通过页与位图定位索引记录，不是把SQL WHERE字符串存起来当锁。扫描路径会影响实际锁住的记录与间隙。</p><p>next-key把记录与其前方间隙组合，gap锁保护插入范围。唯一索引完整等值命中与范围查询、未命中查询的锁行为不能一概而论；隔离级别、访问索引及外键/唯一性检查会改变锁集合。RC通常减少搜索中的gap锁，但仍有约束检查相关例外。</p><p>latch短时保护页内存结构，事务锁可能保持到事务结束。慢SQL锁住很多索引项后，其他请求等待不代表某个热点页latch无法释放。使用performance_schema.data_locks/data_lock_waits观察索引名、锁模式、状态和阻塞关系，再把它映射回执行计划与SQL条件。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 360" role="img" aria-labelledby="mysql-title-19"><title id="mysql-title-19">图19：记录锁请求：快速成功或转慢路径</title><defs><marker id="mysql-arrow-19" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="24" y="28" font-size="16" fill="#24364c">图19 · 记录锁请求：快速成功或转慢路径</text><rect x="30" y="70" width="210" height="70" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="135.0" y="100.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="135.0" dy="0">索引定位 + lock mode</tspan><tspan x="135.0" dy="23">record / gap / next-key</tspan></text><rect x="295" y="70" width="260" height="70" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="425.0" y="100.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="425.0" dy="0">lock_rec_lock_fast</tspan><tspan x="425.0" dy="23">简化请求尝试</tspan></text><path d="M240 105 L285 105" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-19)"/><rect x="680" y="45" width="275" height="60" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="817.5" y="70.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="817.5" dy="0">SUCCESS / SUCCESS_CREATED</tspan><tspan x="817.5" dy="23">授予锁并返回</tspan></text><path d="M555 90 L670 75" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-19)"/><text x="586" y="65" font-size="13" fill="#45627f">成功</text><rect x="295" y="205" width="260" height="70" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="425.0" y="235.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="425.0" dy="0">LOCK_REC_FAIL</tspan><tspan x="425.0" dy="23">进入lock_rec_lock_slow</tspan></text><path d="M425 140 L425 195" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-19)"/><text x="446" y="177" font-size="13" fill="#45627f">快路径无法处理</text><rect x="680" y="155" width="275" height="64" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="817.5" y="192.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="817.5" dy="0">可授予 → 返回成功</tspan></text><rect x="680" y="245" width="275" height="64" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="817.5" y="272.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="817.5" dy="0">冲突 → 等待 / NOWAIT错误</tspan><tspan x="817.5" dy="23">或SKIP LOCKED跳过</tspan></text><path d="M555 227 L605 227 L605 187 L670 187" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-19)"/><text x="614" y="174" font-size="13" fill="#45627f">条件允许</text><path d="M555 253 L605 253 L605 277 L670 277" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-19)"/><text x="587" y="330" font-size="13" fill="#45627f">冲突及select_mode</text><text x="24" y="350" font-size="12" fill="#657892">fast失败不等于锁冲突；slow路径还需检查锁队列与读取模式。本图省略队列内部细节。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p>快路径无法处理会进入慢路径，并不直接等于等待。慢路径结合冲突与select_mode决定授予、等待、NOWAIT错误或SKIP LOCKED跳过。</p><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/lock/lock0lock.cc#L1936-L1964" target="_blank" rel="noopener">固定SHA源码：storage/innobase/lock/lock0lock.cc · L1936–L1964</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">dberr_t</span> <span class="hljs-title">lock_rec_lock</span><span class="hljs-params">(<span class="hljs-type">bool</span> impl, select_mode sel_mode, ulint mode,
+                             <span class="hljs-type">const</span> <span class="hljs-type">buf_block_t</span> *block, ulint heap_no,
+                             <span class="hljs-type">dict_index_t</span> *index, <span class="hljs-type">que_thr_t</span> *thr)</span> </span>{
+  <span class="hljs-built_in">ut_ad</span>(locksys::<span class="hljs-built_in">owns_page_shard</span>(block-&gt;<span class="hljs-built_in">get_page_id</span>()));
+  <span class="hljs-built_in">ut_ad</span>(!srv_read_only_mode);
+  <span class="hljs-built_in">ut_ad</span>((LOCK_MODE_MASK &amp; mode) != LOCK_S ||
+        <span class="hljs-built_in">lock_table_has</span>(<span class="hljs-built_in">thr_get_trx</span>(thr), index-&gt;table, LOCK_IS));
+  <span class="hljs-built_in">ut_ad</span>((LOCK_MODE_MASK &amp; mode) != LOCK_X ||
+        <span class="hljs-built_in">lock_table_has</span>(<span class="hljs-built_in">thr_get_trx</span>(thr), index-&gt;table, LOCK_IX));
+  <span class="hljs-built_in">ut_ad</span>((LOCK_MODE_MASK &amp; mode) == LOCK_S || (LOCK_MODE_MASK &amp; mode) == LOCK_X);
+  <span class="hljs-built_in">ut_ad</span>(mode - (LOCK_MODE_MASK &amp; mode) == LOCK_GAP ||
+        mode - (LOCK_MODE_MASK &amp; mode) == LOCK_REC_NOT_GAP ||
+        mode - (LOCK_MODE_MASK &amp; mode) == <span class="hljs-number">0</span>);
+  <span class="hljs-built_in">ut_ad</span>(index-&gt;<span class="hljs-built_in">is_clustered</span>() || !<span class="hljs-built_in">dict_index_is_online_ddl</span>(index));
+  <span class="hljs-comment">/* Implicit locks are equivalent to LOCK_X|LOCK_REC_NOT_GAP, so we can omit
+  creation of explicit lock only if the requested mode was LOCK_REC_NOT_GAP */</span>
+  <span class="hljs-built_in">ut_ad</span>(!impl || ((mode &amp; LOCK_REC_NOT_GAP) == LOCK_REC_NOT_GAP));
+  <span class="hljs-comment">/* We try a simplified and faster subroutine for the most
+  common cases */</span>
+  <span class="hljs-keyword">switch</span> (<span class="hljs-built_in">lock_rec_lock_fast</span>(impl, mode, block, heap_no, index, thr)) {
+    <span class="hljs-keyword">case</span> LOCK_REC_SUCCESS:
+      <span class="hljs-keyword">return</span> (DB_SUCCESS);
+    <span class="hljs-keyword">case</span> LOCK_REC_SUCCESS_CREATED:
+      <span class="hljs-keyword">return</span> (DB_SUCCESS_LOCKED_REC);
+    <span class="hljs-keyword">case</span> LOCK_REC_FAIL:
+      <span class="hljs-keyword">return</span> (
+          <span class="hljs-built_in">lock_rec_lock_slow</span>(impl, sel_mode, mode, block, heap_no, index, thr));
+    <span class="hljs-keyword">default</span>:
+      ut_error;
+</code></pre></div></div></section><section id="chapter-20"><h2>20 · 死锁检测：等待图和牺牲者选择</h2><p>两个事务各持有一条记录锁，再请求对方持有的记录，会形成有向等待环。8.4的lock0wait.cc构建等待信息与边，找候选环后重新校验，避免锁状态变化导致误判；不是每次等待都立即认定死锁。</p><p>lock_wait_choose_victim比较事务权重，并存在高优先级仲裁。一般倾向选择较小事务回滚，但不应承诺固定回滚“最后来的那个”。事务权重涉及已修改数据和锁数量，且选择需要相应lock_sys保护。检测关闭后仍可由lock wait timeout结束等待，处理时机和错误语义不同。</p><p>死锁回滚的是被选事务；普通锁等待超时默认往往只回滚失败语句，完整事务处理还受innodb_rollback_on_timeout等影响。应用捕获1213应重试完整业务事务并控制次数，避免只重跑最后一条UPDATE。统一访问顺序、缩短事务和减少扫描锁范围比增大超时更直接。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-20"><title id="mysql-title-20">图20：死锁检测：等待图和牺牲者选择</title><defs><marker id="mysql-arrow-20" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图20 · 死锁检测：等待图和牺牲者选择</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">采集等待关系</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">寻找候选环</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">校验仍然有效</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">选victim并回滚</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-20)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-20)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-20)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/lock/lock0wait.cc#L917-L953" target="_blank" rel="noopener">固定SHA源码：storage/innobase/lock/lock0wait.cc · L917–L953</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">trx_t</span> *<span class="hljs-title">lock_wait_choose_victim</span><span class="hljs-params">(
+    <span class="hljs-type">const</span> ut::vector&lt;uint&gt; &amp;cycle_ids,
+    <span class="hljs-type">const</span> ut::vector&lt;<span class="hljs-type">waiting_trx_info_t</span>&gt; &amp;infos)</span> </span>{
+  <span class="hljs-comment">/* We are iterating over various transactions comparing their trx_weight_ge,
+  which is computed based on number of locks held thus we need exclusive latch
+  on the whole lock_sys. In theory number of locks should not change while the
+  transaction is waiting, but instead of proving that they can not wake up, it
+  is easier to assert that we hold the mutex */</span>
+  <span class="hljs-built_in">ut_ad</span>(locksys::<span class="hljs-built_in">owns_exclusive_global_latch</span>());
+  <span class="hljs-built_in">ut_ad</span>(!cycle_ids.<span class="hljs-built_in">empty</span>());
+  <span class="hljs-type">trx_t</span> *chosen_victim = <span class="hljs-literal">nullptr</span>;
+  <span class="hljs-keyword">auto</span> sorted_trxs = <span class="hljs-built_in">lock_wait_order_for_choosing_victim</span>(cycle_ids, infos);
+
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> *trx : sorted_trxs) {
+    <span class="hljs-keyword">if</span> (chosen_victim == <span class="hljs-literal">nullptr</span>) {
+      chosen_victim = trx;
+      <span class="hljs-keyword">continue</span>;
+    }
+
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">trx_is_high_priority</span>(chosen_victim) || <span class="hljs-built_in">trx_is_high_priority</span>(trx)) {
+      <span class="hljs-keyword">auto</span> victim = <span class="hljs-built_in">trx_arbitrate</span>(trx, chosen_victim);
+
+      <span class="hljs-keyword">if</span> (victim != <span class="hljs-literal">nullptr</span>) {
+        <span class="hljs-keyword">if</span> (victim == trx) {
+          chosen_victim = trx;
+        } <span class="hljs-keyword">else</span> {
+          <span class="hljs-built_in">ut_a</span>(victim == chosen_victim);
+        }
+        <span class="hljs-keyword">continue</span>;
+      }
+    }
+
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">trx_weight_ge</span>(chosen_victim, trx)) {
+      <span class="hljs-comment">/* The joining transaction is &#x27;smaller&#x27;,
+      choose it as the victim and roll it back. */</span>
+      chosen_victim = trx;
+    }
+</code></pre></div></div></section><section id="chapter-21"><h2>21 · 事务提交：内存可见、redo可靠与锁释放</h2><p>trx_commit_low组织引擎事务提交，trx_commit_in_memory处理内存事务状态、undo历史与锁释放；trx_flush_log_if_needed_low按srv_flush_log_at_trx_commit决定日志写/刷。提交不是一条write系统调用，且binlog开启时Server级协调会改变何时由谁完成持久化等待。</p><p>配置1要求写日志并按flush方式保证持久化，配置2写入文件但不在该调用中强制flush，配置0不在此事务提交调用写/刷。后台周期任务提供后续推进，但周期不是严格“一秒最多丢一秒”的实时承诺；调度和硬件都会影响窗口。服务端确认与客户端收到确认也不是同一时间。</p><p>rollback需要undo恢复事务修改；已提交修改即使数据页还脏，也由redo提供崩溃重做基础。业务判断COMMIT结果不应依赖连接是否恰好还活着：服务器提交后响应丢失是结果不确定窗口。幂等业务键或事后查询事务结果比简单重试INSERT更可靠。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-21"><title id="mysql-title-21">图21：事务提交：内存可见、redo可靠与锁释放</title><defs><marker id="mysql-arrow-21" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图21 · 事务提交：内存可见、redo可靠与锁释放</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">事务结束请求</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">生成commit相关日志</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">按策略等待LSN</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">内存完成与释放锁</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-21)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-21)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-21)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/trx/trx0trx.cc#L1754-L1784" target="_blank" rel="noopener">固定SHA源码：storage/innobase/trx/trx0trx.cc · L1754–L1784</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title">trx_flush_log_if_needed_low</span><span class="hljs-params">(<span class="hljs-type">lsn_t</span> lsn)</span> <span class="hljs-comment">/*!&lt; in: lsn up to which logs
+                                                   are to be flushed. */</span>
+</span>{
+<span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> _WIN32</span>
+  <span class="hljs-type">bool</span> flush = <span class="hljs-literal">true</span>;
+<span class="hljs-meta">#<span class="hljs-keyword">else</span></span>
+  <span class="hljs-type">bool</span> flush = srv_unix_file_flush_method != SRV_UNIX_NOSYNC;
+<span class="hljs-meta">#<span class="hljs-keyword">endif</span> <span class="hljs-comment">/* _WIN32 */</span></span>
+
+  Wait_stats wait_stats;
+
+  <span class="hljs-keyword">switch</span> (srv_flush_log_at_trx_commit) {
+    <span class="hljs-keyword">case</span> <span class="hljs-number">2</span>:
+      <span class="hljs-comment">/* Write the log but do not flush it to disk */</span>
+      flush = <span class="hljs-literal">false</span>;
+      [[fallthrough]];
+    <span class="hljs-keyword">case</span> <span class="hljs-number">1</span>:
+      <span class="hljs-comment">/* Write the log and optionally flush it to disk */</span>
+      wait_stats = <span class="hljs-built_in">log_write_up_to</span>(*log_sys, lsn, flush);
+
+      <span class="hljs-built_in">MONITOR_INC_WAIT_STATS</span>(MONITOR_TRX_ON_LOG_, wait_stats);
+
+      <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">case</span> <span class="hljs-number">0</span>:
+      <span class="hljs-comment">/* Do nothing */</span>
+      <span class="hljs-keyword">return</span>;
+  }
+}
+
+<span class="hljs-comment">/** If required, flushes the log to disk based on the value of
+ innodb_flush_log_at_trx_commit. */</span>
+</code></pre></div></div></section><section id="chapter-22"><h2>22 · Binlog与redo两阶段提交：对齐两个事实</h2><p>Server的ha_commit_trans根据参与者、读写状态与no_2pc等条件决定是否通过tc_log准备。启用binlog且涉及需要协调的事务时，Server与InnoDB共同维护提交一致性，不能仅按“只有一个存储引擎”判断一定跳过协调。InnoDB trx_prepare_low把undo segment由ACTIVE改为PREPARED，并通过mtr记录此状态。</p><p>binlog再写完整事务事件和结束标记，ordered_commit负责flush/sync/commit各阶段。持久化binlog中的提交决定，与InnoDB可恢复的prepared状态结合，让启动恢复能判断悬而未决事务该提交还是回滚。XID服务这次内部协调；GTID标识复制事务，不是InnoDB事务ID或页LSN。</p><p>在prepare完成但binlog提交决定未持久化时崩溃，恢复不能随意把prepared事务当已提交；在binlog提交决定持久化后、引擎最终commit未完成时崩溃，则要依据协调日志完成提交。双1配置只是常见持久化要求组合，实际保证还依赖文件系统、硬件与错误策略，不能说“两阶段使任何配置都不丢”。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-22"><title id="mysql-title-22">图22：Binlog与redo两阶段提交：对齐两个事实</title><defs><marker id="mysql-arrow-22" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图22 · Binlog与redo两阶段提交：对齐两个事实</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">InnoDB prepare</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">binlog事务组flush</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">binlog sync</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">引擎commit</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-22)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-22)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-22)"/><text x="25" y="145" font-size="11" fill="#657892">前提：参与binlog协调且无错误的正常路径；sync是否执行受策略控制，跳过2PC与错误分支另见正文。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p>这是参与binlog协调事务的成功主线；不是所有只读/空事务、binlog关闭或no_2pc场景的必经步骤。SYNC是否真正同步还受sync_binlog等策略控制。</p><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/trx/trx0trx.cc#L2923-L2968" target="_blank" rel="noopener">固定SHA源码：storage/innobase/trx/trx0trx.cc · L2923–L2968</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">lsn_t</span> <span class="hljs-title">trx_prepare_low</span><span class="hljs-params">(
+    <span class="hljs-type">trx_t</span> *trx,               <span class="hljs-comment">/*!&lt; in/out: transaction */</span>
+    <span class="hljs-type">trx_undo_ptr_t</span> *undo_ptr, <span class="hljs-comment">/*!&lt; in/out: pointer to rollback
+                              segment scheduled for prepare. */</span>
+    <span class="hljs-type">bool</span> noredo_logging)</span>      <span class="hljs-comment">/*!&lt; in: turn-off redo logging. */</span>
+</span>{
+  <span class="hljs-keyword">if</span> (undo_ptr-&gt;insert_undo != <span class="hljs-literal">nullptr</span> || undo_ptr-&gt;update_undo != <span class="hljs-literal">nullptr</span>) {
+    <span class="hljs-type">mtr_t</span> mtr;
+    <span class="hljs-type">trx_rseg_t</span> *rseg = undo_ptr-&gt;rseg;
+
+    <span class="hljs-built_in">mtr_start_sync</span>(&amp;mtr);
+
+    <span class="hljs-keyword">if</span> (noredo_logging) {
+      <span class="hljs-built_in">mtr_set_log_mode</span>(&amp;mtr, MTR_LOG_NO_REDO);
+    }
+
+    <span class="hljs-comment">/* Change the undo log segment states from TRX_UNDO_ACTIVE to
+    TRX_UNDO_PREPARED: these modifications to the file data
+    structure define the transaction as prepared in the file-based
+    world, at the serialization point of lsn. */</span>
+
+    rseg-&gt;<span class="hljs-built_in">latch</span>();
+
+    <span class="hljs-keyword">if</span> (undo_ptr-&gt;insert_undo != <span class="hljs-literal">nullptr</span>) {
+      <span class="hljs-comment">/* It is not necessary to obtain trx-&gt;undo_mutex here
+      because only a single OS thread is allowed to do the
+      transaction prepare for this transaction. */</span>
+      <span class="hljs-built_in">trx_undo_set_state_at_prepare</span>(trx, undo_ptr-&gt;insert_undo, <span class="hljs-literal">false</span>, &amp;mtr);
+    }
+
+    <span class="hljs-keyword">if</span> (undo_ptr-&gt;update_undo != <span class="hljs-literal">nullptr</span>) {
+      <span class="hljs-keyword">if</span> (!noredo_logging) {
+        <span class="hljs-built_in">trx_undo_gtid_set</span>(trx, undo_ptr-&gt;update_undo, <span class="hljs-literal">true</span>);
+      }
+      <span class="hljs-built_in">trx_undo_set_state_at_prepare</span>(trx, undo_ptr-&gt;update_undo, <span class="hljs-literal">false</span>, &amp;mtr);
+    }
+
+    rseg-&gt;<span class="hljs-built_in">unlatch</span>();
+
+    <span class="hljs-comment">/*--------------*/</span>
+    <span class="hljs-comment">/* This mtr commit makes the transaction prepared in
+    file-based world. */</span>
+    <span class="hljs-built_in">mtr_commit</span>(&amp;mtr);
+    <span class="hljs-comment">/*--------------*/</span>
+
+    <span class="hljs-keyword">if</span> (!noredo_logging) {
+</code></pre></div></div></section><section id="chapter-23"><h2>23 · 组提交与故障窗口：三阶段不是三次事务</h2><p>MYSQL_BIN_LOG::ordered_commit用Commit_stage_manager组织队列，每个阶段选leader处理一组THD，followers等待。FLUSH把事务缓存落到binlog文件，SYNC按sync_binlog策略同步，COMMIT按binlog_order_commits等条件完成引擎提交。不同阶段队列可以合并，故一次同步覆盖多个事务。</p><p>源码在FLUSH与SYNC间设置crash/debug同步点，恰好提醒“写入文件”还不等于可靠落盘。flush_error与sync_error单独处理，binlog_error_action控制某些错误后的终止策略；仅看函数末尾return 0不足以理解失败路径。opt_binlog_order_commits关闭时，提交阶段走不同线程路径，不能把leader永远提交所有引擎作为无条件事实。</p><p>窗口推演：prepare前没有提交决定；prepared但binlog未可靠保存需恢复仲裁；binlog可靠、引擎尚未完成需恢复提交；引擎完成而客户端未收到OK是业务结果不确定。这里不执行kill或断电实验，因为普通发布构建无法直接使用DBUG_SUICIDE。先纸面核对源码时点，再在隔离debug环境进行故障注入。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 410" role="img" aria-labelledby="mysql-title-23"><title id="mysql-title-23">图23：组提交：有序提交与线程自行提交分支</title><defs><marker id="mysql-arrow-23" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="24" y="28" font-size="16" fill="#24364c">图23 · 组提交：有序提交与线程自行提交分支</text><rect x="25" y="65" width="215" height="64" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="132.5" y="92.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="132.5" dy="0">FLUSH队列leader</tspan><tspan x="132.5" dy="23">事务缓存→binlog文件</tspan></text><rect x="285" y="65" width="215" height="64" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="392.5" y="92.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="392.5" dy="0">SYNC队列leader</tspan><tspan x="392.5" dy="23">按sync_binlog策略同步</tspan></text><path d="M240 97 L275 97" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-23)"/><rect x="555" y="65" width="405" height="64" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="757.5" y="92.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="757.5" dy="0">binlog_order_commits / Clone需要顺序？</tspan><tspan x="757.5" dy="23">且错误策略允许进入commit</tspan></text><path d="M500 97 L545 97" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-23)"/><rect x="555" y="200" width="190" height="85" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="650.0" y="227.5" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="650.0" dy="0">是：COMMIT队列</tspan><tspan x="650.0" dy="23">leader提交事务组</tspan><tspan x="650.0" dy="23">并更新GTID</tspan></text><rect x="790" y="200" width="180" height="85" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880.0" y="227.5" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="880.0" dy="0">否：跳过有序阶段</tspan><tspan x="880.0" dy="23">线程finish_commit</tspan><tspan x="880.0" dy="23">自行引擎提交</tspan></text><path d="M650 129 L650 190" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-23)"/><text x="662" y="165" font-size="13" fill="#45627f">是</text><path d="M865 129 L865 190" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-23)"/><text x="880" y="165" font-size="13" fill="#45627f">否</text><rect x="330" y="333" width="390" height="50" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="525.0" y="363.0" text-anchor="middle" font-size="15" fill="#24364c"><tspan x="525.0" dy="0">完成相应提交/钩子，释放等待线程</tspan></text><path d="M650 285 L650 323" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-23)"/><path d="M880 285 L880 357 L730 357" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-23)"/><text x="24" y="403" font-size="12" fill="#657892">简化正常路径；after-commit钩子、flush/sync错误及ABORT_SERVER分支需结合ordered_commit全文。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p>有序COMMIT队列是条件路径。关闭提交顺序且Clone不要求顺序等情况下，线程通过finish_commit完成对应引擎提交；flush/sync错误与ABORT_SERVER分支应单独追踪。</p><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/binlog.cc#L9096-L9123" target="_blank" rel="noopener">固定SHA源码：sql/binlog.cc · L9096–L9123</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">change_stage</span>(thd, Commit_stage_manager::SYNC_STAGE, wait_queue, &amp;LOCK_log,
+                   &amp;LOCK_sync)) {
+    <span class="hljs-built_in">DBUG_PRINT</span>(<span class="hljs-string">&quot;return&quot;</span>, (<span class="hljs-string">&quot;Thread ID: %u, commit_error: %d&quot;</span>, thd-&gt;<span class="hljs-built_in">thread_id</span>(),
+                          thd-&gt;commit_error));
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">finish_commit</span>(thd);
+  }
+
+  <span class="hljs-comment">/*
+    Shall introduce a delay only if it is going to do sync
+    in this ongoing SYNC stage. The &quot;+1&quot; used below in the
+    if condition is to count the ongoing sync stage.
+    When sync_binlog=0 (where we never do sync in BGC group),
+    it is considered as a special case and delay will be executed
+    for every group just like how it is done when sync_binlog= 1.
+  */</span>
+  <span class="hljs-keyword">if</span> (!flush_error &amp;&amp; (sync_counter + <span class="hljs-number">1</span> &gt;= <span class="hljs-built_in">get_sync_period</span>()))
+    Commit_stage_manager::<span class="hljs-built_in">get_instance</span>().<span class="hljs-built_in">wait_count_or_timeout</span>(
+        opt_binlog_group_commit_sync_no_delay_count,
+        opt_binlog_group_commit_sync_delay, Commit_stage_manager::SYNC_STAGE);
+
+  final_queue = Commit_stage_manager::<span class="hljs-built_in">get_instance</span>().<span class="hljs-built_in">fetch_queue_acquire_lock</span>(
+      Commit_stage_manager::SYNC_STAGE);
+
+  <span class="hljs-keyword">if</span> (flush_error == <span class="hljs-number">0</span> &amp;&amp; total_bytes &gt; <span class="hljs-number">0</span>) {
+    <span class="hljs-built_in">DEBUG_SYNC</span>(thd, <span class="hljs-string">&quot;before_sync_binlog_file&quot;</span>);
+    std::pair&lt;<span class="hljs-type">bool</span>, <span class="hljs-type">bool</span>&gt; result = <span class="hljs-built_in">sync_binlog_file</span>(<span class="hljs-literal">false</span>);
+    sync_error = result.first;
+  }
+</code></pre></div></div><h3>COMMIT阶段：GTID更新随事务组完成</h3><p>process_commit_stage_queue在协调日志可靠性检查后调用引擎提交并更新GTID状态。关闭有序提交时要继续读另外分支，不应宣称所有配置都由leader串行完成。</p><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/binlog.cc#L9172-L9197">固定SHA源码 · sql/binlog.cc · L9172–L9197</a></p><div class="source"><div class="source-bar"><span>补充关键条件证据</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">    THD *commit_queue =
+        Commit_stage_manager::<span class="hljs-built_in">get_instance</span>().<span class="hljs-built_in">fetch_queue_acquire_lock</span>(
+            Commit_stage_manager::COMMIT_STAGE);
+    <span class="hljs-built_in">DBUG_EXECUTE_IF</span>(<span class="hljs-string">&quot;semi_sync_3-way_deadlock&quot;</span>,
+                    <span class="hljs-built_in">DEBUG_SYNC</span>(thd, <span class="hljs-string">&quot;before_process_commit_stage_queue&quot;</span>););
+
+    <span class="hljs-keyword">if</span> (flush_error == <span class="hljs-number">0</span> &amp;&amp; sync_error == <span class="hljs-number">0</span>)
+      sync_error = <span class="hljs-built_in">call_after_sync_hook</span>(commit_queue);
+
+    <span class="hljs-comment">/*
+      process_commit_stage_queue will call update_on_commit or
+      update_on_rollback for the GTID owned by each thd in the queue.
+
+      This will be done this way to guarantee that GTIDs are added to
+      gtid_executed in order, to avoid creating unnecessary temporary
+      gaps and keep gtid_executed as a single interval at all times.
+
+      If we allow each thread to call update_on_commit only when they
+      are at finish_commit, the GTID order cannot be guaranteed and
+      temporary gaps may appear in gtid_executed. When this happen,
+      the server would have to add and remove intervals from the
+      Gtid_set, and adding and removing intervals requires a mutex,
+      which would reduce performance.
+    */</span>
+    <span class="hljs-built_in">process_commit_stage_queue</span>(thd, commit_queue);
+
+</code></pre></div></div><h3>逐时点推演：恢复需要什么事实</h3><div style="overflow:auto"><table style="border-collapse:collapse;width:100%;font-size:14px"><thead><tr><th>崩溃窗口</th><th>可恢复事实</th><th>恢复/应用后果</th></tr></thead><tbody><tr><td>prepare之前</td><td>没有完整提交决定</td><td>未完成事务需要回滚</td></tr><tr><td>prepared，但binlog决定尚不可靠</td><td>InnoDB已有prepared状态</td><td>按协调日志仲裁，不能仅凭prepared提交</td></tr><tr><td>binlog提交决定可靠，引擎commit未完成</td><td>协调日志与prepared状态可对齐</td><td>完成提交，避免复制与本地事务历史分叉</td></tr><tr><td>引擎完成，客户端OK丢失</td><td>数据库已经提交</td><td>客户端结果不确定，业务键查询/幂等重试</td></tr></tbody></table></div><p>此表假定事务、日志和设备满足对应可靠保存条件。日志校验失败、配置放宽、I/O错误和binlog关闭时，必须回到实际恢复分支，不能套用理想路径。</p></section><section id="chapter-24"><h2>24 · Checkpoint与恢复：日志何时允许复用</h2><p>checkpoint不是“所有脏页刷完”的瞬间。InnoDB连续评估哪些日志已不再是恢复脏页所必需，结合flush list与近期完成日志信息得到可推进位置。log_update_available_for_checkpoint_lsn先确认m_allow_checkpoints；恢复尚未完成时不信任flush list，不能提前推进。</p><p>available_for_checkpoint_lsn只在新值更大时更新，实际checkpoint还受其他约束和保存动作影响。current LSN与checkpoint LSN间距表现恢复/日志复用压力，不等于某个事务尚未提交。redo循环空间要保留还不能覆盖的区间，慢刷页会反过来拖住日志复用并压制前台写入。</p><p>recv_recovery_from_checkpoint_start扫描redo、校验块与组边界并组织页恢复；页上的LSN用于判定某物理修改是否已经反映。之后还需处理未完成事务与协调日志，不是只重做就可开放服务。备份恢复不能直接复制运行中的任意ibd文件：一致性点、redo、字典、undo和日志协调共同决定可恢复性。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-24"><title id="mysql-title-24">图24：Checkpoint与恢复：日志何时允许复用</title><defs><marker id="mysql-arrow-24" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图24 · Checkpoint与恢复：日志何时允许复用</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">最早未落盘修改</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">available checkpoint LSN</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">保存checkpoint</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">恢复从边界扫描</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-24)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-24)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-24)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/log/log0chkp.cc#L282-L309" target="_blank" rel="noopener">固定SHA源码：storage/innobase/log/log0chkp.cc · L282–L309</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title">log_update_available_for_checkpoint_lsn</span><span class="hljs-params">(<span class="hljs-type">log_t</span> &amp;log)</span> </span>{
+  <span class="hljs-comment">/* Note: log.m_allow_checkpoints is set to true after recovery is finished,
+  and changes gathered in recv_sys-&gt;metadata_recover are applied to dict_table_t
+  objects; or in log_start() if recovery was not needed. We can&#x27;t trust
+  flush lists until recovery is finished, so we must not update lsn available
+  for checkpoint (as update would be based on what we can see inside them). */</span>
+  <span class="hljs-keyword">if</span> (!log.m_allow_checkpoints.<span class="hljs-built_in">load</span>(std::memory_order_acquire)) {
+    <span class="hljs-keyword">return</span>;
+  }
+
+  <span class="hljs-comment">/* Update lsn available for checkpoint. */</span>
+  log.recent_closed.<span class="hljs-built_in">advance_tail</span>();
+  <span class="hljs-type">const</span> <span class="hljs-type">lsn_t</span> oldest_lsn = <span class="hljs-built_in">log_compute_available_for_checkpoint_lsn</span>(log);
+
+  <span class="hljs-built_in">log_limits_mutex_enter</span>(log);
+
+  <span class="hljs-comment">/* 1. The oldest_lsn can decrease in case previously buffer pool flush
+        lists were empty and now a new dirty page appeared, which causes
+        a maximum delay of log.recent_closed_size being suddenly subtracted.
+
+     2. Race between concurrent log_update_available_for_checkpoint_lsn is
+        also possible. */</span>
+
+  <span class="hljs-keyword">if</span> (oldest_lsn &gt; log.available_for_checkpoint_lsn) {
+    log.available_for_checkpoint_lsn = oldest_lsn;
+  }
+
+  <span class="hljs-built_in">log_limits_mutex_exit</span>(log);
+</code></pre></div></div><h3>恢复入口：没有可用checkpoint就不能正常重做</h3><p>恢复初始化flush-list辅助结构，检查force recovery模式，寻找可用checkpoint；找不到会返回DB_ERROR。强制恢复跳过redo是特殊救援模式，不能据此推断正常启动安全性。</p><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/log/log0recv.cc#L3850-L3875">固定SHA源码 · storage/innobase/log/log0recv.cc · L3850–L3875</a></p><div class="source"><div class="source-bar"><span>补充关键条件证据</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">dberr_t</span> <span class="hljs-title">recv_recovery_from_checkpoint_start</span><span class="hljs-params">(<span class="hljs-type">log_t</span> &amp;log, <span class="hljs-type">lsn_t</span> flush_lsn)</span> </span>{
+  <span class="hljs-comment">/* Initialize red-black tree for fast insertions into the
+  flush_list during recovery process. */</span>
+  <span class="hljs-built_in">buf_flush_init_flush_rbt</span>();
+
+  <span class="hljs-keyword">if</span> (srv_force_recovery &gt;= SRV_FORCE_NO_LOG_REDO) {
+    ib::<span class="hljs-built_in">info</span>(ER_IB_MSG_728);
+
+    <span class="hljs-comment">/* We leave redo log not started and this is read-only mode. */</span>
+    <span class="hljs-built_in">ut_a</span>(log.sn == <span class="hljs-number">0</span>);
+    <span class="hljs-built_in">ut_a</span>(srv_read_only_mode);
+
+    <span class="hljs-keyword">return</span> DB_SUCCESS;
+  }
+
+  recv_recovery_on = <span class="hljs-literal">true</span>;
+
+  <span class="hljs-built_in">ut_a</span>(log.m_format == Log_format::CURRENT);
+
+  <span class="hljs-comment">/* Look for the latest checkpoint */</span>
+  Log_checkpoint_location checkpoint;
+  <span class="hljs-keyword">if</span> (!<span class="hljs-built_in">recv_find_max_checkpoint</span>(log, checkpoint)) {
+    ib::<span class="hljs-built_in">error</span>(ER_IB_MSG_RECOVERY_CHECKPOINT_NOT_FOUND);
+    <span class="hljs-keyword">return</span> DB_ERROR;
+  }
+
+</code></pre></div></div></section><section id="chapter-25"><h2>25 · Purge：为什么长事务拖住历史清理</h2><p>提交后的update undo进入历史清理范围，但只有不再被活动ReadView需要的版本才允许purge。purge线程根据视图边界推进，处理delete-mark记录、二级索引清理与undo历史；它不是把每个已提交事务的undo马上删除。</p><p>长时间一致性读固定旧视图，使较新的版本仍须保留。history list length因此增长，磁盘空间、后台清理压力与读追链长度也可能升高。数量指标不是字节数，更不是简单“未提交事务数”。purge赶不上写入与单个老视图钉住边界是两种问题，需要先查最老事务起始时间与状态。</p><p>仅杀掉阻塞业务SQL而保留连接事务，可能没有释放ReadView。应确认事务完成或连接回滚。undo tablespace截断与逻辑版本清理也有不同条件，不能期待COMMIT后文件立即变小。实验应观察历史趋势，并在两个会话分别结束读事务后比较，而不以一次状态输出推断持续积压。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-25"><title id="mysql-title-25">图25：Purge：为什么长事务拖住历史清理</title><defs><marker id="mysql-arrow-25" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图25 · Purge：为什么长事务拖住历史清理</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">提交update undo入history</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">最老ReadView边界</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">purge移除无用版本</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">回收记录 / undo空间</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-25)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-25)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-25)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/trx/trx0purge.cc#L2390-L2423" target="_blank" rel="noopener">固定SHA源码：storage/innobase/trx/trx0purge.cc · L2390–L2423</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-function">ulint <span class="hljs-title">trx_purge</span><span class="hljs-params">(ulint n_purge_threads, <span class="hljs-comment">/*!&lt; in: number of purge tasks
+                                       to submit to the work queue */</span>
+                ulint batch_size,      <span class="hljs-comment">/*!&lt; in: the maximum number of records
+                                       to purge in one batch */</span>
+                <span class="hljs-type">bool</span> truncate)</span>         <span class="hljs-comment">/*!&lt; in: truncate history if true */</span>
+</span>{
+  <span class="hljs-type">que_thr_t</span> *thr = <span class="hljs-literal">nullptr</span>;
+  ulint n_pages_handled;
+
+  <span class="hljs-built_in">ut_a</span>(n_purge_threads &gt; <span class="hljs-number">0</span>);
+
+  srv_dml_needed_delay = <span class="hljs-built_in">trx_purge_dml_delay</span>();
+
+  <span class="hljs-comment">/* The number of tasks submitted should be completed. */</span>
+  <span class="hljs-built_in">ut_a</span>(purge_sys-&gt;n_submitted == purge_sys-&gt;n_completed);
+
+  <span class="hljs-built_in">rw_lock_x_lock</span>(&amp;purge_sys-&gt;latch, UT_LOCATION_HERE);
+
+  trx_sys-&gt;mvcc-&gt;<span class="hljs-built_in">clone_oldest_view</span>(&amp;purge_sys-&gt;view);
+
+  <span class="hljs-built_in">rw_lock_x_unlock</span>(&amp;purge_sys-&gt;latch);
+
+<span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> UNIV_DEBUG</span>
+  <span class="hljs-keyword">if</span> (srv_purge_view_update_only_debug) {
+    <span class="hljs-keyword">return</span> (<span class="hljs-number">0</span>);
+  }
+<span class="hljs-meta">#<span class="hljs-keyword">endif</span> <span class="hljs-comment">/* UNIV_DEBUG */</span></span>
+
+  <span class="hljs-comment">/* Fetch the UNDO recs that need to be purged. */</span>
+  n_pages_handled = <span class="hljs-built_in">trx_purge_attach_undo_recs</span>(n_purge_threads, batch_size);
+
+  <span class="hljs-comment">/* Submit the tasks to the work queue. */</span>
+  <span class="hljs-keyword">for</span> (ulint i = <span class="hljs-number">0</span>; i &lt; n_purge_threads - <span class="hljs-number">1</span>; ++i) {
+    thr = <span class="hljs-built_in">que_fork_scheduler_round_robin</span>(purge_sys-&gt;query, thr);
+</code></pre></div></div></section><section id="chapter-26"><h2>26 · 复制与GTID：应用日志不是重放数据页</h2><p>Classic复制读取source binlog，在replica接收与持久化relay log，然后applier执行事件。apply_event_and_update_pos把事件应用和位点管理联系起来，多线程复制还涉及协调线程、worker及提交顺序；接收进度与执行进度是不同水位。</p><p>GTID使用source UUID与事务序列标识事务，gtid_executed描述已执行集合。相同事务可通过集合避免重复执行，但“有GTID”并不意味着数据内容自动一致：过滤、错误跳过、非事务对象或人为修改仍能破坏一致性。复制读取的是binlog事件语义，InnoDB redo则面向本地页恢复，二者不能互当备份。</p><p>延迟要区分传输慢、relay积压、worker执行慢与提交依赖等待。Seconds_Behind_Source不是所有故障下都准确的端到端时延。查询performance_schema.replication_applier_status_by_worker的错误、应用事务和时间信息，结合receiver状态判定。8.4使用SOURCE/REPLICA命令，老MASTER/SLAVE术语源码残留不表示文档应该统一沿用。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-26"><title id="mysql-title-26">图26：复制与GTID：应用日志不是重放数据页</title><defs><marker id="mysql-arrow-26" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图26 · 复制与GTID：应用日志不是重放数据页</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">source binlog</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">receiver / relay log</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">applier应用事务</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">更新executed GTID</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-26)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-26)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-26)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/rpl_replica.cc#L4438-L4477" target="_blank" rel="noopener">固定SHA源码：sql/rpl_replica.cc · L4438–L4477</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs"><span class="hljs-built_in">apply_event_and_update_pos</span>(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
+  <span class="hljs-type">int</span> exec_res = <span class="hljs-number">0</span>;
+  <span class="hljs-type">bool</span> skip_event = <span class="hljs-literal">false</span>;
+  Log_event *ev = *ptr_ev;
+  Log_event::enum_skip_reason reason = Log_event::EVENT_SKIP_NOT;
+
+  DBUG_TRACE;
+
+  <span class="hljs-built_in">DBUG_PRINT</span>(<span class="hljs-string">&quot;exec_event&quot;</span>,
+             (<span class="hljs-string">&quot;%s(type_code: %d; server_id: %d)&quot;</span>, ev-&gt;<span class="hljs-built_in">get_type_str</span>(),
+              ev-&gt;<span class="hljs-built_in">get_type_code</span>(), ev-&gt;server_id));
+  <span class="hljs-built_in">DBUG_PRINT</span>(<span class="hljs-string">&quot;info&quot;</span>,
+             (<span class="hljs-string">&quot;thd-&gt;options: %s%s; rli-&gt;last_event_start_time: %lu&quot;</span>,
+              <span class="hljs-built_in">FLAGSTR</span>(thd-&gt;variables.option_bits, OPTION_NOT_AUTOCOMMIT),
+              <span class="hljs-built_in">FLAGSTR</span>(thd-&gt;variables.option_bits, OPTION_BEGIN),
+              (ulong)rli-&gt;last_event_start_time));
+
+  <span class="hljs-comment">/*
+    Execute the event to change the database and update the binary
+    log coordinates, but first we set some data that is needed for
+    the thread.
+
+    The event will be executed unless it is supposed to be skipped.
+
+    Queries originating from this server must be skipped.  Low-level
+    events (Format_description_log_event, Rotate_log_event,
+    Stop_log_event) from this server must also be skipped. But for
+    those we don&#x27;t want to modify &#x27;group_master_log_pos&#x27;, because
+    these events did not exist on the master.
+    Format_description_log_event is not completely skipped.
+
+    Skip queries specified by the user in &#x27;slave_skip_counter&#x27;.  We
+    can&#x27;t however skip events that has something to do with the log
+    files themselves.
+
+    Filtering on own server id is extremely important, to ignore
+    execution of events created by the creation/rotation of the relay
+    log (remember that now the relay log starts with its Format_desc,
+    has a Rotate etc).
+  */</span>
+</code></pre></div></div></section><section id="chapter-27"><h2>27 · 诊断与实验：把计划、锁和LSN放回同一现场</h2><p>诊断先构造假设：慢在扫描、锁等待还是持久化？扫描问题看EXPLAIN ANALYZE与rows/loops，锁问题看data_lock_waits/metadata_locks及阻塞事务，持久化问题看redo写/刷、checkpoint与文件I/O等待。每类证据指向不同源码入口，不能从一个“慢查询”结论跳到缓存或加索引。</p><p>附带lab.sql建立独立source_lab库，使用显式主键、联合索引及少量数据；sessions.md给出两个会话RR/RC快照、FOR UPDATE、gap等待与死锁调度。SQL与预期是可复现设计，未在本机启动/编译MySQL，也没有伪造EXPLAIN结果。执行前核对SELECT VERSION()和隔离设置。</p><p>完成学习时应能连续复述：COM_QUERY建立THD语句状态→解析形成查询块→优化选择访问路径→迭代器Read跨handler→InnoDB游标取页与记录→ReadView或锁决定可读版本→结果返回；写事务另有undo/redo和binlog协调链。复述中如果出现“COMMIT刷全表”“RR等于BEGIN快照”“二级索引永远不回表”，返回对应章重新推演条件。</p><figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 154" role="img" aria-labelledby="mysql-title-27"><title id="mysql-title-27">图27：诊断与实验：把计划、锁和LSN放回同一现场</title><defs><marker id="mysql-arrow-27" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs><text x="25" y="24" font-size="12" fill="#657892">图27 · 诊断与实验：把计划、锁和LSN放回同一现场</text><rect x="25" y="42" width="210" height="72" rx="12" fill="#dfefff" stroke="#a5b6ce"/><text x="130" y="82" text-anchor="middle" font-size="15" fill="#24364c">EXPLAIN实际路径</text><rect x="275" y="42" width="210" height="72" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/><text x="380" y="82" text-anchor="middle" font-size="15" fill="#24364c">P_S等待与事务</text><rect x="525" y="42" width="210" height="72" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/><text x="630" y="82" text-anchor="middle" font-size="15" fill="#24364c">InnoDB状态水位</text><rect x="775" y="42" width="210" height="72" rx="12" fill="#fff0d8" stroke="#a5b6ce"/><text x="880" y="82" text-anchor="middle" font-size="15" fill="#24364c">形成可验证假设</text><path d="M235 78 L267 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-27)"/><path d="M485 78 L517 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-27)"/><path d="M735 78 L767 78" stroke="#6e819a" stroke-width="2" marker-end="url(#mysql-arrow-27)"/><text x="25" y="145" font-size="11" fill="#657892">机制示意：主线与状态边界，省略实现支线；请结合源码条件阅读。</text></svg><figcaption>可横向滚动查看完整机制图。图示省略支线，不是完整调用图。</figcaption></figure><p><a href="https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/sql_union.cc#L1753-L1780" target="_blank" rel="noopener">固定SHA源码：sql/sql_union.cc · L1753–L1780</a></p><div class="source"><div class="source-bar"><span>MySQL8.4.0 · 连续真实源码窗口</span><button class="copy">复制源码</button></div><div class="source-scroll"><pre><code class="hljs">  }
+  *send_records_ptr = <span class="hljs-number">0</span>;
+
+  thd-&gt;<span class="hljs-built_in">get_stmt_da</span>()-&gt;<span class="hljs-built_in">reset_current_row_for_condition</span>();
+
+  {
+    <span class="hljs-keyword">auto</span> join_cleanup = <span class="hljs-built_in">create_scope_guard</span>([<span class="hljs-keyword">this</span>, thd] {
+      <span class="hljs-keyword">for</span> (Query_block *sl = <span class="hljs-built_in">first_query_block</span>(); sl;
+           sl = sl-&gt;<span class="hljs-built_in">next_query_block</span>()) {
+        JOIN *join = sl-&gt;join;
+        join-&gt;<span class="hljs-built_in">join_free</span>();
+        thd-&gt;<span class="hljs-built_in">inc_examined_row_count</span>(join-&gt;examined_rows);
+      }
+      <span class="hljs-keyword">if</span> (!<span class="hljs-built_in">is_simple</span>() &amp;&amp; <span class="hljs-built_in">set_operation</span>()-&gt;m_is_materialized)
+        thd-&gt;<span class="hljs-built_in">inc_examined_row_count</span>(
+            <span class="hljs-built_in">query_term</span>()-&gt;<span class="hljs-built_in">query_block</span>()-&gt;join-&gt;examined_rows);
+    });
+
+    <span class="hljs-keyword">if</span> (m_root_iterator-&gt;<span class="hljs-built_in">Init</span>()) {
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+    }
+
+    <span class="hljs-function">PFSBatchMode <span class="hljs-title">pfs_batch_mode</span><span class="hljs-params">(m_root_iterator.get())</span></span>;
+
+    <span class="hljs-keyword">for</span> (;;) {
+      <span class="hljs-type">int</span> error = m_root_iterator-&gt;<span class="hljs-built_in">Read</span>();
+      <span class="hljs-built_in">DBUG_EXECUTE_IF</span>(<span class="hljs-string">&quot;bug13822652_1&quot;</span>, thd-&gt;killed = THD::KILL_QUERY;);
+
+</code></pre></div></div></section><section id="labs"><h2>SQL实验与核验边界</h2><p>以下脚本在本机未执行，不把预期视为实测结果。请在隔离的MySQL8.4测试实例中运行，不要连接生产库。</p><p><a href="lab.sql">实验初始化与诊断SQL</a> · <a href="sessions.md">两个会话实验步骤与预期</a> · <a href="VERIFICATION.md">源码证据与验证记录</a></p><blockquote>从一次慢查询回到三个证据：执行计划说明查了多少，等待图说明谁挡住谁，LSN说明持久化走到了哪里。</blockquote></section></article><footer>原创中文机制分析与图解 · MySQL源码节选遵循GPLv2，见<a href="source-notices.txt">许可说明</a>。官方源码基线8.4.0，不是最新版部署建议。</footer></main><script>document.querySelector('#menu').onclick=()=>document.body.classList.toggle('open');document.querySelector('#theme').onclick=()=>document.body.classList.toggle('dark');document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>document.body.classList.remove('open'));document.querySelector('#search').addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('hide',!a.textContent.toLowerCase().includes(q)))});document.querySelectorAll('.copy').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.closest('.source').querySelector('code').textContent);b.textContent='已复制';setTimeout(()=>b.textContent='复制源码',1200)}catch{b.textContent='请选中代码复制'}});const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.hash==='#'+e.target.id))}}),{rootMargin:'-90px 0px -65% 0px'});document.querySelectorAll('article section').forEach(e=>obs.observe(e));</script></body></html>

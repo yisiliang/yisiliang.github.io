@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-07",
+  "maven": "3.9.11",
+  "java": "17.0.16",
+  "tests": [
+    {
+      "name": "demo.MvcSliceTests",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "demo.MechanismTests",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "http_smoke": {
+    "/ping": {
+      "status": 200,
+      "body": "pong"
+    },
+    "/actuator/health": {
+      "status": 200,
+      "body": "{\"status\":\"UP\"}"
+    },
+    "/actuator/beans": {
+      "status": 404
+    },
+    "shutdown": {
+      "signal": "SIGTERM",
+      "exit_code": 143,
+      "graceful_log": true
+    }
+  },
+  "runtime_java": "21.0.12.1"
+}

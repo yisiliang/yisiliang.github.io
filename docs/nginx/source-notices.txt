@@ -1,0 +1,16 @@
+NGINX源码学习手册：来源、许可与范围
+
+基线：官方github.com/nginx/nginx，release-1.28.0
+Commit：481d28cb4e04c8096b9b6134856891dc52ecc68f
+Tag对象：f6f8d515885fcda20f09b83583d576337fbabe0a
+访问与核验日期：2026-10-07（Asia/Shanghai）
+
+原文C源码节选来自上述固定提交，完整上游LICENSE随本包提供为nginx-license.txt。
+Copyright (C) 2002-2021 Igor Sysoev
+Copyright (C) 2011-2025 Nginx, Inc.
+上游代码适用该LICENSE的许可、保留版权与免责声明条件。本文分析、机制图、版式和虚构实验为教程原创说明，不代表NGINX维护者认可或性能承诺。
+
+官网文档只提供阅读入口及规则核对，本包不复制官方文档全文。
+本包未分发NGINX可执行文件、OpenSSL、第三方模块、完整上游源码或外部JS库。
+在线页面含Umami页面统计，离线index.html不含统计或远端资源依赖。
+未执行NGINX运行/配置实验、TLS、信号或性能测试，详见VERIFICATION.md。

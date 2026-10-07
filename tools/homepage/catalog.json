@@ -1,0 +1,117 @@
+[
+  {
+    "id": "runtime",
+    "title": "语言与运行时",
+    "en": "LANGUAGE & RUNTIME",
+    "description": "从集合与并发，到内存管理与执行机制。",
+    "books": [
+      {
+        "name": "JDK",
+        "version": "OpenJDK8u",
+        "path": "jdk-source",
+        "detail": "40章 · 124张图 · 180段源码"
+      },
+      {
+        "name": "JVM",
+        "version": "JDK8 / HotSpot",
+        "path": "jvm",
+        "detail": "76章 · 62张图解"
+      }
+    ],
+    "future": []
+  },
+  {
+    "id": "framework",
+    "title": "应用框架",
+    "en": "APPLICATION FRAMEWORKS",
+    "description": "理解容器如何组织对象，请求如何穿过框架。",
+    "books": [
+      {
+        "name": "Spring Boot",
+        "version": "3.5.16 / 2.7.18对照",
+        "path": "springboot",
+        "detail": "27章 · 27张图 · 56段源码"
+      }
+    ],
+    "future": [
+      "Spring",
+      "Spring MVC",
+      "MyBatis"
+    ]
+  },
+  {
+    "id": "database",
+    "title": "数据库",
+    "en": "DATABASES",
+    "description": "从查询执行到存储引擎，理解索引、事务与恢复。",
+    "books": [
+      {
+        "name": "MySQL",
+        "version": "8.4.0 LTS",
+        "path": "mysql",
+        "detail": "27章 · 27张图 · 30段源码"
+      }
+    ],
+    "future": [
+      "PostgreSQL"
+    ]
+  },
+  {
+    "id": "middleware",
+    "title": "缓存与消息",
+    "en": "CACHE & MESSAGING",
+    "description": "理解数据如何缓存，消息如何被可靠地传递。",
+    "books": [
+      {
+        "name": "Redis",
+        "version": "6.x / 7.x对照",
+        "path": "redis",
+        "detail": "39章 · 140张图 · 139段源码"
+      },
+      {
+        "name": "RocketMQ",
+        "version": "4.x / 5.x对照",
+        "path": "rocketmq",
+        "detail": "34章 · 123张图 · 139段源码"
+      }
+    ],
+    "future": []
+  },
+  {
+    "id": "network",
+    "title": "网络与流量治理",
+    "en": "NETWORK & TRAFFIC",
+    "description": "从连接与事件循环，到代理、路由与负载均衡。",
+    "books": [
+      {
+        "name": "NGINX",
+        "version": "1.28.0",
+        "path": "nginx",
+        "detail": "24章 · 24张图 · 24段源码"
+      }
+    ],
+    "future": [
+      "网关",
+      "负载均衡"
+    ]
+  },
+  {
+    "id": "distributed",
+    "title": "分布式与平台基础",
+    "en": "DISTRIBUTED SYSTEMS",
+    "description": "理解服务之间如何通信、协调，以及运行。",
+    "books": [
+      {
+        "name": "Nacos",
+        "version": "3.2.4 / 2.5.4对照",
+        "path": "nacos",
+        "detail": "28章 · 17张图 · 43段源码"
+      }
+    ],
+    "future": [
+      "RPC",
+      "任务调度",
+      "容器"
+    ]
+  }
+]

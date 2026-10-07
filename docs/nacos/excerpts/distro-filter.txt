@@ -1,0 +1,5 @@
+    private boolean isInvalidClient(Client client) {
+        // Only ephemeral data sync by Distro, persist client should sync by raft.
+        return null == client || !client.isEphemeral()
+            || !clientManager.isResponsibleClient(client);
+    }

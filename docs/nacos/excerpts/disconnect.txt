@@ -1,0 +1,14 @@
+    public boolean clientDisconnected(String clientId) {
+        Loggers.SRV_LOG.info("Client connection {} disconnect, remove instances and subscribers",
+            clientId);
+        ConnectionBasedClient client = clients.remove(clientId);
+        if (null == client) {
+            return true;
+        }
+        client.release();
+        boolean isResponsible = isResponsibleClient(client);
+        NotifyCenter
+            .publishEvent(new ClientOperationEvent.ClientReleaseEvent(client, isResponsible));
+        NotifyCenter.publishEvent(new ClientEvent.ClientDisconnectEvent(client, isResponsible));
+        return true;
+    }

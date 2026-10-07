@@ -1,0 +1,28 @@
+    public synchronized boolean register(String connectionId, Connection connection) {
+        
+        if (connection.isConnected()) {
+            String clientIp = connection.getMetaInfo().clientIp;
+            if (connections.containsKey(connectionId)) {
+                return true;
+            }
+            if (checkLimit(connection)) {
+                return false;
+            }
+            if (traced(clientIp)) {
+                connection.setTraced(true);
+            }
+            connections.put(connectionId, connection);
+            connectionForClientIp.computeIfAbsent(clientIp, k -> new AtomicInteger(0))
+                .getAndIncrement();
+            
+            clientConnectionEventListenerRegistry.notifyClientConnected(connection);
+            
+            LOGGER.info("new connection registered successfully, connectionId = {},connection={} ",
+                connectionId,
+                connection);
+            return true;
+            
+        }
+        return false;
+        
+    }

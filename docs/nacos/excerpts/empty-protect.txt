@@ -1,0 +1,45 @@
+    public ServiceInfo processServiceInfo(ServiceInfo serviceInfo) {
+        String serviceKey = serviceInfo.getKeyWithoutClusters();
+        if (serviceKey == null) {
+            NAMING_LOGGER.warn("process service info but serviceKey is null, service host: {}",
+                JacksonUtils.toJson(serviceInfo.getHosts()));
+            return null;
+        }
+        ServiceInfo oldService = serviceInfoMap.get(serviceKey);
+        if (isEmptyOrErrorPush(serviceInfo)) {
+            //empty or error push, just ignore
+            NAMING_LOGGER.warn(
+                "process service info but found empty or error push, serviceKey: {}, "
+                    + "pushEmptyProtection: {}, hosts: {}",
+                serviceKey, pushEmptyProtection, serviceInfo.getHosts());
+            return oldService;
+        }
+        serviceInfoMap.put(serviceKey, serviceInfo);
+        InstancesDiff diff = getServiceInfoDiff(oldService, serviceInfo);
+        if (StringUtils.isBlank(serviceInfo.getJsonFromServer())) {
+            serviceInfo.setJsonFromServer(JacksonUtils.toJson(serviceInfo));
+        }
+        
+        if (enableClientMetrics) {
+            try {
+                MetricsMonitor.getServiceInfoMapSizeMonitor().set(serviceInfoMap.size());
+            } catch (Throwable t) {
+                NAMING_LOGGER.error("Failed to update metrics for service info map size", t);
+            }
+        }
+        
+        if (diff.hasDifferent()) {
+            NAMING_LOGGER.info("current ips:({}) service: {} -> {}", serviceInfo.ipCount(),
+                serviceKey,
+                JacksonUtils.toJson(serviceInfo.getHosts()));
+            
+            if (!failoverReactor.isFailoverSwitch(serviceKey)) {
+                NotifyCenter.publishEvent(
+                    new InstancesChangeEvent(notifierEventScope, serviceInfo.getName(),
+                        serviceInfo.getGroupName(),
+                        serviceInfo.getClusters(), serviceInfo.getHosts(), diff));
+            }
+            publishDiskCacheRefreshEvent(serviceKey, serviceInfo);
+        }
+        return serviceInfo;
+    }

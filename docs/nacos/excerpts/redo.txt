@@ -1,0 +1,16 @@
+    public void onDisConnect(Connection connection) {
+        connected = false;
+        LogUtils.NAMING_LOGGER.warn("Grpc connection disconnect, mark to redo");
+        synchronized (registeredInstances) {
+            registeredInstances.values()
+                .forEach(instanceRedoData -> instanceRedoData.setRegistered(false));
+        }
+        synchronized (subscribes) {
+            subscribes.values()
+                .forEach(subscriberRedoData -> subscriberRedoData.setRegistered(false));
+        }
+        synchronized (namingFuzzyWatchServiceListHolder) {
+            namingFuzzyWatchServiceListHolder.resetConsistenceStatus();
+        }
+        LogUtils.NAMING_LOGGER.warn("mark to redo completed");
+    }

@@ -1,0 +1,9 @@
+                public void onConnected(Connection connection) {
+                    LOGGER.info("[{}] Connected,notify listen context...",
+                        rpcClientInner.getName());
+                    notifyListenConfig();
+                    
+                    LOGGER.info("[{}] Connected,notify fuzzy listen context...",
+                        rpcClientInner.getName());
+                    configFuzzyWatchGroupKeyHolder.notifyFuzzyWatchSync();
+                }

@@ -1,0 +1,13 @@
+    private void syncToAllServer(ClientEvent event) {
+        Client client = event.getClient();
+        if (isInvalidClient(client)) {
+            return;
+        }
+        if (event instanceof ClientEvent.ClientDisconnectEvent) {
+            DistroKey distroKey = new DistroKey(client.getClientId(), TYPE);
+            distroProtocol.sync(distroKey, DataOperation.DELETE);
+        } else if (event instanceof ClientEvent.ClientChangedEvent) {
+            DistroKey distroKey = new DistroKey(client.getClientId(), TYPE);
+            distroProtocol.sync(distroKey, DataOperation.CHANGE);
+        }
+    }

@@ -1,0 +1,5 @@
+# Preserve byte-exact upstream source windows, including original blank lines.
+docs/mysql/excerpts/*.cc whitespace=-blank-at-eof
+docs/nacos/excerpts/*.txt whitespace=-blank-at-eol,-blank-at-eof
+docs/nacos/handbook.md whitespace=-blank-at-eol
+docs/nacos/index.html whitespace=-blank-at-eol

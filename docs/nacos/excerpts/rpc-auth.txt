@@ -1,0 +1,75 @@
+    public Response filter(Request request, RequestMeta meta, Class handlerClazz)
+        throws NacosException {
+        
+        try {
+            
+            Method method = getHandleMethod(handlerClazz);
+            if (method.isAnnotationPresent(Secured.class)) {
+                Secured secured = method.getAnnotation(Secured.class);
+                RequestContext requestContext = RequestContextHolder.getContext();
+                requestContext.getAuthContext().setApiType(secured.apiType().name());
+                // During Upgrading, Old Nacos server might not with server identity for some Inner API, follow old version logic.
+                if (ApiType.INNER_API.equals(secured.apiType())
+                    && !innerApiAuthEnabled.isEnabled()) {
+                    return null;
+                }
+                // Inner API must do check server identity. So judge api type not inner api and whether auth is enabled.
+                if (ApiType.INNER_API != secured.apiType() && !authConfig.isAuthEnabled()) {
+                    return null;
+                }
+                if (Loggers.AUTH.isDebugEnabled()) {
+                    Loggers.AUTH.debug("auth start, request: {}",
+                        request.getClass().getSimpleName());
+                }
+                ServerIdentityResult identityResult =
+                    protocolAuthService.checkServerIdentity(request, secured);
+                switch (identityResult.getStatus()) {
+                    case FAIL:
+                        Response defaultResponseInstance = getDefaultResponseInstance(handlerClazz);
+                        defaultResponseInstance.setErrorInfo(NacosException.NO_RIGHT,
+                            identityResult.getMessage());
+                        return defaultResponseInstance;
+                    case MATCHED:
+                        return null;
+                    default:
+                        break;
+                }
+                if (!protocolAuthService.enableAuth(secured)) {
+                    return null;
+                }
+                String clientIp = meta.getClientIp();
+                request.putHeader(Constants.Identity.X_REAL_IP, clientIp);
+                Resource resource = protocolAuthService.parseResource(request, secured);
+                IdentityContext identityContext = protocolAuthService.parseIdentity(request);
+                AuthResult result = protocolAuthService.validateIdentity(identityContext, resource);
+                requestContext.getAuthContext().setIdentityContext(identityContext);
+                requestContext.getAuthContext().setResource(resource);
+                requestContext.getAuthContext().setAuthResult(result);
+                if (!result.isSuccess()) {
+                    throw new AccessException(result.format());
+                }
+                String action = secured.action().toString();
+                result = protocolAuthService.validateAuthority(identityContext,
+                    new Permission(resource, action));
+                if (!result.isSuccess()) {
+                    throw new AccessException(result.format());
+                }
+            }
+        } catch (AccessException e) {
+            if (Loggers.AUTH.isDebugEnabled()) {
+                Loggers.AUTH.debug("access denied, request: {}, reason: {}",
+                    request.getClass().getSimpleName(),
+                    e.getErrMsg());
+            }
+            Response defaultResponseInstance = getDefaultResponseInstance(handlerClazz);
+            defaultResponseInstance.setErrorInfo(NacosException.NO_RIGHT, e.getErrMsg());
+            return defaultResponseInstance;
+        } catch (Exception e) {
+            Response defaultResponseInstance = getDefaultResponseInstance(handlerClazz);
+            defaultResponseInstance.setErrorInfo(NacosException.SERVER_ERROR,
+                ExceptionUtil.getAllExceptionMsg(e));
+            return defaultResponseInstance;
+        }
+        
+        return null;
+    }

@@ -1,0 +1,21 @@
+        ConfigChangeNotifyResponse handleConfigChangeNotifyRequest(
+            ConfigChangeNotifyRequest configChangeNotifyRequest,
+            String clientName) {
+            LOGGER.info("[{}] [server-push] config changed. dataId={}, group={},tenant={}",
+                clientName,
+                configChangeNotifyRequest.getDataId(), configChangeNotifyRequest.getGroup(),
+                configChangeNotifyRequest.getTenant());
+            String groupKey = GroupKey.getKeyTenant(configChangeNotifyRequest.getDataId(),
+                configChangeNotifyRequest.getGroup(), configChangeNotifyRequest.getTenant());
+            
+            CacheData cacheData = cacheMap.get().get(groupKey);
+            if (cacheData != null) {
+                synchronized (cacheData) {
+                    cacheData.getReceiveNotifyChanged().set(true);
+                    cacheData.setConsistentWithServer(false);
+                    notifyListenConfig();
+                }
+                
+            }
+            return new ConfigChangeNotifyResponse();
+        }

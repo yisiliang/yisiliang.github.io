@@ -1,0 +1,26 @@
+        private void refreshContentAndCheck(RpcClient rpcClient, CacheData cacheData,
+            boolean notify) {
+            try {
+                
+                ConfigResponse response =
+                    this.queryConfigInner(rpcClient, cacheData.dataId, cacheData.group,
+                        cacheData.tenant, requestTimeout, notify);
+                cacheData.setEncryptedDataKey(response.getEncryptedDataKey());
+                cacheData.setContent(response.getContent());
+                if (null != response.getConfigType()) {
+                    cacheData.setType(response.getConfigType());
+                }
+                if (notify) {
+                    LOGGER.info(
+                        "[{}] [data-received] dataId={}, group={}, tenant={}, md5={}, type={}",
+                        agent.getName(),
+                        cacheData.dataId, cacheData.group, cacheData.tenant, cacheData.getMd5(),
+                        response.getConfigType());
+                }
+                cacheData.checkListenerMd5();
+            } catch (Exception e) {
+                LOGGER.error("refresh content and check md5 fail ,dataId={},group={},tenant={} ",
+                    cacheData.dataId,
+                    cacheData.group, cacheData.tenant, e);
+            }
+        }

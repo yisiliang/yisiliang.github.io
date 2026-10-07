@@ -1,0 +1,23 @@
+### Reopen deprecated v3 APIs pending removal during a migration window. Disabled by default.
+# nacos.core.api.compatibility.enabled=false
+### Enabled for legacy open API compatibility provided by nacos-api-legacy-adapter
+# nacos.core.api.compatibility.client.enabled=true
+
+#--------------- Nacos Console Configurations ---------------#
+
+#*************** Nacos Console Related Configurations ***************#
+### Nacos Console Main port
+nacos.console.port=8080
+### Nacos Server Web context path:
+nacos.console.contextPath=
+
+### Nacos Server context path, which link to nacos server `nacos.server.contextPath`, works when deployment type is `console`
+nacos.console.remote.server.context-path=/nacos
+
+#************** Console UI Configuration ***************#
+
+### Turn on/off the nacos console ui.
+#nacos.console.ui.enabled=true
+
+### Default console UI version: 'next' (new UI) or 'legacy' (old UI)
+#nacos.console.ui.default=next

@@ -1,0 +1,37 @@
+    public Skill querySkill(String namespaceId, String name, String version, String label)
+        throws NacosException {
+        // Step 1: Verify meta exists and is readable
+        AiResource meta = resourceManager.findMeta(namespaceId, name, RESOURCE_TYPE_SKILL);
+        if (meta == null) {
+            throw new NacosApiException(NacosException.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND,
+                "Skill not found: " + name);
+        }
+        resourceManager.ensureReadableOrNotFound(meta, "Skill not found: " + name);
+        // Step 2: Find available versions from index manifest
+        SkillIndexManifest manifest = manifestService.query(namespaceId, name);
+        if (manifest == null || manifest.getVersions() == null
+            || manifest.getVersions().isEmpty()) {
+            throw new NacosApiException(NacosException.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND,
+                "Skill not found: " + name);
+        }
+        
+        // Step 3: Resolve actual version from version/label params (labels like "latest" are looked up in manifest)
+        String resolved = SkillIndexManifestService.resolveVersion(manifest, version, label);
+        if (StringUtils.isBlank(resolved)) {
+            throw new NacosApiException(NacosException.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND,
+                "Skill version not found: " + name);
+        }
+        
+        // Step 4: Get file list from manifest and read storage content
+        List<String> files = manifest.getVersions().get(resolved);
+        if (files == null || files.isEmpty()) {
+            throw new NacosApiException(NacosException.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND,
+                "Skill version not found: " + name + "@" + resolved);
+        }
+        
+        Skill skill = loadSkillFromFiles(namespaceId, name, resolved, files);
+        // Step 5: Publish download event for download count tracking
+        NotifyCenter.publishEvent(
+            new SkillDownloadEvent(namespaceId, name, RESOURCE_TYPE_SKILL, resolved));
+        return skill;
+    }

@@ -1,0 +1,7 @@
+Nacos源文件节选来自alibaba/nacos，主线3.2.4及对照2.5.4。
+Copyright Alibaba Group Holding Ltd. and contributors.
+适用Apache License 2.0，完整原文见apache-license.txt，原NOTICE见nacos-notice.txt。
+源码窗口逐字原样，窗口外的原文件许可头未重复附于每个方法；版权与完整许可在此统一保留。
+原创解释、机制图及HTML为学习编排；未修改上游源码或发布完整Nacos源码包。
+源文件路径、固定提交和行号见source-manifest.json。
+Java高亮为本包自有正则着色，不依赖第三方高亮库。

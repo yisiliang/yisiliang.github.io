@@ -1,0 +1,16 @@
+    private InstanceResponse registerInstance(Service service, InstanceRequest request,
+        RequestMeta meta)
+        throws NacosException {
+        Instance instance = request.getInstance();
+        if (null == instance) {
+            throw new NacosException(NacosException.INVALID_PARAM,
+                "Required parameter 'instance' is missing.");
+        }
+        instance.validate();
+        clientOperationService.registerInstance(service, instance, meta.getConnectionId());
+        NotifyCenter.publishEvent(new RegisterInstanceTraceEvent(System.currentTimeMillis(),
+            NamingRequestUtil.getSourceIpForGrpcRequest(meta), true, service.getNamespace(),
+            service.getGroup(),
+            service.getName(), instance.getIp(), instance.getPort()));
+        return new InstanceResponse(NamingRemoteConstants.REGISTER_INSTANCE);
+    }

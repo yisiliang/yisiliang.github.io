@@ -1,0 +1,864 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="固定NGINX1.28.0源码基线，24章机制图与真实C源码，串起多进程、事件循环、HTTP、upstream、缓存和限流。"><title>NGINX源码学习手册 · 源码之下，系统之上</title><style>
+:root{color-scheme:dark;--bg:#0a111b;--panel:#111d2b;--ink:#d5dfeb;--muted:#91a4b9;--line:#27364a;--accent:#8cd2c5;--code:#101d2b;--head:#f2f6fa}*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:84px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.95 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}header{height:66px;position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 94%,transparent);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 30px;gap:20px;backdrop-filter:blur(12px)}.brand{font-size:14px;letter-spacing:.06em;font-weight:700;color:var(--head)}.header-right{margin-left:auto;display:flex;align-items:center;gap:12px}button,input{font:inherit}button{cursor:pointer;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:5px 12px;font-size:13px}button:hover{border-color:var(--accent)}#progress{position:absolute;bottom:-1px;left:0;height:2px;background:var(--accent);width:0}.layout{display:grid;grid-template-columns:290px minmax(0,980px);max-width:1350px;margin:auto}.sidebar{border-right:1px solid var(--line);height:calc(100vh - 66px);position:sticky;top:66px;overflow:auto;padding:26px 18px}.sidebar-label{font-size:11px;color:var(--muted);letter-spacing:.16em}.sidebar input{width:100%;margin:12px 0 18px;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--bg);color:var(--ink);font-size:13px}.sidebar nav a{display:flex;gap:10px;color:var(--muted);font-size:12px;line-height:1.6;padding:9px 7px;border-radius:8px}.sidebar nav a:hover,.sidebar nav a.active{background:var(--panel);color:var(--head);text-decoration:none}.sidebar nav span{color:var(--accent);font-family:monospace}.sidebar .note{font-size:12px;color:var(--muted);margin-top:22px}main{min-width:0;padding:52px 60px 90px}h1,h2,h3{line-height:1.4;color:var(--head);letter-spacing:-.02em}main>h1:first-of-type{font-size:44px;line-height:1.2;margin:12px 0 25px}h1{font-size:29px;margin:0 0 24px}h2{font-size:22px;margin-top:38px}h3{font-size:18px}p{margin:17px 0}blockquote{border-left:3px solid var(--accent);margin:20px 0 28px;padding:4px 20px;color:var(--muted);background:var(--panel);border-radius:0 8px 8px 0}code{font-family:"SFMono-Regular",Consolas,monospace;font-size:.87em;background:var(--panel);padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{position:relative;background:var(--code);border:1px solid var(--line);border-radius:14px;padding:52px 22px 22px;overflow:auto;font-size:14px;line-height:1.7;margin:24px 0;tab-size:4}pre code{background:none;padding:0;border-radius:0;overflow-wrap:normal;white-space:pre;color:#b7d7e7}.copy{position:absolute;right:12px;top:10px;font-size:11px}.mechanism{margin:28px 0;background:#101e2b;border:1px solid var(--line);border-radius:16px;overflow:hidden}.mechanism svg{display:block;width:100%;height:auto}.mechanism figcaption{font-size:12px;color:#a6bacb;text-align:center;padding:9px 16px;border-top:1px solid #27364a}.chapter{margin-top:68px;border-top:1px solid var(--line);padding-top:46px}.chapter>p:first-of-type strong{color:var(--accent)}.table-scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:13px;min-width:540px}th,td{border-bottom:1px solid var(--line);padding:12px 14px;text-align:left}th{color:var(--head);background:var(--panel)}ul,ol{padding-left:24px}li{margin:8px 0}a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:4px}.mobile-menu{display:none}.eyebrow{font-size:11px;letter-spacing:.15em;color:var(--accent);margin-bottom:20px}.footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:22px;margin-top:45px}.light{--bg:#f5f7fa;--panel:#eaf0f5;--ink:#304158;--muted:#60728b;--line:#cfdae5;--accent:#167d71;--code:#152235;--head:#15283e;color-scheme:light}.light pre code{color:#c4ddea}.light .copy{color:#d5dfeb;background:#22344c;border-color:#405a72}.hidden{display:none!important}@media(max-width:1100px){main{padding:40px 36px}.layout{grid-template-columns:250px minmax(0,1fr)}}@media(max-width:760px){header{padding:0 16px;gap:10px}.brand{font-size:12px}.header-right>a{display:none}.mobile-menu{display:block}.layout{display:block}.sidebar{display:none;position:fixed;top:66px;left:0;z-index:30;width:290px;background:var(--bg);box-shadow:20px 0 60px #0008}.sidebar.open{display:block}main{padding:34px 20px 60px;font-size:15px;line-height:1.95}main>h1:first-of-type{font-size:33px}h1{font-size:25px}.chapter{margin-top:48px;padding-top:30px}pre{padding-left:15px;padding-right:15px;font-size:12px}.mechanism{overflow:auto}.mechanism svg{min-width:620px}.mechanism figcaption{text-align:left}button{padding:5px 9px}blockquote{padding:5px 15px;margin-left:0;margin-right:0}}
+</style></head><body><header><button id="menu" class="mobile-menu" aria-controls="toc-panel" aria-expanded="false">目录</button><a class="brand" href="#top">源码之下，系统之上</a><div class="header-right"><a href="./handbook.md">Markdown原稿</a><button id="theme" aria-label="切换明暗主题">明暗</button></div><div id="progress"></div></header><div class="layout"><aside class="sidebar" id="toc-panel"><div class="sidebar-label">NETWORK / TRAFFIC</div><label for="search" class="sidebar-label">章节全文检索</label><input id="search" type="search" placeholder="搜索字段、函数、机制…"><div id="search-status" aria-live="polite"></div><nav aria-label="章节目录"><a href="#chapter-01"><span>01</span>阅读坐标：进程、连接、请求三层对象</a><a href="#chapter-02"><span>02</span>配置不是每次请求重新解释</a><a href="#chapter-03"><span>03</span>master、信号与worker退出</a><a href="#chapter-04"><span>04</span>reload与二进制热升级</a><a href="#chapter-05"><span>05</span>事件循环：就绪、投递、超时</a><a href="#chapter-06"><span>06</span>epoll与kqueue：就绪不是完成</a><a href="#chapter-07"><span>07</span>timer红黑树与超时语义</a><a href="#chapter-08"><span>08</span>accept、惊群与接入公平性</a><a href="#chapter-09"><span>09</span>connection池：为什么连接数不等于请求数</a><a href="#chapter-10"><span>10</span>pool、buffer、chain：异步所有权</a><a href="#chapter-11"><span>11</span>HTTP请求行：分片输入与状态保存</a><a href="#chapter-12"><span>12</span>server与location：树查找不是按书写顺序扫描</a><a href="#chapter-13"><span>13</span>phase engine：模块如何组合</a><a href="#chapter-14"><span>14</span>rewrite与内部跳转：重入有预算</a><a href="#chapter-15"><span>15</span>请求体：buffering与可重放性</a><a href="#chapter-16"><span>16</span>upstream：把后端变成事件状态机</a><a href="#chapter-17"><span>17</span>负载均衡：平滑加权与失败状态</a><a href="#chapter-18"><span>18</span>重试：字节重放与业务重复</a><a href="#chapter-19"><span>19</span>上游keepalive与DNS边界</a><a href="#chapter-20"><span>20</span>proxy buffer与背压：两边速度不一致</a><a href="#chapter-21"><span>21</span>输出filter与sendfile：剩余链就是进度</a><a href="#chapter-22"><span>22</span>文件缓存：索引共享，内容在磁盘</a><a href="#chapter-23"><span>23</span>限流：共享内存漏桶与延迟事件</a><a href="#chapter-24"><span>24</span>TLS、终结与性能诊断</a></nav><p class="note">开源NGINX1.28.0<br>24章 / 24图 / 固定源码<br>离线无外部依赖</p><a href="#top">返回阅读地图 ↑</a></aside><main><div class="eyebrow">SOURCE NOTES / NGINX 1.28.0</div><p><a id="top"></a></p>
+<h1>NGINX源码学习手册</h1>
+<blockquote>
+<p>源码之下，系统之上。沿一条HTTP请求，读懂事件驱动、多进程、反向代理与流量治理的边界。</p>
+</blockquote>
+<p><strong>固定基线：NGINX开源版1.28.0 · 24章 · 24幅机制图 · 24段真实C源码。</strong></p>
+<p><a href="./handbook.md">Markdown原稿</a> · <a href="./experiments.md">实验说明</a> · <a href="./VERIFICATION.md">核验记录</a> · <a href="./nginx-license.txt">源码许可</a> · <a href="./source-notices.txt">来源与范围</a></p>
+<p>发行标签<code>release-1.28.0</code>指向annotated tag对象<code>f6f8d515885fcda20f09b83583d576337fbabe0a</code>，解引用后的完整commit为<code>481d28cb4e04c8096b9b6134856891dc52ecc68f</code>。所有源码节选和GitHub行号都固定到此commit。它是稳定发行的历史学习基线；本书不宣称它是当前最新版本，也不提供生产版本安全选型结论。</p>
+<p>主线是Unix上的HTTP/1.x开源反向代理。HTTP/2、HTTP/3、Windows、商业NGINX Plus、第三方模块与OpenSSL功能边界单独标明。<strong>已执行：源码、节选、页面和离线结构核验；未执行：NGINX配置运行、信号、TLS、压测与系统调用跟踪。</strong>脚本和预期供隔离实验复现。</p>
+<p>源码节选连续且逐字取自基线，可能在函数内部开始或结束。图是作者对调用、状态、所有权的解释，不是上游性能承诺；箭头旁的标签区分调用、分支与共享。联网才能访问上游链接，离线阅读、图、目录、搜索、主题和代码复制无需网络。示例无真实业务账号、密钥或生产配置。</p>
+<h2>三轮阅读</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>路线</th>
+<th>章节</th>
+<th>要回答的问题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>生命周期</td>
+<td>01—10</td>
+<td>进程归谁管理，连接如何恢复，内存何时释放？</td>
+</tr>
+<tr>
+<td>请求与后端</td>
+<td>11—21</td>
+<td>解析保存什么状态，phase如何跳转，重试何时禁止？</td>
+</tr>
+<tr>
+<td>治理与观测</td>
+<td>22—24</td>
+<td>缓存与限流哪些状态共享，响应失败如何定位？</td>
+</tr>
+</tbody>
+</table></div>
+<h2>章节导航</h2>
+<ul>
+<li><a href="#chapter-01">01 · 阅读坐标：进程、连接、请求三层对象</a></li>
+<li><a href="#chapter-02">02 · 配置不是每次请求重新解释</a></li>
+<li><a href="#chapter-03">03 · master、信号与worker退出</a></li>
+<li><a href="#chapter-04">04 · reload与二进制热升级</a></li>
+<li><a href="#chapter-05">05 · 事件循环：就绪、投递、超时</a></li>
+<li><a href="#chapter-06">06 · epoll与kqueue：就绪不是完成</a></li>
+<li><a href="#chapter-07">07 · timer红黑树与超时语义</a></li>
+<li><a href="#chapter-08">08 · accept、惊群与接入公平性</a></li>
+<li><a href="#chapter-09">09 · connection池：为什么连接数不等于请求数</a></li>
+<li><a href="#chapter-10">10 · pool、buffer、chain：异步所有权</a></li>
+<li><a href="#chapter-11">11 · HTTP请求行：分片输入与状态保存</a></li>
+<li><a href="#chapter-12">12 · server与location：树查找不是按书写顺序扫描</a></li>
+<li><a href="#chapter-13">13 · phase engine：模块如何组合</a></li>
+<li><a href="#chapter-14">14 · rewrite与内部跳转：重入有预算</a></li>
+<li><a href="#chapter-15">15 · 请求体：buffering与可重放性</a></li>
+<li><a href="#chapter-16">16 · upstream：把后端变成事件状态机</a></li>
+<li><a href="#chapter-17">17 · 负载均衡：平滑加权与失败状态</a></li>
+<li><a href="#chapter-18">18 · 重试：字节重放与业务重复</a></li>
+<li><a href="#chapter-19">19 · 上游keepalive与DNS边界</a></li>
+<li><a href="#chapter-20">20 · proxy buffer与背压：两边速度不一致</a></li>
+<li><a href="#chapter-21">21 · 输出filter与sendfile：剩余链就是进度</a></li>
+<li><a href="#chapter-22">22 · 文件缓存：索引共享，内容在磁盘</a></li>
+<li><a href="#chapter-23">23 · 限流：共享内存漏桶与延迟事件</a></li>
+<li><a href="#chapter-24">24 · TLS、终结与性能诊断</a></li>
+</ul>
+<section class="chapter" data-chapter="chapter-01"><p><a id="chapter-01"></a></p>
+<h1>01 · 阅读坐标：进程、连接、请求三层对象</h1>
+<p><strong>先画清责任，再进入函数</strong></p>
+<p>NGINX1.28.0是本书的固定阅读基线，不是对最新发行版的声明。范围是开源版HTTP/1.x反向代理的Unix实现，必要时解释HTTP/2、HTTP/3与Windows边界。源码树中<code>core</code>放基础对象，<code>event</code>放通知、计时与异步传输，<code>http</code>放协议和模块，<code>os/unix</code>封装进程、系统调用与平台差异。沿目录分类读完代码，仍可能不知道一次请求为何结束；本书选择沿对象生命周期组织。</p>
+<p>启动链是<code>main → ngx_init_cycle → ngx_master_process_cycle → ngx_start_worker_processes → ngx_spawn_process → ngx_worker_process_cycle</code>。master创建配置周期并管理子进程，worker接入、解析、代理、发送；启用文件缓存时还有cache manager/loader等辅助进程。<code>ngx_cycle_t</code>属于一轮配置，<code>ngx_connection_t</code>属于一个socket，<code>ngx_http_request_t</code>属于一次请求。HTTP/1.x keepalive可以让同一连接串行承载多次请求；HTTP/2、HTTP/3则允许多流，不能将本书HTTP/1.x状态机直接套到每条流的连接管理上。</p>
+<p>进程fork后的普通堆内存是各进程的私有地址空间，初始页可以写时复制；变量名称相同不代表后续值共享。<code>cycle-&gt;connections</code>与空闲链由每个worker分别使用，显式共享内存区、继承的监听socket和内核资源才跨越进程边界。源码中“全局变量”必须先问进程归属，再问是否加锁。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t1 d1" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t1">01 · 阅读坐标：进程、连接、请求三层对象</title><desc id="d1">main / init_cycle → master / signals（启动）；master / signals → worker A / loop（fork）；master / signals → worker B / loop（fork）；worker A / loop → shared zone / lock（显式共享）；worker B / loop → shared zone / lock（显式共享）；worker A / loop → request / pool（拥有）</desc><defs><marker id="arrow1" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow1)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">启动</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow1)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">fork</text><path d="M460 132 C460 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow1)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="192.5">fork</text><path d="M765 132 C765 163.5 460 163.5 460 231" fill="none" marker-end="url(#arrow1)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="156.5">显式共享</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow1)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">显式共享</text><path d="M765 132 C765 199.5 765 199.5 765 231" fill="none" marker-end="url(#arrow1)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="765.0" y="192.5">拥有</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">main</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="96">init_cycle</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">master</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="96">signals</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">worker A</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="96">loop</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">worker B</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="299">loop</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">shared zone</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="299">lock</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">request</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="299">pool</text></svg><figcaption>机制图01：先画清责任，再进入函数</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L699-L721">src/os/unix/ngx_process_cycle.c · L699—L721</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
+{
+    ngx_int_t worker = (intptr_t) data;
+
+    ngx_process = NGX_PROCESS_WORKER;
+    ngx_worker = worker;
+
+    ngx_worker_process_init(cycle, worker);
+
+    ngx_setproctitle("worker process");
+
+    for ( ;; ) {
+
+        if (ngx_exiting) {
+            if (ngx_event_no_timers_left() == NGX_OK) {
+                ngx_log_error(NGX_LOG_NOTICE, cycle-&gt;log, 0, "exiting");
+                ngx_worker_process_exit(cycle);
+            }
+        }
+
+        ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle-&gt;log, 0, "worker cycle");
+
+        ngx_process_events_and_timers(cycle);
+</code></pre>
+<p><strong>读代码：</strong>初始化后没有“一连接一线程”的创建循环。<code>ngx_process_events_and_timers</code>接管每轮工作；主事件循环通常在worker主线程上执行，thread pool是特定异步文件任务的补充。第三方模块调用阻塞库，会阻塞该worker上的其他连接。</p>
+<p><strong>失败推演：</strong>一个worker进程崩溃，其现有连接不能自动迁到其他worker；master可以重生进程，但只能承接后续请求。负载均衡的多进程提升隔离程度，不提供请求执行的事务恢复。</p>
+<p><strong>纸面检查：</strong>把“master、worker、共享区、内核socket”各画一个框，逐一放入配置、free_connections、限流计数、listen fd。实验前先执行<code>nginx -V</code>确认构建选项，不能凭二进制名称断言包含SSL或stub_status模块。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-02"><p><a id="chapter-02"></a></p>
+<h1>02 · 配置不是每次请求重新解释</h1>
+<p><strong>指令表把文本编译成运行期结构</strong></p>
+<p>配置路径<code>ngx_init_cycle → ngx_conf_parse → ngx_conf_read_token → ngx_conf_handler</code>把词法片段装进<code>cf-&gt;args</code>，查模块的<code>ngx_command_t</code>指令表。<code>cmd-&gt;type</code>同时编码允许的上下文、参数数目和是否是block；<code>cmd-&gt;set</code>才执行具体字段赋值或复杂解析。<code>http</code>块入口创建HTTP模块的main/server/location配置数组，各模块按<code>ctx_index</code>定位自己的槽位。</p>
+<p>因此把<code>proxy_pass</code>放进<code>events</code>块不是运行时“找不到后端”，而是配置阶段上下文检查失败；缺少分号、括号、参数数目错误也在这里拒绝。简单字符串setter、数值setter与upstream复杂setter承担不同校验。模块的create/merge回调负责创建默认值、合并上层配置；“所有指令无条件继承”并不存在，某些数组只在本层未配置时整体继承。</p>
+<p>核心路径最后调用<code>cmd-&gt;set(cf, cmd, conf)</code>。其中<code>conf</code>来自<code>cf-&gt;ctx</code>和模块索引；指令结构的<code>offset</code>供通用setter定位字段。这种结构避免在每次请求中扫描nginx.conf，但也意味着错误模块索引/上下文会写错对象。模块开发者需要理解配置对象的生命周期：它通常随cycle存活，不能把请求pool内存挂进长期配置。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t2 d2" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t2">02 · 配置不是每次请求重新解释</title><desc id="d2">config tokens → ngx_command_t（查表）；ngx_command_t → context / arity（校验）；context / arity → cmd.set / offset（合法）；cmd.set / offset → create + merge（填字段）；create + merge → cycle structures（预计算）</desc><defs><marker id="arrow2" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow2)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">查表</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow2)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">校验</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow2)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">合法</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow2)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">填字段</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow2)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">预计算</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">config tokens</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">ngx_command_t</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">context</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="96">arity</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">cmd.set</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="299">offset</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">create + merge</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">cycle structures</text></svg><figcaption>机制图02：指令表把文本编译成运行期结构</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_conf_file.c#L445-L470">src/core/ngx_conf_file.c · L445—L470</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">            /* set up the directive's configuration context */
+
+            conf = NULL;
+
+            if (cmd-&gt;type &amp; NGX_DIRECT_CONF) {
+                conf = ((void **) cf-&gt;ctx)[cf-&gt;cycle-&gt;modules[i]-&gt;index];
+
+            } else if (cmd-&gt;type &amp; NGX_MAIN_CONF) {
+                conf = &amp;(((void **) cf-&gt;ctx)[cf-&gt;cycle-&gt;modules[i]-&gt;index]);
+
+            } else if (cf-&gt;ctx) {
+                confp = *(void **) ((char *) cf-&gt;ctx + cmd-&gt;conf);
+
+                if (confp) {
+                    conf = confp[cf-&gt;cycle-&gt;modules[i]-&gt;ctx_index];
+                }
+            }
+
+            rv = cmd-&gt;set(cf, cmd, conf);
+
+            if (rv == NGX_CONF_OK) {
+                return NGX_OK;
+            }
+
+            if (rv == NGX_CONF_ERROR) {
+                return NGX_ERROR;
+</code></pre>
+<p><strong>字段变化：</strong>解析前字段常设为<code>NGX_CONF_UNSET</code>；setter写入配置值，merge阶段填缺省或继承上级值，初始化阶段构造hash、location树与phase数组。随后请求通过<code>r-&gt;main_conf / srv_conf / loc_conf</code>读取对应结构。</p>
+<p><strong>失败后果与实验：</strong><code>nginx -t -p "$LAB/" -c conf/nginx.conf</code>只做配置与资源检查，不证明上游能连接、不证明业务路由正确。把lab中的<code>proxy_pass</code>临时移到<code>http</code>块，应得到上下文错误；恢复后再测试。<code>nginx -T</code>包含配置内容，适合本地虚构实验，不要将真实密钥路径和内网拓扑作为公开教程样本。</p>
+<p><strong>面试复述：</strong>配置在cycle创建时解析、合并和预计算；请求只切换配置指针。reload是创建新的cycle，而不是在旧配置结构上到处修改字段。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-03"><p><a id="chapter-03"></a></p>
+<h1>03 · master、信号与worker退出</h1>
+<p><strong>信号设置意图，主循环执行生命周期操作</strong></p>
+<p>Unix信号处理器根据进程角色设置<code>ngx_reconfigure、ngx_quit、ngx_terminate、ngx_reopen</code>等标志。master主循环在合适位置检查这些标志，worker自己的循环也检查退出与日志重开标志。HUP用于重新加载配置，QUIT用于优雅结束，TERM/INT用于快速结束，USR1用于重开日志。不要把给master发HUP与给某个worker发HUP混为一谈。</p>
+<p>worker接到QUIT后设置<code>ngx_exiting</code>，关闭监听socket和空闲连接，处理已投递事件；下一轮继续运行事件循环，直到非可取消timer等退出条件满足。已有活动请求有机会完成，新连接由其他正常worker接入。若设置<code>worker_shutdown_timeout</code>，超时会触发关闭；长连接、慢请求和第三方模块都可能拉长优雅退出过程。</p>
+<p><code>ngx_terminate</code>分支直接退出与<code>ngx_quit</code>分支不同。快停不是“等待所有请求自然完成”。master负责收集子进程退出状态与重生需要重生的worker；故意退出时不会把每个死亡都按故障重启。所有普通状态属于相应进程，通信使用信号以及worker channel。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t3 d3" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t3">03 · master、信号与worker退出</title><desc id="d3">Unix signal → role-specific flag（handler）；role-specific flag → master supervision（master）；role-specific flag → worker loop（worker）；worker loop → close listeners / idle（QUIT）；close listeners / idle → exit / graceful drain（QUIT排空）；worker loop → exit / graceful drain（TERM直接退出）</desc><defs><marker id="arrow3" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow3)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">handler</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow3)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">master</text><path d="M460 132 C460 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow3)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="192.5">worker</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow3)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">QUIT</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow3)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">QUIT排空</text><path d="M285 283 L635 283" fill="none" marker-end="url(#arrow3)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="271.0">TERM直接退出</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">Unix signal</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">role-specific flag</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">master supervision</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">worker loop</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">close listeners</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="299">idle</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">exit</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="299">graceful drain</text></svg><figcaption>机制图03：信号设置意图，主循环执行生命周期操作</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L728-L740">src/os/unix/ngx_process_cycle.c · L728—L740</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">        if (ngx_quit) {
+            ngx_quit = 0;
+            ngx_log_error(NGX_LOG_NOTICE, cycle-&gt;log, 0,
+                          "gracefully shutting down");
+            ngx_setproctitle("worker process is shutting down");
+
+            if (!ngx_exiting) {
+                ngx_exiting = 1;
+                ngx_set_shutdown_timer(cycle);
+                ngx_close_listening_sockets(cycle);
+                ngx_close_idle_connections(cycle);
+                ngx_event_process_posted(cycle, &amp;ngx_posted_events);
+            }
+</code></pre>
+<p><strong>调用与状态：</strong><code>ngx_signal_handler → ngx_quit=1 → ngx_worker_process_cycle → ngx_exiting=1 → ngx_close_listening_sockets / ngx_close_idle_connections</code>。对象销毁要在回调仍可能触达它之前建立正确的退出条件，不能只看收到信号的时间。</p>
+<p><strong>实验：</strong>运行lab后，记录<code>ps</code>中的master/worker PID，发<code>nginx -p "$LAB/" -c conf/nginx.conf -s quit</code>，查看<code>error.log</code>里的“gracefully shutting down”和退出记录。实验应只对lab实例操作。先启动lab后端的<code>/slow</code>请求再QUIT，可以观察短请求完成；本书未在NGINX进程上实际执行信号实验。</p>
+<p><strong>失败推演：</strong>客户端看见连接断开，只能证明传输结束；不能证明上游没处理POST。优雅退出也不是业务幂等性的替代品。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-04"><p><a id="chapter-04"></a></p>
+<h1>04 · reload与二进制热升级</h1>
+<p><strong>两代配置可以重叠，状态迁移有边界</strong></p>
+<p>HUP路径<code>ngx_master_process_cycle → ngx_init_cycle(old_cycle)</code>尝试解析新配置、打开文件、准备监听和共享区。创建失败返回NULL时master保留旧cycle并继续服务；创建成功后设置新<code>ngx_cycle</code>，启动新worker，再向旧worker发优雅退出信号。新配置接管后续请求，旧worker仍持有自己的配置视图与已有连接。因此reload不是一个瞬间覆盖所有请求的原子配置切换。</p>
+<p>旧监听socket在地址和选项允许时可以复用。共享内存区是否复用取决于名字、tag、尺寸、noreuse和模块初始化逻辑；内存池与请求对象不会从老worker搬到新worker。新旧worker短时间并存会提高内存和fd需求。<code>worker_shutdown_timeout</code>能限制旧进程拖延，但代价可能是未完成传输终止。</p>
+<p>USR2另走<code>ngx_exec_new_binary</code>：把监听fd编码到<code>NGINX</code>环境变量，启动新可执行文件，旧master的pid文件使用<code>.oldbin</code>等标识。新旧master共存，接下来停止老worker、观察新版本、必要时回退，是完整操作序列。它解决监听交接，不能解决模块ABI兼容、业务状态迁移或共享区格式改变。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t4 d4" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t4">04 · reload与二进制热升级</title><desc id="d4">HUP / old cycle → init new cycle（尝试）；init new cycle → old service survives（失败）；init new cycle → new workers（成功）；new workers → old workers QUIT（代际交接）；HUP / old cycle → new executable / USR2（另一条路径）</desc><defs><marker id="arrow4" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow4)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">尝试</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow4)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">失败</text><path d="M460 132 C460 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow4)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="192.5">成功</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow4)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">代际交接</text><path d="M155 132 C155 181.5 765 181.5 765 231" fill="none" marker-end="url(#arrow4)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="174.5">另一条路径</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">HUP</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="96">old cycle</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">init new cycle</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">old service survives</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">new workers</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">old workers QUIT</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">new executable</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="299">USR2</text></svg><figcaption>机制图04：两代配置可以重叠，状态迁移有边界</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L223-L243">src/os/unix/ngx_process_cycle.c · L223—L243</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">            ngx_log_error(NGX_LOG_NOTICE, cycle-&gt;log, 0, "reconfiguring");
+
+            cycle = ngx_init_cycle(cycle);
+            if (cycle == NULL) {
+                cycle = (ngx_cycle_t *) ngx_cycle;
+                continue;
+            }
+
+            ngx_cycle = cycle;
+            ccf = (ngx_core_conf_t *) ngx_get_conf(cycle-&gt;conf_ctx,
+                                                   ngx_core_module);
+            ngx_start_worker_processes(cycle, ccf-&gt;worker_processes,
+                                       NGX_PROCESS_JUST_RESPAWN);
+            ngx_start_cache_manager_processes(cycle, 1);
+
+            /* allow new processes to start */
+            ngx_msleep(100);
+
+            live = 1;
+            ngx_signal_worker_processes(cycle,
+                                        ngx_signal_value(NGX_SHUTDOWN_SIGNAL));
+</code></pre>
+<p><strong>第二证据：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/nginx.c#L728-L740"><code>ngx_exec_new_binary · L728–L740</code></a>逐个收集监听fd。可执行文件升级是独立机制，不能用一次<code>-s reload</code>替代。</p>
+<p><strong>实验：</strong>lab中更改<code>/version</code>的返回字符串，先<code>-t</code>，再<code>-s reload</code>，随后用新的curl连接读取新值；同时保留之前的<code>/slow</code>传输，观察旧worker排空。将端口改为不允许绑定的地址或制造语法错误，比较<code>-t</code>失败与error日志。NGINX实际reload还可能受资源、权限变化影响，预检查通过仍不是成功证据。</p>
+<p><strong>官方规则依据：</strong><a href="https://nginx.org/en/docs/control.html">Controlling nginx</a>。文档是滚动页，版本行为应以本书固定C源码为最终核对对象。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-05"><p><a id="chapter-05"></a></p>
+<h1>05 · 事件循环：就绪、投递、超时</h1>
+<p><strong>一个循环有明确的调度顺序</strong></p>
+<p>事件循环并非“epoll拿到列表后挨个执行”这么短。<code>ngx_process_events_and_timers</code>先找最近timer，处理accept mutex与next posted事件，调用事件后端，再处理posted accept事件、解锁accept mutex、到期timer和普通posted事件。<code>ngx_posted_next_events</code>非空时会让本轮等待超时为0，以便让延期到下一轮的任务继续推进。</p>
+<p><code>ngx_event_t</code>将read/write事件、handler、ready、active、timedout、delayed、timer_set、instance等状态放在一起。<code>active</code>表示向通知系统注册，不等于“当前有数据”；<code>ready</code>表示本轮可尝试I/O，不保证一次能处理完；<code>timedout</code>由timer路径设置。不同模块更换handler意味着同一事件对象进入新的协议阶段。</p>
+<p>事件后端可以当场执行handler，也可以通过<code>NGX_POST_EVENTS</code>投递队列。投递不是开新线程，只是推迟到worker循环的另一个阶段。这提供accept锁期间与普通请求处理的顺序边界，也减少特定递归/重入场景。异步的关键是保存对象与进度，等待事件恢复，而不是把每个callback都当作并发线程。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t5 d5" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t5">05 · 事件循环：就绪、投递、超时</title><desc id="d5">nearest timer → event backend wait（等待上限）；event backend wait → posted accept（就绪后）；posted accept → accept mutex unlock（锁边界）；accept mutex unlock → expire timers（到期）；expire timers → ordinary posted（普通任务）</desc><defs><marker id="arrow5" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow5)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">等待上限</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow5)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">就绪后</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow5)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">锁边界</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow5)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">到期</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow5)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">普通任务</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">nearest timer</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">event backend wait</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">posted accept</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">accept mutex unlock</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">expire timers</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">ordinary posted</text></svg><figcaption>机制图05：一个循环有明确的调度顺序</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event.c#L246-L263">src/event/ngx_event.c · L246—L263</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    delta = ngx_current_msec;
+
+    (void) ngx_process_events(cycle, timer, flags);
+
+    delta = ngx_current_msec - delta;
+
+    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle-&gt;log, 0,
+                   "timer delta: %M", delta);
+
+    ngx_event_process_posted(cycle, &amp;ngx_posted_accept_events);
+
+    if (ngx_accept_mutex_held) {
+        ngx_shmtx_unlock(&amp;ngx_accept_mutex);
+    }
+
+    ngx_event_expire_timers();
+
+    ngx_event_process_posted(cycle, &amp;ngx_posted_events);
+</code></pre>
+<p><strong>完整链：</strong><code>worker loop → find_timer → ngx_process_events → epoll/kqueue handler → posted_accept → expire_timers → posted_events</code>。框图是调度顺序，并不意味着每轮所有分支都有工作。</p>
+<p><strong>失败后果：</strong>handler做CPU密集计算、同步DNS或阻塞文件读取时，该worker后面的所有事件和timer都延后；timer并没有独立抢占线程。增大<code>worker_connections</code>只增加容纳量，不会消除阻塞。</p>
+<p><strong>实验：</strong>在包含debug能力的隔离构建中设置<code>error_log ... debug</code>，观察“worker cycle / event timer / http”的时间顺序；debug日志本身会改变I/O负载。生产诊断更适合第24章的时延分段。本文仅验证源码路径，未测吞吐或延迟。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-06"><p><a id="chapter-06"></a></p>
+<h1>06 · epoll与kqueue：就绪不是完成</h1>
+<p><strong>平台适配共享事件抽象</strong></p>
+<p>Linux路径由<code>ngx_epoll_process_events</code>调用<code>epoll_wait</code>，将内核返回的数据指针还原为connection，并校验fd与<code>instance</code>。回收connection槽位时read/write事件instance翻转，避免同一轮中旧socket的陈旧通知误处理复用槽位的新连接。仅比较fd数字不够：操作系统能快速复用fd。</p>
+<p>epoll实现设置clear-event能力，对普通连接的注册路径使用边沿通知语义；监听socket还涉及EPOLLEXCLUSIVE、reuseport等独立分支，不能宣称所有fd都使用完全相同flag。handler应读取/写入直到EAGAIN或业务/调度边界，再正确重新注册或保留事件。当本地buffer已满时，不能无限读取；要保持进度并让消费者推进。</p>
+<p>BSD/macOS的kqueue后端用<code>kevent</code>、EV_CLEAR等flag，也能提供EOF和可用量信息；Linux常将<code>rev-&gt;available=-1</code>作为未知。代码通过<code>ngx_event_flags</code>分辨能力并选择行为，平台差异仍会渗入accept、read、sendfile路径。Windows有独立进程与I/O代码，本书Unix分析不适用于它。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t6 d6" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t6">06 · epoll与kqueue：就绪不是完成</title><desc id="d6">epoll_wait / kevent → connection + instance（通知）；connection + instance → stale event drop（失效）；connection + instance → ready = 1（有效）；ready = 1 → I/O handler（直接或投递）；I/O handler → EAGAIN / ready = 0（暂不可读写）</desc><defs><marker id="arrow6" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow6)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">通知</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow6)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">失效</text><path d="M460 132 C460 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow6)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="192.5">有效</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow6)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">直接或投递</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow6)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">暂不可读写</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">epoll_wait</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="96">kevent</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">connection + instance</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">stale event drop</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">ready = 1</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">I/O handler</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">EAGAIN</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="299">ready = 0</text></svg><figcaption>机制图06：平台适配共享事件抽象</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/modules/ngx_epoll_module.c#L836-L854">src/event/modules/ngx_epoll_module.c · L836—L854</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    for (i = 0; i &lt; events; i++) {
+        c = event_list[i].data.ptr;
+
+        instance = (uintptr_t) c &amp; 1;
+        c = (ngx_connection_t *) ((uintptr_t) c &amp; (uintptr_t) ~1);
+
+        rev = c-&gt;read;
+
+        if (c-&gt;fd == -1 || rev-&gt;instance != instance) {
+
+            /*
+             * the stale event from a file descriptor
+             * that was just closed in this iteration
+             */
+
+            ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle-&gt;log, 0,
+                           "epoll: stale event %p", c);
+            continue;
+        }
+</code></pre>
+<p><strong>状态推进：</strong>epoll通知后设置<code>rev-&gt;ready=1</code>，调用或投递handler；recv遇EAGAIN将ready清零并等待未来通知。这是“就绪驱动”，不像完成端口直接宣布某个提交的读操作已完成。</p>
+<p><strong>失败推演：</strong>边沿模式中只读一小段便无条件忘掉剩余数据，可能等不到新的边沿；反过来不停忽略EAGAIN会造成忙等。自定义模块必须遵守NGINX事件辅助函数的返回和能力标志。</p>
+<p><strong>平台实验：</strong>在Linux看<code>nginx -V</code>与启动notice里的“using the epoll event method”；在macOS通常应是kqueue，除非显式构建/选择其他后端。可用Linux <code>strace -f -e epoll_wait,epoll_ctl,accept4,recvfrom,sendfile</code>仅附着lab实例。本书没有执行平台系统调用跟踪，不据此给跨平台性能结论。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-07"><p><a id="chapter-07"></a></p>
+<h1>07 · timer红黑树与超时语义</h1>
+<p><strong>timeout是事件间隔，触发仍靠循环</strong></p>
+<p>计时不是为每条连接建立线程。<code>ngx_event_add_timer</code>用<code>ngx_current_msec + timer</code>构造key，将事件内嵌的红黑树节点插入全局timer树；<code>ngx_event_find_timer</code>取最小key，作为事件等待上限。到期处理反复取最小节点，删除节点、清timer_set、设timedout，然后调用原handler。此“全局”仍是在一个worker的普通内存里。</p>
+<p><code>timer_set</code>防止同一节点重复插入。更新timer时，差值小于<code>NGX_TIMER_LAZY_DELAY</code>可以保留旧值，减少树操作；固定源码宏为300ms，因此不能拿debug日志里的timer更新时间当作每字节严格重设的合同。毫秒差用有符号差值比较以处理正常计时范围内的wrap，墙钟变化也需结合NGINX时间缓存实现读。</p>
+<p><code>proxy_read_timeout</code>控制从上游两次成功读取间隔，<code>send_timeout</code>控制向客户端两次写之间的间隔，<code>proxy_connect_timeout</code>属于连接阶段。它们不是整个业务请求的统一截止时间。上游每隔一小段时间发送数据，可能让传输远长于read_timeout；而worker阻塞会让到期回调实际执行晚于key。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t7 d7" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t7">07 · timer红黑树与超时语义</title><desc id="d7">add_timer / key → rbtree min（插入）；rbtree min → poll timeout（最早截止）；poll timeout → expired node（循环检查）；expired node → timer_set = 0（先删除）；timer_set = 0 → timedout / handler（协议决策）</desc><defs><marker id="arrow7" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow7)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">插入</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow7)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">最早截止</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow7)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">循环检查</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow7)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">先删除</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow7)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">协议决策</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">add_timer</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="96">key</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">rbtree min</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">poll timeout</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">expired node</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">timer_set = 0</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">timedout</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="299">handler</text></svg><figcaption>机制图07：timeout是事件间隔，触发仍靠循环</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_timer.c#L68-L94">src/event/ngx_event_timer.c · L68—L94</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">        node = ngx_rbtree_min(root, sentinel);
+
+        /* node-&gt;key &gt; ngx_current_msec */
+
+        if ((ngx_msec_int_t) (node-&gt;key - ngx_current_msec) &gt; 0) {
+            return;
+        }
+
+        ev = ngx_rbtree_data(node, ngx_event_t, timer);
+
+        ngx_log_debug2(NGX_LOG_DEBUG_EVENT, ev-&gt;log, 0,
+                       "event timer del: %d: %M",
+                       ngx_event_ident(ev-&gt;data), ev-&gt;timer.key);
+
+        ngx_rbtree_delete(&amp;ngx_event_timer_rbtree, &amp;ev-&gt;timer);
+
+#if (NGX_DEBUG)
+        ev-&gt;timer.left = NULL;
+        ev-&gt;timer.right = NULL;
+        ev-&gt;timer.parent = NULL;
+#endif
+
+        ev-&gt;timer_set = 0;
+
+        ev-&gt;timedout = 1;
+
+        ev-&gt;handler(ev);
+</code></pre>
+<p><strong>完整链：</strong>上游header/body handler或客户端writer添加timer → 事件循环使用最近截止 → expire_timers设<code>timedout</code> → 相应handler选择504、断连或其他清理。错误码是具体协议分支的决定，不是timer统一返回504。</p>
+<p><strong>实验：</strong>lab的<code>/slow?gap=2</code>每块间隔2秒；配置<code>proxy_read_timeout 1s</code>应在读等待期间超时。换为<code>gap=0.2</code>，即使整体传输超过1秒也可能继续完成。若已将响应头写给客户端，则后续超时通常表现为截断，不能重新发一个干净的504响应。</p>
+<p><strong>证据定位：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_timer.h#L56-L86"><code>ngx_event_add_timer · L56–L86</code></a>。测试时必须同时看curl exit code、收到字节数和error日志。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-08"><p><a id="chapter-08"></a></p>
+<h1>08 · accept、惊群与接入公平性</h1>
+<p><strong>监听竞争与连接容量分别治理</strong></p>
+<p>worker继承监听socket，内核新连接进入监听队列后触发accept handler。<code>ngx_event_accept</code>在支持时使用<code>accept4(...SOCK_NONBLOCK)</code>；ENOSYS会退回accept路径，并另外处理非阻塞设置。EAGAIN意味着此时队列取空，并非一次业务失败。ECONNABORTED、EMFILE、ENFILE有不同日志等级与恢复处理。</p>
+<p>接入竞争有多种机制：accept mutex协调worker监听事件注册；支持的Linux可使用EPOLLEXCLUSIVE减少同时唤醒；<code>listen ... reuseport</code>给worker各自socket并由内核分配。<code>accept_mutex</code>在本基线默认off，不能用古老版本的“所有worker必抢一把accept锁”解释现代配置。多种机制的有效组合取决于构建、系统和配置。</p>
+<p><code>ngx_accept_disabled = connection_n/8 - free_connection_n</code>反映本worker的剩余槽位，用来短期减少其接入机会。<code>multi_accept</code>决定一次通知接入多少连接，kqueue可用量还有后端专属分支。大量accept也可能拖延已接入连接的业务处理，公平性需要看真实负载，而不是一味打开所有吞吐开关。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t8 d8" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t8">08 · accept、惊群与接入公平性</title><desc id="d8">listen readiness → accept4 / accept（接入）；accept4 / accept → EAGAIN / return（队列空）；accept4 / accept → EMFILE / disable（fd不足）；accept4 / accept → get_connection（socket成功）；get_connection → protocol handler（分配成功）</desc><defs><marker id="arrow8" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow8)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">接入</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow8)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">队列空</text><path d="M460 132 C460 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow8)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="192.5">fd不足</text><path d="M460 132 C460 163.5 460 163.5 460 231" fill="none" marker-end="url(#arrow8)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="156.5">socket成功</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow8)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">分配成功</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">listen readiness</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">accept4</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="96">accept</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">EAGAIN</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="96">return</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">EMFILE</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="299">disable</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">get_connection</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">protocol handler</text></svg><figcaption>机制图08：监听竞争与连接容量分别治理</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_accept.c#L58-L78">src/event/ngx_event_accept.c · L58—L78</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    do {
+        socklen = sizeof(ngx_sockaddr_t);
+
+#if (NGX_HAVE_ACCEPT4)
+        if (use_accept4) {
+            s = accept4(lc-&gt;fd, &amp;sa.sockaddr, &amp;socklen, SOCK_NONBLOCK);
+        } else {
+            s = accept(lc-&gt;fd, &amp;sa.sockaddr, &amp;socklen);
+        }
+#else
+        s = accept(lc-&gt;fd, &amp;sa.sockaddr, &amp;socklen);
+#endif
+
+        if (s == (ngx_socket_t) -1) {
+            err = ngx_socket_errno;
+
+            if (err == NGX_EAGAIN) {
+                ngx_log_debug0(NGX_LOG_DEBUG_EVENT, ev-&gt;log, err,
+                               "accept() not ready");
+                return;
+            }
+</code></pre>
+<p><strong>失败路径：</strong>fd耗尽时禁用accept事件，使用mutex或timer路径等待恢复；connection槽位耗尽时新socket可能关闭。监听backlog、系统fd limit、worker_connections是不同层的上限，不能以一个配置覆盖全部。</p>
+<p><strong>实验：</strong>在lab启动日志确认后端；用多进程并发curl比较worker PID日志分布。<code>reuseport</code>实验必须在支持的平台与隔离端口，预期是监听方式改变，不承诺严格均匀。本文未实测惊群或accept公平性。</p>
+<p><strong>推导题：</strong>若upstream连接也占槽，1000个反向代理客户端可能需要接近2000个活动connection对象，加上空闲上游、监听和内部连接。这个估算不是硬性QPS公式。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-09"><p><a id="chapter-09"></a></p>
+<h1>09 · connection池：为什么连接数不等于请求数</h1>
+<p><strong>槽位复用与fd生命周期联动</strong></p>
+<p><code>ngx_get_connection</code>先尝试排空可复用空闲连接，再从<code>cycle-&gt;free_connections</code>链取槽，减<code>free_connection_n</code>。槽位存有read/write事件指针，清零connection后保留这些指针，重新设置fd、log、data和instance。<code>ngx_free_connection</code>把槽还给链表；关闭系统socket、注销通知与归还槽位是关联但不同的步骤。</p>
+<p>一个客户端keepalive请求结束后，request pool可以释放而connection仍存在。反向代理还需要上游connection；上游keepalive缓存中的空闲socket也占fd和worker连接资源。HTTP/2每个stream是request，但多stream共享client connection；不能把同一公式用于HTTP/1.x、HTTP/2和HTTP/3。</p>
+<p>worker_connections给的是每worker连接对象容量，worker_rlimit_nofile与系统限制给fd容量；连接还受内存、上游容量、CPU、带宽限制。为请求内存、SSL状态、buffer、cached upstream加总才接近资源模型。光把<code>worker_processes × worker_connections</code>写成可服务客户端数量，会忽略至少上游这一半。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t9 d9" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t9">09 · connection池：为什么连接数不等于请求数</title><desc id="d9">free connection list → pop / count--（取槽）；pop / count-- → read + write retained（清零后恢复）；read + write retained → instance toggled（隔离旧事件）；instance toggled → socket lifetime（服务）；socket lifetime → close / push back（释放）；close / push back → free connection list（复用）</desc><defs><marker id="arrow9" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow9)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">取槽</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow9)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">清零后恢复</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow9)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">隔离旧事件</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow9)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">服务</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow9)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">释放</text><path d="M765 231 C765 199.5 155 199.5 155 132" fill="none" marker-end="url(#arrow9)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">复用</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">free connection list</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">pop</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="96">count--</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">read + write retained</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">instance toggled</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">socket lifetime</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">close</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="299">push back</text></svg><figcaption>机制图09：槽位复用与fd生命周期联动</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_connection.c#L1193-L1226">src/core/ngx_connection.c · L1193—L1226</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    c = ngx_cycle-&gt;free_connections;
+
+    if (c == NULL) {
+        ngx_log_error(NGX_LOG_ALERT, log, 0,
+                      "%ui worker_connections are not enough",
+                      ngx_cycle-&gt;connection_n);
+
+        return NULL;
+    }
+
+    ngx_cycle-&gt;free_connections = c-&gt;data;
+    ngx_cycle-&gt;free_connection_n--;
+
+    if (ngx_cycle-&gt;files &amp;&amp; ngx_cycle-&gt;files[s] == NULL) {
+        ngx_cycle-&gt;files[s] = c;
+    }
+
+    rev = c-&gt;read;
+    wev = c-&gt;write;
+
+    ngx_memzero(c, sizeof(ngx_connection_t));
+
+    c-&gt;read = rev;
+    c-&gt;write = wev;
+    c-&gt;fd = s;
+    c-&gt;log = log;
+
+    instance = rev-&gt;instance;
+
+    ngx_memzero(rev, sizeof(ngx_event_t));
+    ngx_memzero(wev, sizeof(ngx_event_t));
+
+    rev-&gt;instance = !instance;
+    wev-&gt;instance = !instance;
+</code></pre>
+<p><strong>失败后果：</strong>日志<code>worker_connections are not enough</code>发生在槽位分配，EMFILE发生在系统fd创建，二者应分别处理。加大连接数组可能提高内存常驻，并不会增加上游可用连接。</p>
+<p><strong>纸面实例：</strong>一个worker，1024个槽位，500个客户端加500个上游已接近饱和；再留256个idle upstream会超过数组容量。这是保守容量练习，实际要扣监听、内部channel等占用并看负载。</p>
+<p><strong>实验：</strong>lab配置1024，改变为很小的值后先<code>-t</code>，并发持续<code>/slow</code>。观察错误日志与fd数，而不是只看curl成功次数。勿用这个局部压测推算生产容量；本书未执行并发容量测试。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-10"><p><a id="chapter-10"></a></p>
+<h1>10 · pool、buffer、chain：异步所有权</h1>
+<p><strong>内存会集中释放，数据进度单独推进</strong></p>
+<p>NGINX小对象频繁分配但多以请求为生命周期。<code>ngx_palloc_small</code>从pool当前块的<code>d.last</code>向后划分空间，按需对齐，块不够则走next或创建块；大块分配另记在large链。销毁pool统一运行cleanup并释放大块与pool blocks。它减少逐个malloc/free的管理成本，但小对象通常不能逐个归还，内存仍随pool保留。</p>
+<p><code>ngx_buf_t</code>表示一段数据：内存用<code>pos / last</code>表示待消费区间，容量用<code>start / end</code>；文件用<code>file_pos / file_last</code>，同时有in_file、temporary、flush、sync、last_buf等标志。<code>ngx_chain_t</code>是指向buffer的链，不等于复制了一份数据。output filters推进pos/file_pos，而pool决定内存什么时候真正释放。</p>
+<p>模块不能把栈上的buffer或短生命周期内存交给异步发送；返回NGX_AGAIN之后仍会被后续write事件触达。<code>busy / free / out</code>链表达“下游尚未消费、可以复用、待提交”三种状态，shadow buffer共享底层存储时必须等所有关联消费者完成。cleanup通常用于fd、临时文件和外部资源，不只是释放字节。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t10 d10" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t10">10 · pool、buffer、chain：异步所有权</title><desc id="d10">request pool → small / large alloc（所有权）；small / large alloc → buffer ranges（数据）；buffer ranges → chain / busy（引用）；chain / busy → output consumes（进度）；output consumes → chain / busy（未消费余量）；request pool → destroy + cleanup（生命周期终点）</desc><defs><marker id="arrow10" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow10)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">所有权</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow10)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">数据</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow10)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">引用</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow10)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">进度</text><path d="M330 283 L285 283" fill="none" marker-end="url(#arrow10)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">未消费余量</text><path d="M155 132 C155 199.5 765 199.5 765 231" fill="none" marker-end="url(#arrow10)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">生命周期终点</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">request pool</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">small</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="96">large alloc</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">buffer ranges</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">chain</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="299">busy</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">output consumes</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">destroy + cleanup</text></svg><figcaption>机制图10：内存会集中释放，数据进度单独推进</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_palloc.c#L154-L173">src/core/ngx_palloc.c · L154—L173</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    p = pool-&gt;current;
+
+    do {
+        m = p-&gt;d.last;
+
+        if (align) {
+            m = ngx_align_ptr(m, NGX_ALIGNMENT);
+        }
+
+        if ((size_t) (p-&gt;d.end - m) &gt;= size) {
+            p-&gt;d.last = m + size;
+
+            return m;
+        }
+
+        p = p-&gt;d.next;
+
+    } while (p);
+
+    return ngx_palloc_block(pool, size);
+</code></pre>
+<p><strong>调用链：</strong>request创建pool → 模块palloc生成buffer/chain → filter保留未发送链 → 后续write恢复 → request引用计数归零 → pool cleanup。池销毁是生命周期终点，不能因为某个handler返回便认定内存可释放。</p>
+<p><strong>失败推演：</strong>慢客户端让busy buffer长期不能复用，放大每请求内存；pool泄漏常表现为请求无法完成/引用计数不归零，未必是malloc忘free。持有request pool指针到长期配置是悬空指针风险。</p>
+<p><strong>练习：</strong>画出一个buffer<code>pos=100、last=500</code>，本轮发送150字节后为<code>pos=250</code>，仍欠250字节。链节点可回收与底层内存可复用必须分别判断。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-11"><p><a id="chapter-11"></a></p>
+<h1>11 · HTTP请求行：分片输入与状态保存</h1>
+<p><strong>TCP没有一请求一包的边界</strong></p>
+<p>连接的read handler从等待请求切到<code>ngx_http_process_request_line</code>，读取header buffer后调用<code>ngx_http_parse_request_line(r,b)</code>。解析器逐字符推进enum状态：method、URI、协议版本、CRLF等。<code>r-&gt;state</code>在下次进入时恢复，<code>b-&gt;pos</code>指向已消费位置，字段指针记录method与URI等边界。NGX_AGAIN表示当前输入不足，不表示请求被拒绝。</p>
+<p>TCP可能把请求行拆成任意多个片段，也可能把header和body一起送来。解析器不能用一次recv等于完整消息的假设。遇到无效method、协议字符、URI问题等返回具体解析错误，调用者转为协议错误处理；完整请求行还要经<code>ngx_http_process_request_uri</code>做规范化和安全检查，Host及headers另有解析步骤。</p>
+<p>buffer不够时调用者尝试large header buffer；请求行过大、header field过大、总buffer不足有各自边界。<code>client_header_timeout</code>约束读取过程，慢速发送不可能无限占用。请求头里的Host影响server选择，但TLS场景SNI选证书更早，二者不应混作一个阶段。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t11 d11" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t11">11 · HTTP请求行：分片输入与状态保存</title><desc id="d11">read header bytes → r.state / b.pos（输入）；r.state / b.pos → parse characters（恢复）；parse characters → AGAIN / retain state（不完整）；AGAIN / retain state → read header bytes（等read事件）；parse characters → OK / URI check（完整）；parse characters → invalid / finalize（错误）</desc><defs><marker id="arrow11" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow11)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">输入</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow11)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">恢复</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow11)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">不完整</text><path d="M155 231 C155 163.5 155 163.5 155 132" fill="none" marker-end="url(#arrow11)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="155.0" y="156.5">等read事件</text><path d="M765 132 C765 181.5 460 181.5 460 231" fill="none" marker-end="url(#arrow11)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="174.5">完整</text><path d="M765 132 C765 199.5 765 199.5 765 231" fill="none" marker-end="url(#arrow11)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="765.0" y="192.5">错误</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">read header bytes</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">r.state</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="96">b.pos</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">parse characters</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">AGAIN</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="299">retain state</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">OK</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="299">URI check</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">invalid</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="299">finalize</text></svg><figcaption>机制图11：TCP没有一请求一包的边界</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_parse.c#L135-L155">src/http/ngx_http_parse.c · L135—L155</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    state = r-&gt;state;
+
+    for (p = b-&gt;pos; p &lt; b-&gt;last; p++) {
+        ch = *p;
+
+        switch (state) {
+
+        /* HTTP methods: GET, HEAD, POST */
+        case sw_start:
+            r-&gt;request_start = p;
+
+            if (ch == CR || ch == LF) {
+                break;
+            }
+
+            if ((ch &lt; 'A' || ch &gt; 'Z') &amp;&amp; ch != '_' &amp;&amp; ch != '-') {
+                return NGX_HTTP_PARSE_INVALID_METHOD;
+            }
+
+            state = sw_method;
+            break;
+</code></pre>
+<p><strong>完整链：</strong><code>ngx_http_wait_request_handler → create_request → process_request_line → read_request_header → parse_request_line → process_request_uri → process_request_headers → process_request</code>。成功只意味着该阶段完成；body未必已读，上游也尚未连接。</p>
+<p><strong>实验：</strong>lab中使用Python socket分两次发送<code>GET /ver</code>与<code>sion HTTP/1.1...</code>，组成合法<code>/version</code>；完整split实验见<code>experiments.md</code>。记录返回状态；再发送小写method或故意损坏HTTP版本，比较error日志。不要把畸形输入发送到线上站点。</p>
+<p><strong>思考：</strong>解析字段经常指向header buffer内部，没有复制字符串；移动/扩大buffer必须相应修正指针。这解释了为什么buffer生命周期与请求状态机必须一起读。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-12"><p><a id="chapter-12"></a></p>
+<h1>12 · server与location：树查找不是按书写顺序扫描</h1>
+<p><strong>静态树、正则数组和嵌套递归</strong></p>
+<p>请求进入server上下文后，<code>ngx_http_core_find_config_phase</code>调用<code>ngx_http_core_find_location</code>。静态location经初始化阶段整理为树，用URI比较寻找精确与前缀候选；精确匹配可直接结束，最长前缀可继续进入嵌套层。对当前层，若允许regex，按该层regex数组顺序测试，并把<code>r-&gt;loc_conf</code>切到命中的配置。</p>
+<p>普通顶层配置可用“精确优先，最长前缀候选，候选^~时跳过当前层正则，否则按正则声明顺序”的路径推演。嵌套配置必须沿真实递归读：内层成功匹配可能先返回，外层是否继续正则受各层noregex等状态控制。把^~说成整个配置任意层的永久正则关闭开关会误导。</p>
+<p>匹配用规范化后的<code>r-&gt;uri</code>，不含query string；<code>$request_uri</code>保留原始请求URI含参数。rewrite后URI变化会再次查location。<code>root</code>把URI拼到目录，<code>alias</code>替换匹配部分，proxy_pass带URI时又有前缀替换规则。三种机制不能仅凭配置尾部斜杠“口诀”相互替代。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t12 d12" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t12">12 · server与location：树查找不是按书写顺序扫描</title><desc id="d12">server context → static tree（规范URI）；static tree → exact / end（精确）；static tree → prefix / nested（最长前缀）；prefix / nested → regex if allowed（非^~等条件）；exact / end → r.loc_conf selected（命中）；regex if allowed → r.loc_conf selected（正则或候选）</desc><defs><marker id="arrow12" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow12)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">规范URI</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow12)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">精确</text><path d="M460 132 C460 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow12)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="192.5">最长前缀</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow12)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">非^~等条件</text><path d="M765 132 C765 181.5 765 181.5 765 231" fill="none" marker-end="url(#arrow12)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="765.0" y="174.5">命中</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow12)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">正则或候选</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">server context</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">static tree</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">exact</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="96">end</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">prefix</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="299">nested</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">regex if allowed</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">r.loc_conf selected</text></svg><figcaption>机制图12：静态树、正则数组和嵌套递归</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L1415-L1434">src/http/ngx_http_core_module.c · L1415—L1434</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    pclcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+
+    rc = ngx_http_core_find_static_location(r, pclcf-&gt;static_locations);
+
+    if (rc == NGX_AGAIN) {
+
+#if (NGX_PCRE)
+        clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+
+        noregex = clcf-&gt;noregex;
+#endif
+
+        /* look up nested locations */
+
+        rc = ngx_http_core_find_location(r);
+    }
+
+    if (rc == NGX_OK || rc == NGX_DONE) {
+        return rc;
+    }
+</code></pre>
+<p><strong>第二证据：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L1440-L1456"><code>regex loop · L1440–L1456</code></a>表明正则检查与配置指针切换；完整函数保留嵌套关系。</p>
+<p><strong>实验：</strong>lab有<code>location = /version</code>、<code>location /prefix/</code>、<code>location ~ \.txt$</code>。分别curl<code>/version?x=1</code>、<code>/prefix/a.txt</code>，后者顶层regex可胜出；将前缀改成<code>^~ /prefix/</code>并reload后再试，应改走prefix内容。返回值实验只用于路由，限流实验不能用return绕过PREACCESS。</p>
+<p><strong>失败后果：</strong>匹配落到错误location，可能改变认证、缓存key、proxy_pass、日志等一整套模块配置。诊断应记录<code>$uri</code>与<code>$request_uri</code>，同时查看实际命中处理器。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-13"><p><a id="chapter-13"></a></p>
+<h1>13 · phase engine：模块如何组合</h1>
+<p><strong>checker控制流程，handler处理业务</strong></p>
+<p>HTTP初始化<code>ngx_http_init_phase_handlers</code>把模块注册的handlers整理为可执行数组，包含每个阶段checker、业务handler和next索引。请求由<code>r-&gt;phase_handler</code>记录当前程序计数器，<code>ngx_http_core_run_phases</code>反复调用checker。server rewrite、find config、location rewrite、post rewrite、preaccess、access、content有不同控制规则；LOG阶段在请求释放路径执行，不能理解为这个循环中最后一个同步handler。</p>
+<p>generic checker里handler返回NGX_OK意味着跳到ph-&gt;next，NGX_DECLINED表示换下一个handler，NGX_AGAIN/NGX_DONE表示暂停或异步已接管；checker本身又把这些结果转成循环控制码。因此“NGX_OK总是继续”或“NGX_AGAIN总是报错”都不成立，必须区分返回者与接收者。</p>
+<p>content handler可以由location直接指定，如proxy模块；filters是另一条处理输出的链，和HTTP phases不等价。rewrite阶段的return提前生成响应时，后面的preaccess/access可能不再执行。这正是限流实验在<code>location</code>里用<code>return 200</code>经常测不出效果的原因。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t13 d13" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t13">13 · phase engine：模块如何组合</title><desc id="d13">r.phase_handler → checker invokes handler（程序计数器）；checker invokes handler → OK / next（handler结果）；checker invokes handler → DECLINED / +1（handler结果）；checker invokes handler → AGAIN / suspend（handler结果）；AGAIN / suspend → future event resumes（保存上下文）；future event resumes → r.phase_handler（继续）</desc><defs><marker id="arrow13" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow13)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">程序计数器</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow13)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">handler结果</text><path d="M460 132 C460 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow13)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="192.5">handler结果</text><path d="M460 132 C460 163.5 460 163.5 460 231" fill="none" marker-end="url(#arrow13)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="156.5">handler结果</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow13)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">保存上下文</text><path d="M765 231 C765 199.5 155 199.5 155 132" fill="none" marker-end="url(#arrow13)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">继续</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">r.phase_handler</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">checker invokes handler</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">OK</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="96">next</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">DECLINED</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="299">+1</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">AGAIN</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="299">suspend</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">future event resumes</text></svg><figcaption>机制图13：checker控制流程，handler处理业务</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L904-L923">src/http/ngx_http_core_module.c · L904—L923</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    rc = ph-&gt;handler(r);
+
+    if (rc == NGX_OK) {
+        r-&gt;phase_handler = ph-&gt;next;
+        return NGX_AGAIN;
+    }
+
+    if (rc == NGX_DECLINED) {
+        r-&gt;phase_handler++;
+        return NGX_AGAIN;
+    }
+
+    if (rc == NGX_AGAIN || rc == NGX_DONE) {
+        return NGX_OK;
+    }
+
+    /* rc == NGX_ERROR || rc == NGX_HTTP_...  */
+
+    ngx_http_finalize_request(r, rc);
+
+</code></pre>
+<p><strong>状态链：</strong>handler保存异步上下文并返回AGAIN → checker返回OK停止本轮phase loop → 未来事件handler恢复 → phase_handler继续。使用NGX_DONE的模块还必须遵守请求引用计数/最终化约定；状态推进错误会重复执行handler或泄漏请求。</p>
+<p><strong>实验：</strong>lab<code>/limit/</code>通过proxy产生内容，保证PREACCESS里的limit_req有机会运行；而<code>/version</code>仅用于rewrite return与路由观察。若把limit_req放在含return的location，看见“无限通过”不能据此断言限流算法失效。</p>
+<p><strong>源码范围：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http.c#L491-L552"><code>phase assembly · L491–L552</code></a>。理解checker的跳转，才知道模块注册顺序为何不等于nginx.conf书写顺序。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-14"><p><a id="chapter-14"></a></p>
+<h1>14 · rewrite与内部跳转：重入有预算</h1>
+<p><strong>URI改写要同步配置上下文</strong></p>
+<p>rewrite模块把配置编译为script指令数组，<code>ngx_http_rewrite_handler</code>初始化script engine并解释这些指令。改URI、设置变量、return和跳转的作用不同。<code>last</code>结束当前rewrite序列并触发按新URI重新寻找location，<code>break</code>停止本轮序列且留在当前location；外部redirect生成3xx让客户端发新请求，并不等于内部跳转。</p>
+<p>post rewrite checker看<code>r-&gt;uri_changed</code>，未变化则继续；变化后递减<code>uri_changes</code>，将<code>phase_handler</code>设为find-config索引，并恢复server级loc_conf起点。本基线request初始化为<code>NGX_HTTP_MAX_URI_CHANGES+1</code>，宏是10；预算还会被其他内部重定向路径消耗，不能理解为所有场景均允许任意11次rewrite。</p>
+<p><code>try_files</code>最后参数、error_page内部重定向、index等也能改动请求流。内部重定向可能重置模块ctx或重新走部分phase，不能把r-&gt;ctx当作整个请求绝不会变的缓存。主请求引用、body状态与输出状态都需要模块正确处理。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t14 d14" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t14">14 · rewrite与内部跳转：重入有预算</title><desc id="d14">script engine → URI changed?（执行rewrite）；URI changed? → continue phases（否）；URI changed? → uri_changes--（是）；uri_changes-- → budget zero / 500（预算耗尽）；uri_changes-- → find config again（仍有预算）；find config again → script engine（新location）</desc><defs><marker id="arrow14" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow14)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">执行rewrite</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow14)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">否</text><path d="M460 132 C460 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow14)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="192.5">是</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow14)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">预算耗尽</text><path d="M285 283 L635 283" fill="none" marker-end="url(#arrow14)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="271.0">仍有预算</text><path d="M765 231 C765 199.5 155 199.5 155 132" fill="none" marker-end="url(#arrow14)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">新location</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">script engine</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">URI changed?</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">continue phases</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">uri_changes--</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">budget zero</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="299">500</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">find config again</text></svg><figcaption>机制图14：URI改写要同步配置上下文</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L1074-L1090">src/http/ngx_http_core_module.c · L1074—L1090</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    r-&gt;uri_changes--;
+
+    if (r-&gt;uri_changes == 0) {
+        ngx_log_error(NGX_LOG_ERR, r-&gt;connection-&gt;log, 0,
+                      "rewrite or internal redirection cycle "
+                      "while processing \"%V\"", &amp;r-&gt;uri);
+
+        ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        return NGX_OK;
+    }
+
+    r-&gt;phase_handler = ph-&gt;next;
+
+    cscf = ngx_http_get_module_srv_conf(r, ngx_http_core_module);
+    r-&gt;loc_conf = cscf-&gt;ctx-&gt;loc_conf;
+
+    return NGX_AGAIN;
+</code></pre>
+<p><strong>失败推演：</strong><code>/a → /b → /a</code>内部循环耗尽预算，日志明确记录“rewrite or internal redirection cycle”，最终500。正则性能不佳则可能在worker事件线程上消耗CPU，HTTP并发下降但未必马上报错。</p>
+<p><strong>实验：</strong>lab<code>/old</code>rewrite last到<code>/version</code>，比较日志中<code>request_uri=/old</code>与<code>uri=/version</code>；临时加入两个互相last的location，curl预期500，恢复配置再reload。这里只给隔离复现实验，未在NGINX上执行。</p>
+<p><strong>面试复述：</strong>rewrite修改的是当前请求URI和程序计数器，last意味着重新选择配置，redirect则生成客户端下一次请求。是否继续body、鉴权、内容阶段，要沿checker跳转判断。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-15"><p><a id="chapter-15"></a></p>
+<h1>15 · 请求体：buffering与可重放性</h1>
+<p><strong>读请求体是异步任务，完成靠回调</strong></p>
+<p>proxy handler创建<code>r-&gt;upstream</code>、绑定请求生成器和响应解析回调，然后调用<code>ngx_http_read_client_request_body(r, ngx_http_upstream_init)</code>。读体入口增加主请求count，创建<code>ngx_http_request_body_t</code>，保存post_handler。body可能已部分存在header buffer，也可能需要更多read事件；完成才调用upstream_init，不能用handler函数返回的时间代表body已收齐。</p>
+<p>默认请求buffering允许在客户端与上游之间解耦：body先进入内存或temp file，再发送给后端。<code>proxy_request_buffering off</code>在符合条件时设置<code>request_body_no_buffering</code>，上游可以更早接收数据，慢上传也可能长时间占用上游连接。chunked上传还受proxy_http_version等条件影响，本基线显式判断HTTP/1.1。</p>
+<p><code>client_max_body_size</code>是请求体大小边界，<code>client_body_buffer_size</code>只是内存缓冲相关参数，溢出不必拒绝而可能落临时文件。<code>client_body_timeout</code>是读间隔超时。disk满、temp路径权限、分配失败、客户端断开会进入不同清理；部分body已发给上游后，切到另一peer是否能够重放由buffering与请求状态约束。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t15 d15" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t15">15 · 请求体：buffering与可重放性</title><desc id="d15">read_client_body → request count++（生命周期）；request count++ → memory / temp file（默认缓冲）；request count++ → stream / no buffer（配置与协议允许）；memory / temp file → post_handler（完成）；stream / no buffer → post_handler（进度推进）；post_handler → upstream init（回调）</desc><defs><marker id="arrow15" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow15)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">生命周期</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow15)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">默认缓冲</text><path d="M460 132 C460 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow15)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="192.5">配置与协议允许</text><path d="M765 132 C765 163.5 460 163.5 460 231" fill="none" marker-end="url(#arrow15)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="156.5">完成</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow15)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">进度推进</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow15)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">回调</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">read_client_body</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">request count++</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">memory</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="96">temp file</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">stream</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="299">no buffer</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">post_handler</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">upstream init</text></svg><figcaption>机制图15：读请求体是异步任务，完成靠回调</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_proxy_module.c#L1033-L1049">src/http/modules/ngx_http_proxy_module.c · L1033—L1049</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    u-&gt;accel = 1;
+
+    if (!plcf-&gt;upstream.request_buffering
+        &amp;&amp; plcf-&gt;body_values == NULL &amp;&amp; plcf-&gt;upstream.pass_request_body
+        &amp;&amp; (!r-&gt;headers_in.chunked
+            || plcf-&gt;http_version == NGX_HTTP_VERSION_11))
+    {
+        r-&gt;request_body_no_buffering = 1;
+    }
+
+    rc = ngx_http_read_client_request_body(r, ngx_http_upstream_init);
+
+    if (rc &gt;= NGX_HTTP_SPECIAL_RESPONSE) {
+        return rc;
+    }
+
+    return NGX_DONE;
+</code></pre>
+<p><strong>完整链：</strong>proxy handler → read_client_request_body → read-event/body filters → post_handler(upstream_init) → create_request → connect/send。chunked decoding、HTTP/2/3 body路径不同，但共用“完成/异步进度不能混淆”的原则。</p>
+<p><strong>实验：</strong>用<code>curl --data-binary @payload.bin --limit-rate 16k .../echo</code>观察默认buffering下后端接收的启动时点，再改为off比较。lab后端将返回接收到的字节数；测试chunked需要独立构造Transfer-Encoding并核对HTTP/1.1，不能凭Content-Length上传推论全部协议。</p>
+<p><strong>失败边界：</strong>NGINX认为可重试，不代表业务可重试；body缓冲让字节可重放，业务幂等键才能让订单/扣款可安全重放。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-16"><p><a id="chapter-16"></a></p>
+<h1>16 · upstream：把后端变成事件状态机</h1>
+<p><strong>连接、发送、读头和读体各有回调</strong></p>
+<p>proxy模块通过<code>u-&gt;create_request、reinit_request、process_header、abort_request、finalize_request</code>提供协议特化，upstream核心承担连接与超时调度。<code>ngx_http_upstream_init_request</code>准备peer和请求buffer，<code>ngx_http_upstream_connect</code>为本次尝试建立<code>u-&gt;state</code>，记录start_time，调用<code>ngx_event_connect_peer</code>。peer的get回调先选择地址，socket非阻塞connect可能返回NGX_AGAIN，后续write事件才判断连接结果。</p>
+<p>连接对象的read/write handler都可指向<code>ngx_http_upstream_handler</code>，再由<code>u-&gt;read_event_handler / write_event_handler</code>选择阶段。目前初始化为send_request_handler与process_header，之后切到body处理器。<code>u-&gt;state</code>记录connect_time、header_time、response_time与peer；每次重试新增记录，日志可体现多次尝试。</p>
+<p><code>NGX_BUSY</code>表示没有可用peer，<code>NGX_DECLINED</code>等结果会走next逻辑；普通内部分配失败可能最终500。连接超时、协议头错误与上游响应503也并非同一失败类型。NGINX发出请求后后端是否已提交业务不可从TCP状态判断，因此分层错误诊断不能直接替代业务确定性。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t16 d16" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t16">16 · upstream：把后端变成事件状态机</title><desc id="d16">upstream callbacks → peer.get / connect（协议准备）；peer.get / connect → send_request（write就绪）；send_request → process_header（read就绪）；process_header → body handlers（头完整）；body handlers → finalize / free peer（完成或失败）</desc><defs><marker id="arrow16" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow16)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">协议准备</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow16)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">write就绪</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow16)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">read就绪</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow16)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">头完整</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow16)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">完成或失败</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">upstream callbacks</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">peer.get</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="96">connect</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">send_request</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">process_header</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">body handlers</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">finalize</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="299">free peer</text></svg><figcaption>机制图16：连接、发送、读头和读体各有回调</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L1623-L1636">src/http/ngx_http_upstream.c · L1623—L1636</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    c = u-&gt;peer.connection;
+
+    c-&gt;requests++;
+
+    c-&gt;data = r;
+
+    c-&gt;write-&gt;handler = ngx_http_upstream_handler;
+    c-&gt;read-&gt;handler = ngx_http_upstream_handler;
+
+    u-&gt;write_event_handler = ngx_http_upstream_send_request_handler;
+    u-&gt;read_event_handler = ngx_http_upstream_process_header;
+
+    c-&gt;sendfile &amp;= r-&gt;connection-&gt;sendfile;
+    u-&gt;output.sendfile = c-&gt;sendfile;
+</code></pre>
+<p><strong>完整链：</strong>proxy handler → upstream_init → upstream_init_request → connect_peer → peer.get → connect → send_request → process_header → process_headers → send_response → body callbacks → finalize。cache hit、upgrade、非缓冲等分支会跳过或替换部分步骤。</p>
+<p><strong>实验：</strong>lab<code>/retry/</code>第一个peer故意使用无人监听端口，backup可用；日志可看到连接拒绝与两次peer尝试。<code>upstream_connect_time</code>、<code>upstream_header_time</code>、<code>upstream_response_time</code>不是统一“后端计算时间”，包含连接/等待/传输且可能多值。</p>
+<p><strong>阅读检查：</strong>找到下一阶段handler写入点，再找同一字段的调用点，比只找函数名更容易串起异步调用链。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-17"><p><a id="chapter-17"></a></p>
+<h1>17 · 负载均衡：平滑加权与失败状态</h1>
+<p><strong>不是按权重机械复制列表</strong></p>
+<p>默认round-robin实现用平滑加权算法。每个候选增加effective_weight到current_weight，总计effective_weight，选current_weight最大者，再对选中者减总权重。<code>weight</code>是配置目标权重，<code>effective_weight</code>可以因失败降低并逐步恢复，<code>current_weight</code>控制短期平滑。这比把A复制五次B复制一次再轮询更能均匀分散顺序。</p>
+<p>选择前跳过本请求tried位图中的peer、down节点、处于max_fails/fail_timeout限制中的节点与达到max_conns的节点。当前请求在重试时不会无条件绕回同一已尝试peer。选中后维护连接数、引用等状态；失败释放peer时更新fails、时间与effective_weight。backup在主peer组无法服务时进入候补流程。</p>
+<p>不配置upstream zone时许多运行状态由各worker分别维护；配置共享zone后相关peer状态可共享并使用锁。<code>max_conns</code>语义和idle keepalive计数必须结合共享与worker场景理解。开源版这里主要是被动失败判断，不能把NGINX Plus主动健康检查当作本书开源默认能力。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t17 d17" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t17">17 · 负载均衡：平滑加权与失败状态</title><desc id="d17">eligible peer list → skip tried/down/fails（过滤）；skip tried/down/fails → add effective_weight（候选）；add effective_weight → select max current（比较）；select max current → subtract total（平滑）；subtract total → tried bit + conns（记账）</desc><defs><marker id="arrow17" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow17)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">过滤</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow17)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">候选</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow17)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">比较</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow17)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">平滑</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow17)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">记账</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">eligible peer list</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">skip tried/down/fails</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">add effective_weight</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">select max current</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">subtract total</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">tried bit + conns</text></svg><figcaption>机制图17：不是按权重机械复制列表</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream_round_robin.c#L743-L758">src/http/ngx_http_upstream_round_robin.c · L743—L758</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">        if (peer-&gt;max_conns &amp;&amp; peer-&gt;conns &gt;= peer-&gt;max_conns) {
+            continue;
+        }
+
+        peer-&gt;current_weight += peer-&gt;effective_weight;
+        total += peer-&gt;effective_weight;
+
+        if (peer-&gt;effective_weight &lt; peer-&gt;weight) {
+            peer-&gt;effective_weight++;
+        }
+
+        if (best == NULL || peer-&gt;current_weight &gt; best-&gt;current_weight) {
+            best = peer;
+            p = i;
+        }
+    }
+</code></pre>
+<p><strong>纸面推演：</strong>A权重2，B权重1，初始current=0；第一次加到2/1选A并减3得-1/1；第二次加到1/2选B得1/-1；第三次加到3/0选A得0/0。三次A/B/A，下一周期重复。这是假设候选可用且effective=weight的精简推演。</p>
+<p><strong>补充源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream_round_robin.c#L764-L778"><code>tried与减权 · L764–L778</code></a>。least_conn、ip_hash、hash等有独立选择器，不应把round-robin字段变化直接代入。</p>
+<p><strong>实验：</strong>起两个lab后端并设置2:1，单worker、顺序curl若干次记录upstream_addr。并发、多worker、失败、keepalive复用都可改变观察序列；本文未执行这个分布测试。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-18"><p><a id="chapter-18"></a></p>
+<h1>18 · 重试：字节重放与业务重复</h1>
+<p><strong>next_upstream是条件集合，不是保证</strong></p>
+<p><code>ngx_http_upstream_next</code>接收失败类型bitmask，释放当前peer并映射状态。连接错误、timeout、invalid_header与被配置的HTTP响应状态有不同mask。之后同时检查剩余tries、允许重试的mask、已发送非buffered body以及next_upstream总尝试时间。只有所有条件满足，才重新连接另一个peer。</p>
+<p>对已发送POST/LOCK/PATCH，代码加<code>NGX_HTTP_UPSTREAM_FT_NON_IDEMPOTENT</code>，需显式允许相应行为才能跨过mask判断。即便GET在协议语义上应安全，如果业务错误地用GET执行扣款，NGINX并不知道。接收响应头和向客户端发出响应是不同边界；一旦已经向客户端发送响应内容，无法撤回旧响应再完整替换，后续body失败通常走finalize而不是干净的新响应。</p>
+<p>请求体buffering off并已发送时，代码直接阻止重试，因为数据未必可再次重放。next_upstream_timeout是尝试预算，和connect/read/send各阶段间隔超时并列；零值、tries上限和已尝试peer都影响终止条件。HTTP404等状态是否计入peer失败，还需读free-peer分支，不能把全部4xx都叫上游故障。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t18 d18" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t18">18 · 重试：字节重放与业务重复</title><desc id="d18">failure mask → sent POST / PATCH?（阶段判断）；sent POST / PATCH? → tries + mask + budget（附NON_IDEMPOTENT）；tries + mask + budget → unbuffered sent body（可重放检查）；unbuffered sent body → next peer connect（所有条件通过）；unbuffered sent body → finalize / stale（任一不满足）</desc><defs><marker id="arrow18" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow18)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">阶段判断</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow18)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">附NON_IDEMPOTENT</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow18)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">可重放检查</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow18)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">所有条件通过</text><path d="M285 283 L635 283" fill="none" marker-end="url(#arrow18)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="271.0">任一不满足</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">failure mask</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">sent POST</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="96">PATCH?</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">tries + mask + budget</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">unbuffered sent body</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">next peer connect</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">finalize</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="299">stale</text></svg><figcaption>机制图18：next_upstream是条件集合，不是保证</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L4462-L4474">src/http/ngx_http_upstream.c · L4462—L4474</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    timeout = u-&gt;conf-&gt;next_upstream_timeout;
+
+    if (u-&gt;request_sent
+        &amp;&amp; (r-&gt;method &amp; (NGX_HTTP_POST|NGX_HTTP_LOCK|NGX_HTTP_PATCH)))
+    {
+        ft_type |= NGX_HTTP_UPSTREAM_FT_NON_IDEMPOTENT;
+    }
+
+    if (u-&gt;peer.tries == 0
+        || ((u-&gt;conf-&gt;next_upstream &amp; ft_type) != ft_type)
+        || (u-&gt;request_sent &amp;&amp; r-&gt;request_body_no_buffering)
+        || (timeout &amp;&amp; ngx_current_msec - u-&gt;peer.start_time &gt;= timeout))
+    {
+</code></pre>
+<p><strong>失败推演：</strong>后端已写入订单但连接在响应前断开，代理只知道“未得到成功响应”。允许重试可能产生第二次提交；禁止重试也不能断言第一次失败。业务需要幂等键与查询补偿来确定结果。</p>
+<p><strong>实验：</strong>lab的失联primary+可用backup，用GET观察重试列表；POST实验必须用只统计字节的<code>/echo</code>虚构端点。将<code>proxy_next_upstream off</code>应直接暴露primary连接错误，将<code>... error timeout</code>恢复后GET可切backup。默认非幂等保护与“请求是否已发送”的时点必须通过日志确认，不预设POST必然或绝不重试。</p>
+<p><strong>面试复述：</strong>重试资格由失败类型、请求阶段、可重放性和预算共同决定；NGINX处理网络重试，业务处理一次性效果。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-19"><p><a id="chapter-19"></a></p>
+<h1>19 · 上游keepalive与DNS边界</h1>
+<p><strong>连接缓存通常在每个worker内部</strong></p>
+<p>upstream keepalive模块包装原来的peer get/free回调。先进行负载选择，再按socket地址在本worker缓存队列找可复用连接；命中时从cache队列移到free队列，清idle、恢复log、删除idle read timer，设置<code>pc-&gt;connection</code>和cached标志，返回NGX_DONE。它是已有socket复用，不是一次新connect的完成通知。</p>
+<p><code>keepalive N</code>限制每worker保存的空闲连接数量，不等于所有活动连接上限，也不是客户端keepalive超时。HTTP代理要正确使用<code>proxy_http_version 1.1</code>并清除Connection header，避免上游主动关闭。在本书1.28.0基线中显式写这两项，不能拿较新版本默认值代替固定基线。server关闭、EOF、超过请求数或时间上限会让连接不能进缓存。</p>
+<p>静态域名解析、变量proxy_pass配合resolver、upstream server resolve是不同路径。1.28.0源码含开源共享zone与动态resolve支持；需要相应resolver、zone与参数配置。不要笼统声称“NGINX永远只在启动解析DNS”，也不要以配置了resolver就断言所有静态server都自动刷新。DNS变化不能迁移已存在的socket。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t19 d19" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t19">19 · 上游keepalive与DNS边界</title><desc id="d19">balancer selects addr → worker idle cache（地址匹配）；worker idle cache → cached socket hit（有连接）；cached socket hit → NGX_DONE / reuse（删idle timer）；worker idle cache → new connect on miss（无连接）；DNS resolver boundary → balancer selects addr（影响新地址）</desc><defs><marker id="arrow19" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow19)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">地址匹配</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow19)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">有连接</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow19)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">删idle timer</text><path d="M460 132 C460 163.5 460 163.5 460 231" fill="none" marker-end="url(#arrow19)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="156.5">无连接</text><path d="M765 231 C765 181.5 155 181.5 155 132" fill="none" marker-end="url(#arrow19)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="174.5">影响新地址</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">balancer selects addr</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">worker idle cache</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">cached socket hit</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">NGX_DONE</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="299">reuse</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">new connect on miss</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">DNS resolver boundary</text></svg><figcaption>机制图19：连接缓存通常在每个worker内部</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_upstream_keepalive_module.c#L285-L300">src/http/modules/ngx_http_upstream_keepalive_module.c · L285—L300</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    c-&gt;idle = 0;
+    c-&gt;sent = 0;
+    c-&gt;data = NULL;
+    c-&gt;log = pc-&gt;log;
+    c-&gt;read-&gt;log = pc-&gt;log;
+    c-&gt;write-&gt;log = pc-&gt;log;
+    c-&gt;pool-&gt;log = pc-&gt;log;
+
+    if (c-&gt;read-&gt;timer_set) {
+        ngx_del_timer(c-&gt;read);
+    }
+
+    pc-&gt;connection = c;
+    pc-&gt;cached = 1;
+
+    return NGX_DONE;
+</code></pre>
+<p><strong>失败后果：</strong>后端先关闭了空闲socket，而代理刚准备复用，可能第一次发送遇到错误然后进入重试。大量idle连接会占fd和connection槽，连接缓存大小必须和上游容量、worker数一起预算。</p>
+<p><strong>实验：</strong>lab app upstream设置keepalive16，重复请求看<code>upstream_connect_time</code>与后端连接来源端口；单凭<code>0.000</code>不能严谨证明复用，也可能是新连接极快。后端日志或debug cache-hit消息更有说服力。DNS实验需自建可控解析器，本书未执行。</p>
+<p><strong>官方辅助入口：</strong><a href="https://nginx.org/en/docs/http/ngx_http_upstream_module.html">upstream模块</a>。教程不借用商业模块能力补全开源基线。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-20"><p><a id="chapter-20"></a></p>
+<h1>20 · proxy buffer与背压：两边速度不一致</h1>
+<p><strong>响应缓冲和请求缓冲是两套开关</strong></p>
+<p><code>proxy_buffering on</code>进入event pipe路径，<code>ngx_event_pipe</code>循环推进上游读取和下游输出；<code>bufs、busy、free、in、out</code>以及temp_file跟踪缓冲和所有权。<code>proxy_buffer_size</code>主要影响首段/响应头，<code>proxy_buffers</code>提供body缓冲，<code>proxy_busy_buffers_size</code>控制用于发送的忙缓冲量。响应头过大需要看header buffer，不应盲增所有body buffer。</p>
+<p>快上游、慢客户端时，缓冲让上游更早释放；内存不够可写临时文件，受max_temp_file_size等配置限制。temp file空间、权限、磁盘吞吐可能成为瓶颈。写盘与cache/store并不是一回事：临时缓冲文件未必是可复用缓存。配置buffering off换成non-buffered read/write handlers，仍有有限buffer与输出链，并非“完全不分配内存”。</p>
+<p>当缓冲满且下游未消费，read路径必须等待，让背压逐层传给上游。<code>X-Accel-Buffering</code>响应头可以影响代理模式，除非配置忽略；SSE等流式场景通常需要检查buffering、flush和超时，不能仅关一个开关后承诺每个应用字节都立刻抵达客户端。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t20 d20" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t20">20 · proxy buffer与背压：两边速度不一致</title><desc id="d20">upstream read → free / in buffers（缓冲）；free / in buffers → busy output buffers（交下游）；free / in buffers → temp file spill（允许且必要）；temp file spill → downstream filters（读出）；busy output buffers → downstream filters（消费）；busy output buffers → read backpressure（满且未消费）</desc><defs><marker id="arrow20" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow20)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">缓冲</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow20)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">交下游</text><path d="M460 132 C460 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow20)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="192.5">允许且必要</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow20)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">读出</text><path d="M765 132 C765 181.5 460 181.5 460 231" fill="none" marker-end="url(#arrow20)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="174.5">消费</text><path d="M765 132 C765 199.5 765 199.5 765 231" fill="none" marker-end="url(#arrow20)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="765.0" y="192.5">满且未消费</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">upstream read</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">free</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="96">in buffers</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">busy output buffers</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">temp file spill</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">downstream filters</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">read backpressure</text></svg><figcaption>机制图20：响应缓冲和请求缓冲是两套开关</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L3125-L3136">src/http/ngx_http_upstream.c · L3125—L3136</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">        if (u-&gt;input_filter == NULL) {
+            u-&gt;input_filter_init = ngx_http_upstream_non_buffered_filter_init;
+            u-&gt;input_filter = ngx_http_upstream_non_buffered_filter;
+            u-&gt;input_filter_ctx = r;
+        }
+
+        u-&gt;read_event_handler = ngx_http_upstream_process_non_buffered_upstream;
+        r-&gt;write_event_handler =
+                             ngx_http_upstream_process_non_buffered_downstream;
+
+        r-&gt;limit_rate = 0;
+        r-&gt;limit_rate_set = 1;
+</code></pre>
+<p><strong>链路对照：</strong>buffered：上游event → event_pipe_read_upstream → buffer/temp → write_to_downstream → output filters；non-buffered：process_non_buffered_upstream/downstream → shared progress → output filters。两套路径都遵循NGX_AGAIN恢复与引用清理。</p>
+<p><strong>实验：</strong>用lab<code>/slow?gap=0.2</code>配<code>curl -N</code>看流式响应；用<code>/blob?size=8388608</code>配curl限速，观察temp目录和后端发送完成时点。配置<code>proxy_max_temp_file_size 0</code>限制临时落盘并不等于禁用cache，也不是内存无限增长承诺。</p>
+<p><strong>源码补充：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_pipe.c#L23-L66"><code>event_pipe loop · L23–L66</code></a>。本文未执行慢消费者或磁盘压力测试。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-21"><p><a id="chapter-21"></a></p>
+<h1>21 · 输出filter与sendfile：剩余链就是进度</h1>
+<p><strong>返回成功不代表客户端已收到全部</strong></p>
+<p><code>ngx_http_output_filter</code>把body链交给<code>ngx_http_top_body_filter</code>，模块按初始化时的挂接顺序组成链。gzip、range、chunked、copy等模块根据编译和响应条件参与处理，最终write filter调用连接<code>send_chain</code>。header filter是另一条链，先生成状态行与headers；启用HTTP/2/3时还会转为对应协议帧，不是简单沿HTTP/1.1文本输出。</p>
+<p>write filter收集<code>r-&gt;out</code>，检查flush/last/缓冲标志，计算limit与sendfile_max_chunk，调用<code>c-&gt;send_chain(c,r-&gt;out,limit)</code>。返回链指向尚未发送的部分，发送错误才是NGX_CHAIN_ERROR。输出到socket发送缓冲也不等于远端应用已经处理；连接层只保证按自身传输进度推进。</p>
+<p>静态文件路径可用文件buffer加sendfile减少用户态拷贝，但不意味着磁盘I/O永远非阻塞，也不意味着所有TLS场景都能用普通sendfile。Linux sendfile链、FreeBSD sendfile链、SSL send_chain以及可选kTLS能力有不同实现/构建边界。gzip往往需要读取并转换body，不能拿“零拷贝”标签代替实际filter判断。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t21 d21" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t21">21 · 输出filter与sendfile：剩余链就是进度</title><desc id="d21">body filter chain → write filter r.out（处理）；write filter r.out → send_chain / limit（平台适配）；send_chain / limit → socket accepted bytes（已发送）；send_chain / limit → remaining chain（部分发送）；remaining chain → write event resumes（AGAIN）；write event resumes → write filter r.out（继续）</desc><defs><marker id="arrow21" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow21)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">处理</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow21)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">平台适配</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow21)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">已发送</text><path d="M765 132 C765 163.5 460 163.5 460 231" fill="none" marker-end="url(#arrow21)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="156.5">部分发送</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow21)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">AGAIN</text><path d="M765 231 C765 199.5 460 199.5 460 132" fill="none" marker-end="url(#arrow21)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="192.5">继续</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">body filter chain</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">write filter r.out</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">send_chain</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="96">limit</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">socket accepted bytes</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">remaining chain</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">write event resumes</text></svg><figcaption>机制图21：返回成功不代表客户端已收到全部</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_write_filter_module.c#L294-L307">src/http/ngx_http_write_filter_module.c · L294—L307</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    sent = c-&gt;sent;
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, c-&gt;log, 0,
+                   "http write filter limit %O", limit);
+
+    chain = c-&gt;send_chain(c, r-&gt;out, limit);
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, c-&gt;log, 0,
+                   "http write filter %p", chain);
+
+    if (chain == NGX_CHAIN_ERROR) {
+        c-&gt;error = 1;
+        return NGX_ERROR;
+    }
+</code></pre>
+<p><strong>第二证据：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_linux_sendfile_chain.c#L200-L206"><code>Linux余量更新 · L200–L206</code></a>推进c-&gt;sent与链，并在AGAIN时清write ready。<code>sendfile_max_chunk</code>是公平性边界，避免单条大连接在一次循环里独占过久。</p>
+<p><strong>实验：</strong>lab生成静态文件，<code>curl --limit-rate 32k /static/large.bin</code>看多个write推进；Linux可跟踪sendfile/writev，HTTPS应另读SSL调用。只要客户端收到字节不足，即使access日志已出现2xx，仍需检查body截断和curl退出值。</p>
+<p><strong>失败后果：</strong>下游关闭、内核写错、filter内存分配失败会终止传输。响应头已发出时，不能再把原来200完整替换成500。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-22"><p><a id="chapter-22"></a></p>
+<h1>22 · 文件缓存：索引共享，内容在磁盘</h1>
+<p><strong>cache hit是多阶段判断，不是一张map</strong></p>
+<p>proxy cache至少两层：共享keys_zone里保存索引、状态、引用等，磁盘文件保存headers/body。<code>ngx_http_file_cache_open</code>通过r-&gt;cache检查waiting/reading，查询共享节点，再决定是否打开磁盘文件、读取header与有效期。cold启动期间loader逐步恢复索引；manager控制容量和失效清理。keys_zone容量不等于body缓存容量，max_size也不是请求buffer上限。</p>
+<p>cache key由proxy配置生成，默认和scheme、proxy_host、request_uri等有关；用户自定义key必须包含业务隔离维度。Cookie、Authorization、Set-Cookie、Cache-Control、Vary等参与可缓存资格或变体处理；不能仅凭GET+200就断言会落缓存。忽略响应缓存头可能缓存私人数据，教程采用无账号的虚构端点。</p>
+<p>MISS可能发到上游，HIT从文件返回，EXPIRED可能等待刷新或重验证，STALE要符合策略。<code>proxy_cache_lock</code>协调同key填充者，等待和lock age/timeout是独立边界；它不是跨任意缓存key的一把全局请求锁。background update通过子请求等路径更新，跨进程共享状态仍需锁与引用管理。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t22 d22" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t22">22 · 文件缓存：索引共享，内容在磁盘</title><desc id="d22">cache key → shared zone index（查节点）；shared zone index → disk file validity（核文件）；disk file validity → HIT / cache_send（有效）；disk file validity → MISS / upstream（不命中）；MISS / upstream → temp + index update（可缓存）；temp + index update → shared zone index（状态更新）</desc><defs><marker id="arrow22" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow22)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">查节点</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow22)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">核文件</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow22)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">有效</text><path d="M765 132 C765 163.5 460 163.5 460 231" fill="none" marker-end="url(#arrow22)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="156.5">不命中</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow22)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">可缓存</text><path d="M765 231 C765 199.5 460 199.5 460 132" fill="none" marker-end="url(#arrow22)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="192.5">状态更新</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">cache key</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">shared zone index</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">disk file validity</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">HIT</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="299">cache_send</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">MISS</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="299">upstream</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">temp + index update</text></svg><figcaption>机制图22：cache hit是多阶段判断，不是一张map</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_file_cache.c#L275-L299">src/http/ngx_http_file_cache.c · L275—L299</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    c = r-&gt;cache;
+
+    if (c-&gt;waiting) {
+        return NGX_AGAIN;
+    }
+
+    if (c-&gt;reading) {
+        return ngx_http_file_cache_read(r, c);
+    }
+
+    cache = c-&gt;file_cache;
+
+    if (c-&gt;node == NULL) {
+        cln = ngx_pool_cleanup_add(r-&gt;pool, 0);
+        if (cln == NULL) {
+            return NGX_ERROR;
+        }
+
+        cln-&gt;handler = ngx_http_file_cache_cleanup;
+        cln-&gt;data = c;
+    }
+
+    c-&gt;buffer_size = c-&gt;body_start;
+
+    rc = ngx_http_file_cache_exists(cache, c);
+</code></pre>
+<p><strong>完整链：</strong>proxy create_key → file_cache_open → shared exists/lock → file read/validity → cache_send或upstream connect → temp写入 → 原子文件更新与索引状态更新。实际存在many分支，磁盘删除或权限变化仍可能使“索引存在”走回miss/error。</p>
+<p><strong>实验：</strong>lab<code>/cache/</code>两次curl <code>-i</code>，看<code>X-Lab-Cache</code>从MISS到HIT；等待有效期再请求观察过期路径，后端时间值帮助判断内容复用。并发首请求用于lock实验需控制上游变慢，不能只凭HIT比例证明没有重复回源。</p>
+<p><strong>失败边界：</strong>cache key漏租户维度比缓存未命中严重得多；服务不可用时use_stale提高可用性，但内容过旧的业务后果由应用决定。本书未执行缓存流程，配置和预期依据固定代码。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-23"><p><a id="chapter-23"></a></p>
+<h1>23 · 限流：共享内存漏桶与延迟事件</h1>
+<p><strong>excess是固定精度负债，不是请求数队列</strong></p>
+<p>limit_req在PREACCESS注册handler，计算配置的complex key，hash查共享红黑树，使用共享slab mutex保护节点。相同hash还比较key字节，不能把CRC碰撞视为相同用户。节点保留last、excess、count和队列链接；队列帮助回收过期状态，slab负责共享区内存分配。</p>
+<p>命中节点后计算<code>excess = old_excess - rate * ms / 1000 + 1000</code>并下限截0。rate/excess以千分之一请求为精度，<code>+1000</code>代表当前请求，内部burst也已相应缩放。超burst返回BUSY；未超时再决定delay。<code>nodelay</code>允许burst范围内尽快处理，但excess负债仍在后续请求中消减，它不是取消速率限制。</p>
+<p>延迟不sleep worker：handler设置read/write回调、write delayed并加timer，返回NGX_AGAIN；timer到期resume phases。reject使用配置status_code，本实验显式429，基线默认拒绝码不是429。dry_run记录本应延迟/拒绝的状态而不实际拦截。limit_conn另统计连接/请求并发，有HTTP/2/3并发请求相关语义，不能用它替代每秒rate。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t23 d23" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t23">23 · 限流：共享内存漏桶与延迟事件</title><desc id="d23">key / hash → shared slab mutex（查树）；shared slab mutex → decay + 1000（临界区）；decay + 1000 → over burst / reject（超额）；decay + 1000 → within burst / delay（计算delay）；within burst / delay → timer / resume phases（不阻塞线程）</desc><defs><marker id="arrow23" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow23)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">查树</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow23)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">临界区</text><path d="M765 132 C765 199.5 155 199.5 155 231" fill="none" marker-end="url(#arrow23)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="192.5">超额</text><path d="M765 132 C765 163.5 460 163.5 460 231" fill="none" marker-end="url(#arrow23)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="156.5">计算delay</text><path d="M590 283 L635 283" fill="none" marker-end="url(#arrow23)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="271.0">不阻塞线程</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">key</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="96">hash</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">shared slab mutex</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">decay + 1000</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">over burst</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="299">reject</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">within burst</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="299">delay</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">timer</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="299">resume phases</text></svg><figcaption>机制图23：excess是固定精度负债，不是请求数队列</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L454-L473">src/http/modules/ngx_http_limit_req_module.c · L454—L473</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">            excess = lr-&gt;excess - ctx-&gt;rate * ms / 1000 + 1000;
+
+            if (excess &lt; 0) {
+                excess = 0;
+            }
+
+            *ep = excess;
+
+            if ((ngx_uint_t) excess &gt; limit-&gt;burst) {
+                return NGX_BUSY;
+            }
+
+            if (account) {
+                lr-&gt;excess = excess;
+
+                if (ms) {
+                    lr-&gt;last = now;
+                }
+
+                return NGX_OK;
+</code></pre>
+<p><strong>精度练习：</strong>假设rate=2r/s，内部rate=2000，前一excess=1000，间隔250ms，则新excess=1000-2000×250/1000+1000=1500。burst=1内部1000时会拒绝；burst=3时可进入delay/pass判断。这是公式推演，不是实测时序。</p>
+<p><strong>第二证据：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L322-L328"><code>timer delay · L322–L328</code></a>。数据跨worker共享必须锁；普通worker计数器不能提供同样全局限额。</p>
+<p><strong>实验：</strong>lab <code>/limit/</code>走proxy，顺序短间隔curl，查看状态码和<code>$limit_req_status</code>；并发curl可能有PASSED/REJECTED，数量取决于真实时序，不承诺固定第几次拒绝。key采用<code>$binary_remote_addr</code>，同一NAT共享额度；trusted realip配置错误又会造成伪造或误限。</p>
+<p><a href="#top">返回目录</a></p>
+</section><section class="chapter" data-chapter="chapter-24"><p><a id="chapter-24"></a></p>
+<h1>24 · TLS、终结与性能诊断</h1>
+<p><strong>连接的最后一步也是状态机的一部分</strong></p>
+<p>SSL握手通过<code>SSL_do_handshake</code>推进，<code>SSL_ERROR_WANT_READ/WRITE</code>分别清ready、设置read/write握手handler并注册事件，返回NGX_AGAIN。握手不是同步调用一次就结束；证书解析、OpenSSL版本、会话复用、OCSP、kTLS和协议模块能力取决于构建与配置。SNI在HTTP Host前发生，证书选择与HTTP路由要分别诊断。</p>
+<p>reload加载新的SSL配置，旧worker现有SSL连接继续使用旧对象；新连接才进入新的SSL上下文。更新证书后必须确认配置检测、reload日志和新连接实际证书，不能看文件已写入就宣布全部连接切换。TLS终止后代理到HTTP上游是独立连接；上游HTTPS认证与SNI又由proxy_ssl配置控制，本书不假设默认自动验证后端证书。</p>
+<p>响应完成进入<code>ngx_http_finalize_request / ngx_http_finalize_connection</code>，主请求count、subrequest、body读取、keepalive、lingering close和协议流决定何时释放。HTTP/1.x keepalive保留socket并销毁request pool；lingering读取剩余客户端数据后再关闭，减少立刻close导致响应被RST干扰的风险。HTTP/2/3流终结不等于整个连接终结。</p>
+<p>诊断从“哪层在等”出发：request_time包含客户端读体、代理与客户端发送；upstream_connect/header/response分出上游阶段并可多值；连接槽不足看connection_n与fd；CPU高看解析/rewrite/TLS/filter/模块阻塞；磁盘忙看temp/cache/log；慢客户端看busy chains与send_timeout。不要把所有502归为后端宕机，也不要把CPU不满解释为无瓶颈。</p>
+<p><figure class="mechanism"><svg aria-labelledby="t24 d24" role="img" viewbox="0 0 920 410" xmlns="http://www.w3.org/2000/svg"><title id="t24">24 · TLS、终结与性能诊断</title><desc id="d24">SSL handshake → WANT_READ / WRITE（尚未完成）；WANT_READ / WRITE → event callback resumes（NGX_AGAIN）；event callback resumes → SSL handshake（再握手）；SSL handshake → HTTP lifecycle（handshaked）；HTTP lifecycle → references / keepalive（finalize）；HTTP lifecycle → logs + segment timings（观测）</desc><defs><marker id="arrow24" markerheight="8" markerwidth="8" orient="auto" refx="7" refy="4"><path d="M0 0 L8 4 L0 8" fill="#7ebfbd"></path></marker></defs><rect fill="#101e2b" height="410" rx="20" width="920"></rect><path d="M285 80 L330 80" fill="none" marker-end="url(#arrow24)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="68.0">尚未完成</text><path d="M590 80 L635 80" fill="none" marker-end="url(#arrow24)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="612.5" y="68.0">NGX_AGAIN</text><path d="M635 80 L285 80" fill="none" marker-end="url(#arrow24)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="68.0">再握手</text><path d="M155 132 C155 163.5 155 163.5 155 231" fill="none" marker-end="url(#arrow24)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="155.0" y="156.5">handshaked</text><path d="M285 283 L330 283" fill="none" marker-end="url(#arrow24)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="307.5" y="271.0">finalize</text><path d="M285 283 L635 283" fill="none" marker-end="url(#arrow24)" opacity=".72" stroke="#7ebfbd" stroke-width="2"></path><text fill="#c9e4e6" font-family="system-ui,sans-serif" font-size="13" text-anchor="middle" x="460.0" y="271.0">观测</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="50">STATE 01</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="77">SSL handshake</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="50">STATE 02</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="77">WANT_READ</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="96">WRITE</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="28"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="50">STATE 03</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="77">event callback resumes</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="25" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="43" y="253">STATE 04</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="155" y="280">HTTP lifecycle</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="330" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="348" y="253">STATE 05</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="280">references</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="460" y="299">keepalive</text><rect fill="#193347" height="104" rx="14" stroke="#39768a" width="260" x="635" y="231"></rect><text fill="#75bdb9" font-family="monospace" font-size="12" x="653" y="253">STATE 06</text><text fill="#e9f0f7" font-family="system-ui,sans-serif" font-size="15" text-anchor="middle" x="765" y="280">logs + segment timings</text></svg><figcaption>机制图24：连接的最后一步也是状态机的一部分</figcaption></figure></p>
+<p><strong>真实源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_openssl.c#L1793-L1806">src/event/ngx_event_openssl.c · L1793—L1806</a>。连续原文，节选窗口不代表完整函数。</p>
+<pre><button class="copy" type="button">复制代码</button><code class="language-c">    if (sslerr == SSL_ERROR_WANT_READ) {
+        c-&gt;read-&gt;ready = 0;
+        c-&gt;read-&gt;handler = ngx_ssl_handshake_handler;
+        c-&gt;write-&gt;handler = ngx_ssl_handshake_handler;
+
+        if (ngx_handle_read_event(c-&gt;read, 0) != NGX_OK) {
+            return NGX_ERROR;
+        }
+
+        if (ngx_handle_write_event(c-&gt;write, 0) != NGX_OK) {
+            return NGX_ERROR;
+        }
+
+        return NGX_AGAIN;
+</code></pre>
+<p><strong>实验：</strong>lab日志已经配置两种URI和upstream分段时间。连接拒绝常落502，连接/读超时可能504，响应体已输出后超时可能是截断；在每种场景同时记录status、curl退出码、error日志和收到字节数。TLS用自签证书的独立lab端口测试，可执行<code>openssl s_client -connect 127.0.0.1:18443 -servername lab.local</code>；本文没有启动TLS实例。</p>
+<p><strong>复述练习：</strong>用“accept → parse → phases → upstream → filters → finalize”在两分钟内解释请求，再回答：在哪保存进度、哪个pool拥有内存、哪个flag触发恢复、响应已发后还能否重试？这些问题比记住默认值更能检验源码理解。</p>
+<p><strong>边界清单：</strong>本书没有编译NGINX、没有压测、没有在生产执行配置或信号，没有声称实验全部通过。完成的是固定源码阅读、原文节选核验、离线与页面结构核验。实验脚本作为可复现材料交付，NGINX运行结果需要读者在匹配构建上验证。</p>
+<p><a href="#top">返回目录</a></p>
+<h2>后续源码挑战</h2>
+<ol>
+<li>沿<code>ngx_http_upstream_next</code>列出不能重试的所有条件，并说明发送响应头以后为什么要换一种失败解释。</li>
+<li>写出请求pool、connection pool、cycle pool和共享slab的生命周期，指出reload时哪些不能迁移。</li>
+<li>跟踪一个NGX_AGAIN，从产生点走到未来handler恢复点；仅画函数调用箭头不足以说明异步。</li>
+<li>解释一个限流延迟请求的timer、write handler、phase index变化，指出它没有sleep worker。</li>
+<li>用日志证明一次失败发生在connect、header、body还是downstream，避免仅按HTTP状态码猜原因。</li>
+</ol>
+<h2>官方阅读入口</h2>
+<ul>
+<li><a href="https://github.com/nginx/nginx/tree/481d28cb4e04c8096b9b6134856891dc52ecc68f">固定发行基线</a></li>
+<li><a href="https://nginx.org/en/docs/dev/development_guide.html">开发指南</a></li>
+<li><a href="https://nginx.org/en/docs/events.html">连接处理方法</a></li>
+<li><a href="https://nginx.org/en/docs/http/request_processing.html">请求处理</a></li>
+<li><a href="https://nginx.org/en/docs/control.html">进程控制</a></li>
+<li><a href="https://nginx.org/en/docs/http/ngx_http_core_module.html">HTTP core</a></li>
+<li><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html">proxy模块</a></li>
+<li><a href="https://nginx.org/en/docs/http/ngx_http_upstream_module.html">upstream模块</a></li>
+<li><a href="https://nginx.org/en/docs/http/ngx_http_limit_req_module.html">limit_req模块</a></li>
+<li><a href="https://nginx.org/en/docs/http/ngx_http_ssl_module.html">SSL模块</a></li>
+</ul>
+<p>官方文档为滚动更新页面，本书不是其全文翻译。解释依据固定源码，配置指令按基线核对；升级或部署前需要重新查官方变更与安全公告。</p></section><p class="footer">源码归属与许可见<a href="./source-notices.txt">来源说明</a>与<a href="./nginx-license.txt">上游LICENSE</a>。实验执行范围见<a href="./VERIFICATION.md">核验记录</a>。</p></main></div><script>
+(()=>{const side=document.querySelector('.sidebar'),nav=[...document.querySelectorAll('nav a')],chapters=[...document.querySelectorAll('.chapter')];document.querySelector('#menu').onclick=()=>{side.classList.toggle('open');document.querySelector('#menu').setAttribute('aria-expanded',side.classList.contains('open'))};nav.forEach(a=>a.addEventListener('click',()=>side.classList.remove('open')));const theme=document.querySelector('#theme');try{if(localStorage.getItem('nginx-theme')==='light')document.body.classList.add('light')}catch(e){}theme.onclick=()=>{document.body.classList.toggle('light');try{localStorage.setItem('nginx-theme',document.body.classList.contains('light')?'light':'dark')}catch(e){}};document.querySelector('#search').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();nav.forEach((a,i)=>a.classList.toggle('hidden',!!q&&!chapters[i]?.textContent.toLowerCase().includes(q)));document.querySelector('#search-status').textContent=q?nav.filter(a=>!a.classList.contains('hidden')).length+'个相关章节':''});document.querySelectorAll('.copy').forEach(b=>b.onclick=async()=>{const t=b.parentNode.querySelector('code').textContent;try{await navigator.clipboard.writeText(t);b.textContent='已复制'}catch(e){const r=document.createRange();r.selectNodeContents(b.parentNode.querySelector('code'));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='已选择，请复制'}setTimeout(()=>b.textContent='复制代码',1800)});const update=()=>{const denom=document.documentElement.scrollHeight-innerHeight;document.querySelector('#progress').style.width=(denom>0?100*scrollY/denom:0)+'%';let current='';chapters.forEach(s=>{if(s.getBoundingClientRect().top<150)current=s.dataset.chapter});nav.forEach(a=>a.classList.toggle('active',a.hash==='#'+current))};addEventListener('scroll',update,{passive:true});update()})();
+</script></body></html>

@@ -1,0 +1,44 @@
+    public Boolean update(List<ModifyRequest> sqlContext, BiConsumer<Boolean, Throwable> consumer) {
+        try {
+            
+            // Since the SQL parameter is Object[], in order to ensure that the types of
+            // array elements are not lost, the serialization here is done using the java-specific
+            // serialization framework, rather than continuing with the protobuff
+            
+            LoggerUtils.printIfDebugEnabled(LOGGER, "modifyRequests info : {}", sqlContext);
+            
+            // {timestamp}-{group}-{ip:port}-{signature}
+            
+            final String key =
+                System.currentTimeMillis() + "-" + group() + "-"
+                    + memberManager.getSelf().getAddress() + "-"
+                    + MD5Utils.md5Hex(sqlContext.toString(), PersistenceConstant.DEFAULT_ENCODE);
+            WriteRequest request = WriteRequest.newBuilder().setGroup(group()).setKey(key)
+                .setData(ByteString.copyFrom(serializer.serialize(sqlContext)))
+                .putAllExtendInfo(EmbeddedStorageContextHolder.getCurrentExtendInfo())
+                .setType(sqlContext.getClass().getCanonicalName()).build();
+            if (Objects.isNull(consumer)) {
+                Response response = this.protocol.write(request);
+                if (response.getSuccess()) {
+                    return true;
+                }
+                LOGGER.error("execute sql modify operation failed : {}", response.getErrMsg());
+                return false;
+            } else {
+                this.protocol.writeAsync(request)
+                    .whenComplete((BiConsumer<Response, Throwable>) (response, ex) -> {
+                        String errMsg = Objects.isNull(ex) ? response.getErrMsg()
+                            : ExceptionUtil.getCause(ex).getMessage();
+                        consumer.accept(response.getSuccess(),
+                            StringUtils.isBlank(errMsg) ? null : new NJdbcException(errMsg));
+                    });
+            }
+            return true;
+        } catch (TimeoutException e) {
+            LOGGER.error("An timeout exception occurred during the update operation");
+            throw new NacosRuntimeException(NacosException.SERVER_ERROR, e.toString());
+        } catch (Throwable e) {
+            LOGGER.error("An exception occurred during the update operation : {}", e);
+            throw new NacosRuntimeException(NacosException.SERVER_ERROR, e.toString());
+        }
+    }

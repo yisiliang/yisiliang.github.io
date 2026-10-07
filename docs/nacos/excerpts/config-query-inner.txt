@@ -1,0 +1,53 @@
+        ConfigResponse queryConfigInner(RpcClient rpcClient, String dataId, String group,
+            String tenant,
+            long readTimeouts, boolean notify) throws NacosException {
+            ConfigQueryRequest request = ConfigQueryRequest.build(dataId, group, tenant);
+            request.putHeader(NOTIFY_HEADER, String.valueOf(notify));
+            
+            ConfigQueryResponse response =
+                (ConfigQueryResponse) requestProxy(rpcClient, request, readTimeouts);
+            
+            ConfigResponse configResponse = new ConfigResponse();
+            if (response.isSuccess()) {
+                LocalConfigInfoProcessor.saveSnapshot(this.getName(), dataId, group, tenant,
+                    response.getContent());
+                configResponse.setContent(response.getContent());
+                // Set MD5 from server response
+                configResponse.setMd5(response.getMd5());
+                String configType;
+                if (StringUtils.isNotBlank(response.getContentType())) {
+                    configType = response.getContentType();
+                } else {
+                    configType = ConfigType.TEXT.getType();
+                }
+                configResponse.setConfigType(configType);
+                String encryptedDataKey = response.getEncryptedDataKey();
+                LocalEncryptedDataKeyProcessor.saveEncryptDataKeySnapshot(agent.getName(), dataId,
+                    group, tenant,
+                    encryptedDataKey);
+                configResponse.setEncryptedDataKey(encryptedDataKey);
+                return configResponse;
+            } else if (response.getErrorCode() == ConfigQueryResponse.CONFIG_NOT_FOUND) {
+                LocalConfigInfoProcessor.saveSnapshot(this.getName(), dataId, group, tenant, null);
+                LocalEncryptedDataKeyProcessor.saveEncryptDataKeySnapshot(agent.getName(), dataId,
+                    group, tenant, null);
+                return configResponse;
+            } else if (response.getErrorCode() == ConfigQueryResponse.CONFIG_QUERY_CONFLICT) {
+                LOGGER.error(
+                    "[{}] [sub-server-error] get server config being modified concurrently, dataId={}, group={}, "
+                        + "tenant={}",
+                    this.getName(), dataId, group, tenant);
+                throw new NacosException(NacosException.CONFLICT,
+                    "data being modified, dataId=" + dataId + ",group=" + group + ",tenant="
+                        + tenant);
+            } else {
+                LOGGER.error("[{}] [sub-server-error]  dataId={}, group={}, tenant={}, code={}",
+                    this.getName(), dataId,
+                    group, tenant, response);
+                throw new NacosException(response.getErrorCode(),
+                    "http error, code=" + response.getErrorCode() + ",msg="
+                        + response.getMessage() + ",dataId="
+                        + dataId + ",group=" + group + ",tenant=" + tenant);
+                
+            }
+        }

@@ -5,3 +5,7 @@
 
 # macOS Finder metadata
 .DS_Store
+
+# Intermediate offline reader used by the Nacos packager
+/docs/nacos/offline.html
+/docs/springboot/examples/target/

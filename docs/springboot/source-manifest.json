@@ -1,0 +1,562 @@
+[
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "start": 301,
+    "end": 314,
+    "sha256": "ee6a14851e9f6c4fda91d28100d3dc125bfd3d153efb7981764b5a11095d375f",
+    "text": "\tpublic ConfigurableApplicationContext run(String... args) {\n\t\tStartup startup = Startup.create();\n\t\tif (this.properties.isRegisterShutdownHook()) {\n\t\t\tSpringApplication.shutdownHook.enableShutdownHookAddition();\n\t\t}\n\t\tDefaultBootstrapContext bootstrapContext = createBootstrapContext();\n\t\tConfigurableApplicationContext context = null;\n\t\tconfigureHeadlessProperty();\n\t\tSpringApplicationRunListeners listeners = getRunListeners(args);\n\t\tlisteners.starting(bootstrapContext, this.mainApplicationClass);\n\t\ttry {\n\t\t\tApplicationArguments applicationArguments = new DefaultApplicationArguments(args);\n\t\t\tConfigurableEnvironment environment = prepareEnvironment(listeners, bootstrapContext, applicationArguments);\n\t\t\tBanner printedBanner = printBanner(environment);"
+  },
+  {
+    "version": "6.2.19",
+    "sha": "6214eae8bd02c2ed7ab382bb8d16a9cc6de49522",
+    "repository": "spring-framework",
+    "path": "spring-context/src/main/java/org/springframework/context/support/AbstractApplicationContext.java",
+    "start": 588,
+    "end": 612,
+    "sha256": "2e993f268f417fb593f976ba4c4420eddb6df6e13b9b939c580319f6db820519",
+    "text": "\tpublic void refresh() throws BeansException, IllegalStateException {\n\t\tthis.startupShutdownLock.lock();\n\t\ttry {\n\t\t\tthis.startupShutdownThread = Thread.currentThread();\n\n\t\t\tStartupStep contextRefresh = this.applicationStartup.start(\"spring.context.refresh\");\n\n\t\t\t// Prepare this context for refreshing.\n\t\t\tprepareRefresh();\n\n\t\t\t// Tell the subclass to refresh the internal bean factory.\n\t\t\tConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();\n\n\t\t\t// Prepare the bean factory for use in this context.\n\t\t\tprepareBeanFactory(beanFactory);\n\n\t\t\ttry {\n\t\t\t\t// Allows post-processing of the bean factory in context subclasses.\n\t\t\t\tpostProcessBeanFactory(beanFactory);\n\n\t\t\t\tStartupStep beanPostProcess = this.applicationStartup.start(\"spring.context.beans.post-process\");\n\t\t\t\t// Invoke factory processors registered as beans in the context.\n\t\t\t\tinvokeBeanFactoryPostProcessors(beanFactory);\n\t\t\t\t// Register bean processors that intercept bean creation.\n\t\t\t\tregisterBeanPostProcessors(beanFactory);"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "start": 301,
+    "end": 339,
+    "sha256": "9997de0c972877dc7b666d5d369463e11034a8eddd4c167796b37f891bdfb37c",
+    "text": "\tpublic ConfigurableApplicationContext run(String... args) {\n\t\tStartup startup = Startup.create();\n\t\tif (this.properties.isRegisterShutdownHook()) {\n\t\t\tSpringApplication.shutdownHook.enableShutdownHookAddition();\n\t\t}\n\t\tDefaultBootstrapContext bootstrapContext = createBootstrapContext();\n\t\tConfigurableApplicationContext context = null;\n\t\tconfigureHeadlessProperty();\n\t\tSpringApplicationRunListeners listeners = getRunListeners(args);\n\t\tlisteners.starting(bootstrapContext, this.mainApplicationClass);\n\t\ttry {\n\t\t\tApplicationArguments applicationArguments = new DefaultApplicationArguments(args);\n\t\t\tConfigurableEnvironment environment = prepareEnvironment(listeners, bootstrapContext, applicationArguments);\n\t\t\tBanner printedBanner = printBanner(environment);\n\t\t\tcontext = createApplicationContext();\n\t\t\tcontext.setApplicationStartup(this.applicationStartup);\n\t\t\tprepareContext(bootstrapContext, context, environment, listeners, applicationArguments, printedBanner);\n\t\t\trefreshContext(context);\n\t\t\tafterRefresh(context, applicationArguments);\n\t\t\tstartup.started();\n\t\t\tif (this.properties.isLogStartupInfo()) {\n\t\t\t\tnew StartupInfoLogger(this.mainApplicationClass, environment).logStarted(getApplicationLog(), startup);\n\t\t\t}\n\t\t\tlisteners.started(context, startup.timeTakenToStarted());\n\t\t\tcallRunners(context, applicationArguments);\n\t\t}\n\t\tcatch (Throwable ex) {\n\t\t\tthrow handleRunFailure(context, ex, listeners);\n\t\t}\n\t\ttry {\n\t\t\tif (context.isRunning()) {\n\t\t\t\tlisteners.ready(context, startup.ready());\n\t\t\t}\n\t\t}\n\t\tcatch (Throwable ex) {\n\t\t\tthrow handleRunFailure(context, ex, null);\n\t\t}\n\t\treturn context;\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/WebApplicationType.java",
+    "start": 60,
+    "end": 72,
+    "sha256": "4c8b8238f3970f9eed1e30c596f2e1ff75274e01355f91a18fd08d27c859bed8",
+    "text": "\tstatic WebApplicationType deduceFromClasspath() {\n\t\tif (ClassUtils.isPresent(WEBFLUX_INDICATOR_CLASS, null) && !ClassUtils.isPresent(WEBMVC_INDICATOR_CLASS, null)\n\t\t\t\t&& !ClassUtils.isPresent(JERSEY_INDICATOR_CLASS, null)) {\n\t\t\treturn WebApplicationType.REACTIVE;\n\t\t}\n\t\tfor (String className : SERVLET_INDICATOR_CLASSES) {\n\t\t\tif (!ClassUtils.isPresent(className, null)) {\n\t\t\t\treturn WebApplicationType.NONE;\n\t\t\t}\n\t\t}\n\t\treturn WebApplicationType.SERVLET;\n\t}\n"
+  },
+  {
+    "version": "2.7.18",
+    "sha": "0c8b382d42db22b92efcf47000d0ff9ef4971629",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/WebApplicationType.java",
+    "start": 48,
+    "end": 49,
+    "sha256": "678d0bbfe4e6b5961f419180973f663497a9e02d4a1708a7e832aaa045f5fc28",
+    "text": "\tprivate static final String[] SERVLET_INDICATOR_CLASSES = { \"javax.servlet.Servlet\",\n\t\t\t\"org.springframework.web.context.ConfigurableWebApplicationContext\" };"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "start": 507,
+    "end": 527,
+    "sha256": "74647f09a743f3dcdaa8eea0b544fd6a5bf2c2b55c396ffc84266ac4e905323c",
+    "text": "\tprotected void configurePropertySources(ConfigurableEnvironment environment, String[] args) {\n\t\tMutablePropertySources sources = environment.getPropertySources();\n\t\tif (!CollectionUtils.isEmpty(this.defaultProperties)) {\n\t\t\tDefaultPropertiesPropertySource.addOrMerge(this.defaultProperties, sources);\n\t\t}\n\t\tif (this.addCommandLineProperties && args.length > 0) {\n\t\t\tString name = CommandLinePropertySource.COMMAND_LINE_PROPERTY_SOURCE_NAME;\n\t\t\tif (sources.contains(name)) {\n\t\t\t\tPropertySource<?> source = sources.get(name);\n\t\t\t\tCompositePropertySource composite = new CompositePropertySource(name);\n\t\t\t\tcomposite\n\t\t\t\t\t.addPropertySource(new SimpleCommandLinePropertySource(\"springApplicationCommandLineArgs\", args));\n\t\t\t\tcomposite.addPropertySource(source);\n\t\t\t\tsources.replace(name, composite);\n\t\t\t}\n\t\t\telse {\n\t\t\t\tsources.addFirst(new SimpleCommandLinePropertySource(args));\n\t\t\t}\n\t\t}\n\t\tenvironment.getPropertySources().addLast(new ApplicationInfoPropertySource(this.mainApplicationClass));\n\t}"
+  },
+  {
+    "version": "6.2.19",
+    "sha": "6214eae8bd02c2ed7ab382bb8d16a9cc6de49522",
+    "repository": "spring-framework",
+    "path": "spring-core/src/main/java/org/springframework/core/env/PropertySourcesPropertyResolver.java",
+    "start": 78,
+    "end": 98,
+    "sha256": "400916463396bddacdf4dfa5cdd0f1d7836e72b44a52849978695942c7e0a2b0",
+    "text": "\tprotected <T> T getProperty(String key, Class<T> targetValueType, boolean resolveNestedPlaceholders) {\n\t\tif (this.propertySources != null) {\n\t\t\tfor (PropertySource<?> propertySource : this.propertySources) {\n\t\t\t\tif (logger.isTraceEnabled()) {\n\t\t\t\t\tlogger.trace(\"Searching for key '\" + key + \"' in PropertySource '\" +\n\t\t\t\t\t\t\tpropertySource.getName() + \"'\");\n\t\t\t\t}\n\t\t\t\tObject value = propertySource.getProperty(key);\n\t\t\t\tif (value != null) {\n\t\t\t\t\tif (resolveNestedPlaceholders) {\n\t\t\t\t\t\tif (value instanceof String string) {\n\t\t\t\t\t\t\tvalue = resolveNestedPlaceholders(string);\n\t\t\t\t\t\t}\n\t\t\t\t\t\telse if ((value instanceof CharSequence cs) && (String.class.equals(targetValueType) ||\n\t\t\t\t\t\t\t\tCharSequence.class.equals(targetValueType))) {\n\t\t\t\t\t\t\tvalue = resolveNestedPlaceholders(cs.toString());\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\tlogKeyFound(key, propertySource, value);\n\t\t\t\t\treturn convertValueIfNecessary(value, targetValueType);\n\t\t\t\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataEnvironment.java",
+    "start": 234,
+    "end": 246,
+    "sha256": "f6aaf3059cafb2b93d394a3cdd2db941de03ab12020fa20b1ac8fbdc038ca56d",
+    "text": "\tvoid processAndApply() {\n\t\tConfigDataImporter importer = new ConfigDataImporter(this.logFactory, this.notFoundAction, this.resolvers,\n\t\t\t\tthis.loaders);\n\t\tregisterBootstrapBinder(this.contributors, null, DENY_INACTIVE_BINDING);\n\t\tConfigDataEnvironmentContributors contributors = processInitial(this.contributors, importer);\n\t\tConfigDataActivationContext activationContext = createActivationContext(\n\t\t\t\tcontributors.getBinder(null, BinderOption.FAIL_ON_BIND_TO_INACTIVE_SOURCE));\n\t\tcontributors = processWithoutProfiles(contributors, importer, activationContext);\n\t\tactivationContext = withProfiles(contributors, activationContext);\n\t\tcontributors = processWithProfiles(contributors, importer, activationContext);\n\t\tapplyToEnvironment(contributors, activationContext, importer.getLoadedLocations(),\n\t\t\t\timporter.getOptionalLocations());\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataEnvironmentPostProcessor.java",
+    "start": 88,
+    "end": 97,
+    "sha256": "b308b9cc8f81b30271d33ae29d11166cff8500d61da2e78c410549dee029dd12",
+    "text": "\tpublic void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {\n\t\tpostProcessEnvironment(environment, application.getResourceLoader(), application.getAdditionalProfiles());\n\t}\n\n\tvoid postProcessEnvironment(ConfigurableEnvironment environment, ResourceLoader resourceLoader,\n\t\t\tCollection<String> additionalProfiles) {\n\t\tthis.logger.trace(\"Post-processing environment to add config data\");\n\t\tresourceLoader = (resourceLoader != null) ? resourceLoader : new DefaultResourceLoader();\n\t\tgetConfigDataEnvironment(environment, resourceLoader, additionalProfiles).processAndApply();\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataImporter.java",
+    "start": 81,
+    "end": 92,
+    "sha256": "56b0a56ef944f7b0bff23d3a4ec4b604157a5308172de3c92d2166677e630146",
+    "text": "\tMap<ConfigDataResolutionResult, ConfigData> resolveAndLoad(ConfigDataActivationContext activationContext,\n\t\t\tConfigDataLocationResolverContext locationResolverContext, ConfigDataLoaderContext loaderContext,\n\t\t\tList<ConfigDataLocation> locations) {\n\t\ttry {\n\t\t\tProfiles profiles = (activationContext != null) ? activationContext.getProfiles() : null;\n\t\t\tList<ConfigDataResolutionResult> resolved = resolve(locationResolverContext, profiles, locations);\n\t\t\treturn load(loaderContext, resolved);\n\t\t}\n\t\tcatch (IOException ex) {\n\t\t\tthrow new IllegalStateException(\"IO error on loading imports from \" + locations, ex);\n\t\t}\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataImporter.java",
+    "start": 51,
+    "end": 55,
+    "sha256": "a858369f86784f3cff3836cf62fc3f677d8b2acbc4df67aed6fbbfb0831a4683",
+    "text": "\tprivate final Set<ConfigDataResource> loaded = new HashSet<>();\n\n\tprivate final Set<ConfigDataLocation> loadedLocations = new HashSet<>();\n\n\tprivate final Set<ConfigDataLocation> optionalLocations = new HashSet<>();"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java",
+    "start": 195,
+    "end": 206,
+    "sha256": "cc48bbaed05c205b6706fdf645dd21655f85c370fcb9b35d05cb5dce89b81b31",
+    "text": "\tprotected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {\n\t\tImportCandidates importCandidates = ImportCandidates.load(this.autoConfigurationAnnotation,\n\t\t\t\tgetBeanClassLoader());\n\t\tList<String> configurations = importCandidates.getCandidates();\n\t\tAssert.state(!CollectionUtils.isEmpty(configurations),\n\t\t\t\t\"No auto configuration classes found in \" + \"META-INF/spring/\"\n\t\t\t\t\t\t+ this.autoConfigurationAnnotation.getName() + \".imports. If you \"\n\t\t\t\t\t\t+ \"are using a custom packaging, make sure that file is correct.\");\n\t\treturn configurations;\n\t}\n\n\tprivate void checkExcludedClasses(List<String> configurations, Set<String> exclusions) {"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/annotation/ImportCandidates.java",
+    "start": 108,
+    "end": 124,
+    "sha256": "7a653841bad630a36d6c6d13b8fe6fb62345349756a52c0986422e1a637a1298",
+    "text": "\tprivate static List<String> readCandidateConfigurations(URL url) {\n\t\ttry (BufferedReader reader = new BufferedReader(\n\t\t\t\tnew InputStreamReader(new UrlResource(url).getInputStream(), StandardCharsets.UTF_8))) {\n\t\t\tList<String> candidates = new ArrayList<>();\n\t\t\tString line;\n\t\t\twhile ((line = reader.readLine()) != null) {\n\t\t\t\tline = stripComment(line);\n\t\t\t\tline = line.trim();\n\t\t\t\tif (line.isEmpty()) {\n\t\t\t\t\tcontinue;\n\t\t\t\t}\n\t\t\t\tcandidates.add(line);\n\t\t\t}\n\t\t\treturn candidates;\n\t\t}\n\t\tcatch (IOException ex) {\n\t\t\tthrow new IllegalArgumentException(\"Unable to load configurations from location [\" + url + \"]\", ex);"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java",
+    "start": 137,
+    "end": 151,
+    "sha256": "c0f31a20953f4fed0067e7d73f1bff528d84f7a5005773f6e58d4954d8ae73f2",
+    "text": "\tprotected AutoConfigurationEntry getAutoConfigurationEntry(AnnotationMetadata annotationMetadata) {\n\t\tif (!isEnabled(annotationMetadata)) {\n\t\t\treturn EMPTY_ENTRY;\n\t\t}\n\t\tAnnotationAttributes attributes = getAttributes(annotationMetadata);\n\t\tList<String> configurations = getCandidateConfigurations(annotationMetadata, attributes);\n\t\tconfigurations = removeDuplicates(configurations);\n\t\tSet<String> exclusions = getExclusions(annotationMetadata, attributes);\n\t\tcheckExcludedClasses(configurations, exclusions);\n\t\tconfigurations.removeAll(exclusions);\n\t\tconfigurations = getConfigurationClassFilter().filter(configurations);\n\t\tfireAutoConfigurationImportEvents(configurations, exclusions);\n\t\treturn new AutoConfigurationEntry(configurations, exclusions);\n\t}\n"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnClassCondition.java",
+    "start": 47,
+    "end": 60,
+    "sha256": "2957268e1d9979cb24a1a9570aba170ca116d9e4b28ed2efc2a626a6d946b87a",
+    "text": "\tprotected final ConditionOutcome[] getOutcomes(String[] autoConfigurationClasses,\n\t\t\tAutoConfigurationMetadata autoConfigurationMetadata) {\n\t\t// Split the work and perform half in a background thread if more than one\n\t\t// processor is available. Using a single additional thread seems to offer the\n\t\t// best performance. More threads make things worse.\n\t\tif (autoConfigurationClasses.length > 1 && Runtime.getRuntime().availableProcessors() > 1) {\n\t\t\treturn resolveOutcomesThreaded(autoConfigurationClasses, autoConfigurationMetadata);\n\t\t}\n\t\telse {\n\t\t\tOutcomesResolver outcomesResolver = new StandardOutcomesResolver(autoConfigurationClasses, 0,\n\t\t\t\t\tautoConfigurationClasses.length, autoConfigurationMetadata, getBeanClassLoader());\n\t\t\treturn outcomesResolver.resolveOutcomes();\n\t\t}\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnBeanCondition.java",
+    "start": 88,
+    "end": 90,
+    "sha256": "f3c839e7e5724898f972692ea856b7079b1b2f4e177a08fce6a2cbdc31212703",
+    "text": "\tpublic ConfigurationPhase getConfigurationPhase() {\n\t\treturn ConfigurationPhase.REGISTER_BEAN;\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnBeanCondition.java",
+    "start": 123,
+    "end": 145,
+    "sha256": "a0ec3313f7cf6b61e8ef02bfb1ce3f3182b7b4616dc5f79e3a5d062660a25a38",
+    "text": "\tpublic ConditionOutcome getMatchOutcome(ConditionContext context, AnnotatedTypeMetadata metadata) {\n\t\tConditionOutcome matchOutcome = ConditionOutcome.match();\n\t\tMergedAnnotations annotations = metadata.getAnnotations();\n\t\tif (annotations.isPresent(ConditionalOnBean.class)) {\n\t\t\tSpec<ConditionalOnBean> spec = new Spec<>(context, metadata, annotations, ConditionalOnBean.class);\n\t\t\tmatchOutcome = evaluateConditionalOnBean(spec, matchOutcome.getConditionMessage());\n\t\t\tif (!matchOutcome.isMatch()) {\n\t\t\t\treturn matchOutcome;\n\t\t\t}\n\t\t}\n\t\tif (metadata.isAnnotated(ConditionalOnSingleCandidate.class.getName())) {\n\t\t\tSpec<ConditionalOnSingleCandidate> spec = new SingleCandidateSpec(context, metadata,\n\t\t\t\t\tmetadata.getAnnotations());\n\t\t\tmatchOutcome = evaluateConditionalOnSingleCandidate(spec, matchOutcome.getConditionMessage());\n\t\t\tif (!matchOutcome.isMatch()) {\n\t\t\t\treturn matchOutcome;\n\t\t\t}\n\t\t}\n\t\tif (metadata.isAnnotated(ConditionalOnMissingBean.class.getName())) {\n\t\t\tSpec<ConditionalOnMissingBean> spec = new Spec<>(context, metadata, annotations,\n\t\t\t\t\tConditionalOnMissingBean.class);\n\t\t\tmatchOutcome = evaluateConditionalOnMissingBean(spec, matchOutcome.getConditionMessage());\n\t\t\tif (!matchOutcome.isMatch()) {"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnPropertyCondition.java",
+    "start": 156,
+    "end": 171,
+    "sha256": "feffea5ffcffc80eb228a32d5ceec9993e57ea23f641194cf09968dfe427afcf",
+    "text": "\t\tprivate void collectProperties(PropertyResolver resolver, List<String> missing, List<String> nonMatching) {\n\t\t\tfor (String name : this.names) {\n\t\t\t\tString key = this.prefix + name;\n\t\t\t\tif (resolver.containsProperty(key)) {\n\t\t\t\t\tif (!isMatch(resolver.getProperty(key), this.havingValue)) {\n\t\t\t\t\t\tnonMatching.add(name);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\telse {\n\t\t\t\t\tif (!this.matchIfMissing) {\n\t\t\t\t\t\tmissing.add(name);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnPropertyCondition.java",
+    "start": 172,
+    "end": 177,
+    "sha256": "22cbf003f99da0fc20faad5f5359e2c2d0f5646e471cb22a80771febea3d274c",
+    "text": "\t\tprivate boolean isMatch(String value, String requiredValue) {\n\t\t\tif (StringUtils.hasLength(requiredValue)) {\n\t\t\t\treturn requiredValue.equalsIgnoreCase(value);\n\t\t\t}\n\t\t\treturn !\"false\".equalsIgnoreCase(value);\n\t\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationSorter.java",
+    "start": 62,
+    "end": 79,
+    "sha256": "ebb71c5def7e17bb7cc4f56a202461914e7c9f65ab680cb0c9115b9bcbb4e9ce",
+    "text": "\tList<String> getInPriorityOrder(Collection<String> classNames) {\n\t\t// Initially sort alphabetically\n\t\tList<String> alphabeticallyOrderedClassNames = new ArrayList<>(classNames);\n\t\tCollections.sort(alphabeticallyOrderedClassNames);\n\t\t// Then sort by order\n\t\tAutoConfigurationClasses classes = new AutoConfigurationClasses(this.metadataReaderFactory,\n\t\t\t\tthis.autoConfigurationMetadata, alphabeticallyOrderedClassNames);\n\t\tList<String> orderedClassNames = new ArrayList<>(classNames);\n\t\tCollections.sort(orderedClassNames);\n\t\torderedClassNames.sort((o1, o2) -> {\n\t\t\tint i1 = classes.get(o1).getOrder();\n\t\t\tint i2 = classes.get(o2).getOrder();\n\t\t\treturn Integer.compare(i1, i2);\n\t\t});\n\t\t// Then respect @AutoConfigureBefore @AutoConfigureAfter\n\t\torderedClassNames = sortByAnnotation(classes, orderedClassNames);\n\t\treturn orderedClassNames;\n\t}"
+  },
+  {
+    "version": "6.2.19",
+    "sha": "6214eae8bd02c2ed7ab382bb8d16a9cc6de49522",
+    "repository": "spring-framework",
+    "path": "spring-beans/src/main/java/org/springframework/beans/factory/support/AbstractAutowireCapableBeanFactory.java",
+    "start": 1811,
+    "end": 1831,
+    "sha256": "cbf9360d98b0fe6a11202310f895c206a9dd385f398ecc1552cfd1f48351be4f",
+    "text": "\tprotected Object initializeBean(String beanName, Object bean, @Nullable RootBeanDefinition mbd) {\n\t\tinvokeAwareMethods(beanName, bean);\n\n\t\tObject wrappedBean = bean;\n\t\tif (mbd == null || !mbd.isSynthetic()) {\n\t\t\twrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);\n\t\t}\n\n\t\ttry {\n\t\t\tinvokeInitMethods(beanName, wrappedBean, mbd);\n\t\t}\n\t\tcatch (Throwable ex) {\n\t\t\tthrow new BeanCreationException(\n\t\t\t\t\t(mbd != null ? mbd.getResourceDescription() : null), beanName, ex.getMessage(), ex);\n\t\t}\n\t\tif (mbd == null || !mbd.isSynthetic()) {\n\t\t\twrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);\n\t\t}\n\n\t\treturn wrappedBean;\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "start": 397,
+    "end": 404,
+    "sha256": "d62de30f1cf92bf6f005a7b957f5f40d746d2b99d1207fe0fe1a4c5d8d078e87",
+    "text": "\t\tif (beanFactory instanceof AbstractAutowireCapableBeanFactory autowireCapableBeanFactory) {\n\t\t\tautowireCapableBeanFactory.setAllowCircularReferences(this.properties.isAllowCircularReferences());\n\t\t\tif (beanFactory instanceof DefaultListableBeanFactory listableBeanFactory) {\n\t\t\t\tlistableBeanFactory.setAllowBeanDefinitionOverriding(this.properties.isAllowBeanDefinitionOverriding());\n\t\t\t}\n\t\t}\n\t\tif (this.properties.isLazyInitialization()) {\n\t\t\tcontext.addBeanFactoryPostProcessor(new LazyInitializationBeanFactoryPostProcessor());"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/context/ServletWebServerApplicationContext.java",
+    "start": 186,
+    "end": 208,
+    "sha256": "7273d0f35cebc1c63d3cf364b0a7b24bc90daaf3fd9323107fcebd0eb1ac387d",
+    "text": "\tprivate void createWebServer() {\n\t\tWebServer webServer = this.webServer;\n\t\tServletContext servletContext = getServletContext();\n\t\tif (webServer == null && servletContext == null) {\n\t\t\tStartupStep createWebServer = getApplicationStartup().start(\"spring.boot.webserver.create\");\n\t\t\tServletWebServerFactory factory = getWebServerFactory();\n\t\t\tcreateWebServer.tag(\"factory\", factory.getClass().toString());\n\t\t\tthis.webServer = factory.getWebServer(getSelfInitializer());\n\t\t\tcreateWebServer.end();\n\t\t\tgetBeanFactory().registerSingleton(\"webServerGracefulShutdown\",\n\t\t\t\t\tnew WebServerGracefulShutdownLifecycle(this.webServer));\n\t\t\tgetBeanFactory().registerSingleton(\"webServerStartStop\",\n\t\t\t\t\tnew WebServerStartStopLifecycle(this, this.webServer));\n\t\t}\n\t\telse if (servletContext != null) {\n\t\t\ttry {\n\t\t\t\tgetSelfInitializer().onStartup(servletContext);\n\t\t\t}\n\t\t\tcatch (ServletException ex) {\n\t\t\t\tthrow new ApplicationContextException(\"Cannot initialize servlet context\", ex);\n\t\t\t}\n\t\t}\n\t\tinitPropertySources();"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/reactive/context/WebServerStartStopLifecycle.java",
+    "start": 40,
+    "end": 47,
+    "sha256": "06459f68ddb6957e854aa9d9587990606d4b4c4eeee93ed3385477c5f6bb9419",
+    "text": "\tpublic void start() {\n\t\tthis.weServerManager.start();\n\t\tthis.running = true;\n\t}\n\n\t@Override\n\tpublic void stop() {\n\t\tthis.running = false;"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/embedded/tomcat/TomcatServletWebServerFactory.java",
+    "start": 196,
+    "end": 217,
+    "sha256": "4b259a93083effa578e3caaf7de4383ab1b1b25290c9c803b4d4a225f31202e8",
+    "text": "\tpublic WebServer getWebServer(ServletContextInitializer... initializers) {\n\t\tif (this.disableMBeanRegistry) {\n\t\t\tRegistry.disableRegistry();\n\t\t}\n\t\tTomcat tomcat = new Tomcat();\n\t\tFile baseDir = (this.baseDirectory != null) ? this.baseDirectory : createTempDir(\"tomcat\");\n\t\ttomcat.setBaseDir(baseDir.getAbsolutePath());\n\t\tfor (LifecycleListener listener : getDefaultServerLifecycleListeners()) {\n\t\t\ttomcat.getServer().addLifecycleListener(listener);\n\t\t}\n\t\tConnector connector = new Connector(this.protocol);\n\t\tconnector.setThrowOnFailure(true);\n\t\ttomcat.getService().addConnector(connector);\n\t\tcustomizeConnector(connector);\n\t\ttomcat.setConnector(connector);\n\t\tregisterConnectorExecutor(tomcat, connector);\n\t\ttomcat.getHost().setAutoDeploy(false);\n\t\tconfigureEngine(tomcat.getEngine());\n\t\tfor (Connector additionalConnector : this.additionalTomcatConnectors) {\n\t\t\ttomcat.getService().addConnector(additionalConnector);\n\t\t\tregisterConnectorExecutor(tomcat, additionalConnector);\n\t\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/ServletContextInitializerBeans.java",
+    "start": 95,
+    "end": 101,
+    "sha256": "4af55cd339afebdaed675d4a7f46a03e390690b33fdabfe7ac66ab0289c24ed4",
+    "text": "\t\taddServletContextInitializerBeans(beanFactory);\n\t\taddAdaptableBeans(beanFactory);\n\t\tthis.sortedList = this.initializers.values()\n\t\t\t.stream()\n\t\t\t.flatMap((value) -> value.stream().sorted(AnnotationAwareOrderComparator.INSTANCE))\n\t\t\t.toList();\n\t\tlogMappings(this.initializers);"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration.java",
+    "start": 146,
+    "end": 151,
+    "sha256": "8da255c1392d21178037fbb761cd417df798d150d034fb7cbeb7be7d05579385",
+    "text": "@ConditionalOnWebApplication(type = Type.SERVLET)\n@ConditionalOnClass({ Servlet.class, DispatcherServlet.class, WebMvcConfigurer.class })\n@ConditionalOnMissingBean(WebMvcConfigurationSupport.class)\n@AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE + 10)\n@ImportRuntimeHints(WebResourcesRuntimeHints.class)\npublic class WebMvcAutoConfiguration {"
+  },
+  {
+    "version": "6.2.19",
+    "sha": "6214eae8bd02c2ed7ab382bb8d16a9cc6de49522",
+    "repository": "spring-framework",
+    "path": "spring-webmvc/src/main/java/org/springframework/web/servlet/DispatcherServlet.java",
+    "start": 1049,
+    "end": 1072,
+    "sha256": "1fd3d59f638d090353ccdfcb27aa446ca7130c8b2de833caeb639a39451ceb30",
+    "text": "\tprotected void doDispatch(HttpServletRequest request, HttpServletResponse response) throws Exception {\n\t\tHttpServletRequest processedRequest = request;\n\t\tHandlerExecutionChain mappedHandler = null;\n\t\tboolean multipartRequestParsed = false;\n\n\t\tWebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);\n\n\t\ttry {\n\t\t\tModelAndView mv = null;\n\t\t\tException dispatchException = null;\n\n\t\t\ttry {\n\t\t\t\tprocessedRequest = checkMultipart(request);\n\t\t\t\tmultipartRequestParsed = (processedRequest != request);\n\n\t\t\t\t// Determine handler for the current request.\n\t\t\t\tmappedHandler = getHandler(processedRequest);\n\t\t\t\tif (mappedHandler == null) {\n\t\t\t\t\tnoHandlerFound(processedRequest, response);\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\t// Determine handler adapter for the current request.\n\t\t\t\tHandlerAdapter ha = getHandlerAdapter(mappedHandler.getHandler());"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/bind/Binder.java",
+    "start": 348,
+    "end": 364,
+    "sha256": "006c7d5b121de49d12e5d7e8a8f0297142cf5b5993bbd32178d67ba8483265d6",
+    "text": "\tprivate <T> T bind(ConfigurationPropertyName name, Bindable<T> target, BindHandler handler, Context context,\n\t\t\tboolean allowRecursiveBinding, boolean create) {\n\t\ttry (ConfigurationPropertyCaching.CacheOverride cacheOverride = this.configurationPropertyCaching.override()) {\n\t\t\ttry {\n\t\t\t\tBindable<T> replacementTarget = handler.onStart(name, target, context);\n\t\t\t\tif (replacementTarget == null) {\n\t\t\t\t\treturn handleBindResult(name, target, handler, context, null, create);\n\t\t\t\t}\n\t\t\t\ttarget = replacementTarget;\n\t\t\t\tObject bound = bindObject(name, target, handler, context, allowRecursiveBinding);\n\t\t\t\treturn handleBindResult(name, target, handler, context, bound, create);\n\t\t\t}\n\t\t\tcatch (Exception ex) {\n\t\t\t\treturn handleBindError(name, target, handler, context, ex);\n\t\t\t}\n\t\t}\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/ConfigurationPropertiesBindingPostProcessor.java",
+    "start": 77,
+    "end": 86,
+    "sha256": "887604d9e7a654637346aab9f53a3eed0372d2f16a408e1202fdb641b187d5ba",
+    "text": "\tpublic Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {\n\t\tif (!hasBoundValueObject(beanName)) {\n\t\t\tbind(ConfigurationPropertiesBean.get(this.applicationContext, bean, beanName));\n\t\t}\n\t\treturn bean;\n\t}\n\n\tprivate boolean hasBoundValueObject(String beanName) {\n\t\treturn BindMethod.VALUE_OBJECT.equals(BindMethodAttribute.get(this.registry, beanName));\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/ConfigurationPropertiesBinder.java",
+    "start": 90,
+    "end": 95,
+    "sha256": "1ab219a594199153efdbd7b6c53043f6fd2516fa0b39751a8853e57c17201034",
+    "text": "\tBindResult<?> bind(ConfigurationPropertiesBean propertiesBean) {\n\t\tBindable<?> target = propertiesBean.asBindTarget();\n\t\tConfigurationProperties annotation = propertiesBean.getAnnotation();\n\t\tBindHandler bindHandler = getBindHandler(target, annotation);\n\t\treturn getBinder().bind(annotation.prefix(), target, bindHandler);\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/bind/ConstructorBinding.java",
+    "start": 34,
+    "end": 38,
+    "sha256": "ddd1490e6e617164c69ec7335f892dd718fbe036c6917b31c829fe293c65fe57",
+    "text": "@Target({ ElementType.CONSTRUCTOR, ElementType.ANNOTATION_TYPE })\n@Retention(RetentionPolicy.RUNTIME)\n@Documented\npublic @interface ConstructorBinding {\n"
+  },
+  {
+    "version": "2.7.18",
+    "sha": "0c8b382d42db22b92efcf47000d0ff9ef4971629",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/ConstructorBinding.java",
+    "start": 42,
+    "end": 46,
+    "sha256": "d1293a7772a9896bf980a91a0e29554d5b7bc6f48a6dd34596585d1ca2408858",
+    "text": "@Target({ ElementType.TYPE, ElementType.CONSTRUCTOR })\n@Retention(RetentionPolicy.RUNTIME)\n@Documented\npublic @interface ConstructorBinding {\n"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-actuator/src/main/java/org/springframework/boot/actuate/endpoint/annotation/EndpointDiscoverer.java",
+    "start": 151,
+    "end": 167,
+    "sha256": "e56f1dbc464f85a7a9e2a59de200c9022fc6af2bf4597fe5509e4f54212283b3",
+    "text": "\tprivate Collection<E> discoverEndpoints() {\n\t\tCollection<EndpointBean> endpointBeans = createEndpointBeans();\n\t\taddExtensionBeans(endpointBeans);\n\t\treturn convertToEndpoints(endpointBeans);\n\t}\n\n\tprivate Collection<EndpointBean> createEndpointBeans() {\n\t\tMap<EndpointId, EndpointBean> byId = new LinkedHashMap<>();\n\t\tString[] beanNames = BeanFactoryUtils.beanNamesForAnnotationIncludingAncestors(this.applicationContext,\n\t\t\t\tEndpoint.class);\n\t\tfor (String beanName : beanNames) {\n\t\t\tif (!ScopedProxyUtils.isScopedTarget(beanName)) {\n\t\t\t\tEndpointBean endpointBean = createEndpointBean(beanName);\n\t\t\t\tEndpointBean previous = byId.putIfAbsent(endpointBean.getId(), endpointBean);\n\t\t\t\tAssert.state(previous == null, () -> \"Found two endpoints with the id '\" + endpointBean.getId() + \"': '\"\n\t\t\t\t\t\t+ endpointBean.getBeanName() + \"' and '\" + previous.getBeanName() + \"'\");\n\t\t\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/event/EventPublishingRunListener.java",
+    "start": 102,
+    "end": 112,
+    "sha256": "25fb2afbdb219b2569af948feab9ff7a5f87cbe760cbd804f1d3b2fe2244d73a",
+    "text": "\tpublic void started(ConfigurableApplicationContext context, Duration timeTaken) {\n\t\tcontext.publishEvent(new ApplicationStartedEvent(this.application, this.args, context, timeTaken));\n\t\tAvailabilityChangeEvent.publish(context, LivenessState.CORRECT);\n\t}\n\n\t@Override\n\tpublic void ready(ConfigurableApplicationContext context, Duration timeTaken) {\n\t\tcontext.publishEvent(new ApplicationReadyEvent(this.application, this.args, context, timeTaken));\n\t\tAvailabilityChangeEvent.publish(context, ReadinessState.ACCEPTING_TRAFFIC);\n\t}\n"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/availability/ApplicationAvailabilityBean.java",
+    "start": 74,
+    "end": 80,
+    "sha256": "90642929b260563f992cef878e99f4d7d379d8e86d81afcea2af14a5445b9ee9",
+    "text": "\tpublic void onApplicationEvent(AvailabilityChangeEvent<?> event) {\n\t\tClass<? extends AvailabilityState> type = getStateType(event.getState());\n\t\tif (this.logger.isDebugEnabled()) {\n\t\t\tthis.logger.debug(getLogMessage(type, event));\n\t\t}\n\t\tthis.events.put(type, event);\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "start": 763,
+    "end": 775,
+    "sha256": "efcf3ff68b7605d71592fac6bd01983caee438902b69186a35c84d3b9accdfc5",
+    "text": "\tprivate void callRunners(ConfigurableApplicationContext context, ApplicationArguments args) {\n\t\tConfigurableListableBeanFactory beanFactory = context.getBeanFactory();\n\t\tString[] beanNames = beanFactory.getBeanNamesForType(Runner.class);\n\t\tMap<Runner, String> instancesToBeanNames = new IdentityHashMap<>();\n\t\tfor (String beanName : beanNames) {\n\t\t\tinstancesToBeanNames.put(beanFactory.getBean(beanName, Runner.class), beanName);\n\t\t}\n\t\tComparator<Object> comparator = getOrderComparator(beanFactory)\n\t\t\t.withSourceProvider(new FactoryAwareOrderSourceProvider(beanFactory, instancesToBeanNames));\n\t\tinstancesToBeanNames.keySet().stream().sorted(comparator).forEach((runner) -> callRunner(runner, args));\n\t}\n\n\tprivate OrderComparator getOrderComparator(ConfigurableListableBeanFactory beanFactory) {"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "start": 793,
+    "end": 798,
+    "sha256": "d8d3ea9164244c0903a16cba3dfd290994268b518bd3194ca0b8458aebfaab08",
+    "text": "\tprivate <R extends Runner> void callRunner(Class<R> type, Runner runner, ThrowingConsumer<R> call) {\n\t\tcall.throwing(\n\t\t\t\t(message, ex) -> new IllegalStateException(\"Failed to execute \" + ClassUtils.getShortName(type), ex))\n\t\t\t.accept((R) runner);\n\t}\n"
+  },
+  {
+    "version": "2.7.18",
+    "sha": "0c8b382d42db22b92efcf47000d0ff9ef4971629",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "start": 754,
+    "end": 761,
+    "sha256": "4cda45b63ea083237b4a853144e36753f7b1341c9bfaa495c6e680644953f134",
+    "text": "\tprivate void callRunner(ApplicationRunner runner, ApplicationArguments args) {\n\t\ttry {\n\t\t\t(runner).run(args);\n\t\t}\n\t\tcatch (Exception ex) {\n\t\t\tthrow new IllegalStateException(\"Failed to execute ApplicationRunner\", ex);\n\t\t}\n\t}"
+  },
+  {
+    "version": "6.2.19",
+    "sha": "6214eae8bd02c2ed7ab382bb8d16a9cc6de49522",
+    "repository": "spring-framework",
+    "path": "spring-core/src/main/java/org/springframework/util/function/ThrowingConsumer.java",
+    "start": 58,
+    "end": 69,
+    "sha256": "cec8b7bce4e3a2762b4f01ca57d0663a09b29c5a62103d18ec28e7e418b1e1f0",
+    "text": "\tdefault void accept(T t, BiFunction<String, Exception, RuntimeException> exceptionWrapper) {\n\t\ttry {\n\t\t\tacceptWithException(t);\n\t\t}\n\t\tcatch (RuntimeException ex) {\n\t\t\tthrow ex;\n\t\t}\n\t\tcatch (Exception ex) {\n\t\t\tthrow exceptionWrapper.apply(ex.getMessage(), ex);\n\t\t}\n\t}\n"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/logging/LoggingApplicationListener.java",
+    "start": 218,
+    "end": 238,
+    "sha256": "b1a4fc09716729a78acad3af9c1fa534f49ea3cd5494d871de737ff73f5c9b8e",
+    "text": "\tpublic void onApplicationEvent(ApplicationEvent event) {\n\t\tif (event instanceof ApplicationStartingEvent startingEvent) {\n\t\t\tonApplicationStartingEvent(startingEvent);\n\t\t}\n\t\telse if (event instanceof ApplicationEnvironmentPreparedEvent environmentPreparedEvent) {\n\t\t\tonApplicationEnvironmentPreparedEvent(environmentPreparedEvent);\n\t\t}\n\t\telse if (event instanceof ApplicationPreparedEvent preparedEvent) {\n\t\t\tonApplicationPreparedEvent(preparedEvent);\n\t\t}\n\t\telse if (event instanceof ContextClosedEvent contextClosedEvent) {\n\t\t\tonContextClosedEvent(contextClosedEvent);\n\t\t}\n\t\telse if (event instanceof ApplicationFailedEvent) {\n\t\t\tonApplicationFailedEvent();\n\t\t}\n\t}\n\n\tprivate void onApplicationStartingEvent(ApplicationStartingEvent event) {\n\t\tthis.loggingSystem = LoggingSystem.get(event.getSpringApplication().getClassLoader());\n\t\tthis.loggingSystem.beforeInitialize();"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/diagnostics/FailureAnalyzers.java",
+    "start": 85,
+    "end": 100,
+    "sha256": "eab3dfab6b605fa1f312f0ac86dcffbaf5bb6af701ea0688c76525a2154e1f45",
+    "text": "\tprivate FailureAnalysis analyze(Throwable failure, List<FailureAnalyzer> analyzers) {\n\t\tfor (FailureAnalyzer analyzer : analyzers) {\n\t\t\ttry {\n\t\t\t\tFailureAnalysis analysis = analyzer.analyze(failure);\n\t\t\t\tif (analysis != null) {\n\t\t\t\t\treturn analysis;\n\t\t\t\t}\n\t\t\t}\n\t\t\tcatch (Throwable ex) {\n\t\t\t\tlogger.trace(LogMessage.format(\"FailureAnalyzer %s failed\", analyzer), ex);\n\t\t\t}\n\t\t}\n\t\treturn null;\n\t}\n\n\tprivate boolean report(FailureAnalysis analysis) {"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplicationAotProcessor.java",
+    "start": 59,
+    "end": 71,
+    "sha256": "11360e7cd3c0510ce56aa0f45a2b08be1a7b1cafa141116e9fb8ee47599e43a3",
+    "text": "\tprotected GenericApplicationContext prepareApplicationContext(Class<?> application) {\n\t\treturn new AotProcessorHook(application).run(() -> {\n\t\t\tMethod mainMethod = getMainMethod(application);\n\t\t\tmainMethod.setAccessible(true);\n\t\t\tif (mainMethod.getParameterCount() == 0) {\n\t\t\t\tReflectionUtils.invokeMethod(mainMethod, null);\n\t\t\t}\n\t\t\telse {\n\t\t\t\tReflectionUtils.invokeMethod(mainMethod, null, new Object[] { this.applicationArgs });\n\t\t\t}\n\t\t\treturn Void.class;\n\t\t});\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "start": 419,
+    "end": 432,
+    "sha256": "1cb36cb4d800ba01d9d5c6359d23762f45412b625a0ed0ef361f3a61f31867a5",
+    "text": "\tprivate void addAotGeneratedInitializerIfNecessary(List<ApplicationContextInitializer<?>> initializers) {\n\t\tif (AotDetector.useGeneratedArtifacts()) {\n\t\t\tList<ApplicationContextInitializer<?>> aotInitializers = new ArrayList<>(\n\t\t\t\t\tinitializers.stream().filter(AotApplicationContextInitializer.class::isInstance).toList());\n\t\t\tif (aotInitializers.isEmpty()) {\n\t\t\t\tString initializerClassName = this.mainApplicationClass.getName() + \"__ApplicationContextInitializer\";\n\t\t\t\tif (!ClassUtils.isPresent(initializerClassName, getClassLoader())) {\n\t\t\t\t\tthrow new AotInitializerNotFoundException(this.mainApplicationClass, initializerClassName);\n\t\t\t\t}\n\t\t\t\taotInitializers.add(AotApplicationContextInitializer.forInitializerClasses(initializerClassName));\n\t\t\t}\n\t\t\tinitializers.removeAll(aotInitializers);\n\t\t\tinitializers.addAll(0, aotInitializers);\n\t\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-test-autoconfigure/src/main/java/org/springframework/boot/test/autoconfigure/web/servlet/WebMvcTest.java",
+    "start": 101,
+    "end": 109,
+    "sha256": "e19ff30933ce083dcb592e2258ff39381bf7436a8573228d94c642af4c2f37ea",
+    "text": "@BootstrapWith(WebMvcTestContextBootstrapper.class)\n@ExtendWith(SpringExtension.class)\n@OverrideAutoConfiguration(enabled = false)\n@TypeExcludeFilters(WebMvcTypeExcludeFilter.class)\n@AutoConfigureCache\n@AutoConfigureWebMvc\n@AutoConfigureMockMvc\n@ImportAutoConfiguration\npublic @interface WebMvcTest {"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-test/src/main/java/org/springframework/boot/test/context/SpringBootTestContextBootstrapper.java",
+    "start": 144,
+    "end": 147,
+    "sha256": "eef60e827583ee2560867c773106cecf954d38e380499aa45f839134a29d7198",
+    "text": "\tprotected Class<? extends ContextLoader> getDefaultContextLoaderClass(Class<?> testClass) {\n\t\treturn SpringBootContextLoader.class;\n\t}\n"
+  },
+  {
+    "version": "2.7.18",
+    "sha": "0c8b382d42db22b92efcf47000d0ff9ef4971629",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java",
+    "start": 181,
+    "end": 190,
+    "sha256": "715aa66f066b87eff09218d1c0cbbbc60040f01bbf1100cff0028c392858b049",
+    "text": "\tprotected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {\n\t\tList<String> configurations = new ArrayList<>(\n\t\t\t\tSpringFactoriesLoader.loadFactoryNames(getSpringFactoriesLoaderFactoryClass(), getBeanClassLoader()));\n\t\tImportCandidates.load(AutoConfiguration.class, getBeanClassLoader()).forEach(configurations::add);\n\t\tAssert.notEmpty(configurations,\n\t\t\t\t\"No auto configuration classes found in META-INF/spring.factories nor in META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports. If you \"\n\t\t\t\t\t\t+ \"are using a custom packaging, make sure that file is correct.\");\n\t\treturn configurations;\n\t}\n"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java",
+    "start": 195,
+    "end": 205,
+    "sha256": "7b3a8a9e3097789a73b3cc6d30e5ce603321ed7a608ddd2001fe6a780adf48eb",
+    "text": "\tprotected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {\n\t\tImportCandidates importCandidates = ImportCandidates.load(this.autoConfigurationAnnotation,\n\t\t\t\tgetBeanClassLoader());\n\t\tList<String> configurations = importCandidates.getCandidates();\n\t\tAssert.state(!CollectionUtils.isEmpty(configurations),\n\t\t\t\t\"No auto configuration classes found in \" + \"META-INF/spring/\"\n\t\t\t\t\t\t+ this.autoConfigurationAnnotation.getName() + \".imports. If you \"\n\t\t\t\t\t\t+ \"are using a custom packaging, make sure that file is correct.\");\n\t\treturn configurations;\n\t}\n"
+  },
+  {
+    "version": "2.7.18",
+    "sha": "0c8b382d42db22b92efcf47000d0ff9ef4971629",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/WebApplicationType.java",
+    "start": 48,
+    "end": 49,
+    "sha256": "678d0bbfe4e6b5961f419180973f663497a9e02d4a1708a7e832aaa045f5fc28",
+    "text": "\tprivate static final String[] SERVLET_INDICATOR_CLASSES = { \"javax.servlet.Servlet\",\n\t\t\t\"org.springframework.web.context.ConfigurableWebApplicationContext\" };"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/WebApplicationType.java",
+    "start": 51,
+    "end": 52,
+    "sha256": "11e3dd9ec380510411fc0535cf941e41eecf6ab9da76acd30f9ffb7b2faf7624",
+    "text": "\tprivate static final String[] SERVLET_INDICATOR_CLASSES = { \"jakarta.servlet.Servlet\",\n\t\t\t\"org.springframework.web.context.ConfigurableWebApplicationContext\" };"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration.java",
+    "start": 59,
+    "end": 85,
+    "sha256": "b69acd9a22f28c5de408324d292c560c9f5a4acff75340d1c775c247e820f5aa",
+    "text": "@AutoConfiguration(before = SqlInitializationAutoConfiguration.class)\n@ConditionalOnClass({ DataSource.class, EmbeddedDatabaseType.class })\n@ConditionalOnMissingBean(type = \"io.r2dbc.spi.ConnectionFactory\")\n@EnableConfigurationProperties(DataSourceProperties.class)\n@Import({ DataSourcePoolMetadataProvidersConfiguration.class, DataSourceCheckpointRestoreConfiguration.class })\npublic class DataSourceAutoConfiguration {\n\n\t@Configuration(proxyBeanMethods = false)\n\t@Conditional(EmbeddedDatabaseCondition.class)\n\t@ConditionalOnMissingBean({ DataSource.class, XADataSource.class })\n\t@Import(EmbeddedDataSourceConfiguration.class)\n\tprotected static class EmbeddedDatabaseConfiguration {\n\n\t}\n\n\t@Configuration(proxyBeanMethods = false)\n\t@Conditional(PooledDataSourceCondition.class)\n\t@ConditionalOnMissingBean({ DataSource.class, XADataSource.class })\n\t@Import({ DataSourceConfiguration.Hikari.class, DataSourceConfiguration.Tomcat.class,\n\t\t\tDataSourceConfiguration.Dbcp2.class, DataSourceConfiguration.OracleUcp.class,\n\t\t\tDataSourceConfiguration.Generic.class, DataSourceJmxConfiguration.class })\n\tprotected static class PooledDataSourceConfiguration {\n\n\t\t@Bean\n\t\t@ConditionalOnMissingBean(JdbcConnectionDetails.class)\n\t\tPropertiesJdbcConnectionDetails jdbcConnectionDetails(DataSourceProperties properties) {\n\t\t\treturn new PropertiesJdbcConnectionDetails(properties);"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/context/WebServerGracefulShutdownLifecycle.java",
+    "start": 60,
+    "end": 63,
+    "sha256": "9cf3c04af2fb2f974b398ba38e9f30a6c53bc4d1153be426c513bfc9c7593e6a",
+    "text": "\tpublic void stop(Runnable callback) {\n\t\tthis.running = false;\n\t\tthis.webServer.shutDownGracefully((result) -> callback.run());\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/context/ServletWebServerApplicationContext.java",
+    "start": 175,
+    "end": 184,
+    "sha256": "c6e4e16c70da6404349fc67490ff2f51cf5c4a3e7fefc7401c8806c9df6a3d99",
+    "text": "\tprotected void doClose() {\n\t\tif (isActive()) {\n\t\t\tAvailabilityChangeEvent.publish(this, ReadinessState.REFUSING_TRAFFIC);\n\t\t}\n\t\tsuper.doClose();\n\t\tWebServer webServer = this.webServer;\n\t\tif (webServer != null) {\n\t\t\twebServer.destroy();\n\t\t}\n\t}"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/ServerProperties.java",
+    "start": 116,
+    "end": 116,
+    "sha256": "d7f85b5ebc07ede25443e79c7705c67b90ca4c3c0664f6fb28c07b0df87e50d9",
+    "text": "\tprivate Shutdown shutdown = Shutdown.GRACEFUL;"
+  },
+  {
+    "version": "2.7.18",
+    "sha": "0c8b382d42db22b92efcf47000d0ff9ef4971629",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/ServerProperties.java",
+    "start": 108,
+    "end": 108,
+    "sha256": "8fbb08ddd5b1b3f0e5536c06a0ce472fd66c574f8b94bf1be0d0804777216cfa",
+    "text": "\tprivate Shutdown shutdown = Shutdown.IMMEDIATE;"
+  },
+  {
+    "version": "3.5.16",
+    "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+    "repository": "spring-boot",
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "start": 301,
+    "end": 308,
+    "sha256": "5a620d27a963e167c54e17aee0c84c90feb50c2fea07691dd70e907743467f37",
+    "text": "\tpublic ConfigurableApplicationContext run(String... args) {\n\t\tStartup startup = Startup.create();\n\t\tif (this.properties.isRegisterShutdownHook()) {\n\t\t\tSpringApplication.shutdownHook.enableShutdownHookAddition();\n\t\t}\n\t\tDefaultBootstrapContext bootstrapContext = createBootstrapContext();\n\t\tConfigurableApplicationContext context = null;\n\t\tconfigureHeadlessProperty();"
+  }
+]

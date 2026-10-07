@@ -1,0 +1,9 @@
+{
+  "title": "MySQL源码学习",
+  "version": "8.4.0",
+  "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+  "chapters": 27,
+  "diagrams": 27,
+  "excerpts": 30,
+  "summary": "沿SQL请求链进入InnoDB，研究MVCC、索引页、redo/undo、锁、提交恢复与GTID复制。"
+}

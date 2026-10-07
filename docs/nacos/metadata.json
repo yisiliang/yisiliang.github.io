@@ -1,0 +1,27 @@
+{
+  "title": "Nacos源码学习手册",
+  "version": "3.2.4",
+  "comparisonVersion": "2.5.4",
+  "category": "分布式与平台基础",
+  "sourceCommit": "2c587c04891d532df1544ae95b906b677ac8eeff",
+  "comparisonCommit": "55a99b1c186f81a53976e1a323ae29feb47d3aaf",
+  "chapterCount": 28,
+  "diagramCount": 17,
+  "excerptCount": 43,
+  "verifiedDate": "2026-10-07",
+  "runtimeExperiments": "not-executed",
+  "source": "https://github.com/alibaba/nacos",
+  "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
+  "chapters": 28,
+  "diagrams": 17,
+  "excerpts": 43,
+  "summary": "固定3.2.4对照2.5.4，追踪注册发现、配置监听、gRPC状态、Distro/JRaft、部署鉴权与AI资源版本的真实调用链和失败边界。",
+  "tags": [
+    "注册发现",
+    "配置中心",
+    "gRPC",
+    "Distro",
+    "JRaft",
+    "AI Registry"
+  ]
+}

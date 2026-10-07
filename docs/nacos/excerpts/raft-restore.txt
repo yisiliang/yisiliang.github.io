@@ -1,0 +1,20 @@
+    private void loadState() {
+        if (!Files.isRegularFile(stateFile)) {
+            return;
+        }
+        try {
+            List<String> lines = Files.readAllLines(stateFile, StandardCharsets.UTF_8);
+            if (lines.contains(STATE_FILE_VERSION) && lines.contains(ENFORCED_STATE)) {
+                enforced.set(true);
+                statePersisted.set(true);
+                Loggers.RAFT.info(
+                    "Restored enforced JRaft authentication state from persistent marker");
+            } else {
+                Loggers.RAFT.warn("Ignored invalid JRaft authentication state file at {}",
+                    stateFile);
+            }
+        } catch (IOException e) {
+            Loggers.RAFT.warn("Failed to read JRaft authentication state file at {}", stateFile,
+                e);
+        }
+    }

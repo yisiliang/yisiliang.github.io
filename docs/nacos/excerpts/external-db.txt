@@ -1,0 +1,50 @@
+    public ConfigOperateResult updateConfigInfo(final ConfigInfo configInfo, final String srcIp,
+        final String srcUser,
+        final Map<String, Object> configAdvanceInfo) {
+        return tjt.execute(status -> {
+            try {
+                ConfigAllInfo oldConfigAllInfo =
+                    findConfigAllInfo(configInfo.getDataId(), configInfo.getGroup(),
+                        configInfo.getTenant());
+                if (oldConfigAllInfo == null) {
+                    if (LogUtil.FATAL_LOG.isErrorEnabled()) {
+                        LogUtil.FATAL_LOG.error(
+                            "expected config info[dataid:{}, group:{}, tenent:{}] but not found.",
+                            configInfo.getDataId(), configInfo.getGroup(), configInfo.getTenant());
+                    }
+                    return new ConfigOperateResult(false);
+                }
+                
+                String appNameTmp = oldConfigAllInfo.getAppName();
+                /*
+                 If the appName passed by the user is not empty, use the persistent user's appName,
+                 otherwise use db; when emptying appName, you need to pass an empty string
+                 */
+                if (configInfo.getAppName() == null) {
+                    configInfo.setAppName(appNameTmp);
+                }
+                updateConfigInfoAtomic(configInfo, srcIp, srcUser, configAdvanceInfo);
+                String configTags = configAdvanceInfo == null ? null
+                    : (String) configAdvanceInfo.get("config_tags");
+                if (configTags != null) {
+                    // delete all tags and then recreate
+                    removeTagByIdAtomic(oldConfigAllInfo.getId());
+                    addConfigTagsRelation(oldConfigAllInfo.getId(), configTags,
+                        configInfo.getDataId(),
+                        configInfo.getGroup(), configInfo.getTenant());
+                }
+                if (!ConfigPersistContext.isSkipHistory()) {
+                    Timestamp now = new Timestamp(System.currentTimeMillis());
+                    historyConfigInfoPersistService.insertConfigHistoryAtomic(
+                        oldConfigAllInfo.getId(),
+                        oldConfigAllInfo, srcIp, srcUser, now, "U", Constants.FORMAL, null,
+                        ConfigExtInfoUtil.getExtInfoFromAllInfo(oldConfigAllInfo));
+                }
+                return getConfigInfoOperateResult(configInfo.getDataId(), configInfo.getGroup(),
+                    configInfo.getTenant());
+            } catch (CannotGetJdbcConnectionException e) {
+                LogUtil.FATAL_LOG.error("[db-error] " + e, e);
+                throw e;
+            }
+        });
+    }

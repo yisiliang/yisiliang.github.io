@@ -1,0 +1,20 @@
+{
+  "chapters": 27,
+  "diagrams": 27,
+  "excerpts": 56,
+  "unique_ids": 235,
+  "source_matches": 56,
+  "source_html_matches": 56,
+  "local_links": true,
+  "svg_xml": true,
+  "offline": true,
+  "browser": {
+    "mobile_390_scroll_width": 390,
+    "mobile_320_scroll_width": 320,
+    "desktop_1440_scroll_width": 1440,
+    "mobile_header_height": 104,
+    "desktop_header_height": 68,
+    "search_status": "1/38",
+    "source_copy_preserved": true
+  }
+}

@@ -1,0 +1,43 @@
+    /**
+     * Default deployment type, means the nacos server and console are deployed in one process.
+     */
+    MERGED(Constants.NACOS_DEPLOYMENT_TYPE_MERGED),
+    
+    /**
+     * Only server deployment type, means only the nacos server is deployed in the process.
+     */
+    SERVER(Constants.NACOS_DEPLOYMENT_TYPE_SERVER),
+    
+    /**
+     * Only console deployment type, means only the nacos console is deployed in the process.
+     */
+    CONSOLE(Constants.NACOS_DEPLOYMENT_TYPE_CONSOLE),
+    
+    /**
+     * Nacos Server and Mcp will be deployed in the process.
+     */
+    SERVER_WITH_MCP(Constants.NACOS_DEPLOYMENT_TYPE_SERVER_WITH_MCP),
+    
+    /**
+     * Unknown deployment type.
+     */
+    ILLEGAL("unknown");
+    
+    private final String typeName;
+    
+    DeploymentType(String typeName) {
+        this.typeName = typeName;
+    }
+    
+    public String getTypeName() {
+        return typeName;
+    }
+    
+    public static DeploymentType getType(String type) {
+        try {
+            return DeploymentType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ILLEGAL;
+        }
+    }
+}

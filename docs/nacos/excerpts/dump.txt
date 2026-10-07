@@ -1,0 +1,81 @@
+    public static boolean dumpWithMd5(String dataId, String group, String tenant, String content,
+        String md5,
+        long lastModifiedTs, String type, String encryptedDataKey) {
+        String groupKey = GroupKey2.getKey(dataId, group, tenant);
+        CacheItem ci = makeSure(groupKey, encryptedDataKey);
+        ci.setType(type);
+        final int lockResult = tryWriteLock(groupKey);
+        
+        if (lockResult < 0) {
+            DUMP_LOG.warn("[dump-error] write lock failed. {}", groupKey);
+            return false;
+        }
+        
+        try {
+            
+            //check timestamp
+            boolean lastModifiedOutDated =
+                lastModifiedTs < ConfigCacheService.getLastModifiedTs(groupKey);
+            if (lastModifiedOutDated) {
+                DUMP_LOG.warn("[dump-ignore] timestamp is outdated,groupKey={}", groupKey);
+                return true;
+            }
+            
+            boolean newLastModified =
+                lastModifiedTs > ConfigCacheService.getLastModifiedTs(groupKey);
+            
+            if (md5 == null) {
+                md5 = MD5Utils.md5Hex(content, PERSIST_ENCODE);
+            }
+            
+            //check md5 & update local disk cache.
+            String localContentMd5 = ConfigCacheService.getContentMd5(groupKey);
+            boolean md5Changed = !md5.equals(localContentMd5);
+            if (md5Changed) {
+                DUMP_LOG.info(
+                    "[dump] md5 changed, save to disk cache ,groupKey={}, newMd5={},oldMd5={}",
+                    groupKey, md5,
+                    localContentMd5);
+                ConfigDiskServiceFactory.getInstance().saveToDisk(dataId, group, tenant, content);
+            } else {
+                DUMP_LOG.warn(
+                    "[dump-ignore] ignore to save to disk cache. md5 consistent,groupKey={}, md5={}",
+                    groupKey, md5);
+            }
+            
+            //check  md5 and timestamp & update local jvm cache.
+            if (md5Changed) {
+                DUMP_LOG.info(
+                    "[dump] md5 changed, update md5 and timestamp in jvm cache ,groupKey={}, newMd5={},oldMd5={},lastModifiedTs={}",
+                    groupKey, md5, localContentMd5, lastModifiedTs);
+                updateMd5(groupKey, md5, content, lastModifiedTs, encryptedDataKey);
+            } else if (newLastModified) {
+                DUMP_LOG.info(
+                    "[dump] md5 consistent ,timestamp changed, update timestamp only in jvm cache ,groupKey={},lastModifiedTs={}",
+                    groupKey, lastModifiedTs);
+                updateTimeStamp(groupKey, lastModifiedTs, encryptedDataKey);
+            } else {
+                DUMP_LOG.warn(
+                    "[dump-ignore] ignore to save to jvm cache. md5 consistent and no new timestamp changed.groupKey={}",
+                    groupKey);
+            }
+            
+            return true;
+        } catch (IOException ioe) {
+            DUMP_LOG.error("[dump-exception] save disk error. " + groupKey + ", " + ioe);
+            if (ioe.getMessage() != null) {
+                String errMsg = ioe.getMessage();
+                if (errMsg.contains(NO_SPACE_CN) || errMsg.contains(NO_SPACE_EN)
+                    || errMsg.contains(DISK_QUOTA_CN)
+                    || errMsg.contains(DISK_QUOTA_EN)) {
+                    // Protect from disk full.
+                    FATAL_LOG.error("Local Disk Full,Exit", ioe);
+                    EnvUtil.systemExit();
+                }
+            }
+            return false;
+        } finally {
+            releaseWriteLock(groupKey);
+        }
+        
+    }

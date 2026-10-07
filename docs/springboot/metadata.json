@@ -1,0 +1,13 @@
+{
+  "title": "Spring Boot源码学习",
+  "version": "3.5.16",
+  "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+  "comparison_version": "2.7.18",
+  "comparison_sha": "0c8b382d42db22b92efcf47000d0ff9ef4971629",
+  "framework_version": "6.2.19",
+  "framework_sha": "6214eae8bd02c2ed7ab382bb8d16a9cc6de49522",
+  "chapters": 27,
+  "diagrams": 27,
+  "excerpts": 56,
+  "summary": "沿启动、ConfigData、自动配置、Bean与Web生命周期读取真实源码，比较2.7.18与3.5.16迁移边界。"
+}

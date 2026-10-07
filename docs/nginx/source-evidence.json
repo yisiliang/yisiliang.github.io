@@ -1,0 +1,194 @@
+[
+  {
+    "chapter": 1,
+    "file": "src/os/unix/ngx_process_cycle.c",
+    "start": 699,
+    "end": 721,
+    "sha256": "480ef15510d35b109c197a6725925b3d3f1742e3282a4bee3a91c20a2690fb8a",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L699-L721"
+  },
+  {
+    "chapter": 2,
+    "file": "src/core/ngx_conf_file.c",
+    "start": 445,
+    "end": 470,
+    "sha256": "1131ae256d8f38034b44db0753db5e672f74d91a745103b88bdbabeb3fdb3cd7",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_conf_file.c#L445-L470"
+  },
+  {
+    "chapter": 3,
+    "file": "src/os/unix/ngx_process_cycle.c",
+    "start": 728,
+    "end": 740,
+    "sha256": "0f4ab88e79bbed8b46ab34fb90105dbe46f619e2551ab4ab8387df4d32dc4cbe",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L728-L740"
+  },
+  {
+    "chapter": 4,
+    "file": "src/os/unix/ngx_process_cycle.c",
+    "start": 223,
+    "end": 243,
+    "sha256": "4b30995cd4c598f94a8f38639acba3f45233ab5704fb4b5cbc949ea08af7dafd",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L223-L243"
+  },
+  {
+    "chapter": 5,
+    "file": "src/event/ngx_event.c",
+    "start": 246,
+    "end": 263,
+    "sha256": "e1c8fc78c1fae975cffd2b23625d274ab94ca16b149e5a450164a579e490c63d",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event.c#L246-L263"
+  },
+  {
+    "chapter": 6,
+    "file": "src/event/modules/ngx_epoll_module.c",
+    "start": 836,
+    "end": 854,
+    "sha256": "60803d71b96d3991cbe82534e51fda1d98d66f5bcbab35385779e8eab06cc2b8",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/modules/ngx_epoll_module.c#L836-L854"
+  },
+  {
+    "chapter": 7,
+    "file": "src/event/ngx_event_timer.c",
+    "start": 68,
+    "end": 94,
+    "sha256": "fb515aeea90459aa29fef926eb36881550e20f0c410d1695096dad5e36b2327d",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_timer.c#L68-L94"
+  },
+  {
+    "chapter": 8,
+    "file": "src/event/ngx_event_accept.c",
+    "start": 58,
+    "end": 78,
+    "sha256": "aa554c308cde8714f7ce05d0b39ab83ec49d98b9755ca57c51d6ec7788864e41",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_accept.c#L58-L78"
+  },
+  {
+    "chapter": 9,
+    "file": "src/core/ngx_connection.c",
+    "start": 1193,
+    "end": 1226,
+    "sha256": "cda2fe2aff1e3b631834929ee2d5e822b0c68e3f73ea6488a72a6d05964f6a4c",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_connection.c#L1193-L1226"
+  },
+  {
+    "chapter": 10,
+    "file": "src/core/ngx_palloc.c",
+    "start": 154,
+    "end": 173,
+    "sha256": "a2a73939c1b9711583fa47fb14e80e267fe000a740c07a31bd005de154a2f89a",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_palloc.c#L154-L173"
+  },
+  {
+    "chapter": 11,
+    "file": "src/http/ngx_http_parse.c",
+    "start": 135,
+    "end": 155,
+    "sha256": "26938ebc3f477687349faf813add4014ba469aea9ec4d6bcf50635c0a1c5649b",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_parse.c#L135-L155"
+  },
+  {
+    "chapter": 12,
+    "file": "src/http/ngx_http_core_module.c",
+    "start": 1415,
+    "end": 1434,
+    "sha256": "f558e98d9baca5516c0502fe93697bdc9e4600e93deb8d21728902d649814160",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L1415-L1434"
+  },
+  {
+    "chapter": 13,
+    "file": "src/http/ngx_http_core_module.c",
+    "start": 904,
+    "end": 923,
+    "sha256": "16f6a02a6189df1782cc7c3204c4561ec8e491c3bbf987ca7c5d4edea3360116",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L904-L923"
+  },
+  {
+    "chapter": 14,
+    "file": "src/http/ngx_http_core_module.c",
+    "start": 1074,
+    "end": 1090,
+    "sha256": "9385cea6d86de353ed19c772e903e7f4599c83cefbf9484cba928d387a9586d1",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L1074-L1090"
+  },
+  {
+    "chapter": 15,
+    "file": "src/http/modules/ngx_http_proxy_module.c",
+    "start": 1033,
+    "end": 1049,
+    "sha256": "467b175f3225ac53f1082e5c251a1b0e0021092994948ef077ee0fe171621c77",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_proxy_module.c#L1033-L1049"
+  },
+  {
+    "chapter": 16,
+    "file": "src/http/ngx_http_upstream.c",
+    "start": 1623,
+    "end": 1636,
+    "sha256": "d637090fbbe7278cd6e729d5ee37254c717244b5307a59bfd786d19828583d2f",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L1623-L1636"
+  },
+  {
+    "chapter": 17,
+    "file": "src/http/ngx_http_upstream_round_robin.c",
+    "start": 743,
+    "end": 758,
+    "sha256": "bb113bbda1b63ff7a27e27ef438254a45c7ccc3672390f2481e66a4693260197",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream_round_robin.c#L743-L758"
+  },
+  {
+    "chapter": 18,
+    "file": "src/http/ngx_http_upstream.c",
+    "start": 4462,
+    "end": 4474,
+    "sha256": "740729274ad635dffc844324d1a46662dde8f7be27d6506ed4a411631c57229b",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L4462-L4474"
+  },
+  {
+    "chapter": 19,
+    "file": "src/http/modules/ngx_http_upstream_keepalive_module.c",
+    "start": 285,
+    "end": 300,
+    "sha256": "1451c88f5978aec813d31df310f8d52deeedaef717c405a042a9b457395d1bf7",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_upstream_keepalive_module.c#L285-L300"
+  },
+  {
+    "chapter": 20,
+    "file": "src/http/ngx_http_upstream.c",
+    "start": 3125,
+    "end": 3136,
+    "sha256": "c9002ff119a8279fefeb1bded1f1d377a29123fe4b438f25891d7863f8eec8b4",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L3125-L3136"
+  },
+  {
+    "chapter": 21,
+    "file": "src/http/ngx_http_write_filter_module.c",
+    "start": 294,
+    "end": 307,
+    "sha256": "616b0b6f3181d4262b703d30b0621a383723d7bd96c562141105e41fa1457eab",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_write_filter_module.c#L294-L307"
+  },
+  {
+    "chapter": 22,
+    "file": "src/http/ngx_http_file_cache.c",
+    "start": 275,
+    "end": 299,
+    "sha256": "80b1e819d6a86d81518ec1955b1daa5d14efd0b03b37d349dbe6af99f7307458",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_file_cache.c#L275-L299"
+  },
+  {
+    "chapter": 23,
+    "file": "src/http/modules/ngx_http_limit_req_module.c",
+    "start": 454,
+    "end": 473,
+    "sha256": "6374faa316e84657edc6d3d0d7fbd606e995aff268cecf47ec3964146958ec38",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L454-L473"
+  },
+  {
+    "chapter": 24,
+    "file": "src/event/ngx_event_openssl.c",
+    "start": 1793,
+    "end": 1806,
+    "sha256": "f5d4719cc6eb97dac385d49d6b4f1ba6a249022e41a1c2b484228f5a90b28489",
+    "url": "https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_openssl.c#L1793-L1806"
+  }
+]

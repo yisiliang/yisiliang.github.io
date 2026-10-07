@@ -1,0 +1,10 @@
+{
+  "title": "NGINX源码学习手册",
+  "version": "1.28.0",
+  "sha": "481d28cb4e04c8096b9b6134856891dc52ecc68f",
+  "chapters": 24,
+  "diagrams": 24,
+  "excerpts": 24,
+  "summary": "从master/worker、事件循环和HTTP状态机，深入upstream、重试、缓存、限流与输出链。固定C源码，解释异步进度与失败边界。",
+  "category": "网络与流量治理"
+}

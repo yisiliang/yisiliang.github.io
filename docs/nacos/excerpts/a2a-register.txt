@@ -1,0 +1,33 @@
+    public void registerAgent(AgentCard agentCard, String namespaceId, String registrationType)
+        throws NacosException {
+        try {
+            // 1. register agent's info
+            AgentCardVersionInfo agentCardVersionInfo =
+                AgentCardUtil.buildAgentCardVersionInfo(agentCard,
+                    registrationType, true);
+            ConfigForm configForm =
+                transferVersionInfoToConfigForm(agentCardVersionInfo, namespaceId);
+            ConfigRequestInfo versionConfigRequest = new ConfigRequestInfo();
+            versionConfigRequest.setUpdateForExist(Boolean.FALSE);
+            configOperationService.publishConfig(configForm, versionConfigRequest, null);
+            
+            // 2. register agent's version info
+            AgentCardDetailInfo agentCardDetailInfo =
+                AgentCardUtil.buildAgentCardDetailInfo(agentCard,
+                    registrationType);
+            ConfigForm configFormVersion =
+                transferAgentInfoToConfigForm(agentCardDetailInfo, namespaceId);
+            ConfigRequestInfo agentCardConfigRequest = new ConfigRequestInfo();
+            agentCardConfigRequest.setUpdateForExist(Boolean.FALSE);
+            long startOperationTime = System.currentTimeMillis();
+            configOperationService.publishConfig(configFormVersion, agentCardConfigRequest, null);
+            
+            syncEffectService.toSync(configFormVersion, startOperationTime);
+            AiResourceTraceService.logSuccess("a2a", agentCard.getName(), agentCard.getVersion(),
+                AiResourceTraceService.OP_CREATE_DRAFT, VisibilityHelper.resolveCurrentIdentity(),
+                VisibilityHelper.resolveClientIp());
+        } catch (ConfigAlreadyExistsException e) {
+            throw new NacosApiException(NacosException.CONFLICT, ErrorCode.RESOURCE_CONFLICT,
+                String.format("AgentCard name %s already exist", agentCard.getName()));
+        }
+    }

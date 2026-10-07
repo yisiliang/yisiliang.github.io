@@ -1,0 +1,302 @@
+[
+  {
+    "chapter": 1,
+    "file": "sql/handler.cc",
+    "start": 1786,
+    "end": 1827,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/01.cc",
+    "sha256": "cace87c66454e5d43b8ee6165ab5b7f4798bd12d6e234dfbe7f6e8d602e9d8a6",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/handler.cc#L1786-L1827"
+  },
+  {
+    "chapter": 2,
+    "file": "sql/conn_handler/connection_handler_per_thread.cc",
+    "start": 299,
+    "end": 316,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/02.cc",
+    "sha256": "586a05e204b09469cb043d32ae2f3fc869484ae5ad55f50107647ff650dd4097",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/conn_handler/connection_handler_per_thread.cc#L299-L316"
+  },
+  {
+    "chapter": 3,
+    "file": "sql/sql_parse.cc",
+    "start": 2079,
+    "end": 2114,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/03.cc",
+    "sha256": "2b15cabb2807892eca9bd5871c99b147afadffe88b11feb2792d1b8f939b681b",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/sql_parse.cc#L2079-L2114"
+  },
+  {
+    "chapter": 4,
+    "file": "sql/sql_lex.cc",
+    "start": 1432,
+    "end": 1456,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/04.cc",
+    "sha256": "ea1f4995964f73c2379eab0dcc89d114cbb8fb1869a1345b6acdb517cc48a6cc",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/sql_lex.cc#L1432-L1456"
+  },
+  {
+    "chapter": 5,
+    "file": "sql/mdl.cc",
+    "start": 3371,
+    "end": 3427,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/05.cc",
+    "sha256": "659eb8959484446d75bf73066ce030db2a8f7ddab5ac616913c16864e2e42c71",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/mdl.cc#L3371-L3427"
+  },
+  {
+    "chapter": 6,
+    "file": "sql/sql_optimizer.cc",
+    "start": 362,
+    "end": 389,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/06.cc",
+    "sha256": "6929be769be5361418361c01367d19ceafd19b66dfec6975b49def68186e1fd5",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/sql_optimizer.cc#L362-L389"
+  },
+  {
+    "chapter": 7,
+    "file": "sql/iterators/composite_iterators.cc",
+    "start": 91,
+    "end": 114,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/07.cc",
+    "sha256": "0a8d9e0a91a6591d99dfccfc92bc8e6a4e295ec55569781f622add0504f61b6d",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/iterators/composite_iterators.cc#L91-L114"
+  },
+  {
+    "chapter": 8,
+    "file": "sql/iterators/basic_row_iterators.cc",
+    "start": 291,
+    "end": 312,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/08.cc",
+    "sha256": "cce4f65f984dbd4a3e64078ff59de0a91207f100ba6ebc1f44a3b9842dacd4d1",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/iterators/basic_row_iterators.cc#L291-L312"
+  },
+  {
+    "chapter": 9,
+    "file": "storage/innobase/btr/btr0cur.cc",
+    "start": 1539,
+    "end": 1580,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/09.cc",
+    "sha256": "1394392a14835ce41da8f7d9a84514232ea49ef3d170e3a73e1a034aa6dc2e1f",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/btr/btr0cur.cc#L1539-L1580"
+  },
+  {
+    "chapter": 10,
+    "file": "storage/innobase/btr/btr0btr.cc",
+    "start": 2423,
+    "end": 2482,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/10.cc",
+    "sha256": "9f3ec1afd45d55d824f86673f8f3bbc73034e24774badaf62fb41bf1fc60f3e2",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/btr/btr0btr.cc#L2423-L2482"
+  },
+  {
+    "chapter": 11,
+    "file": "storage/innobase/buf/buf0buf.cc",
+    "start": 4419,
+    "end": 4444,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/11.cc",
+    "sha256": "ec3f383176c5ceab3979abe8a32208c8470a2aa677b6af81b7d1c288bcb92d69",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/buf/buf0buf.cc#L4419-L4444"
+  },
+  {
+    "chapter": 12,
+    "file": "storage/innobase/buf/buf0lru.cc",
+    "start": 1647,
+    "end": 1678,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/12.cc",
+    "sha256": "bacaec0f419873df67d6e2fa909e1dc830ee6fa2bf571e572bdd1fae58713448",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/buf/buf0lru.cc#L1647-L1678"
+  },
+  {
+    "chapter": 13,
+    "file": "storage/innobase/mtr/mtr0mtr.cc",
+    "start": 659,
+    "end": 689,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/13.cc",
+    "sha256": "afdd4b16ebb78d2972dba26c4270839123dfb0d1d9634e6a02c6601d259eceb0",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/mtr/mtr0mtr.cc#L659-L689"
+  },
+  {
+    "chapter": 14,
+    "file": "storage/innobase/log/log0write.cc",
+    "start": 1135,
+    "end": 1207,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/14.cc",
+    "sha256": "295c4e82ace7cb07e4f8de2b690f932505348773be9f00327d25fc8e3be4c227",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/log/log0write.cc#L1135-L1207"
+  },
+  {
+    "chapter": 15,
+    "file": "storage/innobase/buf/buf0flu.cc",
+    "start": 1198,
+    "end": 1224,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/15.cc",
+    "sha256": "d15af8d54c766f0399e78ac273d11577e429df035c88ab9316b783fb4dba2d3a",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/buf/buf0flu.cc#L1198-L1224"
+  },
+  {
+    "chapter": 16,
+    "file": "storage/innobase/row/row0vers.cc",
+    "start": 1280,
+    "end": 1334,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/16.cc",
+    "sha256": "b0e6a9e29a701ced70491c44f7a849715a9f47d29cf691793af5faa13b351c5f",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/row/row0vers.cc#L1280-L1334"
+  },
+  {
+    "chapter": 17,
+    "file": "storage/innobase/include/read0types.h",
+    "start": 163,
+    "end": 184,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/17.cc",
+    "sha256": "6038b5a4545d2f0c2f592e528f33ed968cd04aae2069c1ff07044f76078fef7c",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/include/read0types.h#L163-L184"
+  },
+  {
+    "chapter": 18,
+    "file": "storage/innobase/trx/trx0trx.cc",
+    "start": 2315,
+    "end": 2330,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/18.cc",
+    "sha256": "138f3782cb8c0cade4aa6a9a9bc24d044b61a71500bca4c6212844378dbaa15a",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/trx/trx0trx.cc#L2315-L2330"
+  },
+  {
+    "chapter": 19,
+    "file": "storage/innobase/lock/lock0lock.cc",
+    "start": 1936,
+    "end": 1964,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/19.cc",
+    "sha256": "caf9fdafb37e769afb940dc6c5fc9b0bf2d243191a53de84bb792ab06200fbe7",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/lock/lock0lock.cc#L1936-L1964"
+  },
+  {
+    "chapter": 20,
+    "file": "storage/innobase/lock/lock0wait.cc",
+    "start": 917,
+    "end": 953,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/20.cc",
+    "sha256": "a3cf6ac3b918ad171bcb7bfa7c75a4d0a7a279b70f71da88c21873964b1b1229",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/lock/lock0wait.cc#L917-L953"
+  },
+  {
+    "chapter": 21,
+    "file": "storage/innobase/trx/trx0trx.cc",
+    "start": 1754,
+    "end": 1784,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/21.cc",
+    "sha256": "adf302c0e20ac006b19d669dc7455cb3e1020ccb087cf764614bd695dc95e318",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/trx/trx0trx.cc#L1754-L1784"
+  },
+  {
+    "chapter": 22,
+    "file": "storage/innobase/trx/trx0trx.cc",
+    "start": 2923,
+    "end": 2968,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/22.cc",
+    "sha256": "087282eef5b250ab070aa4c955981ce8221fa4635892173498bb5dac82b67bbe",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/trx/trx0trx.cc#L2923-L2968"
+  },
+  {
+    "chapter": 23,
+    "file": "sql/binlog.cc",
+    "start": 9096,
+    "end": 9123,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/23.cc",
+    "sha256": "92a58b053eb8438759a51047047b6cbcfc3a24f6855da5494ed2073dc94d6307",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/binlog.cc#L9096-L9123"
+  },
+  {
+    "chapter": 24,
+    "file": "storage/innobase/log/log0chkp.cc",
+    "start": 282,
+    "end": 309,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/24.cc",
+    "sha256": "6f6c90f6c11d432435afb04c124760cb06b80a1f1b865e49bfcc165111767428",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/log/log0chkp.cc#L282-L309"
+  },
+  {
+    "chapter": 25,
+    "file": "storage/innobase/trx/trx0purge.cc",
+    "start": 2390,
+    "end": 2423,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/25.cc",
+    "sha256": "5d67ccf5e88e7aa4de12bcf093e61c84ec7beca0bc1b9379c036b323d54655a6",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/trx/trx0purge.cc#L2390-L2423"
+  },
+  {
+    "chapter": 26,
+    "file": "sql/rpl_replica.cc",
+    "start": 4438,
+    "end": 4477,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/26.cc",
+    "sha256": "01d1f9b22f2a59c5863ba5b9b15d0a68e4b0b00b4dc5175918380af421beeb80",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/rpl_replica.cc#L4438-L4477"
+  },
+  {
+    "chapter": 27,
+    "file": "sql/sql_union.cc",
+    "start": 1753,
+    "end": 1780,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/27.cc",
+    "sha256": "8b3de97874dcb9db317a8571b04721e512e19d0a4e1f86ec7d73a94828a00575",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/sql_union.cc#L1753-L1780"
+  },
+  {
+    "chapter": 17,
+    "file": "storage/innobase/read/read0read.cc",
+    "start": 447,
+    "end": 471,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/28.cc",
+    "sha256": "e46338624fa5fe84a43e06e16eede131049243034ec1ba5c141f854a7d19a66b",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/read/read0read.cc#L447-L471"
+  },
+  {
+    "chapter": 23,
+    "file": "sql/binlog.cc",
+    "start": 9172,
+    "end": 9197,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/29.cc",
+    "sha256": "3f804b0ed57a27a43346d8345faa0238592798f9aebe24b93fb196c3bf6bccfa",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/sql/binlog.cc#L9172-L9197"
+  },
+  {
+    "chapter": 24,
+    "file": "storage/innobase/log/log0recv.cc",
+    "start": 3850,
+    "end": 3875,
+    "sha": "dc86e412f18b36ce271f791026714e8caa0ec919",
+    "excerpt": "excerpts/30.cc",
+    "sha256": "99739362ed7a94478efe2dad7c52ad9a08f24f5bfd91f0e413599e454630bcde",
+    "url": "https://github.com/mysql/mysql-server/blob/dc86e412f18b36ce271f791026714e8caa0ec919/storage/innobase/log/log0recv.cc#L3850-L3875"
+  }
+]
