@@ -38,3 +38,5 @@ python3 verify.py /path/to/nginx-release-1.28.0-checkout
 不传源码路径时仍可核对节选自身哈希、章图数量、HTML资源和离线包；传入匹配checkout才能确认原文。上游LICENSE完整保留于nginx-license.txt。
 
 主任务已验证浏览器全文检索与主题控件；390px手机视口下长源码路径溢出已修复，公开与离线页面同步。
+
+offline-index.html仅作离线包生成中间文件，不作为公开网页提交。核验器可分别识别公开或离线index.html，不依赖中间文件。

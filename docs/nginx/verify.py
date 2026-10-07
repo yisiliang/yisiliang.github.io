@@ -35,7 +35,7 @@ for name in (['index.html','offline-index.html'] if (root/'offline-index.html').
  assert all(m in c.ids for m in c.markers)
  assert c.sections==c.figures==c.pre==24
  assert all((root/a).exists() for a in c.local),c.local
- if name=='offline-index.html' or not (root/'offline-index.html').exists():assert not c.scripts
+ if name=='offline-index.html' or 'data-website-id=' not in (root/name).read_text():assert not c.scripts
  else:assert c.scripts==['https://cloud.umami.is/script.js']
 for path in sorted((root/'diagrams').glob('*.svg')):ET.parse(path)
 assert len(list((root/'diagrams').glob('*.svg')))==meta['diagrams']==24
