@@ -103,3 +103,4 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 .reader-page .reader-tools #theme,.reader-page .reader-tools #print{display:block}
 .reader-page aside nav{border:0;background:none}
 .reader-page nav a.hide,.reader-page nav a.hidden{display:none}
+.reader-page h1,.reader-page h2,.reader-page h3,.reader-page h4{overflow-wrap:anywhere}
