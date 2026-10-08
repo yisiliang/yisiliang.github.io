@@ -1,0 +1,28 @@
+{
+  "static": {
+    "chapters": 10,
+    "three_layer_questions": 60,
+    "diagrams": 15,
+    "ids": 596,
+    "all_internal_anchors": "pass",
+    "all_local_resources": "pass"
+  },
+  "browser": {
+    "desktop": "1440×1000 pass",
+    "responsive": "320/390/820 px pass",
+    "search": "full content / no result / escaped input pass",
+    "mode": "all 10 chapters pass",
+    "theme": "system/light/dark and persistence pass",
+    "copy": "clipboard matches source pass",
+    "qa": "all 10 chapters pass",
+    "hash": "deep link pass",
+    "reading_progress": "pass",
+    "offline_core": "all external requests blocked pass",
+    "javascript_disabled": "10 chapters + 15 SVG pass",
+    "page_errors": []
+  },
+  "limits": [
+    "生产故障案例为模拟讲解，未实际启动 Java、数据库、Redis 或 RocketMQ 故障实验。",
+    "不将所有外部参考文档链接的可达性作为永久保证；Redis 文档站 403 后改用官方 redis-doc 仓库核对。"
+  ]
+}

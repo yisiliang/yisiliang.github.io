@@ -1,0 +1,77 @@
+[
+  {
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "id": "jai-diagram-2",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "id": "jai-diagram-3",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "id": "jai-diagram-4",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "id": "jai-diagram-5",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "id": "jai-diagram-6",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "id": "jai-diagram-7",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "id": "jai-diagram-8",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "id": "jai-diagram-9",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "id": "jai-diagram-10",
+    "rendered": true,
+    "type": "sequenceDiagram"
+  },
+  {
+    "id": "jai-diagram-11",
+    "rendered": true,
+    "type": "sequenceDiagram"
+  },
+  {
+    "id": "jai-diagram-12",
+    "rendered": true,
+    "type": "sequenceDiagram"
+  },
+  {
+    "id": "jai-diagram-13",
+    "rendered": true,
+    "type": "stateDiagram-v2"
+  },
+  {
+    "id": "jai-diagram-14",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "id": "jai-diagram-15",
+    "rendered": true,
+    "type": "flowchart TD"
+  }
+]

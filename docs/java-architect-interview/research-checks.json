@@ -1,0 +1,54 @@
+[
+  {
+    "key": "redis-doc",
+    "url": "https://redis.io/docs/latest/develop/use/patterns/distributed-locks/",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "key": "mysql-doc",
+    "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html",
+    "status": 200,
+    "bytes": 105206
+  },
+  {
+    "key": "mq-doc",
+    "url": "https://rocketmq.apache.org/docs/featureBehavior/04transactionmessage/",
+    "status": 200,
+    "bytes": 77036
+  },
+  {
+    "key": "oceanbase-doc",
+    "url": "https://en.oceanbase.com/docs/common-oceanbase-database-10000000001103820",
+    "status": 200,
+    "bytes": 4219508
+  },
+  {
+    "key": "reactor-doc",
+    "url": "https://projectreactor.io/docs/core/3.4.34/reference/",
+    "status": 200,
+    "bytes": 513793
+  },
+  {
+    "key": "netty-ref",
+    "url": "https://raw.githubusercontent.com/netty/netty/netty-4.1.108.Final/buffer/src/main/java/io/netty/buffer/AbstractReferenceCountedByteBuf.java",
+    "status": 200,
+    "bytes": 3642
+  },
+  {
+    "key": "xstream",
+    "url": "https://raw.githubusercontent.com/x-stream/xstream/XSTREAM_1_4_4/xstream/src/java/com/thoughtworks/xstream/converters/reflection/SunLimitedUnsafeReflectionProvider.java",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "key": "xstream-verified",
+    "url": "https://raw.githubusercontent.com/x-stream/xstream/c4c71226515fa42809a48d9ae702756e2831f379/xstream/src/java/com/thoughtworks/xstream/converters/reflection/Sun14ReflectionProvider.java",
+    "status": 200,
+    "bytes": 6673
+  },
+  {
+    "key": "redis-lock-verified",
+    "url": "https://raw.githubusercontent.com/redis/redis-doc/master/docs/manual/patterns/distributed-locks.md",
+    "status": 200,
+    "bytes": 20515
+  }
+]

@@ -1,0 +1,249 @@
+{
+  "aqs": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "sha256": "ab0d9fdf4cf3a6164fa52c76d7d9e5f0218c688f9d0e7a1428f980c4e472c0b5",
+    "bytes": 92184,
+    "line": 1197,
+    "marker": "public final void acquire(int arg)",
+    "excerpt": "    public final void acquire(int arg) {\n        if (!tryAcquire(arg) &&\n            acquireQueued(addWaiter(Node.EXCLUSIVE), arg))\n            selfInterrupt();\n    }\n",
+    "verified": "2026-10-08",
+    "end_line": 1202
+  },
+  "lock": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java",
+    "sha256": "82f06401f262d43ef6d2b63ea2fa3263c75167934e5da58e2883233ac16bdcba",
+    "bytes": 28814,
+    "line": 129,
+    "marker": "final boolean nonfairTryAcquire(int acquires)",
+    "excerpt": "        final boolean nonfairTryAcquire(int acquires) {\n            final Thread current = Thread.currentThread();\n            int c = getState();\n            if (c == 0) {\n                if (compareAndSetState(0, acquires)) {\n                    setExclusiveOwnerThread(current);\n                    return true;\n                }\n            }\n            else if (current == getExclusiveOwnerThread()) {\n                int nextc = c + acquires;\n                if (nextc < 0) // overflow\n                    throw new Error(\"Maximum lock count exceeded\");\n                setState(nextc);\n                return true;\n            }\n            return false;\n        }\n\n        protected final boolean tryRelease(int releases) {\n            int c = getState() - releases;\n            if (Thread.currentThread() != getExclusiveOwnerThread())",
+    "verified": "2026-10-08",
+    "end_line": 150
+  },
+  "pool": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "sha256": "9acddd870acf8ceca62a688853bd8e62181f4e26c489ad3c7570151ca095c492",
+    "bytes": 82732,
+    "line": 1342,
+    "marker": "public void execute(Runnable command)",
+    "excerpt": "    public void execute(Runnable command) {\n        if (command == null)\n            throw new NullPointerException();\n        /*\n         * Proceed in 3 steps:\n         *\n         * 1. If fewer than corePoolSize threads are running, try to\n         * start a new thread with the given command as its first\n         * task.  The call to addWorker atomically checks runState and\n         * workerCount, and so prevents false alarms that would add\n         * threads when it shouldn't, by returning false.\n         *\n         * 2. If a task can be successfully queued, then we still need\n         * to double-check whether we should have added a thread\n         * (because existing ones died since last checking) or that\n         * the pool shut down since entry into this method. So we\n         * recheck state and if necessary roll back the enqueuing if\n         * stopped, or start a new thread if there are none.\n         *\n         * 3. If we cannot queue task, then we try to add a new\n         * thread.  If it fails, we know we are shut down or saturated\n         * and so reject the task.\n         */\n        int c = ctl.get();",
+    "verified": "2026-10-08",
+    "end_line": 1365
+  },
+  "hashmap": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/HashMap.java",
+    "sha256": "99bc29f1b15d98f14e039a6108ccfe978044187246d5c4a2463605c2d989350a",
+    "bytes": 93183,
+    "line": 338,
+    "marker": "static final int hash(Object key)",
+    "excerpt": "    static final int hash(Object key) {\n        int h;\n        return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);\n    }",
+    "verified": "2026-10-08",
+    "end_line": 341
+  },
+  "chm": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "sha256": "6d05b052b27690020aa98c0dd9943be3ebb0182e11ab2d215ff2468003e0232b",
+    "bytes": 263711,
+    "line": 2435,
+    "marker": "private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab)",
+    "excerpt": "                                }\n                            }\n                            if (runBit == 0) {\n                                ln = lastRun;\n                                hn = null;\n                            }\n                            else {\n                                hn = lastRun;\n                                ln = null;\n                            }\n                            for (Node<K,V> p = f; p != lastRun; p = p.next) {\n                                int ph = p.hash; K pk = p.key; V pv = p.val;\n                                if ((ph & n) == 0)\n                                    ln = new Node<K,V>(ph, pk, pv, ln);\n                                else\n                                    hn = new Node<K,V>(ph, pk, pv, hn);\n                            }\n                            setTabAt(nextTab, i, ln);\n                            setTabAt(nextTab, i + n, hn);\n                            setTabAt(tab, i, fwd);\n                            advance = true;\n                        }",
+    "verified": "2026-10-08",
+    "end_line": 2456
+  },
+  "bits": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/nio/Bits.java",
+    "sha256": "900e7cdf8f869294daedf1cd7323fa221ab43ea8b647f926fc2fe8dc4bbe2c7e",
+    "bytes": 32998,
+    "line": 705,
+    "marker": "static void reserveMemory(long size, int cap)",
+    "excerpt": "    private static boolean tryReserveMemory(long size, int cap) {\n\n        // -XX:MaxDirectMemorySize limits the total capacity rather than the\n        // actual memory usage, which will differ when buffers are page\n        // aligned.\n        long totalCap;\n        while (cap <= maxMemory - (totalCap = totalCapacity.get())) {\n            if (totalCapacity.compareAndSet(totalCap, totalCap + cap)) {\n                reservedMemory.addAndGet(size);\n                count.incrementAndGet();\n                return true;\n            }\n        }\n",
+    "verified": "2026-10-08",
+    "end_line": 718
+  },
+  "cms": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp",
+    "sha256": "a46b19930f94d4f40ef84a6a413bcf6d69c4356887d20868f3c4d6af7ecab750",
+    "bytes": 383173,
+    "line": 2256,
+    "marker": "void CMSCollector::collect_in_background",
+    "excerpt": "void CMSCollector::collect_in_background(bool clear_all_soft_refs, GCCause::Cause cause) {\n  assert(Thread::current()->is_ConcurrentGC_thread(),\n    \"A CMS asynchronous collection is only allowed on a CMS thread.\");\n\n  GenCollectedHeap* gch = GenCollectedHeap::heap();\n  {\n    bool safepoint_check = Mutex::_no_safepoint_check_flag;\n    MutexLockerEx hl(Heap_lock, safepoint_check);\n    FreelistLocker fll(this);\n    MutexLockerEx x(CGC_lock, safepoint_check);\n    if (_foregroundGCIsActive || !UseAsyncConcMarkSweepGC) {\n      // The foreground collector is active or we're\n      // not using asynchronous collections.  Skip this\n      // background collection.\n      assert(!_foregroundGCShouldWait, \"Should be clear\");\n      return;\n    } else {\n      assert(_collectorState == Idling, \"Should be idling before start.\");\n      _collectorState = InitialMarking;",
+    "verified": "2026-10-08",
+    "end_line": 2274
+  },
+  "g1": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp",
+    "sha256": "2a61ed03cffb556b29fb402b71aea3790727e6d29b66c90209441b3e61f5b6a7",
+    "bytes": 258826,
+    "line": 3972,
+    "marker": "G1CollectedHeap::do_collection_pause_at_safepoint",
+    "excerpt": "bool\nG1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {\n  assert_at_safepoint(true /* should_be_vm_thread */);\n  guarantee(!is_gc_active(), \"collection is not reentrant\");\n\n  if (GC_locker::check_active_before_gc()) {\n    return false;\n  }\n\n  _gc_timer_stw->register_gc_start();\n\n  _gc_tracer_stw->report_gc_start(gc_cause(), _gc_timer_stw->gc_start());\n\n  SvcGCMarker sgcm(SvcGCMarker::MINOR);\n  ResourceMark rm;\n\n  print_heap_before_gc();\n  trace_heap_before_gc(_gc_tracer_stw);\n",
+    "verified": "2026-10-08",
+    "end_line": 3990
+  },
+  "beans": {
+    "url": "https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-beans/src/main/java/org/springframework/beans/factory/support/DefaultSingletonBeanRegistry.java",
+    "sha256": "bda8f04958d024da8259ec65ca073a0af9e9c1e641d056c4d30ef5165924a768",
+    "bytes": 23378,
+    "line": 180,
+    "marker": "protected Object getSingleton(String beanName, boolean allowEarlyReference)",
+    "excerpt": "\tprotected Object getSingleton(String beanName, boolean allowEarlyReference) {\n\t\t// Quick check for existing instance without full singleton lock\n\t\tObject singletonObject = this.singletonObjects.get(beanName);\n\t\tif (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {\n\t\t\tsingletonObject = this.earlySingletonObjects.get(beanName);\n\t\t\tif (singletonObject == null && allowEarlyReference) {\n\t\t\t\tsynchronized (this.singletonObjects) {\n\t\t\t\t\t// Consistent creation of early reference within full singleton lock\n\t\t\t\t\tsingletonObject = this.singletonObjects.get(beanName);\n\t\t\t\t\tif (singletonObject == null) {\n\t\t\t\t\t\tsingletonObject = this.earlySingletonObjects.get(beanName);\n\t\t\t\t\t\tif (singletonObject == null) {\n\t\t\t\t\t\t\tObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);\n\t\t\t\t\t\t\tif (singletonFactory != null) {\n\t\t\t\t\t\t\t\tsingletonObject = singletonFactory.getObject();\n\t\t\t\t\t\t\t\tthis.earlySingletonObjects.put(beanName, singletonObject);\n\t\t\t\t\t\t\t\tthis.singletonFactories.remove(beanName);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t\treturn singletonObject;\n\t}",
+    "verified": "2026-10-08",
+    "end_line": 204
+  },
+  "tx": {
+    "url": "https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java",
+    "sha256": "18a72bb6831ebcdcf3ebc3ef5c102e661253f84fed6d2a181580a8537112cfa9",
+    "bytes": 41842,
+    "line": 378,
+    "marker": "protected Object invokeWithinTransaction",
+    "excerpt": "\t\tfinal String joinpointIdentification = methodIdentification(method, targetClass, txAttr);\n\n\t\tif (txAttr == null || !(ptm instanceof CallbackPreferringPlatformTransactionManager)) {\n\t\t\t// Standard transaction demarcation with getTransaction and commit/rollback calls.\n\t\t\tTransactionInfo txInfo = createTransactionIfNecessary(ptm, txAttr, joinpointIdentification);\n\n\t\t\tObject retVal;\n\t\t\ttry {\n\t\t\t\t// This is an around advice: Invoke the next interceptor in the chain.\n\t\t\t\t// This will normally result in a target object being invoked.\n\t\t\t\tretVal = invocation.proceedWithInvocation();\n\t\t\t}\n\t\t\tcatch (Throwable ex) {\n\t\t\t\t// target invocation exception\n\t\t\t\tcompleteTransactionAfterThrowing(txInfo, ex);\n\t\t\t\tthrow ex;\n\t\t\t}\n\t\t\tfinally {\n\t\t\t\tcleanupTransactionInfo(txInfo);\n\t\t\t}\n\n\t\t\tif (retVal != null && vavrPresent && VavrDelegate.isVavrTry(retVal)) {\n\t\t\t\t// Set rollback-only in case of Vavr failure matching our rollback rules...\n\t\t\t\tTransactionStatus status = txInfo.getTransactionStatus();\n\t\t\t\tif (status != null && txAttr != null) {\n\t\t\t\t\tretVal = VavrDelegate.evaluateTryFailure(retVal, txAttr, status);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tcommitTransactionAfterReturning(txInfo);",
+    "verified": "2026-10-08",
+    "end_line": 407
+  },
+  "mvcc": {
+    "url": "https://raw.githubusercontent.com/mysql/mysql-server/mysql-8.0.36/storage/innobase/include/read0types.h",
+    "sha256": "32cd8c95b9277fb29c717e67d98f348655e71bb88587a0eb6c2f70c4220a4d6b",
+    "bytes": 9169,
+    "line": 162,
+    "marker": "bool changes_visible",
+    "excerpt": "  [[nodiscard]] bool changes_visible(trx_id_t id,\n                                     const table_name_t &name) const {\n    ut_ad(id > 0);\n\n    if (id < m_up_limit_id || id == m_creator_trx_id) {\n      return (true);\n    }\n\n    check_trx_id_sanity(id, name);\n\n    if (id >= m_low_limit_id) {\n      return (false);\n\n    } else if (m_ids.empty()) {\n      return (true);\n    }\n\n    const ids_t::value_type *p = m_ids.data();\n\n    return (!std::binary_search(p, p + m_ids.size(), id));",
+    "verified": "2026-10-08",
+    "end_line": 181
+  },
+  "commitlog": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "sha256": "3d6d6dd6c9e0ad947d6a1b8abe4a26bece63a74a07840f32641f476b329f9d96",
+    "bytes": 78105,
+    "line": 738,
+    "marker": "public CompletableFuture<PutMessageResult> asyncPutMessage",
+    "excerpt": "        CompletableFuture<PutMessageStatus> flushResultFuture = submitFlushRequest(result, msg);\n        CompletableFuture<PutMessageStatus> replicaResultFuture = submitReplicaRequest(result, msg);\n        return flushResultFuture.thenCombine(replicaResultFuture, (flushStatus, replicaStatus) -> {\n            if (flushStatus != PutMessageStatus.PUT_OK) {\n                putMessageResult.setPutMessageStatus(flushStatus);\n            }\n            if (replicaStatus != PutMessageStatus.PUT_OK) {\n                putMessageResult.setPutMessageStatus(replicaStatus);\n            }\n            return putMessageResult;\n        });\n    }\n\n    public CompletableFuture<PutMessageResult> asyncPutMessages(final MessageExtBatch messageExtBatch) {\n        messageExtBatch.setStoreTimestamp(System.currentTimeMillis());",
+    "verified": "2026-10-08",
+    "end_line": 752
+  },
+  "mqtx": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java",
+    "sha256": "d241b371b8f744646c488a45ccd77d1f2c70155c46101895eeb3f4293d82c6f3",
+    "bytes": 22451,
+    "line": 127,
+    "marker": "public void check(",
+    "excerpt": "    public void check(long transactionTimeout, int transactionCheckMax,\n        AbstractTransactionalMessageCheckListener listener) {\n        try {\n            String topic = TopicValidator.RMQ_SYS_TRANS_HALF_TOPIC;\n            Set<MessageQueue> msgQueues = transactionalMessageBridge.fetchMessageQueues(topic);\n            if (msgQueues == null || msgQueues.size() == 0) {\n                log.warn(\"The queue of topic is empty :\" + topic);\n                return;\n            }\n            log.debug(\"Check topic={}, queues={}\", topic, msgQueues);\n            for (MessageQueue messageQueue : msgQueues) {\n                long startTime = System.currentTimeMillis();\n                MessageQueue opQueue = getOpQueue(messageQueue);\n                long halfOffset = transactionalMessageBridge.fetchConsumeOffset(messageQueue);\n                long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);\n                log.info(\"Before check, the queue={} msgOffset={} opOffset={}\", messageQueue, halfOffset, opOffset);\n                if (halfOffset < 0 || opOffset < 0) {",
+    "verified": "2026-10-08",
+    "end_line": 143
+  },
+  "mqsend": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java",
+    "sha256": "006b00b3463b1f25036464efb7a8c236bbaa17133dca56f933e6ed29b8397981",
+    "bytes": 75851,
+    "line": 1222,
+    "marker": "public TransactionSendResult sendMessageInTransaction",
+    "excerpt": "    public TransactionSendResult sendMessageInTransaction(final Message msg,\n        final LocalTransactionExecuter localTransactionExecuter, final Object arg)\n        throws MQClientException {\n        TransactionListener transactionListener = getCheckListener();\n        if (null == localTransactionExecuter && null == transactionListener) {\n            throw new MQClientException(\"tranExecutor is null\", null);\n        }\n\n        // ignore DelayTimeLevel parameter\n        if (msg.getDelayTimeLevel() != 0) {\n            MessageAccessor.clearProperty(msg, MessageConst.PROPERTY_DELAY_TIME_LEVEL);\n        }\n\n        Validators.checkMessage(msg, this.defaultMQProducer);\n\n        SendResult sendResult = null;\n        MessageAccessor.putProperty(msg, MessageConst.PROPERTY_TRANSACTION_PREPARED, \"true\");\n        MessageAccessor.putProperty(msg, MessageConst.PROPERTY_PRODUCER_GROUP, this.defaultMQProducer.getProducerGroup());\n        try {",
+    "verified": "2026-10-08",
+    "end_line": 1240
+  },
+  "redis": {
+    "url": "https://raw.githubusercontent.com/redis/redis/7.2.4/src/db.c",
+    "sha256": "84fd7f44d0971cfea3d2a8cca9edd5d90ef59262635c7b3bcbaedbfcfb1365d9",
+    "bytes": 94055,
+    "line": 403,
+    "marker": "int dbDelete(",
+    "excerpt": "int dbDelete(redisDb *db, robj *key) {\n    return dbGenericDelete(db, key, server.lazyfree_lazy_server_del, DB_FLAG_KEY_DELETED);\n}\n\n/* Prepare the string object stored at 'key' to be modified destructively\n * to implement commands like SETBIT or APPEND.",
+    "verified": "2026-10-08",
+    "end_line": 408
+  },
+  "redislock": {
+    "url": "https://raw.githubusercontent.com/redis/redis/7.2.4/src/t_string.c",
+    "sha256": "9fae89d4f0c7355612fe2e5daa8fa859d4df2d8f419fffa78719b07daac60b9f",
+    "bytes": 34470,
+    "line": 84,
+    "marker": "void setGenericCommand",
+    "excerpt": "void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire, int unit, robj *ok_reply, robj *abort_reply) {\n    long long milliseconds = 0; /* initialized to avoid any harmness warning */\n    int found = 0;\n    int setkey_flags = 0;\n\n    if (expire && getExpireMillisecondsOrReply(c, expire, flags, unit, &milliseconds) != C_OK) {\n        return;\n    }\n\n    if (flags & OBJ_SET_GET) {\n        if (getGenericCommand(c) == C_ERR) return;\n    }\n\n    found = (lookupKeyWrite(c->db,key) != NULL);\n\n    if ((flags & OBJ_SET_NX && found) ||\n        (flags & OBJ_SET_XX && !found))\n    {\n        if (!(flags & OBJ_SET_GET)) {\n            addReply(c, abort_reply ? abort_reply : shared.null[c->resp]);",
+    "verified": "2026-10-08",
+    "end_line": 103
+  },
+  "netty": {
+    "url": "https://raw.githubusercontent.com/netty/netty/netty-4.1.108.Final/transport/src/main/java/io/netty/channel/nio/NioEventLoop.java",
+    "sha256": "8cd749ebcb5b2c75bcef5fec4e907bd6ef68c96556eb7122813d36715926ed4e",
+    "bytes": 35052,
+    "line": 552,
+    "marker": "protected void run()",
+    "excerpt": "                        if (strategy > 0) {\n                            processSelectedKeys();\n                        }\n                    } finally {\n                        // Ensure we always run tasks.\n                        ranTasks = runAllTasks();\n                    }\n                } else if (strategy > 0) {\n                    final long ioStartTime = System.nanoTime();\n                    try {\n                        processSelectedKeys();\n                    } finally {\n                        // Ensure we always run tasks.\n                        final long ioTime = System.nanoTime() - ioStartTime;\n                        ranTasks = runAllTasks(ioTime * (100 - ioRatio) / ioRatio);\n                    }\n                } else {\n                    ranTasks = runAllTasks(0); // This will run the minimum number of tasks",
+    "verified": "2026-10-08",
+    "end_line": 569
+  },
+  "reactor": {
+    "url": "https://raw.githubusercontent.com/reactor/reactor-core/v3.4.34/reactor-core/src/main/java/reactor/core/publisher/FluxPublishOn.java",
+    "sha256": "415334a06b88d4a38ea94e4e5581f2273b610b650420ebe15beec85a587b83cf",
+    "bytes": 28058,
+    "line": 214,
+    "marker": "public void onNext(T t)",
+    "excerpt": "\t\tpublic void onNext(T t) {\n\t\t\tif (sourceMode == ASYNC) {\n\t\t\t\ttrySchedule(this, null, null /* t always null */);\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tif (done) {\n\t\t\t\tOperators.onNextDropped(t, actual.currentContext());\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tif (cancelled) {\n\t\t\t\tOperators.onDiscard(t, actual.currentContext());\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tif (!queue.offer(t)) {\n\t\t\t\tOperators.onDiscard(t, actual.currentContext());",
+    "verified": "2026-10-08",
+    "end_line": 231
+  },
+  "pg": {
+    "url": "https://www.postgresql.org/docs/16/transaction-iso.html",
+    "sha256": "e65d2f20ab01d80d202ca76fb568d02bb74a414d712d73dd305405683694cf9e",
+    "bytes": 47350,
+    "line": 16,
+    "marker": "Read Committed",
+    "excerpt": "  <meta property=\"og:description\" content=\"13.2.&amp;nbsp;Transaction Isolation # 13.2.1. Read Committed Isolation Level 13.2.2. Repeatable Read Isolation Level 13.2.3. Serializable Isolation Level The SQL standard …\" />\n  <meta property=\"og:site_name\" content=\"PostgreSQL Documentation\" />\n  <link href=\"/media/css/fontawesome.css?8eb38fb2\" rel=\"stylesheet\">\n  <link rel=\"stylesheet\" href=\"/media/css/bootstrap-4.4.1.min.css\">\n  <link rel=\"shortcut icon\" href=\"/favicon.ico\" />\n  \n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/dyncss/base.css?8eb38fb2\">\n\n  <script src=\"/media/js/theme.js?8eb38fb2\"></script>\n\n  \n\n\n  <link rel=\"canonical\" href=\"https://www.postgresql.org/docs/current/transaction-iso.html\" />",
+    "verified": "2026-10-08"
+  },
+  "oracle": {
+    "url": "https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/data-concurrency-and-consistency.html",
+    "sha256": "3ec8a50e206f811313931b8cf7f6640735cb6179d3ace20701b670aa10d8e581",
+    "bytes": 254973,
+    "line": 10,
+    "marker": "read consistency",
+    "excerpt": "      <meta name=\"DC.subject\" content=\", multiversion read consistency, consistency, multiversioning, serializability, transactional, transactions, serializability, concurrency, definition, dirty reads, statement-level, statement-level read consistency, transaction-level, transaction-level read consistency, read consistency, Real Application Clusters, cache fusion, undo segments, system change numbers (SCN), transaction history, deferred inserts, locks, overview of, read uncommitted, isolation levels, isolation levels, transaction, fuzzy reads, transaction isolation, standards, ANSI/ISO, isolation of, phantom reads, read committed isolation, read committed, queries, implicit, read committed isolation level, updates, lost, lost updates, conflicting writes, blocking, blocking transactions, serialization, serialization isolation level, undo tablespaces, undo retention period, read-only, read-only isolation level, duration, automatic, share locks, exclusive, exclusive locks, restrictiveness, conversion, escalation, deadlocks, contention, statement-level rollback, rollback, types of, parameters, initialization, locking behavior, DML, DML (data manipulation language), instances, database, failures, row locks, rows, locks on, locking, row (TX), row locks (TX), headers, data block, storage, data blocks, locks stored in, exclusive table, share row exclusive, share table, row exclusive table, row share, table (TM), table locks (TM), foreign keys, updating tables, unindexed foreign keys and, tables with parent keys, structures, dictionary, data dictionary, DDL (data definition language), exclusive DDL, share DDL, share DDL locks, shared pool, parse locks, shared SQL areas, parse, SQL*Plus, lock and latch monitors, Enterprise Manager, system, system locks, latches, parsing, SQL, hard parse, mutexes, file management locks, log management locks, SQL, dictionary cache locks, dictionary cache, internal, internal locks, tablespaces, rollback segments, tablespace, setting, explicit locking, manual, manual locking, user-defined, packages, for locking\">\n      <meta name=\"keywords\" content=\", multiversion read consistency, consistency, multiversioning, serializability, transactional, transactions, serializability, concurrency, definition, dirty reads, statement-level, statement-level read consistency, transaction-level, transaction-level read consistency, read consistency, Real Application Clusters, cache fusion, undo segments, system change numbers (SCN), transaction history, deferred inserts, locks, overview of, read uncommitted, isolation levels, isolation levels, transaction, fuzzy reads, transaction isolation, standards, ANSI/ISO, isolation of, phantom reads, read committed isolation, read committed, queries, implicit, read committed isolation level, updates, lost, lost updates, conflicting writes, blocking, blocking transactions, serialization, serialization isolation level, undo tablespaces, undo retention period, read-only, read-only isolation level, duration, automatic, share locks, exclusive, exclusive locks, restrictiveness, conversion, escalation, deadlocks, contention, statement-level rollback, rollback, types of, parameters, initialization, locking behavior, DML, DML (data manipulation language), instances, database, failures, row locks, rows, locks on, locking, row (TX), row locks (TX), headers, data block, storage, data blocks, locks stored in, exclusive table, share row exclusive, share table, row exclusive table, row share, table (TM), table locks (TM), foreign keys, updating tables, unindexed foreign keys and, tables with parent keys, structures, dictionary, data dictionary, DDL (data definition language), exclusive DDL, share DDL, share DDL locks, shared pool, parse locks, shared SQL areas, parse, SQL*Plus, lock and latch monitors, Enterprise Manager, system, system locks, latches, parsing, SQL, hard parse, mutexes, file management locks, log management locks, SQL, dictionary cache locks, dictionary cache, internal, internal locks, tablespaces, rollback segments, tablespace, setting, explicit locking, manual, manual locking, user-defined, packages, for locking\">\n      <meta name=\"DC.Relation\" scheme=\"URI\" content=\"oracle-transaction-management.html#GUID-3144CE4E-8120-49D9-9BDF-BE9C011E5662\">\n      <meta name=\"DC.Relation\" scheme=\"URI\" content=\"data-concurrency-and-consistency.html#GUID-7AD41DFA-04E5-4738-B744-C4407170411C\">\n      <meta name=\"DC.Relation\" scheme=\"URI\" content=\"data-concurrency-and-consistency.html#GUID-2A0FDFF0-5F72-4476-BFD2-060A20EA1685\">\n      <meta name=\"DC.Relation\" scheme=\"URI\" content=\"data-concurrency-and-consistency.html#GUID-AD0CEE83-2F33-4906-94E1-3D1022924C63\">\n      <meta name=\"DC.Relation\" scheme=\"URI\" content=\"data-concurrency-and-consistency.html#GUID-E926E638-0161-4389-887B-4A31A529478A\">\n      <meta name=\"DC.Relation\" scheme=\"URI\" content=\"data-concurrency-and-consistency.html#GUID-A4E54CD6-7232-489D-86A4-412EAF8A8DB7\">\n      <meta name=\"DC.Relation\" scheme=\"URI\" content=\"data-concurrency-and-consistency.html#GUID-D63FD030-44CD-4FD7-970A-C98C8CC4AC42\">\n      <meta name=\"DC.Creator\" content=\"Donna Keesling\">\n      <meta name=\"DC.Creator\" content=\"Tom Kyte\">\n      <meta name=\"DC.Creator\" content=\"Joe McCormack\">\n      <meta name=\"DC.Creator\" content=\"Drew Adams\">\n      <meta name=\"DC.Creator\" content=\"Ashish Agrawal\">",
+    "verified": "2026-10-08"
+  },
+  "boot": {
+    "url": "https://raw.githubusercontent.com/spring-projects/spring-boot/v2.7.18/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java",
+    "sha256": "cea98e83d85ecdf914459df00732e7c884b91ae333ea3f915ada369a6a05a82b",
+    "bytes": 19362,
+    "line": 181,
+    "marker": "protected List<String> getCandidateConfigurations",
+    "excerpt": "\tprotected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {\n\t\tList<String> configurations = new ArrayList<>(\n\t\t\t\tSpringFactoriesLoader.loadFactoryNames(getSpringFactoriesLoaderFactoryClass(), getBeanClassLoader()));\n\t\tImportCandidates.load(AutoConfiguration.class, getBeanClassLoader()).forEach(configurations::add);\n\t\tAssert.notEmpty(configurations,\n\t\t\t\t\"No auto configuration classes found in META-INF/spring.factories nor in META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports. If you \"\n\t\t\t\t\t\t+ \"are using a custom packaging, make sure that file is correct.\");\n\t\treturn configurations;\n\t}",
+    "verified": "2026-10-08",
+    "end_line": 189
+  },
+  "gateway": {
+    "url": "https://raw.githubusercontent.com/spring-cloud/spring-cloud-gateway/v3.1.8/spring-cloud-gateway-server/src/main/java/org/springframework/cloud/gateway/handler/FilteringWebHandler.java",
+    "sha256": "503e9767b35dc725b362c0c6eb65bc11921742a1a1825055c596c497991e621f",
+    "bytes": 4683,
+    "line": 75,
+    "marker": "public Mono<Void> handle",
+    "excerpt": "\tpublic Mono<Void> handle(ServerWebExchange exchange) {\n\t\tRoute route = exchange.getRequiredAttribute(GATEWAY_ROUTE_ATTR);\n\t\tList<GatewayFilter> gatewayFilters = route.getFilters();\n\n\t\tList<GatewayFilter> combined = new ArrayList<>(this.globalFilters);\n\t\tcombined.addAll(gatewayFilters);\n\t\t// TODO: needed or cached?\n\t\tAnnotationAwareOrderComparator.sort(combined);\n\n\t\tif (logger.isDebugEnabled()) {\n\t\t\tlogger.debug(\"Sorted gatewayFilterFactories: \" + combined);\n\t\t}",
+    "verified": "2026-10-08",
+    "end_line": 86
+  },
+  "aqsqueue": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "sha256": "ab0d9fdf4cf3a6164fa52c76d7d9e5f0218c688f9d0e7a1428f980c4e472c0b5",
+    "bytes": 92184,
+    "line": 857,
+    "marker": "public final void acquire(int arg)",
+    "excerpt": "    final boolean acquireQueued(final Node node, int arg) {\n        boolean failed = true;\n        try {\n            boolean interrupted = false;\n            for (;;) {\n                final Node p = node.predecessor();\n                if (p == head && tryAcquire(arg)) {\n                    setHead(node);\n                    p.next = null; // help GC\n                    failed = false;\n                    return interrupted;\n                }\n                if (shouldParkAfterFailedAcquire(p, node) &&\n                    parkAndCheckInterrupt())\n                    interrupted = true;\n            }\n        } finally {\n            if (failed)\n                cancelAcquire(node);",
+    "verified": "2026-10-08",
+    "end_line": 875
+  },
+  "chmput": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "sha256": "6d05b052b27690020aa98c0dd9943be3ebb0182e11ab2d215ff2468003e0232b",
+    "bytes": 263711,
+    "line": 1008,
+    "marker": "private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab)",
+    "excerpt": "\n    /** Implementation for put and putIfAbsent */\n    final V putVal(K key, V value, boolean onlyIfAbsent) {\n        if (key == null || value == null) throw new NullPointerException();\n        int hash = spread(key.hashCode());\n        int binCount = 0;\n        for (Node<K,V>[] tab = table;;) {\n            Node<K,V> f; int n, i, fh;\n            if (tab == null || (n = tab.length) == 0)\n                tab = initTable();\n            else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {\n                if (casTabAt(tab, i, null,\n                             new Node<K,V>(hash, key, value, null)))\n                    break;                   // no lock when adding to empty bin\n            }\n            else if ((fh = f.hash) == MOVED)\n                tab = helpTransfer(tab, f);\n            else {\n                V oldVal = null;\n                synchronized (f) {\n                    if (tabAt(tab, i) == f) {\n                        if (fh >= 0) {\n                            binCount = 1;\n                            for (Node<K,V> e = f;; ++binCount) {\n                                K ek;\n                                if (e.hash == hash &&\n                                    ((ek = e.key) == key ||\n                                     (ek != null && key.equals(ek)))) {\n                                    oldVal = e.val;\n                                    if (!onlyIfAbsent)",
+    "verified": "2026-10-08",
+    "end_line": 1037
+  },
+  "xstream": {
+    "url": "https://raw.githubusercontent.com/x-stream/xstream/c4c71226515fa42809a48d9ae702756e2831f379/xstream/src/java/com/thoughtworks/xstream/converters/reflection/Sun14ReflectionProvider.java",
+    "sha256": "4d34acf425e7eea521d14002821fe8b4b03fb4df4f888f7995d1b6f078111322",
+    "bytes": 6673,
+    "verified": "2026-10-08",
+    "line": 91,
+    "end_line": 101,
+    "excerpt": "    private Constructor getMungedConstructor(Class type) throws NoSuchMethodException {\n        synchronized (constructorCache) {\n            Constructor ctor = (Constructor)constructorCache.get(type);\n            if (ctor == null) {\n                ctor = reflectionFactory.newConstructorForSerialization(type, Object.class.getDeclaredConstructor(new Class[0]));\n                constructorCache.put(type, ctor);\n            }\n            return ctor;\n        }\n    }\n"
+  }
+}
