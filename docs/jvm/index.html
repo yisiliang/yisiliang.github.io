@@ -6004,7 +6004,64 @@ Collector 如何回收
 </table>
 <p>M3的DONE日志反而记录MU=17.45MiB、MC=25.25MiB，均大于采样表里的“最大值”。这直接说明原文把低频采样最大值称作真实峰值不准确。M1～M3最后采样的卸载数也不是DONE时的最终卸载数，修订版不再混用。</p>
 <p>这些数据支持有限的结论：默认阈值下，改变堆大小没有消除元数据GC压力；调大MetaspaceSize后，采样中的GC次数减少，但元空间积累量明显增大。<strong>不能据此规定生产参数，也不能证明高水位越大单次停顿必然越长。</strong>停顿还需完整日志、负载与存活量对照。</p>
-<p>原文给出的T1“9次GC原始序列”目前只有<code>app.log</code>与<code>samples.csv</code>可核对，未找到声称的<code>T1_hwm128/gc.log</code>，因此删除那段看似精确的原始GC引用，保留可核查的采样记录。</p>
+<p>补查发现，原文列出的<code>T1_hwm128/gc.log</code>路径不准确，实际日志是<code>/tmp/xs/gc_ratchet.log</code>。其首个时间戳与T1采样起始时间吻合，命令行也确认<code>-Xms4g -Xmx4g -XX:MetaspaceSize=128m</code>；修订版按原文件名收录为<code>evidence/history/gc_ratchet.log</code>。其中9次Full GC均为Metadata GC Threshold，以下直接从日志提取：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">运行秒数</th>
+<th style="text-align: right;">Metaspace used前→后（KiB）</th>
+<th style="text-align: right;">GC日志耗时（秒）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">4.587</td>
+<td style="text-align: right;">84405→6990</td>
+<td style="text-align: right;">0.0510858</td>
+</tr>
+<tr>
+<td style="text-align: right;">8.803</td>
+<td style="text-align: right;">84407→6989</td>
+<td style="text-align: right;">0.0491364</td>
+</tr>
+<tr>
+<td style="text-align: right;">12.904</td>
+<td style="text-align: right;">84421→7002</td>
+<td style="text-align: right;">0.0518763</td>
+</tr>
+<tr>
+<td style="text-align: right;">17.054</td>
+<td style="text-align: right;">84422→7004</td>
+<td style="text-align: right;">0.0483628</td>
+</tr>
+<tr>
+<td style="text-align: right;">21.168</td>
+<td style="text-align: right;">84425→7006</td>
+<td style="text-align: right;">0.0410880</td>
+</tr>
+<tr>
+<td style="text-align: right;">25.297</td>
+<td style="text-align: right;">84427→7010</td>
+<td style="text-align: right;">0.0409673</td>
+</tr>
+<tr>
+<td style="text-align: right;">29.391</td>
+<td style="text-align: right;">84433→7014</td>
+<td style="text-align: right;">0.0385384</td>
+</tr>
+<tr>
+<td style="text-align: right;">33.519</td>
+<td style="text-align: right;">84433→7015</td>
+<td style="text-align: right;">0.0568360</td>
+</tr>
+<tr>
+<td style="text-align: right;">37.637</td>
+<td style="text-align: right;">84443→7026</td>
+<td style="text-align: right;">0.0402092</td>
+</tr>
+</tbody>
+</table>
+<p>used在约82.4MiB时回落到约6.8MiB，支持“重复生成、有效卸载”的解释；128MiB参数限制的是高水位调整下界，不能直接把日志中的used当成128MiB。该单批结果也不表示所有应用都在同一used值触发。</p>
 <h2 id="xstream-7-什么时候只是反复回收什么时候会oom">7. 什么时候只是反复回收，什么时候会OOM？</h2>
 <h3 id="xstream-71-短命实例有生成压力不一定有持续泄漏">7.1 短命实例：有生成压力，不一定有持续泄漏</h3>
 <p><code>new</code>且不累积引用时，Full GC能够卸载大部分生成类。历史20万请求运行最终记录<code>unloadedTotal=198,351</code>，本次记录198,368。类加载数持续增加、卸载数也持续增加，是“生成—清理循环”的证据。</p>
@@ -6148,8 +6205,8 @@ java -XX:+TraceClassLoading -cp &quot;$CP&quot; -Dlegacy.bench.vendor=&quot;Orac
 <td>各参数场景的app.log与samples.csv；目录保留原始名称</td>
 </tr>
 <tr>
-<td><code>evidence/history/T1_hwm128/</code></td>
-<td>仅存app.log、samples.csv；没有可核验的原始gc.log</td>
+<td><code>evidence/history/T1_hwm128/</code>与<code>gc_ratchet.log</code></td>
+<td>采样和应用日志在原目录；GC日志原来存于单独文件，现已收录并核验时间与参数</td>
 </tr>
 <tr>
 <td><code>evidence/rerun/</code></td>

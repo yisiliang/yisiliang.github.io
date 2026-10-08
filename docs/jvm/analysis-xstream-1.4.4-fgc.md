@@ -390,7 +390,21 @@ M3的DONE日志反而记录MU=17.45MiB、MC=25.25MiB，均大于采样表里的�
 
 这些数据支持有限的结论：默认阈值下，改变堆大小没有消除元数据GC压力；调大MetaspaceSize后，采样中的GC次数减少，但元空间积累量明显增大。**不能据此规定生产参数，也不能证明高水位越大单次停顿必然越长。**停顿还需完整日志、负载与存活量对照。
 
-原文给出的T1“9次GC原始序列”目前只有`app.log`与`samples.csv`可核对，未找到声称的`T1_hwm128/gc.log`，因此删除那段看似精确的原始GC引用，保留可核查的采样记录。
+补查发现，原文列出的`T1_hwm128/gc.log`路径不准确，实际日志是`/tmp/xs/gc_ratchet.log`。其首个时间戳与T1采样起始时间吻合，命令行也确认`-Xms4g -Xmx4g -XX:MetaspaceSize=128m`；修订版按原文件名收录为`evidence/history/gc_ratchet.log`。其中9次Full GC均为Metadata GC Threshold，以下直接从日志提取：
+
+|运行秒数|Metaspace used前→后（KiB）|GC日志耗时（秒）|
+|---:|---:|---:|
+|4.587|84405→6990|0.0510858|
+|8.803|84407→6989|0.0491364|
+|12.904|84421→7002|0.0518763|
+|17.054|84422→7004|0.0483628|
+|21.168|84425→7006|0.0410880|
+|25.297|84427→7010|0.0409673|
+|29.391|84433→7014|0.0385384|
+|33.519|84433→7015|0.0568360|
+|37.637|84443→7026|0.0402092|
+
+used在约82.4MiB时回落到约6.8MiB，支持“重复生成、有效卸载”的解释；128MiB参数限制的是高水位调整下界，不能直接把日志中的used当成128MiB。该单批结果也不表示所有应用都在同一used值触发。
 
 ## 7. 什么时候只是反复回收，什么时候会OOM？
 
@@ -531,7 +545,7 @@ java -XX:+TraceClassLoading -cp "$CP" -Dlegacy.bench.vendor="Oracle Corporation"
 |`evidence/history/A_144_new_200k/`|20万请求的app.log与完整gc.log|
 |`evidence/history/B_144_static_800k/`|80万请求的app.log与完整gc.log|
 |`evidence/history/M1…M8/`|各参数场景的app.log与samples.csv；目录保留原始名称|
-|`evidence/history/T1_hwm128/`|仅存app.log、samples.csv；没有可核验的原始gc.log|
+|`evidence/history/T1_hwm128/`与`gc_ratchet.log`|采样和应用日志在原目录；GC日志原来存于单独文件，现已收录并核验时间与参数|
 |`evidence/rerun/`|本次7组复测日志及rerun-results.json中的执行命令与结果|
 |`review.md`|原文问题清单、修正依据及未完成验证|
 
