@@ -10,7 +10,7 @@ assert len(ids)==len(set(ids)),'duplicate IDs'
 for a in soup.select('a[href^="#"]'):assert a['href'][1:] in ids,a['href']
 for el in soup.select('[src],[href]'):
  value=el.get('src') or el.get('href')
- if value.startswith('./'):assert (ROOT/value[2:].split('#')[0]).exists(),value
+ if value.startswith('./'):assert (ROOT/value[2:].split('#')[0].split('?')[0]).exists(),value
 assert len(soup.select('article.chapter'))==10
 assert len(soup.select('.study details'))==75 # 60 问答 + 15 Mermaid 源码
 assert len(soup.select('.study details:not(.diagram details)'))==60
@@ -18,7 +18,9 @@ assert len(soup.select('.diagram svg'))==15
 for art in soup.select('article.chapter'):
  assert len(art.select('.study h3'))>=9
  qas=art.select('.study details:not(.diagram details)');assert len(qas)==6
- for d in qas:assert all(x in d.get_text() for x in ['第一层','第二层','第三层'])
+ for d in qas:
+  assert len(d.select('.answer p'))==3
+  assert len(d.get_text())>180
  assert '模拟生产案例' in art.get_text()
  assert len(art.select('.quick details')) in [3,4,5]
  assert not re.search(r'尚未完善|占位符',art.get_text())

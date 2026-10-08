@@ -2,46 +2,65 @@
 
 # Java 并发编程与锁机制
 
-版本基线：OpenJDK 8u462-b08 / HotSpot 8。先建立可见性、原子性、顺序性三个不同维度，再讨论吞吐和公平性。锁的正确性来自共享状态的协议，而不是类名带有 Concurrent。
+本章使用 OpenJDK 8u462-b08 和 HotSpot 8。先从一个容易写错的计数器说起，再看线程拿不到锁时到底发生了什么。
 
 ## 核心知识与原理
 
 ### JMM 与 happens-before
 
-JMM 描述线程间允许观察到哪些读写结果。程序顺序、同一 Monitor 的 unlock→后续 lock、volatile 写→后续读、Thread.start 和 Thread.join，以及这些关系的传递闭包构成 happens-before。它不是说所有 CPU 指令按源码顺序执行，而是要求可观察结果符合约束。没有 happens-before 的数据竞争，不能靠“线程最终会读到”论证正确性。
+假设两个线程各执行一次 `count++`，初始值是 0。我们期待结果是 2，但两个线程可能都先读到 0，各自算出 1，最后都把 1 写回去。问题出在“读取、计算、写回”这三个动作可以交错。即使把 count 声明为 volatile，也没有把这三个动作合成一步。
 
-volatile 为单次读写提供可见性和相应排序约束；`count++` 包含读、加、写，仍然不是一个原子事务。发布不可变配置时，可先构造对象，再写入 volatile 引用，读线程读取该引用后可见构造前的写。双重检查锁需要 volatile，防止观察到未安全发布的对象。final 字段有初始化安全语义，但构造中泄露 this 会破坏使用前提；final 引用也不保证引用对象永不改变。
+volatile 适合另一种问题：一个线程修改开关，另一个线程需要读到这个修改。例如服务关闭时，将 `running` 改为 false，工作线程下一次读取它时应按 volatile 的规则观察这个状态。它还约束相关读写的顺序。发布配置时，可以先把配置对象构造完整，再把它赋给 volatile 引用；读线程读取这个引用后，才能放心使用已经写好的配置字段。
+
+JMM，也就是 Java Memory Model，规定的正是线程之间能看到什么结果。happens-before 可以理解为一条可见性保证：如果操作 A happens-before 操作 B，那么 A 的写入对 B 可见。常见来源包括同一线程的程序顺序、同一把锁的解锁与后续加锁、volatile 写与后续读，以及 start、join。这些关系可以传递。
+
+这里容易混淆两件事：CPU 可以调整指令的实际执行顺序，但最终被其他线程观察到的结果必须遵守 JMM。不能因为本机跑了十万次都正常，就认为一段存在数据竞争的代码是正确的。双重检查锁里的引用为什么需要 volatile，也应从“对象是否构造完整才被其他线程看到”来解释。
+
+final 字段在正确构造时有特殊的初始化保证，不过构造函数里把 this 提前交出去会破坏使用前提。final 修饰一个 List 引用，也只表示这个引用不能重新赋值，并不阻止线程修改 List 中的元素。
 
 ### synchronized 与 CAS
 
-HotSpot 8 对象 Mark Word 承载锁状态信息，偏向锁避免无竞争下的重复同步，轻量级锁使用线程栈 Lock Record 与 CAS，竞争加剧时可能膨胀到 ObjectMonitor；不是每次竞争都沿固定阶梯立即升级。偏向锁默认存在启动延迟，可批量重偏向或撤销。JIT 可消除不逃逸对象的锁、粗化连续锁区间，并采用自适应自旋。锁状态和优化属于 HotSpot 实现，不能当成 JLS 保证，也不要套用较新 JDK 的偏向锁移除行为。
+synchronized 的含义很直接：同一时刻只有一个线程可以进入受同一把锁保护的代码，解锁前的写入对后续拿到这把锁的线程可见。关键是“同一把锁”。两个线程分别锁各自新建的对象，仍然可能同时修改同一个库存。
 
-CAS 比较的是值而不是历史。A→B→A 后原值比较仍成功，这就是 ABA；用 AtomicStampedReference 携带版本，但必须同步更新值和版本。x86 上原子读改写通常映射至带 lock 前缀的指令，例如 cmpxchg；其他架构实现不同。CAS 失败重试会造成缓存一致性流量，热点计数下“无锁”未必比锁快。CAS 一个字段不能自动保护多个业务不变量。
+HotSpot 8 为减少加锁开销做了多种优化。没有竞争时，偏向锁可以避免重复的同步操作；轻量级锁尝试用 CAS 和线程栈上的锁记录完成加锁；竞争严重时会使用 ObjectMonitor。对象头里的 Mark Word 保存相关状态。这些路径不是每次都按一条固定阶梯逐级走完，JIT 还可能消除不逃逸对象上的锁，或者合并相邻的加锁范围。偏向锁属于这里的 JDK 8 实现，不能照搬到已经移除它的新 JDK。
+
+CAS 的意思是：只有当前值仍等于我刚才看到的值，才把它改成新值。库存当前为 10，线程 A 想改成 9；若线程 B 已先改成 8，A 的 CAS 就会失败，必须重新读取后决定是否再试。在 x86 上，相关原子读改写通常借助带 lock 前缀的指令，如 cmpxchg；其他 CPU 的实现不同。
+
+CAS 只比较当前值，所以看不出“10 变成 8，后来又变回 10”这段历史。这就是 ABA。若历史变化影响判断，可以把版本号和数据一起比较，例如 AtomicStampedReference。竞争越激烈，失败重试越多，CPU 和缓存同步的开销也越大，因此 CAS 并不天然比锁快。
 
 ### AQS、共享同步器与线程池
 
-AQS 的 volatile `state` 表示同步状态，双向同步队列保存等待线程，head 是已获得资格的占位节点。独占和共享获取共享排队框架，但由子类定义状态含义。Condition 使用单独的条件队列，await 完全释放独占锁；signal 仅将节点转移到同步队列，线程重新获取锁后才能返回，所以条件判断必须放在 while 中。
+AQS 替锁类完成了排队和等待的大部分工作。它保存一个 `state`，具体含义由子类决定：ReentrantLock 用它记录持锁次数，CountDownLatch 用它表示还剩多少次 countDown，Semaphore 用它表示可用许可。
 
-ReentrantLock 非公平 lock 先 CAS 抢占，失败进入 acquire；公平 tryAcquire 检查 `hasQueuedPredecessors()`。公平性会降低插队，但不能承诺操作系统调度公平；无参数 `tryLock()` 即使公平实例也采用非公平尝试。可重入依靠 owner 和 state 计数，unlock 必须由持锁线程执行。
+以 ReentrantLock 为例，线程先尝试把 state 从 0 改成 1。成功后记录持锁线程；如果当前持锁者就是自己，只增加次数，这就是可重入。别的线程拿不到锁，就进入 AQS 的同步队列。队列头是一个占位节点，真正等待的线程在后面。
 
-AtomicInteger 在单一 CAS 状态上提供线性化更新。LongAdder 用 base 和 Cells 分散写竞争，sum 遍历并求和，结果不是并发期间的原子快照；适合监控计数，不适合库存扣减和精确序号。CountDownLatch 计数减到零后共享释放，不能重置；Semaphore state 表示许可数量，release 不要求是获取许可的线程，代码仍需在成功 acquire 后 finally release 防止许可泄漏。
+Condition 的等待队列是另一条队列。调用 await 的线程先释放锁，再等待条件；signal 把它移回同步队列，它还要重新拿到锁才能继续。被叫醒时，条件可能已经被其他线程改变，所以应写 `while (!条件满足) await()`，而不是只判断一次。
 
-ThreadPoolExecutor 的 ctl 将运行状态与 workerCount 打包。execute 先尝试 core worker，再 offer 入队，队列成功后重查运行状态；入队失败才尝试 maximum worker，仍失败触发拒绝。无界队列使 maximumPoolSize 通常不起扩容作用。AbortPolicy 抛异常；CallerRunsPolicy 把压力传给提交线程，但若提交者是 Netty EventLoop，会阻塞整个连接集合；Discard/DiscardOldest 会静默丢任务，不能直接用于关键业务。容量应由到达率、服务时间和等待预算决定，而非照抄 CPU×2。
+公平锁会检查队列前面是否还有人，非公平锁允许新到线程先尝试抢锁。公平锁通常减少长时间等不到锁的风险，但可能损失吞吐。一个容易漏掉的细节是：公平 ReentrantLock 的无参数 `tryLock()` 仍会尝试直接抢锁。
+
+AtomicInteger 把更新集中在一个数值上。LongAdder 则把高并发计数分散到多个 Cell，读取总数时再加起来；读取过程中这些 Cell 仍可能改变，所以 sum 不是某个瞬间的完整快照。统计请求数很合适，判断“余额够不够扣”则不合适。CountDownLatch 归零后不能重置；Semaphore 可以限制同时进行的操作数，获取成功后要在 finally 中归还许可。
+
+线程池的处理顺序尤其值得记住。线程数不足 core 时先开线程；达到 core 后先把任务放进队列；队列装不下才尝试增到 maximum；仍装不下就拒绝。因此，core=8、max=64 配上无界队列，通常只会有 8 个工作线程，更多任务都在排队。
+
+拒绝策略决定过载时业务会怎样。AbortPolicy 抛异常，调用方必须处理；CallerRunsPolicy 让提交者执行任务，可以减慢提交速度，但提交者若是 Netty EventLoop，就会连累其他连接；Discard 和 DiscardOldest 会丢任务，不适合直接处理订单或支付。设置队列大小前，先想清楚请求最多能等多久，以及每个排队任务占多少内存。
 
 ### 手工推演：释放与取消为什么不会丢队列
 
-设队列 head→A→B，A 等待锁，B 已取消。释放方不是简单唤醒 head.next 就结束：它检查后继状态，不适用时从 tail 向前寻找有效等待者。A 醒来仍要 tryAcquire；若一个非公平新线程先抢成功，A 再按协议 park。取消不是把节点置空后任它挡住队列，获取循环会跳过 waitStatus>0 的前驱并修补链接。这说明用一份线程栈看到 A 长期 WAITING，不足以证明 unpark 丢失。
+考虑 `head → A → B`。A 在等锁，B 已经取消等待。释放锁时，AQS 会寻找仍有效的等待者；遇到不能直接使用的后继，可能从队尾反向寻找。等待线程也会跳过已经取消的前驱并修补链接，避免一个取消节点挡住后面所有人。
 
-线程池 shutdown 拒绝新任务但处理队列，shutdownNow 尝试中断工作线程并返回未执行任务，不保证阻塞 IO 或忽略中断的代码立即停止。中断是协作信号；捕获 InterruptedException 后应按业务中止或恢复中断状态，不能无条件吞掉。用超时 Future.get 只限制调用方等待，若未取消/任务不响应取消，工作仍占资源。并发方案必须说明获取成功、获取失败、取消及关闭各分支的资源归还。
+A 被唤醒后并没有直接得到锁。假如新来的非公平线程先抢到了，A 还得继续尝试和等待。排查线程长期 WAITING 时，先找谁持锁、它在做什么，再判断队列是否还在前进。一张线程栈只能说明当时在等，连续几张栈更有助于区分短暂竞争和真正卡住。
+
+类似地，shutdownNow 只是尝试中断工作线程，并不会强制停止所有代码。阻塞 IO 或忽略中断的任务仍可能运行。Future.get 超时也只是调用方不再等结果；如果任务没有被取消，或不能及时响应取消，它依然占用线程和连接。
+
 
 ## 源码级解析与调用链
 
-`AbstractQueuedSynchronizer.acquire → tryAcquire → addWaiter → acquireQueued → shouldParkAfterFailedAcquire → LockSupport.park` 是独占不可中断获取链。前驱是 head 才再次尝试获取；失败先把前驱 waitStatus 设为 SIGNAL，再 park，以免丢掉释放方的唤醒。release 调用 tryRelease 成功后 unparkSuccessor；唤醒不等于转移锁所有权。取消节点需要跳过，必要时从 tail 反向找到可唤醒后继。可中断与超时入口分别走不同 acquire 方法。
+拿锁的入口是 `AbstractQueuedSynchronizer.acquire`。它先让子类的 tryAcquire 试一次，失败才 addWaiter 入队；acquireQueued 负责后续反复尝试和等待。释放端通过 tryRelease 判断是否完全释放，再寻找后继唤醒。
 
-`ThreadPoolExecutor.execute → addWorker / workQueue.offer → reject` 与 AQS 的关系是 Worker 本身继承 AQS，用于保护 worker 执行任务状态；线程池不是用一把 AQS 锁串行执行所有任务。runWorker 在每个任务前后调用钩子，任务异常可能导致 worker 退出，processWorkerExit 根据状态补充工作线程。
+线程池从 `execute` 看最容易：不足 core 时 addWorker，之后尝试 workQueue.offer，装不下才用 maximum 限制加 worker。Worker 自身继承 AQS，主要保护这个工作线程的执行状态，并没有把整个池的任务串成一条。runWorker 执行任务和钩子，worker 异常退出由 processWorkerExit 后续处理。
 
 
-**源码原文连续节选：AbstractQueuedSynchronizer.acquire · OpenJDK 8u462-b08 · L1197–L1202**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1197-L1202)）。
+<div class="source-caption"><code>AbstractQueuedSynchronizer.acquire</code><span>OpenJDK 8u462-b08 · L1197–L1202 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1197-L1202">完整源码</a></span></div>
 
 ```java
     public final void acquire(int arg) {
@@ -52,8 +71,11 @@ ThreadPoolExecutor 的 ctl 将运行状态与 workerCount 打包。execute 先�
 
 ```
 
+读这 6 行时先看短路条件：tryAcquire 成功后，后面的入队不会执行。失败才把当前线程包装为独占节点，再交给 acquireQueued。selfInterrupt 用于恢复等待期间记录到的中断状态，这个入口本身不是可中断获取。
 
-**源码原文连续节选：AbstractQueuedSynchronizer.acquireQueued · OpenJDK 8u462-b08 · L857–L875**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L857-L875)）。
+
+
+<div class="source-caption"><code>AbstractQueuedSynchronizer.acquireQueued</code><span>OpenJDK 8u462-b08 · L857–L875 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L857-L875">完整源码</a></span></div>
 
 ```java
     final boolean acquireQueued(final Node node, int arg) {
@@ -77,8 +99,11 @@ ThreadPoolExecutor 的 ctl 将运行状态与 workerCount 打包。execute 先�
                 cancelAcquire(node);
 ```
 
+循环里的 p 是当前节点的前驱。只有前驱已成为 head，当前线程才尝试获取。成功后把自己设为新 head；失败才判断是否 park。唤醒后继续这个循环，所以唤醒与锁所有权是两件事。
 
-**源码原文连续节选：ThreadPoolExecutor.execute · OpenJDK 8u462-b08 · L1342–L1365**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1342-L1365)）。
+
+
+<div class="source-caption"><code>ThreadPoolExecutor.execute</code><span>OpenJDK 8u462-b08 · L1342–L1365 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1342-L1365">完整源码</a></span></div>
 
 ```java
     public void execute(Runnable command) {
@@ -107,12 +132,14 @@ ThreadPoolExecutor 的 ctl 将运行状态与 workerCount 打包。execute 先�
         int c = ctl.get();
 ```
 
+这里的顺序就是 core、queue、maximum。offer 成功后还有 recheck，这是为了处理任务入队与线程池关闭同时发生；它不是只要入队就不再检查。
+
 
 ```mermaid
 flowchart TD
  A["acquire / tryAcquire"] --> B{"获取成功？"}
  B -->|是| C["进入临界区"]
- B -->|否| D["CAS 入同步队列"]
+ B -->|否| D["排入同步等待队列"]
  D --> E{"前驱是 head 且获取成功？"}
  E -->|是| C
  E -->|否| F["前驱设 SIGNAL / park"]
@@ -124,94 +151,109 @@ flowchart TD
 
 ### 1. volatile 能替代锁吗？
 
-<details markdown="1"><summary>展开三层参考答案</summary>
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第一层：**volatile 解决可见性和排序约束，不解决复合操作的原子性。状态开关和不可变对象引用发布可以使用它，多字段一致性通常需要锁或整体 CAS。
+不能全面替代。volatile 适合状态开关和完整配置的引用发布。`count++` 即使读写可见，两个线程仍可能各自读到同一个旧值，再写回相同结果。要把检查和修改一起保护，才应使用锁或原子操作。
 
-**第二层：**JDK 8 AtomicInteger.incrementAndGet 走 Unsafe.getAndAddInt，而普通 volatile 自增没有读改写原子指令保证。happens-before 需要匹配读写关系，不能把一次读取当成对所有线程当前状态的全局快照。
+**配置字段为什么也能被读到？** 构造配置时先写字段，再写 volatile 引用；另一个线程读取这个引用后，相关先前写入通过 happens-before 对它可见。AtomicInteger 的自增则走原子读改写，与普通 volatile 自增不同。
 
-**第三层：**配置热更新采用构造完整不可变快照后替换引用，避免逐字段更新暴露中间态。资金和库存需要数据库约束或线性化状态机，不能仅加 volatile。
+**库存怎么处理？** 如果要求库存足够才扣减，必须将条件和扣减做成一个原子动作。可用 CAS 循环，涉及持久业务时通常用数据库条件 UPDATE。单给库存字段加 volatile 还不够。
 </details>
 
 ### 2. AQS 为什么先设置 SIGNAL 再 park？
 
-<details markdown="1"><summary>展开三层参考答案</summary>
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第一层：**等待线程声明需要被前驱唤醒，释放方据此发现等待者。park/unpark 提供一个许可，提前 unpark 可以让后续 park 直接返回。
+等待线程先把“释放锁时请叫醒我”记录在前驱节点上，才能安心 park。这样释放方知道后面有人在等。unpark 可以提前给一个许可，所以通知比 park 早到，也不一定丢失。
 
-**第二层：**shouldParkAfterFailedAcquire 在设置前驱 SIGNAL 后返回 false，让循环再次尝试获取，再决定 park。acquireQueued 每次醒来重新检查，不假定唤醒就是成功，能处理竞争和伪唤醒。
+**哪行代码避免刚设完 SIGNAL 就睡错？** shouldParkAfterFailedAcquire 设置前驱状态后先返回 false，外层循环会再试一次拿锁。真的等待和醒来以后，都继续检查获取条件，而不是把通知当成拿锁成功。
 
-**第三层：**诊断大量 WAITING 时必须同时检查锁 owner、队列和业务栈。等待本身不代表死锁；若 owner 在同步调用慢数据库，应缩小锁范围并设置依赖超时，而不是增加等待线程。
+**线程长期 WAITING 怎么查？** 先找持锁线程的业务栈。如果它一直等慢 SQL，后面排队是结果，问题在锁内做了慢 IO。连续采样再判断谁不前进，比只看到 park 就怀疑 AQS 更可靠。
 </details>
 
 ### 3. 公平锁是否一定更好？
 
-<details markdown="1"><summary>展开三层参考答案</summary>
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第一层：**公平锁倾向于按等待次序授予锁，降低饥饿风险；非公平锁允许刚到线程抢占，提高缓存局部性和吞吐。
+公平锁减少新线程直接插队的机会，常能改善最长等待时间；非公平锁允许先抢一下，通常有利于吞吐。哪种更好取决于是否真的有人长期等不到，以及切换开销有多大。
 
-**第二层：**FairSync.tryAcquire 在 CAS 前检查 hasQueuedPredecessors；可重入仍允许 owner 加 state。无参数 tryLock 绕开公平检查，公平并不是完全 FIFO 调度契约。
+**公平到什么程度？** FairSync.tryAcquire 先检查 hasQueuedPredecessors，再尝试 CAS；已经持锁的线程可以重入。无参数 tryLock 仍采用非公平尝试，所以公平实例也不承诺所有入口严格 FIFO。
 
-**第三层：**尾延迟敏感场景可以评估公平锁，但先确认临界区时长和竞争度。用吞吐、p99、最长等待和 CPU 四个指标压测，不以锁名称做技术选型。
+**项目里如何决定？** 在同一负载下比较吞吐、p99、最长等待和 CPU。若锁里是一个 2 秒的接口调用，先缩短持锁范围，换公平锁不能让这个调用变快。
 </details>
 
 ### 4. LongAdder 为什么快，何时不能用？
 
-<details markdown="1"><summary>展开三层参考答案</summary>
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第一层：**高竞争时分散更新多个 Cell，避免所有核争抢同一个缓存行。低竞争先更新 base，降低额外开销。
+多个线程反复修改同一个计数器，会争抢同一处更新。LongAdder 高竞争时把写入分散到多个 Cell，最后求和，减少这种争抢。AtomicInteger 则更适合需要精确单值更新的地方。
 
-**第二层：**Striped64.longAccumulate 利用线程 probe 选择 Cell，失败会换槽或扩容。sum 分别读取 base 和 Cells，读取期间写线程仍继续，因此没有单一线性化快照点。
+**sum 为什么不能当快照？** Striped64.longAccumulate 根据线程 probe 选 Cell，失败后可能换槽或扩容。sum 逐个读 base 和 Cell 时，其他线程仍在修改它们，因此这些值不一定来自同一个瞬间。
 
-**第三层：**请求总量统计允许瞬时偏差，可以使用 LongAdder；限额、抢票和账务余额需要精确条件更新，选 AtomicLong CAS 或数据库条件扣减，并评估热点分片。
+**能不能用于抢票？** 请求总量统计允许短时偏差，可以用它；判断还有没有最后一张票，需要检查和扣减一起成功，不能先 sum 再减。应选精确 CAS 或数据库条件更新。
 </details>
 
 ### 5. 线程池为什么没扩到 maximumPoolSize？
 
-<details markdown="1"><summary>展开三层参考答案</summary>
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第一层：**core 满后优先入队；只有队列 offer 失败才尝试 maximum。无界 LinkedBlockingQueue 通常会持续接收任务。
+因为线程池到 core 之后优先入队，只有队列装不下才尝试加非核心线程。无界队列几乎不会因为容量返回失败，所以 max=64 并不意味着它一定会扩到 64。
 
-**第二层：**execute 入队成功后重查 ctl，若关闭则 remove 并拒绝；workerCount 为零则补 worker。core/max/queue 三者是状态机分支，不是同时生效的三个独立上限。
+**源码里还有什么检查？** execute 成功 offer 后重新检查池状态。若此时已关闭，会尝试移除并拒绝；若没有 worker，还要补一个线程。这里也处理提交和关闭同时发生的情况。
 
-**第三层：**采用有界队列、明确拒绝和端到端超时。估算排队长度约为吞吐×可接受等待时间，验证堆占用；Future 异常必须被观察，不能让丢任务变成无限等待。
+**线上应该怎么配？** 先确认下游能完成多少任务、允许排队多久，再用有界队列和明确拒绝。还要记录队列等待、拒绝和 Future 异常。只增加线程而数据库连接不变，常常只是增加等待者。
 </details>
 
 ### 6. 如何区分死锁、锁竞争和线程饥饿？
 
-<details markdown="1"><summary>展开三层参考答案</summary>
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第一层：**死锁有循环等待；锁竞争是等待一个仍可能推进的 owner；线程饥饿是长期没有执行资源或资格。CPU 低不意味着系统空闲。
+死锁是几方相互等待、谁也不能释放对方需要的资源；锁竞争是有人等待一个仍在工作的持有者；线程饥饿可能来自没有可用线程执行后续工作。CPU 低时三者都可能出现。
 
-**第二层：**jstack 的 locked/waiting to lock 与 ownable synchronizers 可建立等待图。AQS park 的 WAITING 和 Monitor 的 BLOCKED 含义不同；父任务提交子任务到同一满池后 get，可能产生线程饥饿死锁。
+**线程栈能区分什么？** Monitor 等待常见 BLOCKED，AQS park 常见 WAITING，jstack 的锁与 ownable synchronizers 信息可帮助建立等待关系。同一满线程池中父任务等子任务，也可能卡住，却没有传统 Monitor 环。
 
-**第三层：**统一锁顺序，缩短锁内 IO，分离不同依赖的线程池；按多份线程栈和队列趋势证明根因，恢复后增加队列等待与拒绝率告警。关联阅读：<a href="#c10">系统稳定性</a>。
+**修复要针对哪种原因？** 循环锁采用固定加锁顺序；长持锁移出慢 IO；父子任务饥饿拆开执行器或改异步组合。用多次线程栈和队列变化确认恢复，不要只把池调大。
 </details>
 
 ## 模拟生产案例：队列吞噬内存
 
-**故障现象：**导出服务请求延迟持续上升，线程池只有 8 个线程，配置 max=64 却没有扩容，最终 heap OOM。**排查思路：**连续采样 activeCount、queue.size、完成速率与数据库响应时间；用 heap dump 查看队列对请求对象的持有。**原理分析：**无界队列使 execute 不进入增加非核心线程的分支，下游每任务耗时上升导致到达率超过完成率。**根因和验证证据：**模拟压测中 LinkedBlockingQueue 成为主要 retained heap，worker 栈停在数据库读取；更换有界队列后拒绝率出现而堆不再线性增长，证明不是任务结果缓存泄漏。**解决方案：**临时限流和停止接受新导出，使用有界队列、异步导出凭证和专用连接池，拒绝返回明确可重试状态。**长期预防：**压测慢依赖、队列等待超时和取消清理；记录业务重试次数，避免拒绝后立即重试形成风暴。
+导出服务越来越慢，core=8、max=64，实际却一直只有 8 个工作线程。更多任务排在队列中，最终堆内存耗尽。这是一种模拟情境，用来区分线程配置问题和任务泄漏。
+
+先连续记录 activeCount、queue.size、完成速率和数据库响应时间，再看工作线程的栈。若是无界队列加慢数据库，应该能看到队列持续增长，工作线程多在等查询；dump 中则能追到队列持有请求对象。这些信息一起出现，才支持这个解释。
+
+原因是 core 满后任务优先进队列，没有触发增加非核心线程；数据库变慢又降低完成率。先暂停或限制新导出，之后改成有界队列、明确拒绝和异步导出结果查询。增加线程前核对数据库连接能力。
+
+验证时重放相同慢依赖条件，检查内存是否稳定、拒绝是否可预期、用户能否知道任务未被接受。长期监控排队时间，处理取消与异常，避免客户端收到拒绝后立即大量重试。
 
 ## 面试回答与核心总结
 
 ### 60 秒快速回答
 
-并发正确性先看 happens-before 和业务原子性：volatile 发布状态，锁保护不变量，CAS 实现单状态原子转换。JDK 8 ReentrantLock 用 AQS state、owner 与同步队列，park 前建立唤醒协议，醒来重新竞争。线程池先核心线程再队列再最大线程，因此必须同时设计队列容量、拒绝、超时。生产优化先找锁内慢 IO 和热点共享状态，再考虑公平性或分片计数。
+volatile 能让状态修改按规则被其他线程看到，但不能把 count++ 变成一个动作。锁用于保护一起完成的检查和修改，CAS 用于一个状态的原子更新。ReentrantLock 拿不到锁时由 AQS 排队，被唤醒后还要再抢。线程池要注意先 core、再队列、最后 max，所以无界队列会隐藏过载。我会先看谁持锁、谁在排队、下游完成多少，再决定改锁还是改容量。
 
 ### 2～3 分钟深入回答
 
-先用配置热更新举例说明 volatile 引用与完整快照，再用库存扣减解释为何 count++ 需要原子条件更新。接着沿 acquire 调用链说明 head 前驱、SIGNAL、取消跳过、unpark 后重新竞争；区分同步队列和 Condition 条件队列，解释 await 的释放与重新获取。最后把 JMM 安全发布连接到线程池任务提交，按 execute 三段决策说明无界队列风险，提出由 Little's Law 估算队列、压测慢依赖和监控拒绝率的治理方案。被追问性能时给出度量而非“CAS 一定快”。
+我会先把可见性和原子性分开。两个线程各执行 count++，即使 count 是 volatile，也可能都读到 0、都写回 1。volatile 更适合发布一个已构造完整的配置引用；若要检查库存并扣减，就得把这两步一起保护。
 
-回答性能时，我会区分三个瓶颈：共享缓存行争用、长持锁和排队。计数热点可以用 LongAdder 分片，但必须接受 sum 不是并发快照；业务额度仍需原子条件修改。锁竞争先查 owner 是否在 IO，不先用公平锁当万能药。等待队列要看取消节点与唤醒协议，线程池则观察到达率、完成率、队列等待和拒绝率，区分是 CPU 限制还是依赖连接不足。最后补充 shutdown 和中断不是强制停止，任务异常、取消、拒绝都要有资源回收路径。
+ReentrantLock 用 AQS 的 state 记录获取次数，再记录谁持锁。当前线程已经持有时可以重入，别人获取失败就进入同步队列。等待前设置前驱 SIGNAL，让释放方知道需要唤醒后继。醒来后仍调用 tryAcquire，不能把一次 unpark 当成锁已交给自己。Condition 则先在另一条队列等，signal 后转回同步队列，重新拿锁再检查条件。
+
+公平锁会考虑前面有没有等待者，非公平锁允许新到线程先试一下；但公平实例的无参数 tryLock 也可能插队。选型要看吞吐和最长等待，不是只看名字。高并发统计可用 LongAdder 分散写入，不过 sum 不是一个瞬间的快照，不能用于最后一张票的判断。
+
+线程池我会具体看 execute：core 不足先加线程，之后先入队，队列满才试 max。无界队列下，max 调大可能没用。如果慢数据库让任务堆积，要先限制排队和回源，给拒绝明确业务处理。CallerRuns 在普通提交线程上能减速，但放到网关事件线程上可能拖累其他请求。
+
+最后用连续线程栈、队列变化、完成率和尾延迟验证原因。锁内慢 IO、线程池父任务等子任务、真正循环死锁，需要不同改法。关闭和取消也要处理资源释放；调用方超时不代表任务已经停止。
 
 ### 高频追问、常见错误与速记
 
-高频追问：Condition 为什么用 while？tryLock 是否公平？任务内部异常由谁观察？常见错误：把 volatile 当互斥；认为公平锁绝无插队；认为 LongAdder.sum 原子；只扩大线程池而不限制数据库连接。核心知识：**发布→互斥/原子性→等待协议→容量和故障恢复**。高频源码：AbstractQueuedSynchronizer.acquire/acquireQueued/release，ReentrantLock.Sync，Striped64.longAccumulate，ThreadPoolExecutor.execute/runWorker。
+- 高频追问：Condition 为什么用 while？公平 tryLock 会不会插队？Future 里的异常谁来处理？
+- 容易答错：把 volatile 说成互斥；把唤醒说成拿锁；认为 LongAdder.sum 精确；只加线程不看连接池。
+- 常看的源码：`AQS.acquire/acquireQueued/release`、`ReentrantLock.Sync`、`Striped64.longAccumulate`、`ThreadPoolExecutor.execute/runWorker`。
+- 阅读时分清：状态是否可见、修改是否一起完成、线程怎样等待，以及过载任务去哪了。
 
 
 ## 官方资料与版本来源
 
-联网核对日期：2026-10-08。固定版本用于解释实现，不代表最新生产推荐版本。源码摘录版权见 [source-notices.txt](./source-notices.txt)，下载记录与摘要见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [AbstractQueuedSynchronizer.acquire · OpenJDK 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java)
 - [ReentrantLock.Sync.nonfairTryAcquire · OpenJDK 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java)
@@ -222,42 +264,57 @@ flowchart TD
 
 # HashMap 与 ConcurrentHashMap
 
-版本基线：OpenJDK 8u462-b08；JDK 7 的头插迁移仅作历史对照。把桶结构、线性化点和迁移协议分开理解，才能解释容量、吞吐及错误边界。
+本章看 OpenJDK 8u462-b08。读 Map 源码时，沿着“一个 key 放在哪里、冲突怎么办、扩容时怎么搬”这三个问题往下走，会比先背阈值更容易理解。
 
 ## 核心知识与原理
 
 ### HashMap 的桶、树与迁移
 
-HashMap table 的长度是 2 的幂。`(n-1)&hash` 定位桶，hash 将原 hashCode 高 16 位 XOR 到低位，改善低位分布，不是加密。Node 保存 hash、key、value、next；碰撞用链表，长链在容量满足条件时转红黑树。默认 loadFactor=0.75，threshold 是下一次扩容的 size 阈值；首次 put 才分配 table。可变 key 若改变参与 equals/hashCode 的字段，可能再也找不到原映射。
+HashMap 可以先看成一个数组。每个数组位置叫一个桶，key 的 hash 决定它进哪个桶。两个 key 落到同一个桶时，用链表串起来；碰撞太多且数组容量足够大时，再把这个桶改成红黑树。
 
-TREEIFY_THRESHOLD=8、UNTREEIFY_THRESHOLD=6、MIN_TREEIFY_CAPACITY=64 是实现阈值；“插入第 8 个元素就一定树化”不准确，要看 putVal 的计数逻辑和表容量。容量小于 64 时 treeifyBin 优先 resize。resize 从 n 变 2n，元素只可能留在 j 或移动至 j+n，由旧容量位 `hash & oldCap` 决定，链表低/高两组保留相对顺序。树桶拆分会根据各组大小决定退化为链表；普通 remove 的退树还可能根据树形判定，不能说所有路径都机械比较 6。
+数组长度是 2 的幂，因此可以用 `(n - 1) & hash` 找下标。长度为 16 时，只用到 hash 的低 4 位。如果很多 key 的差异都在高位，它们仍会挤到少数桶里。`hash()` 先做 `h ^ (h >>> 16)`，把高位信息混入低位，就是为了缓解这类碰撞。这一步无法拯救所有糟糕的 hashCode，更不是加密。
 
-JDK 7 旧实现头插迁移在并发交错时可能形成环；JDK 8 的相对顺序迁移避免了该特定机制，但仍会丢更新、错误可见性和 size 竞争。迭代器 fail-fast 是尽力发现结构变化，不是线程安全保障。读写共享 HashMap 必须通过安全发布与外部同步，否则“只有一个写线程”也不能保证读线程安全。
+默认负载因子是 0.75。长度 16 的表通常在元素数量超过 12 时扩容，但 table 是第一次 put 时才分配的。Node 保存 hash、key、value 和 next。key 放进去后，参与 hashCode 或 equals 的字段应保持稳定，否则再次查询可能算出另一个桶，原来的数据明明还在，却查不到。
+
+树化涉及三个数字：链长阈值 8、退树阈值 6、最小树化容量 64。它们不是“第 8 个元素必定成树，第 6 个必定退树”的机械规则。`treeifyBin` 发现容量不足 64 时会先扩容；具体第几次插入触发调用要看 putVal 的链长计数。扩容拆树时会看分组后的数量，而普通删除还会检查树形。
+
+JDK 7 的某些扩容交错会把链表接成环，JDK 8 改变迁移方式后解决了这一类问题。但两个线程仍可能同时写同一个桶，把对方的更新覆盖掉，size 也可能算错。所以 JDK 8 HashMap 依然不能用于没有同步保护的并发读写。fail-fast 迭代器能尽力报告修改，却不能替你保护数据。
 
 ### ConcurrentHashMap 的读写协议
 
-JDK 8 不再使用 JDK 7 的 Segment 锁数组主结构。table 的节点槽通过 Unsafe volatile 访问；get 读槽后沿 next 查找，遇到负 hash 的特殊节点交给 find。空桶插入 CAS，非空桶以桶头 f 的 synchronized 保护修改，进入后验证 f 仍是当前桶头，避免锁住过期节点。树桶用 TreeBin 管理读写协调，不是给整个表加一把锁。
+JDK 8 ConcurrentHashMap 的主体也是数组和桶，不再依靠 JDK 7 那套 Segment 数组。插入时，如果目标桶是空的，就用 CAS 放入第一个节点；如果桶已有节点，就锁住桶头，修改这个桶。拿到锁后还要确认它仍是当前桶头，因为等待期间可能发生了扩容。
 
-sizeCtl 非负时承载初始化/扩容阈值，负数可能表示初始化或编码了扩容 stamp 与参与者数量，不能笼统解释为“负数就是 -线程数”。transferIndex 把迁移区间分给线程；迁移完的旧桶放 ForwardingNode，指向 nextTable。写线程遇到 MOVED 可 helpTransfer，读线程通过 ForwardingNode.find 在新表查找；迁移最后的收尾线程发布新 table 与阈值。
+get 通常不需要取得桶锁。它通过带 volatile 语义的槽位读取，以及节点中的 volatile value、next，查找已经发布的节点。遇到普通链表就沿链走，遇到特殊节点就交给它的 find 方法。树桶由 TreeBin 管理，有自己的读写协调方式。
 
-size 基于 baseCount 与 CounterCell 累加，sumCount 不是冻结全表得到的快照；无并发更新时准确，并发期间只适合估计。size 返回 int，mappingCount 返回 long，但后者也不提供并发事务快照。null key/value 被禁止，get 返回 null 可以表达无映射。
+扩容时的难题是：搬到一半，其他线程仍在读写。CHM 的办法是在搬完的旧桶里放一个 ForwardingNode，它指向新数组。读线程遇到它就去新表找，写线程遇到 MOVED 时还可以帮助搬迁。
+
+`transferIndex` 记录还有哪些区间没分配，各线程领取不同区间，减少重复搬迁。`sizeCtl` 平时用于初始化或扩容阈值，扩容时还编码了本轮扩容标识和参与者信息，不能简单理解成一个负的线程数。最后负责收尾的线程才把新表正式发布为 table。
+
+元素数量也被分散统计：低竞争时更新 baseCount，竞争激烈时更新 CounterCell。size 把它们相加，并没有暂停全表的更新。因此没有并发修改时可以得到准确数量，修改期间应把它当作估计。mappingCount 返回 long，仍不意味着它是一份全表快照。CHM 不接受 null key 或 value，这让 get 返回 null 可以明确表示没有映射。
 
 ### 原子 API 的边界
 
-putIfAbsent 将“检查不存在并写入”放进一次容器原子操作，避免 get→put 的竞态。computeIfAbsent 对该 key 的计算/安装提供原子性，但映射函数不可递归更新本 Map，并应短小；空桶可能用 ReservationNode 占位，非空桶要锁桶，慢网络调用会阻塞碰撞 key。JDK 8 该路径对已有 key 也可能锁桶，不要把新版优化套回 JDK 8。映射函数返回 null 不建立映射，抛异常也不成功安装。它不是外部业务 exactly-once 执行框架。
+下面的写法有竞态：先 get，发现没有，再 put。两个线程可能都发现没有，各自写入。putIfAbsent 把检查和插入放在一个操作里，只有一个线程能安装自己的值。
+
+computeIfAbsent 进一步允许你在缺值时计算结果。不过，JDK 8 的某些路径会在桶锁内运行计算函数：若函数去访问一个很慢的远程接口，碰撞到同一个桶的其他 key 也会跟着等。空桶路径还可能使用 ReservationNode 占位。函数应短小，不要递归修改这个 Map；返回 null 或抛异常都不会成功安装映射，以后的调用还可能重算。
+
+缓存远程数据时，可以先用短操作安装一个 Future，再在单独的线程池里执行加载。这样仍需处理加载失败、过期和容量，不能只把一个慢操作改成无界异步任务。Map 能保证自己的单次修改，却不能保证远程调用只执行一次，也不能替两个 key 的联合修改提供事务。
 
 ### 手工推演：从 16 扩容到 32
 
-旧容量 16，hash=3 与 hash=19 都定位旧桶 3；扩容后 3&16=0 留在新桶 3，19&16=16 去桶 19。HashMap 拆低/高链时连接相对顺序；CHM transfer 可复用 lastRun 后缀并为前段建立新节点，不能说两个类迁移每条链的算法完全一样。CHM 先 setTabAt(nextTab,i,ln) 与 setTabAt(nextTab,i+n,hn)，再 setTabAt(tab,i,fwd)，读看到 forwarding 才有对应新桶可查。
+旧表长度是 16。hash=3 和 hash=19 都会进入桶 3，因为它们的低 4 位相同。扩成 32 后多用一位：`3 & 16` 是 0，所以留在桶 3；`19 & 16` 不是 0，所以移到桶 19，也就是旧下标加 16。
 
-迁移所有权由 transferIndex 区间领取提供，sizeCtl 协调参与者和收尾。线程拿到一个区间后完成该区间，遇到已经 MOVED 的桶跳过；遇到非空桶持头锁重查。业务需要多 key 原子交换时，两个 put 各自线性化仍暴露中间状态，应整体封装不可变值、外部同步或把事务放在数据库。预先容量只减少迁移，不提供更强的一致性。
+因此每个旧桶只拆成两组，元素不会散到任意新桶。HashMap 在拆链时保留每组的相对顺序。CHM 的细节略有不同：它可以复用 lastRun 后缀，并为前面部分建立新节点。共同点是，CHM 必须先发布新表中的两个桶，再把旧桶替换成 ForwardingNode。否则读线程顺着指引过去，却找不到已经迁移的内容。
+
 
 ## 源码级解析与调用链
 
-`HashMap.put → putVal → resize / treeifyBin`：先定位桶，逐节点比较 hash 以及 key identity/equals，更新已有值不会增加 size，新节点才递增 modCount 和 size。`ConcurrentHashMap.put → putVal → initTable / casTabAt / synchronized(f) → addCount → transfer`：CAS 空槽是相应插入的线性化点，链/树更新在桶锁内完成。读线程通过 volatile 链接和 value 看到发布的节点；弱一致遍历不会抛 ConcurrentModificationException，但不保证同一时刻视图。
+先看 `HashMap.hash` 为什么混高位，再看 CHM 的 `putVal` 怎样分空桶、迁移桶和普通桶。`transfer` 则是搬迁主循环，它最重要的顺序是先放新桶，后放旧桶的路标。
+
+HashMap 完整插入入口是 putVal，扩容入口是 resize，树化入口是 treeifyBin。更新已有 key 不会增加 size，新增节点才算一次结构修改。CHM 的遍历允许并发变化，通常不抛 ConcurrentModificationException，也不保证一次完整快照。
 
 
-**源码原文连续节选：HashMap.hash · OpenJDK 8u462-b08 · L338–L341**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/HashMap.java#L338-L341)）。
+<div class="source-caption"><code>HashMap.hash</code><span>OpenJDK 8u462-b08 · L338–L341 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/HashMap.java#L338-L341">完整源码</a></span></div>
 
 ```java
     static final int hash(Object key) {
@@ -266,8 +323,11 @@ putIfAbsent 将“检查不存在并写入”放进一次容器原子操作，�
     }
 ```
 
+null key 的 hash 是 0。其余 key 先保存 hashCode，再把高 16 位右移与原值异或。最后桶下标仍由 table 长度决定。
 
-**源码原文连续节选：ConcurrentHashMap.transfer · OpenJDK 8u462-b08 · L2435–L2456**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2435-L2456)）。
+
+
+<div class="source-caption"><code>ConcurrentHashMap.transfer</code><span>OpenJDK 8u462-b08 · L2435–L2456 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2435-L2456">完整源码</a></span></div>
 
 ```java
                                 }
@@ -294,8 +354,11 @@ putIfAbsent 将“检查不存在并写入”放进一次容器原子操作，�
                         }
 ```
 
+ln 和 hn 是拆出的两组。最后三次 setTabAt 先写新表两槽，后写旧槽 fwd；这就是读线程能安全跟着 ForwardingNode 去找新桶的原因。前面的 lastRun 用于复用可用的链表后缀。
 
-**源码原文连续节选：ConcurrentHashMap.putVal · OpenJDK 8u462-b08 · L1008–L1037**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L1008-L1037)）。
+
+
+<div class="source-caption"><code>ConcurrentHashMap.putVal</code><span>OpenJDK 8u462-b08 · L1008–L1037 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L1008-L1037">完整源码</a></span></div>
 
 ```java
 
@@ -330,6 +393,8 @@ putIfAbsent 将“检查不存在并写入”放进一次容器原子操作，�
                                     if (!onlyIfAbsent)
 ```
 
+桶空时 casTabAt 安装第一个 Node；看到 MOVED 时帮扩容；其他情况才 synchronized(f)。进入锁后重新比较当前槽和 f，避免用过时桶头修改。
+
 
 ```mermaid
 flowchart LR
@@ -354,89 +419,110 @@ flowchart TD
 ## 面试官三层追问
 
 ### 1. 为什么用 2 的幂容量和 hash 扰动？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**位与替代取模，扩容时利用单个位决定迁移目的地；扰动把高位信息混到低位，减少某些 hashCode 分布的集中。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**hash 为 h XOR (h>>>16)，resize 按 oldCap 位拆链，既不重新调用用户 hashCode，也不必对每个元素做完整重新定位。恶劣 hashCode 仍可能制造碰撞。
+长度为 2 的幂时，可以用位与取下标，扩容也只需看新增的一位。扰动把 hashCode 的高位混到低位，避免只看低几位时一些 key 都进同一个桶。
 
-**第三层：**提前估算容量可减少迁移峰值，但过度预分配增加内存和遍历成本。外部输入场景要考虑碰撞攻击与 key 质量，不只盯平均 O(1)。
+**扩容为什么不用重新算 hashCode？** 节点已经保存扰动后的 hash。长度翻倍时检查 hash & oldCap，就能决定留在原下标还是移到原下标加 oldCap。完整 hash 不需要重算。
+
+**容量怎么定？** 预估元素数量和负载因子，减少峰值期间迁移。过度预分配也占内存、拖慢某些遍历。若用户 key 的 hashCode 本身很差，还要检查分布和碰撞，不能只扩容。
 </details>
 
 ### 2. 树化阈值是 8，为何有时仍是链表？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**容量不足 64 时优先扩容，因为碰撞可能来自当前桶数太少。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**putVal 的 binCount 从遍历位置计算，treeifyBin 的调用条件与插入前链长有关。树查找涉及 Comparable 判断和 tieBreakOrder，不能把每种 key 的所有路径都简化为严格 logN。
+桶里链表较长时会考虑树化，但表长度不足 64 时优先扩容。较小的表里碰撞多，可能只是桶太少，扩容后就分开了，没有必要立即换更重的树节点。
 
-**第三层：**评估 key.hashCode 分布和内存成本；树节点比链节点重，树化是退化保护，不是鼓励故意制造碰撞。通过分布直方图而非仅 size 判断质量。
+**8 和 6 是怎么用的？** putVal 的链长计数决定何时调用 treeifyBin，不能直接说第 8 个一定树化。扩容拆树时有数量判定，普通删除也会考虑树形；不同路径要分开读。
+
+**树化是不是性能优化首选？** 它主要保护碰撞严重时的表现。先改善 key 的分布。不可比较的 key 在某些树查找路径也有额外代价，不应把所有情况都简化成固定 logN。
 </details>
 
 ### 3. JDK 8 HashMap 没有迁移环，还安全吗？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不安全；解决一种历史死循环原因不等于增加线程同步。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**多个 put 可能同时认为桶空而相互覆盖，size++ 非原子，resize 与读写缺乏 happens-before。modCount 和 fail-fast 也没有互斥功能。
+仍不安全。JDK 8 避免了旧迁移方式产生环的一类问题，但没有给 HashMap 增加并发写保护。两个 put 仍可能覆盖，读也没有自动获得需要的发布保证。
 
-**第三层：**配置快照可构建 HashMap 后通过 volatile 引用发布并禁止修改；动态共享映射采用 CHM，但跨 key 不变量仍需业务锁或数据库事务。关联阅读：<a href="#c1">JMM</a>。
+**具体会错在哪里？** 两线程都看到空桶并分别写入，后写者可能覆盖前写者；size 的增量也不是原子操作。modCount 和 fail-fast 只是尝试发现结构变化，不会互斥地保护数据。
+
+**只读配置能用吗？** 可以先在单线程中构建，安全发布完整引用，并确保之后不修改。动态共享更新可用 CHM，不过多个 key 一起变化的业务规则仍要另加保护。
 </details>
 
 ### 4. CHM 扩容期间 get 会不会漏数据？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**迁移通过旧桶 ForwardingNode 把查找引导到新表，使迁移阶段仍可读。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**transfer 持桶锁拆低/高链，先发布新表槽，再把旧槽替换为 forwarding；空旧槽也会被标记。读线程遇到 MOVED 通过 find 继续查找，不是必须等待所有扩容完成。
+迁移完的旧桶会变成 ForwardingNode，告诉读线程到新表继续找。因此 get 不必等全表搬完。还没迁移的桶仍按原来的结构查询。
 
-**第三层：**单 key 操作有容器的并发保证，但两次 get 之间仍可发生业务修改，不能假定批量一致。容量规划避免峰值请求时频繁扩容，测 CPU、分配率和 p99。
+**发布顺序有什么讲究？** transfer 先在 nextTable 放好低、高两组，再把旧槽放成 forwarding。写线程遇到 MOVED 可协助迁移，读通过 find 转到新表。不能先给路标，再迟迟没有目的数据。
+
+**两次 get 能保证一起吗？** 不能。每次查询正常，不代表两次之间没人修改。需要多 key 一致状态时，应保存一个整体不可变对象、用外部同步或数据库事务。容量预估只是减少迁移成本。
 </details>
 
 ### 5. computeIfAbsent 能用来加载远程数据吗？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**可以执行映射函数，但慢 IO 不宜放在其中；它会阻塞其他相同 key 或碰撞桶的更新。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**JDK 8 使用 ReservationNode 和桶锁等机制保证安装的原子性，函数不能递归更新 Map。异常和 null 会让以后调用再次计算，不能保证外部副作用只执行一次。
+可以写，但不适合把慢远程 IO 直接放进去。JDK 8 的部分路径会在桶锁内运行函数，同桶其他 key 也会被拖慢。映射函数最好快速完成。
 
-**第三层：**将 Map 值设计为快速安装的 Future/加载占位，实际 IO 使用有界执行器，失败移除时使用 remove(key, sameFuture)，配合超时和容量上限；优先采用成熟缓存库的加载协议。
+**会不会只执行一次外部动作？** 返回 null 或抛异常不会安装映射，后续可能重算；删除后也可能再加载。ReservationNode 与锁保护的是 Map 操作，不是远程付款等副作用。也不要在函数中递归修改 Map。
+
+**如何改加载？** 用短操作安装 Future，加载交给有界执行器。失败清理用 remove(key, 同一个Future)，免得删掉后来新装的值。还要处理超时、过期和缓存总量。
 </details>
 
 ### 6. size 能作为并发限流依据吗？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不能把 `size() < limit` 后 put 当成原子检查与修改，两线程都可通过判断。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**sumCount 对 baseCount 和 CounterCell 求和没有锁住写线程，结果是估计。即使某次读取准确，下一次 put 前条件也可能已变化。
+不能。两个线程都可能在 size() 小于上限时通过，然后分别插入。即使 size 读取完全准确，检查和插入之间仍会有竞态。
 
-**第三层：**容量准入使用 Semaphore、独立原子计数的 CAS 条件操作，或把额度与插入放在同一同步协议中。失败、取消、过期必须释放额度，避免 Map 和计数不一致。
+**为什么并发 size 还是估计？** sumCount 分别读 baseCount 和 CounterCell，其他线程并没有停下来。mappingCount 用 long 解决表达范围，不提供一份冻结的全表快照。
+
+**限额用什么？** 用 Semaphore 或原子条件计数控制准入，并处理失败、取消和过期时的释放。若计数与 Map 插入分离，也要确保失败后两边不会永远不一致。
 </details>
 
 ## 模拟生产案例：缓存加载造成桶级阻塞
 
-**故障现象：**服务使用 computeIfAbsent 加载用户画像，下游超时后无关用户也出现长延迟。**排查思路：**比较多个线程栈的阻塞 Monitor 地址，采样 key hash 与 CHM 桶分布，排除全局线程池满。**原理分析：**映射函数在 JDK 8 桶锁路径内调用，碰撞 key 共享等待点。**根因与验证证据：**模拟 key 固定 hashCode，一个慢加载线程持有 Node Monitor，其他不同 key 停在 computeIfAbsent；修改 key 哈希只能减少概率，将 IO 移出锁后才消除长持锁。**解决方案：**短操作安装 Future，占位与完成分离，失败按值身份删除，设置下游超时。**长期预防：**缓存大小上限、加载并发隔离、哈希分布和尾延迟压测；热点 key 使用同 key single-flight，但不能把跨 key IO 串行化。
+画像缓存用 computeIfAbsent 调远程接口，一个接口超时后，一些不同用户的加载也突然变慢。这是模拟情境，重点检查是否误把远程调用放进了桶锁。
+
+先比较阻塞线程的 Monitor 地址和调用栈，再检查 key 的 hash 分布。若多个不同 key 碰撞到同一桶，应该能看到一个线程在映射函数里等网络，其他线程等同一个 Node Monitor。线程池总体有余量，也不排除这种局部阻塞。
+
+改成快速安装加载 Future，再由有界执行器做 IO。失败时只删除自己安装的那个 Future，设置超时与缓存上限。改善 hashCode 能减少碰撞，但不能代替移出慢操作。
+
+可在测试中使用固定 hashCode 的 key 和慢加载器对照：改后不同 key 不再因为桶锁一起等，重复同 key 仍按预定方式合并。以后测试热点和碰撞，不只测试均匀随机 key。
 
 ## 面试回答与核心总结
 
 ### 60 秒快速回答
 
-JDK 8 HashMap 是数组、链表、红黑树，按 2 的幂定位，扩容按旧容量位拆成两组；容量不足 64 时树化会先扩容。它仍然并发不安全。CHM 空桶 CAS、非空桶锁桶，读通过 volatile 节点与 ForwardingNode 在扩容时继续查找；transferIndex 支持多线程协作。size 是并发估计，computeIfAbsent 应避免慢 IO 和递归修改，容器原子性不等于业务事务。
+HashMap 用数组找桶，碰撞用链表，长链且容量足够时换树。扩容翻倍后只需看旧容量那一位，决定留原桶还是加旧容量。JDK 8 HashMap 仍不适合无同步并发写。CHM 空桶 CAS、有节点时锁桶，搬完的旧桶放 ForwardingNode，读去新表找、写可帮忙搬。size 是并发估计，computeIfAbsent 不适合慢 IO；单个 Map 操作正确，也不等于多个业务步骤有事务。
 
 ### 2～3 分钟深入回答
 
-从一个 key 的 put 讲 hash 扰动、桶定位和相等判断，再手算 n=16 时 hash 的第 5 位如何决定迁移到 j 或 j+16。解释树化同时受链长和容量限制，JDK 7 环与 JDK 8 丢更新是不同风险。随后沿 CHM.putVal 讲 initTable、空槽 CAS、锁头校验、addCount 和迁移触发，说明 nextTable、transferIndex、ForwardingNode 的发布顺序。结尾用慢 computeIfAbsent 案例指出性能边界，并给出异步占位、失败清理和容量控制。
+我会从一个 put 讲起。HashMap 先扰动 hash，把高位信息混到低位，再用长度减一做位与定位桶。桶空就插入，有节点就比较 key，相同则更新，否则追加。链长到触发条件时还要看容量，表不足 64 会先扩容，不是背一个 8 就结束。
 
-如果面试官问一致性，我会明确 CHM 的原子 API 覆盖单 key 操作，不覆盖多个 key 的业务不变量。size 只是并发估计，先检查容量再插入会竞态；映射函数也不能承担外部副作用恰好一次。生产场景中先找 key 分布、桶锁持有时间与扩容热点，慢加载用快速安装 Future 再隔离 IO，失败按值身份清理。这个方案仍要有容量和超时，避免缓存加载从锁竞争变成无界 Future 队列。
+扩容可以手算：旧长度 16，hash 3 和 19 都在桶 3。长度变 32 后，3 的新增位是 0，仍在 3；19 的新增位是 1，去 19。HashMap 拆链保留分组内相对顺序，解决了旧头插迁移形成环的一类问题，但没有增加并发保护，覆盖写和 size 错误仍可能发生。
+
+CHM 的空槽用 CAS 安装，非空桶锁住头节点后重查，防止等待期间桶已经变化。读取通过带 volatile 语义的槽和链接查找。扩容先把新桶放好，再在旧桶放 ForwardingNode；读者沿它转向新表，写者还可以协助。transferIndex 分配搬迁区间，最后收尾发布新 table。
+
+计数用 baseCount 和 CounterCell 分散更新，size 求和没有暂停其他线程，所以不能先 size 小于限额再插入。computeIfAbsent 也只负责映射操作，慢计算可能挡住同桶 key，失败还可能再次计算，不能借它保证付款只执行一次。
+
+实际做缓存，我会检查 key 是否稳定、hash 分布、加载耗时和容量。需要多 key 一起变化时另设计同步或数据库事务；加载 IO 则与快速安装占位分开，并测试超时、失败和旧任务清理。
 
 ### 高频追问、常见错误与速记
 
-高频追问：为什么不能放 null？为什么 key 必须稳定？扩容时谁发布新 table？常见错误：CHM“完全无锁”；负 sizeCtl“就是线程数”；size 与 put 组成限额；把 computeIfAbsent 当业务去重。高频源码：HashMap.hash/putVal/resize/treeifyBin，ConcurrentHashMap.putVal/transfer/helpTransfer/addCount/sumCount/computeIfAbsent。核心知识：**桶定位→发布与锁→协作迁移→单操作与业务边界**。
+- 高频追问：为什么 CHM 不接受 null？扩容什么时候发布新表？key 改了为什么查不到？
+- 容易答错：CHM 完全无锁；负 sizeCtl 就是负线程数；HashMap 没环就线程安全；映射函数外部副作用只执行一次。
+- 常看的源码：`HashMap.hash/putVal/resize/treeifyBin`、`ConcurrentHashMap.putVal/transfer/helpTransfer/addCount/sumCount/computeIfAbsent`。
+- 阅读时分清：放入一个 key 的过程，与同时改变多个业务值的过程。
 
 
 ## 官方资料与版本来源
 
-联网核对日期：2026-10-08。固定版本用于解释实现，不代表最新生产推荐版本。源码摘录版权见 [source-notices.txt](./source-notices.txt)，下载记录与摘要见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [HashMap.hash · OpenJDK 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/HashMap.java)
 - [ConcurrentHashMap.transfer · OpenJDK 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java)
@@ -446,56 +532,69 @@ JDK 8 HashMap 是数组、链表、红黑树，按 2 的幂定位，扩容按旧
 
 # JVM 内存管理、CMS 与 G1
 
-版本基线：HotSpot OpenJDK 8u462-b08。JDK 8 服务端默认收集器通常为 Parallel GC，G1 需显式选择；不要把 JDK 9 的默认 G1 或更新版本的并行 Full GC 套回本章。
+本章限定 HotSpot 8u462-b08。JDK 8 服务端通常默认使用 Parallel GC；以下 CMS 和 G1 的流程，需要按实际启动参数选择。尤其注意：这里的 G1 Full GC 仍是单线程实现。
 
 ## 核心知识与原理
 
 ### 内存、对象分配与安全点
 
-线程私有区域包括程序计数器、Java 虚拟机栈和本地方法栈；共享区域包括堆和方法区。JDK 8 HotSpot 用本地内存中的 Metaspace 实现类元数据存储，字符串常量池中的字符串对象在堆中；不是所有“方法区相关数据”都在 Metaspace。对象可能通过逃逸分析和标量替换消除分配，不能保证每个 new 都产生可观察的堆对象。
+一次请求创建了很多临时对象，请求结束后却不一定立即释放内存。Java 不在对象离开方法时逐个 free，而是在 GC 时判断它们还能不能被访问到。理解这一点，就能区分“还没回收”和“始终回收不掉”。
 
-普通小对象优先在 Eden 分配，TLAB 为线程提供局部 bump-pointer 分配区域，减少共享指针竞争；TLAB 本身仍是堆空间，不是线程私有堆外内存。TLAB 失败可以走慢路径，在堆上分配或触发 GC。晋升受年龄、Survivor 容量、动态年龄及收集器政策影响，不一定熬到固定年龄。G1 的 Humongous 对象在超过半个 Region 时使用连续 Region，存在空间与碎片代价，不能只看总空闲字节。
+对象主要在堆中。线程栈保存方法执行需要的局部变量、返回信息等，每个线程有自己的栈；程序计数器和本地方法栈也与线程有关。JDK 8 的类元数据主要放在本地内存中的 Metaspace，字符串对象仍在堆里。方法区是 JVM 规范中的概念，不能把它和某一块具体内存简单画等号。
 
-可达性从 GC Roots 沿引用图遍历，Roots 包括线程栈、JNI handle 和活跃类相关引用等；对象互相引用但整体不可达仍可回收。安全点保证线程状态可被 GC 正确识别，并非在任意指令处随意停止。STW 时间还可能包含到达安全点的等待，诊断需区分进入停顿与 GC 工作时间。
+普通小对象常在 Eden 分配。为了避免每个线程分配时都争抢同一个指针，JVM 会给线程一小块 TLAB，让它在里面快速分配。TLAB 仍属于堆，只是暂时由该线程负责分配；里面的对象照样可以交给其他线程。空间不够时再申请 TLAB 或走慢路径。JIT 还可能通过逃逸分析和标量替换消除某些分配。
+
+Young GC 会把存活对象移到 Survivor，或晋升到老年代。什么时候晋升既看年龄，也看 Survivor 剩余空间和具体收集器策略，因此不能只背一个固定年龄。G1 中超过半个 Region 的对象属于 Humongous，通常需要连续 Region；大数组会带来特别的空间压力。
+
+GC 从 Roots 开始寻找可达对象，例如线程栈中的引用、JNI handle 和活跃类相关引用。两个对象互相引用，但没有任何 Roots 能到达它们，仍可一起回收。为了准确读取线程状态，JVM 需要让线程到达安全点。一次长停顿既可能花在回收工作上，也可能花在等待线程到达安全点上，日志分析时要分清。
 
 ### CMS：并发并不意味着无停顿
 
-CMS 主要回收老年代，Young 通常搭配 ParNew。初始标记 STW 建立起点；并发标记跟应用同时执行；预清理减少最终重新标记工作，可中止预清理尝试避开不利时机；重新标记 STW 修正并发期间变化；并发清扫回收空闲块；重置准备下一轮。CMS 是标记清扫，正常周期不整理内存，会有碎片。并发时产生浮动垃圾，必须给应用分配和晋升留余量。
+CMS 主要处理老年代，年轻代通常搭配 ParNew。它希望把大部分工作与应用同时执行，减少连续暂停的时间。大致过程是：暂停做初始标记，恢复应用并发标记，预清理一部分变化，再暂停做重新标记，最后并发清扫和重置。
 
-Concurrent Mode Failure 通常说明并发回收跟不上分配/晋升，或者可用块不足等，使 CMS 被迫转入前台回收路径；Promotion Failed 是 Young 搬迁晋升时失败，两个日志术语有联系但不应混为一谈。应同时看老年代占用、碎片、分配速率、CMS 起始点、CPU 和日志触发原因，而不是把所有 Full GC 都归咎于触发阈值。增加 CMS 并发线程会争抢应用 CPU，阈值降低也可能增加回收频率。
+为什么还要重新标记？因为应用在并发标记期间继续改引用：原来没有被扫描到的对象可能变得可达，已经扫描的对象也可能连上新对象。CMS 需要借助写屏障、卡信息等补齐工作，最终在重新标记时确认哪些对象不能回收。
+
+CMS 正常周期采用标记清扫，不把所有存活对象搬到一起。清出的空间像大小不同的空隙，可能有碎片；标记期间后来才变成垃圾的一部分对象，也要留到下一轮，这叫浮动垃圾。应用仍在分配和晋升，所以不能等老年代快满了才启动。
+
+如果并发回收来不及提供空间，就可能出现 Concurrent Mode Failure，转入前台回收，停顿明显变长。Young GC 晋升失败的 Promotion Failed 是另一种日志现象，二者可能相关，但不是同一个名称的两种写法。排查时要同时看分配速度、CMS 周期、可用空间和碎片，而不是看到 Full GC 就改一个阈值。
 
 ### G1：Region、RSet 与 SATB
 
-G1 把堆划成等大小 Region，Eden、Survivor、Old 是动态角色。Card Table 用较粗的卡标识发生引用更新的区域，RSet 记录哪些其他区域可能指向当前 Region，使回收选定集合时无需扫描全堆；RSet 不是“当前 Region 引用别处”的完整精确列表。维护与 refinement 会消耗 CPU 和内存。
+G1 把堆切成等大的 Region。同一块 Region 可以在不同阶段担任 Eden、Survivor 或 Old。Young GC 暂停应用，将选中区域里的存活对象复制出去，原区域随后可以整体复用。
 
-Young GC 是 STW evacuation，把存活对象复制到 Survivor 或 Old。并发标记使用 SATB 保留标记开始时快照的可达性：写前屏障记录被覆盖的旧引用，不是记录新引用来构造最新快照。初始标记一般搭在一次 Young 停顿上，随后 root region scan、并发标记、STW remark、cleanup；cleanup 部分工作停顿、部分并发。Mixed GC 在完成标记后选择 Young 与一部分收益高的 Old Region，不等于回收全部 Old。
+只回收部分 Region 时，怎么知道外面的对象还引用着里面？RSet 保存来自其他区域的引用信息，帮助 GC 找到这些入口。Card Table 用较粗的卡片粒度标记发生引用更新的位置，后台 refinement 再整理相关信息。因此 RSet 不是一张精确的全堆引用图，维护它也需要 CPU 和内存。
 
-G1 用历史成本估计回收集合，在 `MaxGCPauseMillis` 目标和回收收益之间选择 Region；目标不是硬实时 SLA。RSet 扫描、存活复制、巨型对象和 CPU 不足都可能使预测失准。to-space exhausted 表示 evacuation 目的空间不足，失败处理增加成本，严重情况下退化 Full GC；JDK 8 G1 Full GC 是单线程的整理路径，应避免套用较新版本并行 Full GC。部分 8u 更新对巨型对象回收等有差异，判断具体日志必须固定更新号。
+G1 的并发标记使用 SATB。假设 A 原来指向 B，标记开始后应用把这个引用清掉；若 GC 还没扫描到 B，就可能错过标记开始时它仍可达的事实。写前屏障会记录被覆盖的旧引用，帮助保留这份开始时的快照。记住“旧引用”比只背三色标记更能解释这段代码。
+
+初始标记通常搭在一次 Young 停顿里，随后进行 root region scan 和并发标记，再暂停做 remark，并做 cleanup。标记结果告诉 G1 哪些 Old Region 垃圾多、回收划算。之后的 Mixed GC 同时回收 Young 和部分 Old，分几次完成，避免一次把所有 Old 都搬完。
+
+`MaxGCPauseMillis` 是希望达到的目标。G1 根据历史扫描、复制耗时估计本次该选多少 Region，但对象存活率、RSet 大小、CPU 配额都可能改变实际成本，所以它不能保证每次严格按时结束。to-space exhausted 表示搬迁目的空间不够，失败处理会增加工作，严重时可能进入 JDK 8 的单线程 Full GC。
 
 ### CMS 与 G1 的选择
 
-|维度|CMS（JDK 8）|G1（JDK 8）|
+|问题|CMS（JDK 8）|G1（JDK 8）|
 |---|---|---|
-|主要布局|连续分代，老年代 free-list|分区，代角色可变|
-|正常老年代回收|并发标记清扫，不压缩|并发标记后 STW 分批 evacuation|
-|典型风险|浮动垃圾、碎片、并发模式失败|RSet 成本、目的空间不足、Humongous|
-|停顿目标|通过提前回收与并发降低停顿|预测模型选择回收集合，软目标|
-|适用判断|已有成熟调优且堆/分配较稳定|较大堆、需要分批回收老年代，但仍须压测|
+|老年代怎样腾空间？|并发标记后清扫空块，正常周期不整理|标记后分批选择 Region，在暂停中复制存活对象|
+|主要怕什么？|回收跟不上分配、浮动垃圾、碎片|搬迁空间不足、RSet 成本、大对象占连续区域|
+|该看哪些数据？|并发周期、晋升速度、重标记与失败日志|Young/Mixed 耗时、存活字节、Humongous、标记启动时间|
 
-收集器选择要基于真实存活率和停顿预算。不能承诺“换 G1 自动解决内存泄漏”；泄漏根引用必须在<a href="#c4">OOM 排查</a>中处理。
+已有 CMS 系统是否值得换 G1，要用相同流量和数据量测试暂停、吞吐与 CPU。换收集器不会让仍被静态集合引用的对象消失；这种问题需要去看<a href="#c4">对象是谁持有的</a>。
 
-### 调优推演：空间预算比单个阈值更重要
+### 回收来得及吗？算一遍新增内存
 
-假设 CMS 一轮并发周期 4 秒，峰值晋升/老年代分配速率 200MB/s，至少需要考虑这段时间约 800MB 的新增压力，再留浮动垃圾和突发余量；这不是精确参数公式，而是检查“启动时还剩 300MB 为什么来不及”的容量逻辑。CPU 被容器限额压低时周期拉长，同一堆配置也会失败。G1 则同时考虑标记启动至 Mixed 释放空间期间的增长，以及下一次 evacuation 的目的空间，不能只用 Old 占比做一个阈值。
+假设 CMS 一轮并发周期要 4 秒，应用每秒向老年代新增 200MB。回收完成前，应用大约还要用掉 800MB。如果启动时只剩 300MB，就很容易来不及。这个算例不能直接算出最佳参数，但能解释为什么“使用率还没到 100%”也会退化。
 
-验证采用同负载、同 CPU 配额、同存活数据集对照，逐次只改有证据的参数。把 Young 停顿、remark、Mixed、Full、safepoint 等分开统计；更频繁的短停顿可能降低单次 p99 却提高总 GC CPU。调参记录应包含 JVM 命令行、更新号、Region 大小、负载分布与日志，防止版本或容器容量变化被误判为参数收益。
+G1 也要给并发标记期间的增长、后续 Mixed 和下一次对象搬迁留空间。调低暂停目标可能缩小 Young、增加回收次数，单次暂停变短，总 GC CPU 却上升。每次调整都应保留 JVM 更新号、启动参数、CPU 配额和相同负载下的日志，分别比较 Young、remark、Mixed、Full GC，而不是只比较一次最长停顿。
+
 
 ## 源码级解析与调用链
 
-CMS 的 `CMSCollector::collect_in_background` 按状态推进 InitialMarking、Marking、Precleaning、AbortablePreclean、FinalMarking、Sweeping、Resizing/Resetting 等路径，并在需要 STW 的阶段交给 VM operation。G1 的 `G1CollectedHeap::do_collection_pause_at_safepoint` 负责 evacuation pause 主过程，`G1CollectorPolicy` 估计成本并选择集合，`ConcurrentMark` 维护并发标记，`G1SATBCardTableModRefBS` 关联屏障。GC 算法实际在 HotSpot C++ 层，不能只引用 Java System.gc 当源码分析。
+GC 主过程在 HotSpot 的 C++ 中。CMS 看 `CMSCollector::collect_in_background` 的状态推进，再找每个暂停阶段提交的 VM operation。G1 看 `do_collection_pause_at_safepoint`，并结合 G1CollectorPolicy 的选区预测。
+
+下面两个片段只是入口。并发标记还要看 ConcurrentMark，SATB 屏障涉及 G1SATBCardTableModRefBS。读入口时先确认哪些工作要求安全点，再追实际标记、扫描和复制；仅看 System.gc 的 Java 调用无法解释这些阶段。
 
 
-**源码原文连续节选：CMSCollector::collect_in_background · HotSpot 8u462-b08 · L2256–L2274**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp#L2256-L2274)）。
+<div class="source-caption"><code>CMSCollector::collect_in_background</code><span>HotSpot 8u462-b08 · L2256–L2274 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp#L2256-L2274">完整源码</a></span></div>
 
 ```cpp
 void CMSCollector::collect_in_background(bool clear_all_soft_refs, GCCause::Cause cause) {
@@ -519,8 +618,11 @@ void CMSCollector::collect_in_background(bool clear_all_soft_refs, GCCause::Caus
       _collectorState = InitialMarking;
 ```
 
+入口先串行协调一次 CMS 周期，并准备老年代相关状态。真正分阶段的工作在后续状态循环中；这个片段不能单独证明所有阶段都没有停顿，要继续读 InitialMarking 和 FinalMarking 的 VM 操作。
 
-**源码原文连续节选：G1CollectedHeap::do_collection_pause_at_safepoint · HotSpot 8u462-b08 · L3972–L3990**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp#L3972-L3990)）。
+
+
+<div class="source-caption"><code>G1CollectedHeap::do_collection_pause_at_safepoint</code><span>HotSpot 8u462-b08 · L3972–L3990 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp#L3972-L3990">完整源码</a></span></div>
 
 ```cpp
 bool
@@ -544,10 +646,12 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
 
 ```
 
+方法直接要求当前处于安全点，并禁止 GC 重入。这里就是一次暂停的入口，后面计时和扫描才开始；不能把 G1 的整个过程都称作后台执行。
+
 
 ```mermaid
 flowchart TD
- A["Young / 老年代压力触发"] --> B["CMS 初始标记 STW"]
+ A["开始回收老年代"] --> B["CMS 初始标记 STW"]
  B --> C["并发标记"]
  C --> D["预清理 / 可中止预清理"]
  D --> E["重新标记 STW"]
@@ -573,89 +677,110 @@ flowchart TD
 ## 面试官三层追问
 
 ### 1. TLAB 会不会导致线程间对象无法访问？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不会。TLAB 是线程分配区域，分配出的对象仍在共享堆中，发布后可被其他线程引用。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**线程通过局部分配指针减少全局同步，剩余空间不足时 refill 或走慢路径。TLAB 所有权是分配机制，不是对象生命周期与可见性机制。
+不会。TLAB 是堆里暂时分给线程的一块分配空间，目的是减少分配指针竞争。对象分配完后，仍然可以由其他线程引用。
 
-**第三层：**高分配场景看分配速率、TLAB waste 与 GC 成本；跨线程传递仍需 JMM 安全发布。盲目关闭 TLAB 可能增加竞争，应以压测证明。
+**用完 TLAB 怎么办？** 线程尝试申请下一块，或走慢分配路径，必要时触发 GC。TLAB 的分配所有权和对象能否被其他线程看见是两件事，发布仍要遵守 JMM。
+
+**性能上怎么观察？** 看分配速度、TLAB waste 和 GC 时间。如果只是跨线程传对象，不需要关 TLAB；盲目关闭反而可能增加分配竞争。
 </details>
 
 ### 2. CMS 为什么重新标记，为什么产生浮动垃圾？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**并发标记中应用改变引用，需要最后修正；已标记对象后来变成垃圾，本轮通常无法全部识别，所以留到下一轮。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**CMS 利用写屏障和卡标记等补充变化，FinalMarking 停顿处理未完成的标记工作。它不使用 G1 的同一套 SATB 协议，不能机械套一个三色描述。
+并发标记时应用仍在改引用，CMS 需要重新检查这期间产生的变化，所以有重新标记暂停。有些已经标记的对象随后才变成垃圾，这轮仍可能留下，形成浮动垃圾。
 
-**第三层：**老年代不能等接近满才启动；根据晋升速率×周期时间预留空间。remark 长要看 Young 状态、脏卡和引用处理，不应只调一个起始阈值。
+**CMS 与 SATB 一样吗？** CMS 通过自身写屏障、卡记录等完成补充标记；G1 的 SATB 保留旧引用快照是另一套具体机制。不能只画同一张三色图，就当两者源码相同。
+
+**空间该留多少？** 看并发周期有多长，期间还会分配和晋升多少。重标记慢还要检查脏卡、年轻代状态和引用处理，不能只调老年代开始回收的百分比。
 </details>
 
 ### 3. Concurrent Mode Failure 如何定位？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**并发 CMS 无法及时释放足够可用空间，应用需要分配时退化到前台回收，导致长停顿。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**核对日志触发原因、并发周期耗时、老年代 free-list/碎片和 Young 晋升。总空闲空间足够却缺合适块，也可能出现分配问题。
+先确认日志里的 Concurrent Mode Failure，说明 CMS 并发期间没能及时提供所需空间，可能转入前台回收。它和 Young 晋升失败的 Promotion Failed 要分别看。
 
-**第三层：**先消除突发分配和泄漏，再评估提前触发、CPU 预算或 G1 迁移。恢复动作限流并留诊断证据，不能每次重启后宣称已修复。
+**哪些数据帮助区分？** 比较老年代增长、CMS 周期和启动位置，检查碎片及分配需求。总剩余空间不少却没有合适空块，也可能失败。容器 CPU 变少还会拖长并发周期。
+
+**怎样恢复和修复？** 先限流、保留日志，减少突发分配。再根据证据考虑提前启动、增加合理余量或迁移 G1；若存活对象持续增长，仍要查持有者。重启只说明暂时腾出空间。
 </details>
 
 ### 4. G1 的 RSet 和 SATB 有何区别？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**RSet 帮助选定 Region 回收时查找外部入引用；SATB 保障并发标记过程中快照可达性，两者目标不同。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**SATB 写前记录旧引用，卡屏障及 refinement 维护跨 Region 引用信息。RSet 的精度和成本受卡粒度影响，不能说它是完整对象引用图。
+RSet 帮助回收某些 Region 时找到外部指向它们的引用；SATB 帮助并发标记记住开始时还可达的对象。一个解决局部扫描，一个解决标记期间引用变化。
 
-**第三层：**大量跨代/跨 Region 引用可能提高 remembered set 扫描成本；标记与扫描耗时应分别诊断。改变对象布局和减少长寿命容器持短命对象比随机调 Region 大小更有依据。
+**屏障记录什么？** SATB 写前记录被覆盖的旧引用；卡记录和 refinement 帮助维护跨 Region 的引用信息。RSet 粒度与卡有关，并非逐对象的精确全引用图。
+
+**耗时高怎样查？** remembered set 扫描与并发标记分开看。长寿命大容器反复指向短命对象，会提高相关工作量。先看对象布局和引用变化，再决定是否调 Region 参数。
 </details>
 
 ### 5. Mixed GC 是否等于 Full GC？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不是。Mixed 分批回收 Young 和部分 Old；Full GC 扫描整理整个堆，是不同路径。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**Mixed 根据标记结果、存活率与暂停预算选择 Old Region。JDK 8 G1 Full GC 单线程，目的空间失败等问题可能使它发生，不能拿新 JDK 的实现解释。
+不是。Mixed 只在一次暂停里回收 Young 和选中的一部分 Old，通常分多轮完成。Full GC 是全堆的另一条路径。
 
-**第三层：**要看 Mixed 是否真正释放容量、标记是否启动过晚、Humongous 是否占据连续空间；通过存活字节和复制成本判断收益，不只数 GC 次数。
+**为什么不一次回收全部 Old？** G1 根据标记结果、存活率和预计成本选 Region，避免一次搬太多存活对象。JDK 8 Full GC 仍是单线程，不能拿较新 JDK 的并行实现解释。
+
+**出现 Full GC 看什么？** 看标记是否太晚、目的空间是否不足、Humongous 是否占连续区域，以及 Mixed 真正释放多少。GC 次数少不等于空间回收有效。
 </details>
 
 ### 6. 如何制定 GC 的停顿目标？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**从服务端到端延迟预算减去网络、排队和依赖预算，得出可接受的 GC 停顿，而不是统一设置 10ms。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**G1 的预测基于历史成本，过低目标可能减小 Young、增加 GC 频率和吞吐损失；并发线程也会占 CPU。Soft goal 不保证每次达标。
+从业务允许的延迟出发，再看 GC 可用的时间。例如接口还有数据库和网络等待，不应把全部 p99 目标都分给 GC。G1 的暂停参数是期望，不是硬实时保证。
 
-**第三层：**记录 p99/p999 停顿、总 GC CPU、分配率、存活率和业务尾延迟，使用真实流量模型验证。若需要严格低延迟，应评估整体架构与升级路线，但本章结论限定 JDK 8。
+**目标太小会怎样？** G1 可能缩小年轻代、增加回收频率，单次变短但总开销增大。模型还受实际存活、RSet 和 CPU 影响，过去的估计不一定适合这次。
+
+**怎样证明更好？** 用同样负载对照暂停分位数、GC CPU、吞吐和业务尾延迟，记录 JVM 更新号和资源限制。只挑一条变短的日志不能说明调优成功。
 </details>
 
 ## 模拟生产案例：大报表使 G1 退化
 
-**故障现象：**报表并发增大后出现 to-space exhausted，随后长 Full GC，堆总空闲看起来尚有空间。**排查思路：**收集 JDK 8 G1 日志、对象直方图与 allocation profile，检查 Region 大小和大数组尺寸。**原理分析：**大数组进入 Humongous，连续 Region 需求及高存活对象降低可迁移空间；evacuation 需要预留目的容量。**根因与验证证据：**模拟把报表全部读成 byte[]，数组尺寸超过半 Region；限制并发与流式输出后 Humongous 占用下降，目的空间失败消失。**解决方案：**限流、分批查询、流式生成，评估 reserve 与标记起点，不先粗暴增堆。**长期预防：**容量测试包含大报表和慢客户端，监控 Humongous、Old 增长及标记周期；记录进程 RSS，避免增加堆挤占本地内存。
+报表并发上升后，JDK 8 G1 日志出现 to-space exhausted，随后有很长的 Full GC。堆看起来尚有一些空闲。这是模拟情境，不代表某次真实事故记录。
+
+检查 Region 大小、大数组尺寸、Humongous 占用、存活量和搬迁日志。若每份报表都先拼成巨大 byte[]，应该能看到数组超过半个 Region，且高并发时目的空间紧张。仅有总空闲字节不能解释是否满足这些分配。
+
+先限制并发，改分批查询和流式输出，减少同时存活的大数组。再依据日志评估标记启动和搬迁预留，不先盲目增堆，挤占本地内存。
+
+用相同数据量、慢客户端和并发对照，看 Humongous、Old 与目的空间失败是否下降，业务吞吐是否仍可接受。以后把大报表纳入容量测试，同时监控进程 RSS。
 
 ## 面试回答与核心总结
 
 ### 60 秒快速回答
 
-JDK 8 对象通常在 Eden/TLAB 分配，GC 按可达性回收，安全点保障扫描。CMS 老年代并发标记清扫，初标和重标停顿，存在浮动垃圾、碎片和 Concurrent Mode Failure。G1 分 Region，RSet 定位外部入引用，SATB 保持标记快照；Young 和 Mixed 都进行停顿复制，Mixed 分批带上 Old。停顿目标是软目标，JDK 8 G1 Full GC 单线程，调优必须保留分配和迁移空间。
+JDK 8 对象通常在 Eden/TLAB 分配，GC 从 Roots 判断是否可达。CMS 老年代并发标记清扫，初标和重标会暂停，需防碎片与回收来不及。G1 按 Region 回收，RSet 找外部引用，SATB 记录旧引用；Young 和 Mixed 都会暂停搬对象，Mixed 只带部分 Old。暂停目标不是保证，JDK 8 G1 Full GC 单线程。调优先看分配、存活和可用空间，再比较暂停与吞吐。
 
 ### 2～3 分钟深入回答
 
-从对象进入 TLAB 到 Survivor 与晋升讲分配链，再说明 GC Roots 与安全点；沿 CMS 状态机解释并发期间引用变化为何要重标、浮动垃圾为什么留待后续，以及 free-list 为什么有碎片。切换到 G1 的 Region 和卡/RSet，分别解释 evacuation 与 SATB 并发标记。最后用报表大数组说明 Humongous、连续空间和 to-space 的区别，给出限流、流式化、保留迁移余量与日志验证的调优顺序。
+我先看对象为什么会活到 GC。Roots 仍能到达的对象不能回收，互相引用但整体不可达的对象可以回收。小对象通常在 Eden，通过 TLAB 减少分配竞争；TLAB 还是堆，对象也可以被其他线程使用。晋升既看年龄，也看 Survivor 空间，不是永远等固定次数。
 
-如果追问如何调优，我会先说明分配速率、存活率、CPU 配额和周期时间决定所需余量。CMS 一轮需要数秒，期间仍有晋升与浮动垃圾，老年代太晚启动来不及；G1 标记后还要等 Mixed 才逐步释放，另需 evacuation 空间。过低暂停目标会改变 Young 和频率，改善单次暂停可能牺牲吞吐。最终用同负载的 GC CPU、停顿分位数、业务尾延迟和存活基线验证，而不是用一次日志宣称参数最佳。
+CMS 主要回收老年代。初始标记暂停，接着并发标记和预清理，重新标记暂停补齐应用改引用期间的工作，再并发清扫。清扫没有把存活对象紧凑搬到一起，所以有碎片；后来才变成垃圾的一部分对象留下本轮，也是浮动垃圾。回收周期里仍有分配和晋升，剩余空间不足就可能 Concurrent Mode Failure。
+
+G1 用等大 Region，Young 时复制存活对象。只回收部分区域，就靠 RSet 找外面指进来的引用；并发标记的 SATB 写前记录旧引用，保持开始时的可达信息。标记完成后根据垃圾和成本，Mixed 分批回收 Young 及部分 Old。
+
+暂停时间根据历史预测，若存活突然增多或 CPU 变少，预测就可能失准。目的空间不足会增加失败处理，严重时进入 JDK 8 单线程 Full GC。Humongous 大对象还有连续区域需求，所以总空闲不少也可能出问题。
+
+调优时我会用一轮周期内的新增量解释余量。例如四秒周期、每秒新增两百 MB，就不能只剩三百 MB 才开始。再对照同负载的暂停分位数、GC CPU 和业务延迟。换收集器不能让被静态缓存长期引用的对象消失；有增长趋势仍要查持有代码。
 
 ### 高频追问、常见错误与速记
 
-高频追问：G1 为什么不是硬实时？CMS failure 与 promotion failure 是否相同？安全点时间怎么分解？常见错误：JDK8 默认 G1；G1 Full GC 并行；RSet 记录全部出引用；SATB 记录新引用；切换收集器治疗泄漏。源码：CMSCollector::collect_in_background，G1CollectedHeap::do_collection_pause_at_safepoint，G1CollectorPolicy，ConcurrentMark。核心知识：**可达性→并发标记正确性→复制/清扫→空间预算与退化**。
+- 高频追问：Mixed 和 Full GC 的区别？CMS failure 与晋升失败什么关系？安全点等待算在哪段？
+- 容易答错：JDK 8 默认 G1；G1 Full GC 已并行；SATB 记录新引用；RSet 是完整的对象引用图。
+- 常看的源码：`CMSCollector::collect_in_background`、`G1CollectedHeap::do_collection_pause_at_safepoint`、`G1CollectorPolicy`、`ConcurrentMark`。
+- 阅读时分清：怎样确认存活，怎样腾空间，以及失败时为何变成长停顿。
 
 
 ## 官方资料与版本来源
 
-联网核对日期：2026-10-08。固定版本用于解释实现，不代表最新生产推荐版本。源码摘录版权见 [source-notices.txt](./source-notices.txt)，下载记录与摘要见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [CMSCollector::collect_in_background · HotSpot 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp)
 - [G1CollectedHeap::do_collection_pause_at_safepoint · HotSpot 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp)
@@ -666,28 +791,36 @@ JDK 8 对象通常在 Eden/TLAB 分配，GC 按可达性回收，安全点保障
 
 # JVM OOM 与生产故障排查
 
-版本基线：OpenJDK 8u462-b08，Netty 4.1.108.Final；XStream 1.4.4 的反射问题只作版本明确的机制案例，不推荐生产继续使用该旧版。诊断目标是证明谁持有资源、增长是否可回收以及修复是否改变增长曲线。
+本章使用 JDK 8 和 Netty 4.1 的实现。遇到 OOM，先看完整报错，再决定取什么证据。堆、直接内存、类元数据和线程占用的是不同资源，工具也不能混用。
 
 ## 核心知识与原理
 
 ### OOM 类型与第一步证据
 
-|报错/现象|资源与常见原因|首要证据|
-|---|---|---|
-|Java heap space|存活对象太多、缓存/队列无界、单次大分配|GC 前后占用、dump dominator、分配速率|
-|GC overhead limit exceeded|部分收集器长时间高 GC 成本且回收极少|GC 日志和收集器；不是所有 GC 的统一报错|
-|Metaspace|类元数据、ClassLoader 泄漏、动态类生成|类加载/卸载趋势、loader 引用链、元空间 committed|
-|Direct buffer memory|Bits 计数受 MaxDirectMemorySize 限制|BufferPoolMXBean、分配调用栈、释放机制|
-|unable to create new native thread|线程数量、进程/用户限制、地址空间或本地内存不足|线程数、ulimit/cgroup pids、RSS 与栈配置|
-|容器 OOMKilled|进程总内存超出容器限制|cgroup memory 事件和容器终止原因；可能没有 Java OOM|
+“内存满了”还不足以说明问题。一个服务可能 Java 堆很空，进程却被容器杀掉；也可能堆还有空间，却无法再创建线程。下面这张表用来决定第一步看哪里。
 
-heap OOM 不一定是泄漏：合法存活数据超出预算也是容量不足。RSS 不等于堆占用；包括 Java 堆、Metaspace、线程栈、Code Cache、Direct buffer、native 库及 allocator 开销等。NMT 记录 HotSpot 的内存类别与保留/提交，不承诺覆盖全部第三方 native 分配，也不能直接等同实际 RSS。
+|报错或现象|先怀疑什么|先看什么|
+|---|---|---|
+|Java heap space|堆里存活对象太多，或单次分配太大|GC 前后占用、heap dump、对象持有者|
+|GC overhead limit exceeded|部分收集器花很多时间回收，却只能腾出很少空间|实际收集器、GC 日志与存活量|
+|Metaspace|动态类太多，或旧 ClassLoader 没回收|类加载/卸载数量、loader 引用链|
+|Direct buffer memory|直接缓冲区容量达到限制，或没有释放|Direct 指标、Netty allocator、分配与释放代码|
+|unable to create new native thread|线程过多、系统限制、本地内存不足|线程数、pids/ulimit、线程栈和 RSS|
+|容器 OOMKilled|整个进程超过容器内存限制|容器退出原因、cgroup 内存记录|
+
+堆 OOM 也不一定是泄漏。一个允许用户一次导出十亿行的接口，即使没有任何遗留引用，也可能因正常数据太大而失败。泄漏指的是业务已经不再需要的对象，却仍被引用着，导致长期无法回收。
+
+RSS 是进程实际驻留内存，除了堆，还包含 Metaspace、线程栈、Code Cache、直接内存和 native 库等。NMT 能把 HotSpot 管理的一部分本地内存按类别列出来，但不覆盖所有第三方分配。NMT 中 reserved 是保留的虚拟地址空间，committed 是已提交空间，它们都不能直接当作 RSS。
 
 ### DirectByteBuffer、Cleaner 与 Netty
 
-JDK 8 DirectByteBuffer 分配走 Bits.reserveMemory，再通过 Unsafe 分配并注册 Cleaner；Cleaner 的 Deallocator 释放 native 地址并 unreserveMemory。Bits 同时维护 reservedMemory、totalCapacity 与 count；限制比较的是 totalCapacity，页对齐会令实际分配字节与 capacity 不同。分配失败会尝试引用处理、System.gc 和退避后抛 OOM，不能假定 System.gc 一定立即释放。
+`ByteBuffer.allocateDirect()` 会在堆里创建一个 Java 包装对象，在本地内存里申请真正的数据区域。JDK 8 的 Bits 先登记容量，再分配 native memory；包装对象不再使用后，Cleaner 的 Deallocator 负责释放并扣回计数。
 
-Netty ByteBuf 是独立的引用计数协议，retain 增计数，release 降计数至零才交还资源。池化内存交回 arena 未必立刻还给操作系统，因此 RSS 高但稳定不等于泄漏。ByteBuf 在 handler 间转移所有权、异步任务保留引用时最容易漏 release；SimpleChannelInboundHandler 默认 autoRelease 与手动 release 混用又可能双重释放。Netty 使用不同 allocator / no-cleaner 路径时，不保证全部出现在标准 Direct BufferPool 计数里，须同时看 allocator metrics 与 JVM 指标。
+Bits 里有 totalCapacity 和 reservedMemory 两个容易混淆的数字。前者是申请的缓冲区容量，后者是实际保留的字节，页对齐可能让它们不同。`MaxDirectMemorySize` 的检查主要对着 totalCapacity。分配失败时会尝试引用处理、GC 和等待，但调用 System.gc 并不等于内存立即回来。
+
+Netty ByteBuf 还多了一套引用计数。retain 加一次持有，release 减一次；降到零后才能归还资源。池化缓冲区归还给 arena 后，内存可能留在池里供后续复用，RSS 不立刻下降并不等于泄漏。
+
+最常见的错误发生在异步转交：当前 handler 为任务 retain，任务正常执行后会 release，但线程池拒绝提交时，任务根本不会执行。那次额外的 retain 就永远留着。下面的例子特意同时处理成功和拒绝两条路。它只适用于注释里的所有权约定；如果用自动释放的 handler，不能再照抄一遍手动释放。
 
 ```java
 // 业务示例：这里约定当前 handler 拥有 buf，异步任务继承所有权。
@@ -705,24 +838,51 @@ try {
 }
 ```
 
-### 类加载与 XStream 机制边界
+Netty 某些 allocator 或 no-cleaner 路径不一定完整出现在标准 Direct BufferPool 指标里，因此最好一起看 JVM BufferPoolMXBean 和 Netty allocator metrics。
 
-旧版 XStream 某些反射创建对象路径缓存序列化构造器；实例反复创建可能导致构造器重复生成或关联反射访问器生成，增加类元数据压力。HotSpot 8 反射有 inflation/native 与生成访问器的分支，serialization constructor 的路径也有自身行为，不能把所有反射调用都统一说成“超过 15 次才生成”。必须核对 JVM 属性、实际 ReflectionProvider、调用栈和版本。
+### XStream 与类加载：为什么 Metaspace 会涨
 
-类元数据增多可能推高元空间高水位并触发 GC；类能否卸载取决于 ClassLoader 可达性和收集器配置。长期 ClassLoader 被 ThreadLocal、线程 contextClassLoader、静态注册表持有时，扩 MaxMetaspaceSize 只延迟 OOM。复用合理配置的 XStream 实例可能降低重复构造成本，但安全配置、线程使用方式及版本升级必须评估；不能声称“XStream 每次调用都必然泄漏 Metaspace”。
+Metaspace 上涨时，先分清两种情况。一种是同一个长期存活的 ClassLoader 不断加载动态生成类；另一种是每次热部署产生新 loader，旧 loader 又被线程、ThreadLocal 或静态注册表引用，始终卸载不了。两种情况都表现为类元数据增长，改法却不同。
+
+旧版 XStream 1.4.4 有一个具体例子：Sun14ReflectionProvider 会为对象创建序列化构造器，并把结果放在 provider 实例的 constructorCache 中。每次请求都创建新的 XStream，也就创建了新的缓存，同一种类可能反复走生成构造器的路径，增加元空间回收压力。实际是否走到它，必须检查 ReflectionProvider、JVM 厂商和运行配置。
+
+这条序列化构造器路径不能简单套上“普通反射超过 15 次就生成访问器”的说法。复用合理配置的实例可能减少重复工作，升级也需要核对实际版本改动。这里引用 1.4.4 是解释旧问题，不建议继续把这个旧版本用于生产。
+
+### 安全采样与根因验证
+
+先记下故障时间，再把流量、发布、GC、RSS 和线程数量放到同一条时间线上。轻量指标能看出增长方向后，再决定是否取 dump。jmap 和某些 jcmd 操作可能产生暂停或触发 GC，dump 还需要足够磁盘空间。
+
+```shell
+# JDK 8 诊断示例；替换 PID，先用 jcmd PID help 核对可用命令。
+jstat -gcutil PID 1000 10
+jstack -l PID > threads.txt
+jcmd PID GC.class_histogram
+jcmd PID VM.native_memory summary
+# NMT 需要启动前设置 -XX:NativeMemoryTracking=summary，未开启不能事后补全历史。
+jcmd PID VM.native_memory baseline
+jcmd PID VM.native_memory summary.diff
+jmap -dump:format=b,file=heap.hprof PID
+```
+
+MAT 里先看 dominator tree：哪些对象负责让大批对象一直活着？再沿 Path to GC Roots 找到持有来源。一个 byte[] 很大，只说明它占空间；找到它属于哪个队列、缓存或请求，才开始接近代码原因。retained heap 表示释放这个持有者后可能一并释放的堆大小，比只看对象自身的 shallow heap 更有用。
+
+JDK 8 可用 `-XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:gc.log` 记录 GC。比较相近流量下，GC 后的最低占用是否不断升高。JDK 9 的 `-Xlog:gc*` 不适用于这里。NMT 则需要在启动前启用，不能在故障发生后补出过去的记录。
 
 ### 诊断推演：两个相似现象的不同根因
 
-同样是 RSS 上升，情况 A 的 GC 后 heap 基线一起增长，MAT 中队列支配多数存活对象，优先处理任务积压；情况 B 的 heap、Direct 在用与线程都稳定，RSS 在池化分配后形成平台，可能是 allocator/池保留，不能凭高 RSS 就删除缓存。若 NMT 的 Class 类别随类数量增长，再进一步看 loader 与代理生成；若线程类别和 pids 同时上升，检查线程创建而不是索取 heap dump 作为唯一证据。
+如果 RSS 上涨，GC 后堆占用也同步上涨，dump 里又看到大量导出请求被队列持有，就应先检查任务积压。如果堆、直接内存在用量和线程数都稳定，RSS 在池化分配后停在一个平台，则应先检查池保留和 allocator 行为。
 
-根因验证至少需要三件事：可复现触发条件、代码持有/分配路径、修复后资源增长停止且业务结果正确。泄漏修复若通过提前 release 使对象仍被下游使用，会从 OOM 变成 use-after-release，这不算通过验证。dump 和日志只是证据载体，不能用“MAT 第一名是 byte[]”代替解释哪个请求/缓存/缓冲区拥有它。
-
-## 源码级解析与排查调用链
-
-`ByteBuffer.allocateDirect → DirectByteBuffer.<init> → Bits.reserveMemory → Unsafe.allocateMemory → Cleaner.create`；释放从引用处理触发 Cleaner，再执行 Deallocator.run。Netty 的 `AbstractReferenceCountedByteBuf.release → ReferenceCountUpdater.release → deallocate` 是另一条链，JVM Cleaner 不能替应用弥补所有遗漏的 reference count。
+修复的证据也要具体：相同请求下能复现，持有链能指到代码，改完后不再持续增长，业务结果还正确。ByteBuf 提前 release 后虽然不 OOM，却让另一个线程读到已经回收的缓冲区，这显然没有修好。
 
 
-**源码原文连续节选：Bits.tryReserveMemory · OpenJDK 8u462-b08 · L705–L718**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/nio/Bits.java#L705-L718)）。
+## 源码级解析与调用链
+
+直接内存先看 `Bits.tryReserveMemory` 的计数，再看 DirectByteBuffer 的分配和 Deallocator。Netty 的 `AbstractReferenceCountedByteBuf.release` 则通过引用计数走 deallocate，不是同一套释放入口。
+
+XStream 片段选的是旧版本序列化构造器缓存。它把构造器存在哪里，直接决定每次新建实例会不会失去上次的复用结果。
+
+
+<div class="source-caption"><code>Bits.tryReserveMemory</code><span>OpenJDK 8u462-b08 · L705–L718 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/nio/Bits.java#L705-L718">完整源码</a></span></div>
 
 ```java
     private static boolean tryReserveMemory(long size, int cap) {
@@ -741,8 +901,11 @@ try {
 
 ```
 
+while 比较的是 totalCapacity。CAS 成功后才加 reservedMemory 和 count，三个数字各有用途。没有容量就返回 false，由 reserveMemory 的外层尝试引用处理、GC 和等待。
 
-**源码原文连续节选：Sun14ReflectionProvider.getMungedConstructor · XStream 1.4.4 / c4c7122 · L91–L101**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/x-stream/xstream/blob/c4c71226515fa42809a48d9ae702756e2831f379/xstream/src/java/com/thoughtworks/xstream/converters/reflection/Sun14ReflectionProvider.java#L91-L101)）。
+
+
+<div class="source-caption"><code>Sun14ReflectionProvider.getMungedConstructor</code><span>XStream 1.4.4 / c4c7122 · L91–L101 · <a href="https://github.com/x-stream/xstream/blob/c4c71226515fa42809a48d9ae702756e2831f379/xstream/src/java/com/thoughtworks/xstream/converters/reflection/Sun14ReflectionProvider.java#L91-L101">完整源码</a></span></div>
 
 ```java
     private Constructor getMungedConstructor(Class type) throws NoSuchMethodException {
@@ -757,6 +920,8 @@ try {
     }
 
 ```
+
+constructorCache 是当前 provider 的缓存。没找到 type 时才调用 newConstructorForSerialization，然后保存。反复创建新 provider 会失去这份缓存，这是本例需要核对的代码位置。
 
 
 ```mermaid
@@ -774,110 +939,113 @@ flowchart TD
  H --> I["长期稳定曲线 + 故障注入"]
 ```
 
-### 安全采样与根因验证
-
-先保留时间线：流量、发布、线程、GC、RSS、限额；再做轻量采样，最后选择 dump。jmap heap dump 和部分 jcmd 操作可能停顿/触发 GC，生产需估算文件空间与影响；文件包含业务数据，按现有数据访问规则处理。MAT 看 dominator 的 retained heap 与 Path to GC Roots，不能仅按 shallow heap 排名；排除弱/软引用路径时须明确选项。
-
-```shell
-# JDK 8 诊断示例；替换 PID，先用 jcmd PID help 核对可用命令。
-jstat -gcutil PID 1000 10
-jstack -l PID > threads.txt
-jcmd PID GC.class_histogram
-jcmd PID VM.native_memory summary
-# NMT 需要启动前设置 -XX:NativeMemoryTracking=summary，未开启不能事后补全历史。
-jcmd PID VM.native_memory baseline
-jcmd PID VM.native_memory summary.diff
-jmap -dump:format=b,file=heap.hprof PID
-```
-
-JDK 8 常用 GC 启动选项：`-XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:gc.log`，不是 JDK 9 的 `-Xlog:gc*`。日志关注回收前后容量、触发原因、Young/Old 趋势和停顿；“GC 后最低点长期升高”比“瞬时使用率高”更能支持存活集合增长的判断。
-
 ## 面试官三层追问
 
 ### 1. heap OOM 如何证明是泄漏？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**查看同等负载下 GC 后存活量是否持续增长，并找出不应该长期存活的对象及持有者。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**MAT dominator 与 GC Roots 指出无界队列、静态集合或 ThreadLocal 的引用链；配合业务生命周期证明“本应释放”。大数组单次分配失败可能没有渐进泄漏。
+先比较相似负载下，GC 后的存活占用是否长期上升。再证明这些对象已不需要，却仍被某处持有。仅看到堆用得多，不能排除合理数据量或一次大分配。
 
-**第三层：**复现相同负载，修复后验证 retained heap 平台化，检查功能正确性及错误/取消路径。只重启恢复或只增加堆不构成根因验证。
+**dump 里找什么？** MAT 的 dominator 和 GC Roots 能显示无界队列、静态 Map、ThreadLocal 等持有关系。找到 byte[] 排名第一还不够，要追到它属于哪个业务对象。
+
+**如何确认修好了？** 相同触发条件下复现，修改持有或清理代码，再验证占用稳定且结果正确。把缓存清空或增堆可能缓解症状，却没有证明原生命周期错误消失。
 </details>
 
 ### 2. Direct OOM 时 heap 很空，为什么？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**直接缓冲区占 native memory，堆只持 wrapper；堆健康不能证明直接内存充足。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**Bits 的容量限额、Cleaner 时机和 Netty allocator 的路径要分别核对。未 release 的池化 ByteBuf 可能无法回归池，部分路径不能仅靠 BufferPoolMXBean 观察。
+直接缓冲区的数据在 native memory，堆里主要是包装对象。所以 Java 堆空闲并不能说明 Direct 还有容量，也不能说明进程没超过容器限制。
 
-**第三层：**建立进程内存预算，给 Direct、栈与类元数据留余量；检查所有权和异步失败分支，泄漏检测先在测试或受控流量使用高等级，注意采样成本。
+**谁负责释放？** JDK 8 DirectByteBuffer 依靠 Cleaner，Bits 负责容量计数；Netty ByteBuf 还有 retain/release 协议。池化资源归还后可能仍留在 arena，一些路径也不完全显示在 JVM Direct 指标里。
+
+**先改哪里？** 检查所有权转交，尤其异步提交失败、取消和异常。同步看 allocator、BufferPool、RSS，不要只提高 MaxDirectMemorySize，挤掉栈和其他 native 空间。
 </details>
 
 ### 3. Metaspace OOM 是否都是 ClassLoader 泄漏？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不一定，动态生成类太多、限额太低或合理规模类集也可能超过预算。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**比较类数量、卸载数量和 loader 数；一个长期 loader 生成大量类，与多个旧 loader 被引用滞留是不同模式。类卸载需要整个加载器生命周期满足条件。
+不都是。可能是动态类数量本来就很大、限额太小，也可能是旧 loader 不该存活却被引用。先看类和 loader 的增长模式。
 
-**第三层：**限制动态类型组合、缓存/复用代理和序列化器、清理线程上下文，做多轮部署后 loader 回收测试。增元空间只在容量证据支持时使用。
+**怎么分两种情况？** 一个 loader 加载越来越多类，通常要检查代理、序列化或脚本类型生成；很多旧 loader 没卸载，则追线程、ThreadLocal、注册表等引用。类卸载与整个 loader 的可达性有关。
+
+**怎么验证？** 限制类型组合和合理复用实例，清理线程上下文。热部署问题做多轮卸载测试。确实合理的类集超预算才扩容量，不能用扩容掩盖旧 loader 滞留。
 </details>
 
 ### 4. native thread OOM 是不是增大堆能解决？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**通常不能，增堆反而挤占本地资源。先检查线程数量、系统限制与栈大小。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**每线程需要栈和 native 结构；创建失败可能来自 pids/ulimit、地址空间或 native allocation。heap dump 不能单独回答创建失败原因。
+通常不行，堆变大还可能减少本地可用空间。先看线程数量、系统 pids/ulimit、线程栈和 RSS，确认创建失败受哪个条件限制。
 
-**第三层：**限制线程池、连接和并行任务，避免每请求 new Thread；逐类建立容量预算。降低 Xss 需验证调用深度，不能引入 StackOverflowError。
+**每条线程消耗什么？** 除了 Java Thread 对象，还有栈及 native 结构。失败可能发生在堆仍有余量的时候，heap dump 无法单独解释系统为什么拒绝创建。
+
+**怎样控制？** 限制线程池、连接和并行任务，不每请求新建线程。降低 Xss 前检查实际调用深度，避免换成 StackOverflowError；连接数也要按下游容量控制。
 </details>
 
 ### 5. NMT 与 MAT 如何配合？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**MAT 分析堆对象持有关系，NMT 分析 HotSpot native 类别趋势，两者视角互补。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**NMT reserved 表示虚拟地址保留，committed 表示提交，不等于 RSS；第三方分配可能未完整记录。MAT retained heap 只含堆图可支配对象。
+MAT 看 Java 堆对象被谁引用，NMT 看 HotSpot 记录的 native 类别，两者互补。RSS 则是进程实际驻留的另一个视角。
 
-**第三层：**建立 NMT baseline 做差分，并同时间采集 RSS、Direct allocator 和线程。若差额主要来自 native 库，进一步用系统/allocator 工具，不能把未知差额硬说成 Direct 泄漏。
+**NMT 数字为什么不能直接和 RSS 对齐？** reserved、committed 含义不同，第三方 native 分配也未必被完整记录。MAT 的 retained heap 只针对堆引用图，不包含缓冲区真正的堆外数据。
+
+**具体怎么用？** 启动时开 NMT，建立 baseline 后看 diff，同时采样线程、allocator 和 RSS。若差额指向 native 库，再用相应系统工具，别把未知部分直接叫 Direct 泄漏。
 </details>
 
 ### 6. ThreadLocal 为什么需要 remove？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**线程池线程长期存活，ThreadLocal 的值可能跨请求残留，造成状态污染或内存滞留。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**ThreadLocalMap entry 的 key 是弱引用，value 是强引用；key 清除后 value 不会自动同步清除，清理依赖 map 后续操作等路径。即使 key 仍活着，业务也应清理请求上下文。
+线程池会复用线程，一个请求留下的值可能被下一请求读到，或一直占内存。请求结束时在 finally remove，既是内存管理，也是避免租户、数据源状态串到下一次请求。
 
-**第三层：**在请求边界 finally remove，异步上下文显式传递并清理；检测线程复用下的数据源/租户串扰。关联阅读：<a href="#c5">Spring 事务上下文</a>与<a href="#c10">Reactor</a>。
+**key 弱引用为什么还会漏？** ThreadLocalMap 的 key 弱引用可能先被清掉，但 value 仍由 entry 强持有，清理依赖后续 map 操作等。key 活着时，业务值也可能一直存在。
+
+**异步怎么办？** 请求上下文显式传递，并在执行边界清理；不要指望线程复用自动恢复默认值。Reactor 还需要它的 Context 机制，直接沿用 ThreadLocal 容易串请求。
 </details>
 
 ## 模拟生产案例：异步日志持有 ByteBuf
 
-**故障现象：**heap 稳定但 Direct 使用持续升高，伴随 Netty 分配失败；只在日志执行器拒绝时出现。**排查思路：**关联拒绝率、allocator usedDirectMemory 和泄漏检测栈，审计 retain/release 的每个出口。**原理分析：**为异步日志 retain 后，提交被拒绝，任务 finally 永远不会执行。**根因与验证证据：**模拟将队列设为很小并暂停消费，重复触发拒绝能稳定复现；补充提交失败的 release 后引用计数回到原值，长期负载增长停止。**解决方案：**提交失败立即释放新增引用，必要时复制少量日志字段而非持整个网络缓冲。**长期预防：**为拒绝、取消、异常、断连做所有权审查和测试，监控池化保留与实际在用，避免把保留池容量误报为泄漏。
+服务堆占用稳定，Direct 内存却持续上升；异步日志线程池一出现拒绝，问题更明显。这是一个 ByteBuf 转交错误的模拟情境。
+
+按 eventId 对齐拒绝时间和 allocator 指标，审查 retain 后的每个出口。若提交失败分支缺 release，应该能看到新增引用没有任务接手；泄漏检测的分配栈可辅助定位，而不是仅凭 RSS 下结论。
+
+把提交失败时的额外 release 补齐。若日志只用几个字段，考虑复制小片段，不要长期持有整个网络缓冲。还需核对 handler 是否自动释放，避免修复后双重释放。
+
+测试里主动让执行器拒绝、任务异常和取消，检查引用计数与业务读写。长期区分池保留量和实际在用量，避免将稳定池容量误认为泄漏。
 
 ## 面试回答与核心总结
 
 ### 60 秒快速回答
 
-OOM 先按 heap、Metaspace、Direct、native thread 或容器限额分类，再保留流量、GC、RSS 与资源增长时间线。heap 用 MAT 看 dominator 和 Roots；Metaspace 看类与 loader；Direct 看 Bits/Cleaner 和 Netty 引用计数；线程看数量与系统限制。根因必须连接到持有代码，并用同负载修复前后曲线和失败路径复现验证，重启与扩容只算止血。
+OOM 先按完整报错分类型。heap 查存活趋势、dump 和持有链，Metaspace 查类与 loader，Direct 查 Bits/Cleaner 与 Netty 引用计数，创建线程失败查线程数和系统限额。RSS 与堆、NMT 都不是同一个数字。根因要能指到谁持有资源，并用相同负载验证修复；重启和增内存可以止血，却不足以证明已修好。
 
 ### 2～3 分钟深入回答
 
-以 heap 空但 Direct OOM 开场，画出 wrapper 与 native 区域、Bits 限额和 Cleaner 释放链，再对比 ByteBuf 引用计数及池化保留，指出标准 JVM Direct 指标可能漏掉某些路径。随后展示拒绝分支遗漏 release 的证据链。扩大到全进程内存预算，解释 NMT reserved/committed、MAT retained heap 和 RSS 的差别，最后列出采样顺序、dump 影响、故障注入与长期告警。
+我会先保存完整报错和时间线，而不是遇到所有内存问题都要 heap dump。Java heap space、Metaspace、Direct buffer memory 和 native thread 失败，对应资源不同；容器 OOMKilled 还可能完全没有 Java OOM。
 
-对于 Metaspace，我会分大量动态类集中在一个 loader 与旧 loader 被持有两种情况，用类加载/卸载和引用链确认。旧版 XStream 还要看实际 ReflectionProvider 和序列化构造器缓存，不能把所有反射都归结为同一个 inflation 阈值。native thread 的失败则看 pids、ulimit、线程栈和总内存。恢复先限流保留证据，诊断操作考虑停顿和磁盘空间；修复后长期负载和失败路径都须验证，否则只是把一个泄漏窗口换成另一个。
+heap 先比较相近负载下 GC 后最低占用，再用 MAT 找 dominator 和 GC Roots。占用最大的是 byte[] 只是起点，还要追到队列、缓存或请求，说明为什么不该继续持有。合法的大数据集超出容量，与已结束请求仍被引用，是不同问题。
+
+Direct 的包装在堆，数据在 native。JDK 8 Bits 计容量，Cleaner 释放；Netty 则有额外 retain/release。异步转交时正常任务会释放，不代表提交被拒绝也会释放。池归还后 RSS 可能仍高，一些 allocator 又不完全反映在标准 Direct 指标里，必须一起看。
+
+Metaspace 我会区分一个 loader 动态类越来越多，和很多旧 loader 无法卸载。ThreadLocal、线程 contextClassLoader、静态注册表是常见持有来源。旧 XStream 的问题还要确认实际 ReflectionProvider 和构造器缓存，不能把所有反射归因于同一个阈值。
+
+最后看进程预算和系统限额，NMT reserved、committed 与 RSS 分开理解。取 dump 前考虑停顿和空间。修复测试覆盖拒绝、异常、取消与重复请求，证明占用不再增长，同时没有提前释放或上下文串扰。
 
 ### 高频追问、常见错误与速记
 
-高频追问：Cleaner 何时执行？XStream 到底走哪种 provider？为什么 GC 后仍高 RSS？常见错误：用 JDK9 日志参数回答 JDK8；把每个 Full GC 当泄漏；NMT=RSS；认为 key 弱引用自动清掉 ThreadLocal value。源码：Bits.reserveMemory，DirectByteBuffer.Deallocator.run，AbstractReferenceCountedByteBuf.release，ThreadLocalMap.expungeStaleEntry。核心知识：**分类→趋势→持有链→代码→修复对照**。
+- 高频追问：Cleaner 为什么不是马上执行？池化内存归还后 RSS 为何不降？ThreadLocal key 弱引用还要 remove 吗？
+- 容易答错：NMT 等于 RSS；heap 空闲就没有内存问题；一条 Full GC 能证明泄漏；增加堆能解决线程创建失败。
+- 常看的源码：`Bits.reserveMemory/tryReserveMemory`、`DirectByteBuffer.Deallocator.run`、`AbstractReferenceCountedByteBuf.release`、`ThreadLocalMap.expungeStaleEntry`。
+- 排查要连起来：报错的资源、增长的对象、持有它的代码，以及修改后的对照结果。
 
 
 ## 官方资料与版本来源
 
-联网核对日期：2026-10-08。固定版本用于解释实现，不代表最新生产推荐版本。源码摘录版权见 [source-notices.txt](./source-notices.txt)，下载记录与摘要见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [Bits.tryReserveMemory · OpenJDK 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/nio/Bits.java)
 - [Sun14ReflectionProvider.getMungedConstructor · XStream 1.4.4 / c4c7122](https://raw.githubusercontent.com/x-stream/xstream/c4c71226515fa42809a48d9ae702756e2831f379/xstream/src/java/com/thoughtworks/xstream/converters/reflection/Sun14ReflectionProvider.java)
@@ -888,46 +1056,92 @@ OOM 先按 heap、Metaspace、Direct、native thread 或容器限额分类，再
 
 # Spring 核心原理与事务
 
-版本基线：Spring Framework 5.3.31、Spring Boot 2.7.18。Spring 的代理、线程绑定和数据库事务是三个层次；容器能创建对象，不意味着每次调用都穿过代理。
+本章使用 Spring Framework 5.3.31 和 Spring Boot 2.7.18。Spring 创建 Bean、通过代理增强方法、管理数据库事务，是相互配合的几件事。把一次调用从入口走到提交，很多“事务失效”就能解释清楚。
 
 ## 核心知识与原理
 
 ### IoC、生命周期与循环依赖
 
-BeanFactory 提供 Bean 获取与定义管理，ApplicationContext 进一步组织资源、事件、国际化以及容器启动。`AbstractApplicationContext.refresh` 依次准备容器、执行 BeanFactoryPostProcessor、注册 BeanPostProcessor、初始化非懒单例等。前者主要修改 BeanDefinition，后者介入 Bean 实例创建；把它们混淆会无法解释自动代理发生在哪一步。
+假设 OrderService 需要 OrderRepository。IoC 容器先读取 BeanDefinition，知道要创建什么类、注入哪些依赖，再创建对象并完成注入。BeanFactory 提供基础的 Bean 管理；ApplicationContext 在此之上组织启动、资源、事件和国际化等功能。
 
-`AbstractAutowireCapableBeanFactory.doCreateBean` 先实例化，必要时放置 early reference 工厂，再 populateBean 注入，最后 initializeBean 执行 aware、前置处理、初始化回调及后置处理。初始化回调通常包括 @PostConstruct、InitializingBean.afterPropertiesSet 和自定义 initMethod，具体由相关处理器和容器路径协调。销毁回调由容器管理的生命周期负责，prototype 取出后的销毁通常交给调用者，不像 singleton 一样自动统一回收。
+`refresh()` 会先处理 Bean 定义，再注册 BeanPostProcessor，最后创建非懒加载单例。BeanFactoryPostProcessor 改的是对象还没创建前的定义；BeanPostProcessor 处理的是已经创建的实例。自动代理主要在后者这一阶段参与，二者不能混记。
 
-三级缓存分别为 singletonObjects（完整单例）、earlySingletonObjects（早期引用）、singletonFactories（早期引用工厂）。工厂用于延迟调用 getEarlyBeanReference，允许自动代理处理器对早期暴露对象创建一致的代理。它解决部分 singleton setter/字段循环，并不解决构造器循环、prototype 循环，也不能保证涉及所有后处理器的复杂循环都能成功。Boot 2.7 默认禁止循环引用；框架有能力与应用默认策略必须分开说。开放配置只能作为受控遗留迁移措施，优先拆依赖或显式延迟。
+一个 Bean 大致经历实例化、依赖注入、Aware 回调、初始化前处理、初始化回调、初始化后处理。@PostConstruct、afterPropertiesSet、自定义 initMethod 属于初始化相关步骤。容器关闭时会销毁它管理的单例；prototype 对象取出去后，清理通常要由使用者负责。
+
+循环依赖的问题可以用 A、B 说明：A 已经 new 出来，但注入 B 时发现 B 又需要 A。如果 A 是可提前暴露的单例，容器可以先把 A 的早期引用交给 B，等 B 完成后再把它注入 A。构造器循环却不同：A 连 new 都还没完成，就必须先拿到 B，因此没有现成的 A 可借出去。
+
+三级缓存分别放完整单例、早期引用和生成早期引用的工厂。第三层的工厂允许后处理器按需生成代理，避免 B 拿到原始 A，而其他调用者后来拿到代理 A。它只能处理部分单例字段/setter 循环，也会受到其他后处理器影响。Boot 2.7 默认禁止循环引用；在新代码里拆开相互依赖，通常比打开开关容易维护。
 
 ### 动态代理与 AOP
 
-JDK Proxy 基于接口，CGLIB 基于子类。Spring AOP 选择受到配置和目标类型影响，Boot 默认倾向使用类代理，不能笼统说“有接口就一定 JDK”。CGLIB 无法拦截 final 方法，也无法覆盖 private 方法。AOP 链通过拦截器组织前后增强；同类内部 this 调用没有重新经过外部代理，注解存在也可能不生效。
+代理相当于方法外面的一层调用入口。例如进入订单方法前开启事务，方法结束后提交；异常时回滚。这层逻辑由拦截器执行，业务类本身不需要把开始、提交散落在每个方法里。
+
+JDK 动态代理基于接口，CGLIB 通过子类增强。具体选择还受配置影响，Boot 默认倾向类代理，不能只凭“有接口”猜代理类型。CGLIB 无法覆盖 final 和 private 方法。
+
+最容易踩到的是自调用：对象内部写 `this.save()`，调用的是自身方法，没有重新进入外部代理。save 上有 @Transactional，也可能根本没执行事务拦截器。把事务操作放到另一个 Bean，由注入的代理对象调用，通常更清楚。
+
+```java
+// 业务示例：跨 Bean 调用，让入口穿过事务代理。
+@Service
+class OrderService {
+    private final OrderWriter writer;
+    OrderService(OrderWriter writer) { this.writer = writer; }
+    public void create(Order order) { writer.persist(order); }
+}
+@Service
+class OrderWriter {
+    @Transactional(rollbackFor = Exception.class)
+    public void persist(Order order) throws Exception {
+        // 同一 DataSource 的持久化路径，异常交给代理作回滚判断。
+    }
+}
+```
 
 ### 事务拦截、传播与线程上下文
 
-`TransactionInterceptor.invoke → TransactionAspectSupport.invokeWithinTransaction` 解析 TransactionAttribute 和 PlatformTransactionManager，创建/加入事务，执行 invocation，异常时决定回滚，正常时提交，finally 恢复上下文。DataSourceTransactionManager 将 ConnectionHolder 按 DataSource 绑定到 TransactionSynchronizationManager 的 ThreadLocal 资源表；SqlSession/DAO 必须从兼容路径取得该连接，自己 new 连接可能脱离事务。
+事务调用进入 TransactionInterceptor 后，Spring 先读事务属性，选择 PlatformTransactionManager，再决定开启新事务还是加入已有事务。业务方法返回时提交，抛异常时按规则决定回滚，最后清理调用上下文。
 
-默认 RuntimeException/Error 回滚，checked exception 需要 rollbackFor 等规则。捕获异常并返回成功可能提交；内层 REQUIRED 标记 rollback-only，外层即使捕获异常，最终也可能 UnexpectedRollbackException。REQUIRED 加入当前事务，REQUIRES_NEW 挂起外层并开启新连接，外层连接仍占用，可能耗尽池；NESTED 在 JDBC 事务管理器支持 savepoint 时使用保存点，不是所有 manager 都支持。事务隔离作用于新建物理事务，加入现有事务时不能假定注解的隔离级别被重新应用。
+使用 DataSourceTransactionManager 时，当前事务连接通过 ConnectionHolder 绑定在 TransactionSynchronizationManager 的 ThreadLocal 中。同一线程里的兼容 DAO 操作才能拿到这条连接。手动创建另一条连接，或切到异步线程，不能自动参与原事务。
 
-非 public 方法在标准代理事务配置下通常不会匹配，本章以 public 方法为边界；自调用、非 Spring 管理对象、错误 manager、异常规则、异步换线程、数据库引擎不支持事务都可能让预期失败。ThreadLocal 不会自动穿过 CompletableFuture 或 Reactor 的线程切换，Reactor 事务应使用支持的 reactive manager/context，不能把 JDBC 事务当成跨线程全局状态。
+默认 RuntimeException 和 Error 回滚，checked exception 需要配置 rollbackFor 等规则。异常在方法里被捕获后正常返回，拦截器可能看到的就是成功。另一种情况是内层 REQUIRED 已把共享事务标记为 rollback-only，外层虽然捕获异常，最终提交仍可能抛 UnexpectedRollbackException。
+
+REQUIRED 加入已有物理事务；REQUIRES_NEW 挂起外层、再拿一条连接开启独立事务。外层连接并没有被释放，所以嵌套并发容易耗尽连接池。NESTED 通常使用同一连接上的保存点，外层回滚仍会撤销它；具体支持取决于事务管理器和驱动。
+
+标准代理事务通常以 public 方法为使用范围。排查时还要检查 Bean 是否由 Spring 管理、选了哪个 manager、数据库引擎是否支持事务。Reactor 换线程后不能照搬 JDBC 的 ThreadLocal 事务，需要相应的 reactive manager 和 Context。
 
 ### Boot 自动配置与 MVC
 
-Boot 2.7 的 AutoConfigurationImportSelector.getCandidateConfigurations 同时加载 spring.factories 候选和 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 候选，并去重、过滤、排序。不能说 2.7 完全移除 spring.factories，也不能用 Boot 3 的行为代替。条件如 @ConditionalOnClass/@ConditionalOnMissingBean 决定配置生效；诊断用条件报告，自动配置不是“扫描所有 jar 里所有类”。
+自动配置先找候选，再按条件决定是否启用。Boot 2.7 同时读取 spring.factories 和 `AutoConfiguration.imports` 中的候选，随后去重、过滤与排序。已有用户 Bean、缺少类或配置条件不满足，都会让某个配置跳过。排查时看条件报告，比盲目扩大扫描范围有效。
 
-MVC `DispatcherServlet.doDispatch → getHandler → getHandlerAdapter → HandlerAdapter.handle → 参数解析/调用 → 返回值处理 → processDispatchResult`；拦截器 preHandle 在 handler 前，postHandle 在正常返回后，afterCompletion 做完成清理。过滤器属于 Servlet 链，更早处理请求。@ResponseBody 经 HttpMessageConverter 写响应，而视图返回交给 ViewResolver；异步请求有后续 dispatch，线程上下文应按边界清理。
+MVC 请求进入 DispatcherServlet，先找 Handler，再找能执行它的 HandlerAdapter。参数解析器准备方法参数，控制器执行后，返回值处理器决定写 JSON 还是解析视图。@ResponseBody 的内容通常由 HttpMessageConverter 写出。
+
+Servlet Filter 在 Servlet 链上，HandlerInterceptor 则在 MVC 的 handler 流程里。preHandle、postHandle、afterCompletion 发生在不同位置；异步请求还可能再次 dispatch。需要清理的租户、日志上下文，应按实际请求边界处理。
+
+```yaml
+# Boot 2.7 配置示例：保持默认禁止循环依赖，推动依赖拆分。
+spring:
+  main:
+    allow-circular-references: false
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+```
 
 ### 事务推演：注解隔离级别为何可能被忽略
 
-外层 REQUIRED 已开启一个 RC 事务，内层 REQUIRED 标注 RR，默认是加入既有物理事务，而不是把同一 Connection 临时变成 RR 再恢复。若启用现有事务校验，冲突设置可以被拒绝；没有校验也不意味着内层获得声明中的新隔离效果。事务超时、只读等也需看 manager 与驱动的实际执行，不把注解当数据库强制契约。
+外层已开启 RC 事务，内层 REQUIRED 标注 RR，内层默认仍使用外层那条连接和事务，不会凭注解把它临时切成 RR。启用现有事务属性校验时，冲突可能被拒绝。想要一个独立隔离级别，先要确认是否真的创建了新物理事务。
 
-JDK 动态代理到 ReflectiveMethodInvocation，再到 TransactionInterceptor 和业务方法的链，可以用“调用是否经过代理”“manager 是否匹配”“Connection 是否来自绑定资源”“异常是否到达拦截器”“最终是否 rollback-only”五问定位。提交失败时应保留真实异常与数据库结果，不在 catch 中立即发成功消息。afterCommit 回调若仅内存执行，进程在 commit 后宕机仍会丢任务，这正是 Outbox 需要同事务持久化事件的理由。
+查事务问题可以沿五步走：调用有没有经过代理；manager 是否对应这套数据源；DAO 是否取得绑定连接；异常是否传到拦截器；事务有没有被标记 rollback-only。提交后内存回调发 MQ 也有宕机窗口，可靠投递需要<a href="#c9">同事务保存待发事件</a>。
+
 
 ## 源码级解析与调用链
 
+先看单例的 `getSingleton` 如何依次检查三层缓存，再看事务代理的 `invokeWithinTransaction` 怎样包住方法。对象创建的主过程是 doCreateBean，MVC 请求主入口是 DispatcherServlet.doDispatch。
 
-**源码原文连续节选：DefaultSingletonBeanRegistry.getSingleton · Spring Framework 5.3.31 · L180–L204**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/spring-projects/spring-framework/blob/v5.3.31/spring-beans/src/main/java/org/springframework/beans/factory/support/DefaultSingletonBeanRegistry.java#L180-L204)）。
+自动配置读取候选的代码很短，适合直接确认 Boot 2.7 到底还读不读 spring.factories。
+
+
+<div class="source-caption"><code>DefaultSingletonBeanRegistry.getSingleton</code><span>Spring Framework 5.3.31 · L180–L204 · <a href="https://github.com/spring-projects/spring-framework/blob/v5.3.31/spring-beans/src/main/java/org/springframework/beans/factory/support/DefaultSingletonBeanRegistry.java#L180-L204">完整源码</a></span></div>
 
 ```java
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
@@ -957,8 +1171,11 @@ JDK 动态代理到 ReflectiveMethodInvocation，再到 TransactionInterceptor �
 	}
 ```
 
+早期引用只有在 Bean 正在创建时才有意义。工厂成功生成引用后，将它放入 earlySingletonObjects 并移除工厂；完整单例则仍优先从 singletonObjects 读取。
 
-**源码原文连续节选：TransactionAspectSupport.invokeWithinTransaction · Spring Framework 5.3.31 · L378–L407**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/spring-projects/spring-framework/blob/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java#L378-L407)）。
+
+
+<div class="source-caption"><code>TransactionAspectSupport.invokeWithinTransaction</code><span>Spring Framework 5.3.31 · L378–L407 · <a href="https://github.com/spring-projects/spring-framework/blob/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java#L378-L407">完整源码</a></span></div>
 
 ```java
 		final String joinpointIdentification = methodIdentification(method, targetClass, txAttr);
@@ -993,8 +1210,11 @@ JDK 动态代理到 ReflectiveMethodInvocation，再到 TransactionInterceptor �
 			commitTransactionAfterReturning(txInfo);
 ```
 
+真正业务调用在 proceedWithInvocation。抛异常时 completeTransactionAfterThrowing 判断回滚规则；finally 恢复事务调用上下文；正常返回才走 commitTransactionAfterReturning。上下文清理本身不等于数据库已经提交。
 
-**源码原文连续节选：AutoConfigurationImportSelector.getCandidateConfigurations · Spring Boot 2.7.18 · L181–L189**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/spring-projects/spring-boot/blob/v2.7.18/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L181-L189)）。
+
+
+<div class="source-caption"><code>AutoConfigurationImportSelector.getCandidateConfigurations</code><span>Spring Boot 2.7.18 · L181–L189 · <a href="https://github.com/spring-projects/spring-boot/blob/v2.7.18/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L181-L189">完整源码</a></span></div>
 
 ```java
 	protected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {
@@ -1007,6 +1227,8 @@ JDK 动态代理到 ReflectiveMethodInvocation，再到 TransactionInterceptor �
 		return configurations;
 	}
 ```
+
+两行加载来源分别是 SpringFactoriesLoader 与 ImportCandidates。它们一起加入候选列表，后续再过滤；这能直接回答 Boot 2.7 是否已经完全不用 spring.factories。
 
 
 ```mermaid
@@ -1022,119 +1244,113 @@ flowchart TD
  G --> I["容器关闭 / 销毁回调"]
 ```
 
-```java
-// 业务示例：跨 Bean 调用，让入口穿过事务代理。
-@Service
-class OrderService {
-    private final OrderWriter writer;
-    OrderService(OrderWriter writer) { this.writer = writer; }
-    public void create(Order order) { writer.persist(order); }
-}
-@Service
-class OrderWriter {
-    @Transactional(rollbackFor = Exception.class)
-    public void persist(Order order) throws Exception {
-        // 同一 DataSource 的持久化路径，异常交给代理作回滚判断。
-    }
-}
-```
-
-```yaml
-# Boot 2.7 配置示例：保持默认禁止循环依赖，推动依赖拆分。
-spring:
-  main:
-    allow-circular-references: false
-  datasource:
-    hikari:
-      maximum-pool-size: 20
-```
-
 ## 面试官三层追问
 
 ### 1. 为什么三级缓存而非简单提前放对象？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**提前放 raw 实例可能使依赖者持有未代理对象；工厂可以按需生成 early reference，协调自动代理。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**getSingleton 先查完整单例，再在创建中查早期对象，必要时从 singletonFactories 获取并移动到 earlySingletonObjects。getEarlyBeanReference 允许 SmartInstantiationAwareBeanPostProcessor 参与。
+提前给 B 一个原始 A，后面 A 又被做成代理，B 就可能绕过增强。三级缓存中的工厂允许按需生成早期代理，并与最终引用协调。
 
-**第三层：**循环依赖使初始化顺序不稳定，架构上应拆服务职责或引入事件/接口。Boot 2.7 默认禁止，不能为了“框架支持”就全局开启。
+**getSingleton 按什么顺序找？** 先找 singletonObjects；创建中再找 earlySingletonObjects；允许早期引用时调用 singletonFactories，得到结果后移入第二层并移除工厂。getEarlyBeanReference 让相关后处理器参与。
+
+**需要靠它设计循环吗？** 不建议。它只解决部分单例注入循环，构造器和 prototype 不同。Boot 2.7 默认禁止，先拆职责或显式延迟，初始化过程更容易测试。
 </details>
 
 ### 2. @Transactional 自调用为何失效？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**this.method 调用目标对象的方法，没有进入外部代理，也就没有执行事务拦截器。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**代理持有目标及 interceptor chain，事务开始发生在 TransactionInterceptor 中，注解不是 JVM 指令。final/private 方法与代理形式还构成额外边界。
+因为 this.method 没有经过注入的代理对象。@Transactional 是让拦截器识别的配置，不是 JVM 在方法体里自动开启事务的指令。
 
-**第三层：**优先把事务边界抽到另一个 Bean 或使用 TransactionTemplate；避免依赖 AopContext 和隐式自注入增加配置耦合。测试通过容器拿代理调用，并验证数据库回滚。
+**事务具体在哪开始？** 调用进入 TransactionInterceptor 后解析属性，交给 manager 创建或加入事务，再调用目标方法。JDK/CGLIB 形式和方法可拦截性也影响是否到这里。
+
+**怎么改得清楚？** 把事务写操作抽到另一 Bean，从容器注入后调用；也可明确使用 TransactionTemplate。测试调用真实代理并核对数据库结果，避免只做普通对象单测。
 </details>
 
 ### 3. 内层回滚，外层捕获异常为什么仍提交失败？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**REQUIRED 共用物理事务，内层回滚决定可能标记 rollback-only，外层捕获异常不会清掉标记。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**事务管理器在外层 commit 检测全局 rollback-only，实际回滚并可能抛 UnexpectedRollbackException，防止调用方误以为已提交。
+内外层 REQUIRED 通常共用同一个物理事务。内层标记 rollback-only 后，外层捕获异常并不能把它清除，所以最后提交仍可能失败。
 
-**第三层：**按业务原子性决定一起失败还是用独立事务记录审计；REQUIRES_NEW 可以独立提交，但不是随意避免异常的补丁，还要考虑连接池和一致性。
+**为什么抛 UnexpectedRollbackException？** 管理器发现共享事务必须回滚，就不能让外层调用者误以为提交成功。捕获 Java 异常与改变数据库事务状态是两件事。
+
+**需要独立审计怎么办？** 可以按业务选择独立事务或可靠异步记录，但要承认审计与主业务不再一起提交。不要只为了消掉异常随意改 REQUIRES_NEW，它还占额外连接。
 </details>
 
 ### 4. REQUIRES_NEW 与 NESTED 如何选？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**前者创建独立物理事务，后者通常在同一事务内使用保存点；外层回滚会带走 NESTED 已完成的更新。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**DataSourceTransactionManager 在允许 nested 且驱动支持时创建 savepoint；REQUIRES_NEW 挂起资源，再拿新连接。JTA/其他管理器支持不同。
+REQUIRES_NEW 是独立物理事务，外层失败不一定撤销已提交的内层。NESTED 常是在同一事务中建立保存点，外层回滚仍会把内层结果一起撤销。
 
-**第三层：**独立审计可用新事务但需承认主业务失败审计仍存；批次局部失败可用保存点，需限制锁和长事务。估算外层持连接且内层再借连接的极端并发。
+**管理器怎样支持？** DataSourceTransactionManager 在允许且驱动支持时可用 savepoint；其他 manager 不一定相同。新事务挂起外层资源后，再借连接，外层连接仍占着。
+
+**如何选择？** 独立审计需要单独提交时可以考虑新事务；同一批工作中局部失败可考虑保存点。按极端并发检查连接需求和锁持有，不把传播选项当成无成本开关。
 </details>
 
 ### 5. 异步方法能继承 JDBC 事务吗？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不能自动继承。JDBC 事务连接绑定在线程上下文，异步线程是另一个执行边界。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**TransactionSynchronizationManager 使用 ThreadLocal 资源，复制变量不能安全地把同一连接并发给多个线程。Reactor Context 与 ThreadLocal 也不是同一机制。
+不能自动继承。JDBC 连接通常绑定当前线程，异步任务换了线程，不会自然取得原事务。把同一 Connection 手工塞给多个线程也不是安全替代。
 
-**第三层：**把异步写入设计成独立事务/可靠消息，若必须原子则保持同一事务同步执行。关联阅读：<a href="#c9">Outbox</a>，提交后普通事件监听不等于持久可靠投递。
+**源码体现在哪里？** TransactionSynchronizationManager 保存 ThreadLocal 资源。Reactor Context 跟订阅走，两者不能等同；reactive 事务要配对应 manager。
+
+**业务如何设计？** 真正必须一起成功的本地修改保持同一事务执行；异步动作定义独立事务，并通过 Outbox 或事务消息可靠通知。普通 afterCommit 回调仍有宕机丢任务的可能。
 </details>
 
 ### 6. 自动配置不生效如何定位？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**检查候选是否加载、classpath、配置属性和是否已有用户 Bean，而不是马上扩大 component scan。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**Boot 2.7 读取两类候选资源，ImportSelector 去重并运行过滤条件，缺类/已有 Bean 都可能跳过。用 condition evaluation report 查看原因。
+先确认候选配置有没有加载，再查 classpath、属性和现有 Bean。一个用户 Bean 已存在，可能恰好触发 MissingBean 条件不成立，不是扫描失败。
 
-**第三层：**自定义 starter 固定版本兼容范围，编写正反条件启动测试；排除自动配置需明确替代职责，避免跨版本复制内部类导致运行时失败。
+**Boot 2.7 读哪些资源？** getCandidateConfigurations 同时读取 spring.factories 和 AutoConfiguration.imports，再去重和过滤。条件报告可展示哪条条件没有满足。
+
+**自定义 starter 怎么维护？** 固定支持版本，测试有依赖、缺依赖、用户覆盖等情况。排除自动配置时清楚接替它的职责，别复制内部类后期待跨版本一直可用。
 </details>
 
 ## 模拟生产案例：新事务耗尽连接池
 
-**故障现象：**20 个并发请求都已持外层事务连接，调用 REQUIRES_NEW 审计时全部等待，最后超时。**排查思路：**看池 active/pending、线程栈 borrowConnection、数据库是否执行 SQL。**原理分析：**挂起不等于释放外层连接，内层还需第二条连接。**根因与验证证据：**模拟池大小 20，20 个外层同时到达屏障后调用审计，全部等待新连接；降外层准入到 10 或改设计后恢复。**解决方案：**限制并发，短期增加连接仅在数据库预算允许时使用；审计可同事务或可靠 Outbox 后异步独立写。**长期预防：**连接预算覆盖事务嵌套，设置连接获取超时与事务超时，压测 rollback-only、自调用和异步边界。
+连接池大小 20，20 个请求都先开启外层事务，随后一起调用 REQUIRES_NEW 写审计。它们全部等新连接直到超时。这是一个可用于测试的模拟条件。
+
+看连接池 active/pending，线程是否停在 borrowConnection，再确认外层事务仍持连接。如果数据库几乎没有执行新 SQL，不能简单认为是 SQL 慢；请求可能还没有拿到连接。
+
+原因是挂起外层事务不等于归还连接，每个请求内层还要再借一条。先限制这类请求并发；是否增加池，要看数据库能力。审计也可按业务改同事务，或通过 Outbox 异步写，明确成功和失败时要留下什么。
+
+测试用屏障让外层同时进入内层，检查是否可有界完成。以后把嵌套事务纳入连接需求，分别设置获取连接和事务超时，避免配置只看正常单层请求。
 
 ## 面试回答与核心总结
 
 ### 60 秒快速回答
 
-Spring 生命周期从实例化、早期暴露、依赖注入到初始化和后处理，三级缓存只处理部分单例循环，Boot 2.7 默认禁止。AOP 基于代理，事务在 TransactionInterceptor 中通过 manager 创建或加入，JDBC 连接在线程绑定。自调用、异常规则、异步和错误 manager 会破坏预期。REQUIRES_NEW 独立事务却占第二条连接，NESTED 通常保存点。自动配置要看候选资源和条件报告。
+Spring 先创建和注入 Bean，再通过后处理器做代理。三级缓存只帮助部分单例循环，Boot 2.7 默认禁止循环引用。事务必须经过代理，manager 决定创建或加入，JDBC 连接通常绑定当前线程。自调用、捕获异常和异步换线程都要检查。REQUIRES_NEW 独立提交却再占连接，NESTED 常用保存点。排查沿代理、manager、连接和异常一路看，不只确认注解在不在。
 
 ### 2～3 分钟深入回答
 
-沿 refresh/doCreateBean 说明定义处理器与实例处理器，再解释 early reference 为什么需要工厂和代理协调。画出代理入口、事务属性、manager、连接绑定、业务执行和完成处理，用 REQUIRED rollback-only 与 REQUIRES_NEW 连接池耗尽比较传播机制。最后用异步订单场景说明线程事务不能跨边界复制，落到持久 Outbox 方案；自动配置和 MVC 则按明确调用链解释请求在哪层处理。
+我会先说明对象创建和方法增强是两个过程。Spring 按 BeanDefinition 实例化、注入，再执行初始化与 BeanPostProcessor。提前暴露单例时用工厂生成早期引用，让循环中拿到的引用尽量与最终代理协调，但这不解决构造器循环，Boot 2.7 默认也禁止。
 
-对于传播，我会用外层持连接、内层 REQUIRES_NEW 再借连接解释连接池饥饿；NESTED 在支持 savepoint 的路径里并非独立提交。默认异常规则只对 RuntimeException/Error 回滚，checked exception 和捕获后正常返回可能提交。排查按代理入口、manager、绑定连接、异常传播和 rollback-only 五步看。如果提交后要发 MQ，普通 afterCommit 内存回调仍有宕机窗口，可靠事件要进入 Outbox 或事务消息，而不是把注解范围夸大到网络。
+事务的真正入口是代理里的 TransactionInterceptor。它读属性、选择 manager，创建或加入事务，执行方法，最后提交或按异常规则回滚。JDBC manager 把连接绑定当前线程，所以自己新连接或另起线程，不会自动加入原事务。this 调用没有经过代理，是常见失效原因。
+
+默认运行时异常和 Error 回滚，checked exception 需要规则。异常被业务方法吞掉，拦截器可能看到成功；内层 REQUIRED 已标 rollback-only，外层捕获又不能清掉这个标记，最后仍会失败。
+
+传播要看物理资源。REQUIRED 共用现有事务，内层声明隔离不一定重新生效。REQUIRES_NEW 挂起外层并借新连接，外层还占一条；NESTED 在支持时用保存点，外层回滚仍撤销它。连接池要考虑嵌套并发。
+
+排查时我会依次确认调用经过代理、manager 匹配、DAO 使用绑定连接、异常传播与最终状态。提交后通知下游，也不能只靠内存回调：宕机仍可漏消息，需要可靠待发记录。自动配置则从候选和条件报告查起，MVC 按 handler、adapter、参数和返回值处理解释请求去向。
 
 ### 高频追问、常见错误与速记
 
-高频追问：prototype 会统一销毁吗？checked exception 默认回滚吗？Boot2.7 是否仍读 spring.factories？常见错误：三级缓存解决构造循环；有接口一定 JDK 代理；捕获异常能清除 rollback-only；把事务连接传进多线程。源码：doCreateBean/getSingleton/getEarlyBeanReference，TransactionInterceptor.invoke，TransactionAspectSupport.invokeWithinTransaction，AutoConfigurationImportSelector.getCandidateConfigurations，DispatcherServlet.doDispatch。核心知识：**对象创建→代理入口→物理事务→线程边界**。
+- 高频追问：checked exception 默认回滚吗？捕获异常为何仍提交失败？Boot 2.7 是否仍读 spring.factories？
+- 容易答错：三级缓存解决所有循环；有接口一定 JDK 代理；挂起释放外层连接；把同一事务连接交给异步线程。
+- 常看的源码：`doCreateBean/getSingleton/getEarlyBeanReference`、`TransactionInterceptor.invoke`、`invokeWithinTransaction`、`AutoConfigurationImportSelector`、`DispatcherServlet.doDispatch`。
+- 理解事务时，先看这次调用实际经过哪里、使用哪条连接，再看注解配置。
 
 
 ## 官方资料与版本来源
 
-联网核对日期：2026-10-08。固定版本用于解释实现，不代表最新生产推荐版本。源码摘录版权见 [source-notices.txt](./source-notices.txt)，下载记录与摘要见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [DefaultSingletonBeanRegistry.getSingleton · Spring Framework 5.3.31](https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-beans/src/main/java/org/springframework/beans/factory/support/DefaultSingletonBeanRegistry.java)
 - [TransactionAspectSupport.invokeWithinTransaction · Spring Framework 5.3.31](https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java)
@@ -1145,51 +1361,78 @@ Spring 生命周期从实例化、早期暴露、依赖注入到初始化和后�
 
 # 数据库事务、MVCC 与性能优化
 
-版本基线：MySQL 8.0.36 InnoDB、PostgreSQL 16、Oracle Database 19c；OceanBase 按 4.x 产品机制讨论，实际兼容模式与小版本须另外核对。隔离级别名称相同不代表内部锁、快照与报错一致。
+主要使用 MySQL 8.0.36 InnoDB，另外对照 PostgreSQL 16、Oracle 19c 和 OceanBase 4.x。不同数据库可以都叫 MVCC，却把旧版本放在不同地方，也不一定采用相同的锁和隔离规则。
 
 ## 核心知识与原理
 
 ### ACID、日志与可见性
 
-Atomicity 通过回滚机制撤销未成功事务，Consistency 是约束与业务协议保持有效，Isolation 控制并发观察，Durability 在承诺持久级别下保证成功提交。Redo 用于恢复已执行的物理修改，Undo 用于回滚及构造历史版本，不是备份。WAL 要求相关日志先于数据页落盘，不意味着所有数据库有相同的 Redo/Undo 文件布局。MySQL binlog 是服务层逻辑日志，redo 是 InnoDB 日志，二者通过提交协议协调；生产持久性还受 innodb_flush_log_at_trx_commit、sync_binlog 和底层存储可靠性影响。
+转账时，扣款和加款必须一起成功或一起撤销，这对应 Atomicity。金额约束、账户关系和业务规则要一直成立，这是 Consistency。并发事务能看到什么、会互相等到什么程度，由 Isolation 决定。成功提交后，按配置承诺的数据应能从故障中恢复，这是 Durability。
+
+InnoDB 修改数据页后，不必立刻把每个页都写到磁盘。它先写 redo，崩溃后据此重做必要修改。WAL 要求相关日志先于数据页落盘。Undo 则用来撤销未成功事务，并为快照读提供旧版本。Redo 和 Undo 解决的是不同问题，都不是备份。
+
+MySQL 的 binlog 又是另一层日志，主要服务复制和逻辑恢复。InnoDB 提交需要与 binlog 协调，持久程度还受 `innodb_flush_log_at_trx_commit`、`sync_binlog` 和存储设备影响。数据库返回成功，不等于异步副本当时一定已有这笔数据。
 
 ### InnoDB Read View 与 RC/RR
 
-聚簇记录含 DB_TRX_ID、DB_ROLL_PTR 等隐藏字段，Undo 链可重建历史版本。Read View 保存创建者、活跃读写事务 ID 集及界限：小于最小活跃 ID 的版本通常可见；大于等于下一分配界限不可见；中间区间需要查是否仍活跃；创建事务自身的修改可见。源码字段名称有历史命名歧义，按 changes_visible 的判断顺序理解，不靠 up/low 英文猜含义。
+假设余额从 100 改为 80，写事务尚未提交。另一个线程做普通 SELECT，不必看到未提交的 80，也不一定要等写锁：它可以沿 Undo 找到之前的 100。MVCC 就是让不同事务按规则读到合适的版本。
 
-RC 通常每次一致性读建立新快照，RR 通常第一次一致性读建立并复用快照，`START TRANSACTION WITH CONSISTENT SNAPSHOT` 等路径另有创建时机。普通 SELECT 一致性读与 SELECT FOR UPDATE、UPDATE 的当前读不同，后者读较新的可锁定状态。RR 不能泛化为“任何操作都绝不看到后来插入”；快照读不看新行，锁定读通过范围锁限制某些插入，混用读类型会出现不同观察。长事务保留旧版本，使 purge 受阻，history list length 增长。
+InnoDB 聚簇记录含事务 ID 和 Undo 指针。Read View 保存创建者、快照时活跃的读写事务集合，以及判断区间的界限。`changes_visible()` 先判断版本是否早于活跃事务界限、是否为自己写入，再检查新事务界限和活跃集合。不可见时，就沿 Undo 找更旧的版本。
+
+RC 下，普通一致性读通常每条语句新建快照：第一次查完后别人提交修改，第二次就可能读到新值。RR 通常在第一次一致性读建立快照，后续复用；不是写 BEGIN 的那一刻必然建立。显式 consistent snapshot 等路径另有创建时机。
+
+这里的“普通读”很重要。SELECT FOR UPDATE 和 UPDATE 要读取可以锁定和修改的较新状态，走当前读。一个 RR 事务先普通 SELECT，再 UPDATE，不应假定两个动作都只面对同一份旧快照。长快照还会让 purge 保留它可能用到的 Undo，影响清理。
 
 ### 索引、范围锁与执行计划
 
-InnoDB B+Tree 聚簇索引叶子保存完整行，二级索引叶子含主键值；非覆盖查询需要回表。联合索引遵循有序键比较，等值前缀后范围通常限制后续字段用于连续区间定位，但后续字段仍可能参与 Index Condition Pushdown 或过滤；不能说“范围之后索引完全失效”。覆盖索引减少读取行的次数，但宽索引增加写放大、页数和缓冲池压力。
+InnoDB 的主键索引叶子保存整行，二级索引叶子保存索引值和主键。通过二级索引找到主键，再去取整行，叫回表。查询所需列都在索引里时可以减少回表，这就是覆盖索引，但增加宽索引也会占内存、增加写成本。
 
-Gap Lock 保护间隙，Next-Key Lock 组合记录锁和前间隙。RR 锁定范围查询常用 next-key 防止相应范围内插入；唯一索引完整等值命中通常只需记录锁，未命中等边界要另外推导。RC 多数搜索不使用 gap lock，但外键和重复键检查等仍有例外。锁的是访问路径扫描到的索引区间，不是仅锁最终返回的行，缺索引会放大锁范围。
+联合索引 `(tenant_id, created_at, id)` 按这几列依次排序。tenant_id 等值能缩小到某个租户，created_at 范围再缩小连续扫描区间。范围之后的列不一定继续缩小这个区间，但仍可能用于 ICP 或过滤，不能一句“范围后索引失效”就结束。
 
-EXPLAIN 看访问类型、key、估计 rows 和 Extra，再用受控环境 EXPLAIN ANALYZE（8.0.18+）比较实际行数与循环；后者真实执行，不能随意对生产重 SQL 使用。慢查询需分 CPU、IO、锁等待、网络与返回量，避免只给 SQL 加索引。死锁是循环等待，InnoDB 会选 victim；应用重试整个事务而不是只补最后一条语句，且必须幂等、有界并带退避。
+范围更新或锁定读还涉及间隙。记录锁保护已有索引记录，Gap Lock 保护记录之间的空隙，Next-Key Lock 把记录和前间隙一起保护。RR 下某些范围锁定读用它阻止插入；唯一索引完整等值命中通常只锁记录，未命中又要另看。RC 大多数搜索不使用 gap lock，但外键和重复键检查有例外。
+
+SQL 最终只返回一行，不代表只锁一行。若访问路径扫描了很大范围，锁也可能很多。EXPLAIN 先看 key、rows、访问类型和 Extra，再在受控环境用 EXPLAIN ANALYZE 比较实际扫描量。后者会真实执行，不能随意对生产重查询使用。死锁时应有界重试整个事务，重新做决策，而不是只补最后一条 SQL。
+
+```sql
+-- 业务示例：幂等键与条件状态转换放进同一个事务。
+START TRANSACTION;
+INSERT INTO processed_event(event_id) VALUES ('pay-20261008-001');
+UPDATE orders SET status='PAID'
+ WHERE id=1001 AND status='PENDING';
+-- 调用方检查 affected rows，并区分首次成功、已处理与非法状态。
+COMMIT;
+-- 联合索引示例：tenant_id 等值、created_at 范围，id 用于稳定排序。
+CREATE INDEX idx_order_tenant_time ON orders(tenant_id, created_at, id);
+```
 
 ### 数据库实现差异与迁移
 
-|数据库|版本/快照|并发与恢复差异|迁移注意|
-|---|---|---|---|
-|MySQL InnoDB|Undo 历史版本 / Read View；默认 RR|聚簇索引、next-key，redo+binlog|字符集/排序规则、隐式转换、自增和 gap lock|
-|PostgreSQL 16|表中多版本 tuple，xmin/xmax，VACUUM|默认 RC；RR 快照隔离，Serializable 使用 SSI 检测危险结构|VACUUM 长事务、序列不随事务回滚、类型与 SQL 方言|
-|Oracle 19c|SCN 与 Undo 构造一致读，默认 RC|RR 不是可直接选择的同名级别；Serializable 可能 ORA-08177，Undo 不足可能 ORA-01555|空字符串视为 NULL、序列、日期/精度、执行计划|
-|OceanBase 4.x|分布式多版本存储，具体看租户兼容模式|日志复制及分布式事务跨分区协调，不等同单机 InnoDB|MySQL/Oracle 模式不是完全等价，核对功能和分布式执行计划|
+|数据库|旧版本与快照怎样处理？|实践中需要留意什么？|
+|---|---|---|
+|MySQL InnoDB|Undo 链配合 Read View，默认 RR|next-key、聚簇主键、长事务阻碍 purge|
+|PostgreSQL 16|表里保留 tuple 版本，VACUUM 清理，默认 RC|长快照影响清理；RR 是快照隔离，Serializable 用 SSI 检测危险冲突|
+|Oracle 19c|使用 SCN 和 Undo 构造一致读，默认 RC|没有可直接照搬的同名 RR；可能遇到 ORA-08177 或 Undo 不足的 ORA-01555|
+|OceanBase 4.x|分布式多版本存储与事务协调|MySQL/Oracle 租户模式不是完全等价实现，应核对小版本、功能与分布式计划|
 
-迁移先验证数据语义：时间区、字符排序、NULL、decimal、唯一约束，再验证事务、SQL 方言和访问路径。全量快照与 CDC 衔接要记录一致位点；按主键范围分片校验行数与字段规范化 hash，不用简单 sum(id) 证明一致。切换前等待增量追平，冻结必要写入或采用受控双写/路由协议，预设回退窗口；双写本身也会产生偏差，需要对账与修复。跨产品不能把 MySQL Read View 源码当统一 MVCC 实现。
+迁移先检查数据含义：时区、decimal、字符排序、NULL 和空字符串。在 Oracle 中空字符串按 NULL 处理，就可能改变唯一性或筛选结果。语法能执行只是第一步，事务结果和访问成本也要测。
+
+全量复制应对应明确快照位点，CDC 从正确位置接上增量。按主键范围比较行数和规范化后的字段内容，重要业务再对金额与状态账；只比行数，漏一行同时多一行也可能“通过”。切换前等增量追平，控制写路由，预演回退。双写会产生自己的失败和乱序问题，需要单独对账。
 
 ### Read View 手工推演与写偏差
 
-设活跃 ID 集为 {100,104}，m_up_limit_id=100，m_low_limit_id=108，创建者 ID=106。记录 trx=99 可见；100、104 仍活跃不可见；105 已提交且不在活跃集可见；108 及之后尚在快照边界之外不可见；106 的自己写入可见。版本 104 不可见时沿 Undo 找到 99，就能返回旧值。这个判断依赖快照记录的事务状态，而不是读取“当前时刻已提交列表”。
+假设快照里的活跃事务是 {100,104}，最小活跃 ID 是 100，新事务界限是 108，创建者为 106。版本 99 可见；100、104 因仍活跃不可见；105 不在活跃集合里且未超界，可以看见；108 及以后不可见；自己的 106 可见。若当前版本是 104，就沿 Undo 找到可见的旧版。
 
-快照隔离可以避免很多读异常，却不自动保护跨行不变量：两名值班人员分别读到另一人仍在值班，各自把自己改成离线，写不同记录未直接冲突，最后无人值班。需要锁住共同约束记录、使用数据库可用的 Serializable 或显式约束/状态协议；MySQL RR、PostgreSQL RR/SSI 与 Oracle Serializable 的细节不同，不能仅按级别名字推断所有异常。事务重试需从新快照重新执行整个决策。
+快照也不是所有业务规则的保险。两名值班人员各自看到对方在线，于是分别把自己改为离线，写的不是同一行，最后却无人值班。要保护“至少一人在线”，可以锁住共同的约束记录，或使用数据库支持的更严格方式。不同产品的 Serializable 和冲突处理不同，应测试后再选；重试时也必须重新读取、重新判断。
+
 
 ## 源码级解析与调用链
 
-InnoDB 一致读沿 `row_search_mvcc → lock_clust_rec_cons_read_sees → ReadView::changes_visible`，不可见时由 `row_vers_build_for_consistent_read` 重建 Undo 旧版本，再检验可见性。源码在 storage/innobase 的 row、lock、read 和 trx 模块，不是 JDBC getTransactionIsolation 的实现。
+InnoDB 普通读会经过 `row_search_mvcc` 及相关可见性检查。`ReadView::changes_visible` 判定版本能否返回；不行则由 `row_vers_build_for_consistent_read` 重建旧版本后再判断。
+
+下面这段判断与前面的 {100,104} 例子对应，注意 m_up_limit_id 和 m_low_limit_id 的历史命名，按代码比较方向理解，不凭英文名称猜。
 
 
-**源码原文连续节选：ReadView::changes_visible · MySQL 8.0.36 · L162–L181**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/mysql/mysql-server/blob/mysql-8.0.36/storage/innobase/include/read0types.h#L162-L181)）。
+<div class="source-caption"><code>ReadView::changes_visible</code><span>MySQL 8.0.36 · L162–L181 · <a href="https://github.com/mysql/mysql-server/blob/mysql-8.0.36/storage/innobase/include/read0types.h#L162-L181">完整源码</a></span></div>
 
 ```cpp
   [[nodiscard]] bool changes_visible(trx_id_t id,
@@ -1214,6 +1457,8 @@ InnoDB 一致读沿 `row_search_mvcc → lock_clust_rec_cons_read_sees → ReadV
     return (!std::binary_search(p, p + m_ids.size(), id));
 ```
 
+先允许较早版本和自己的版本，再拒绝超出新事务界限的版本，最后在活跃事务集合里查找。binary_search 找不到，才表示这个中间区间的事务版本可见。
+
 
 ```mermaid
 flowchart LR
@@ -1226,104 +1471,113 @@ flowchart LR
  E -->|可见| F["返回快照版本"]
 ```
 
-```sql
--- 业务示例：幂等键与条件状态转换放进同一个事务。
-START TRANSACTION;
-INSERT INTO processed_event(event_id) VALUES ('pay-20261008-001');
-UPDATE orders SET status='PAID'
- WHERE id=1001 AND status='PENDING';
--- 调用方检查 affected rows，并区分首次成功、已处理与非法状态。
-COMMIT;
--- 联合索引示例：tenant_id 等值、created_at 范围，id 用于稳定排序。
-CREATE INDEX idx_order_tenant_time ON orders(tenant_id, created_at, id);
-```
-
 ## 面试官三层追问
 
 ### 1. RR 快照什么时候建立？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**InnoDB RR 一般首次一致性读建立 Read View 后复用，不一定在 BEGIN 当下；RC 每条一致性读更新快照。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**changes_visible 根据创建者、活跃 ID 及界限判定，不可见则沿 Undo；显式 consistent snapshot 和锁定读是不同路径。
+InnoDB RR 一般在第一次一致性读时建立快照，后续复用；BEGIN 本身不一定已经创建。RC 则通常每次一致性读更新快照。
 
-**第三层：**长读事务影响 purge 和磁盘，报表应分批或使用明确一致快照策略。与当前读混用前定义业务到底需要哪个时点的数据。
+**为什么能读旧值？** ReadView::changes_visible 判断当前版本所属事务是否可见，不可见时沿 Undo 重建旧版本。显式 consistent snapshot 和锁定读走不同流程。
+
+**长事务会怎样？** 旧快照可能还要用历史数据，purge 不敢清理它们。报表要控制事务时长，跨批次读也要先想清楚是否接受不同时点的数据。
 </details>
 
 ### 2. MVCC 是否让读写完全不阻塞？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**普通快照读通常避免等待写锁，但锁定读、写写竞争以及元数据锁仍会阻塞。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**历史版本重建需要 Undo；当前读必须协调索引锁。DDL 等可能与事务持有的 metadata lock 冲突，不能用 MVCC 解释所有等待。
+普通快照读通常不需要等写锁，但写写冲突、SELECT FOR UPDATE 和元数据锁仍可能等待。MVCC 没有把数据库里所有等待都取消。
 
-**第三层：**诊断按行锁、MDL、IO、buffer latch 分层，长事务和在线变更要设置治理窗口。并发提升不能只提高连接池大小。
+**等在哪层？** 快照读重建 Undo，当前读协调索引锁，DDL 还可能等待 MDL。看到查询慢，需要分清行锁、MDL、IO 与内部竞争，才能解释等待。
+
+**怎样处理？** 找持有者及事务年龄，缩短长事务、安排变更窗口。只扩大连接池会让更多请求排队，不会解除一个仍未结束的持锁事务。
 </details>
 
 ### 3. MySQL RR 能防所有幻读吗？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**快照读重复看到同一快照，锁定范围读依赖 next-key 限制插入；要先明确读类型和查询条件。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**唯一完整等值、未命中、范围与缺索引对应锁区间不同。普通 SELECT 后 UPDATE 是当前读，可能操作后来出现的行，不能把它们当同一个快照过程。
+要先说明哪种读。快照 SELECT 重复读同一快照；锁定范围读可能使用 next-key 防止相关范围插入。把这两种机制混成一句“RR 没幻读”，无法解释实际操作。
 
-**第三层：**业务唯一性用唯一索引，不依赖“查不到再插入”。库存额度用条件更新或锁定协议，跨库一致性另设计消息/补偿。
+**普通读后 UPDATE 会怎样？** UPDATE 是当前读，可能处理后来出现、符合条件的行。唯一等值命中、未命中和范围查询的锁也不同，需沿实际索引区间分析。
+
+**唯一业务怎样保证？** 用唯一索引约束订单号或事件 ID，不靠查不到再插入。库存扣减用条件更新；跨数据库的结果还需要明确消息和补偿处理。
 </details>
 
 ### 4. Redo、Undo、binlog 都是日志，为何不能互换？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**Redo 面向崩溃恢复，Undo 面向回滚和旧版本，binlog 面向复制与逻辑恢复，各有职责。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**WAL 约束日志与数据页先后；InnoDB 和 binlog 的提交协调避免崩溃后两套日志产生不可解释分歧。durability 配置改变成功应答的持久边界。
+它们面向不同工作。Redo 帮崩溃恢复重做修改，Undo 帮回滚和重建旧版本，binlog 主要用于复制及逻辑恢复，不能互相替代。
 
-**第三层：**RPO/RTO 设计同时考虑刷盘、副本、备份和演练。主从异步复制不能保证已应答事务在主机故障后必然保留。
+**提交为什么要协调？** 相关 WAL 先于数据页落盘，InnoDB 与 binlog 还要协调提交结果，避免崩溃后两层日志对成功事务产生分歧。刷盘配置决定具体的持久承诺。
+
+**高可用够不够？** 还要看副本确认、备份、恢复速度和演练。异步副本可能落后，也会复制错误删除，所以它既不是零丢失保证，也不是完整备份。
 </details>
 
 ### 5. 慢 SQL 有索引为什么仍慢？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**可能过滤性差、大量回表、排序、锁等待或返回数据过多，有索引不等于低成本。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**比较 estimated/actual rows、循环和回表次数，检查类型转换、排序规则及统计偏差；范围后的列仍可能用于 ICP，但不一定减少主扫描区间。
+索引存在，不代表筛掉了足够多的数据。低选择性索引、大量回表、排序、返回过多行或锁等待，都可能使查询慢。
 
-**第三层：**用生产分布样本验证新索引，评估写入成本和 buffer 占用；分页可用稳定游标替代巨大 offset，限制返回列与批量大小。
+**怎样看到真实工作量？** 比较计划中的估计与实际 rows、loops，检查类型转换、统计和排序。范围后的字段仍可能参与 ICP，但未必缩小扫描区间。EXPLAIN ANALYZE 会真实执行。
+
+**索引以外怎么改？** 控制返回列和批量，深分页考虑稳定游标。新索引用接近生产分布的数据验证，还要看写入与缓存成本，不能只测一个很小的查询样本。
 </details>
 
 ### 6. 数据库迁移怎样证明一致？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**需要一致快照位点、CDC 衔接、分片校验和切换后的业务对账，单比行数不足。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**规范化时区、decimal、NULL 和字符编码后逐范围 hash 或字段比较，核对删除与更新，避免 CDC 乱序或断点遗漏。
+先有一致快照与增量位点，再按范围比较内容，切换后做业务对账。行数一样不代表每行一样，简单 sum(id) 也不能证明没有错漏。
 
-**第三层：**灰度读、写路由和回退计划先验证，跨产品隔离级别与 SQL 语义做故障测试。金融数据要用金额/状态业务不变量对账，不能只看技术 checksum。
+**哪些内容需要规范化？** 时区、decimal、字符编码、排序规则和 NULL。CDC 还要处理更新、删除、断点与顺序，跨产品同名隔离级别不保证行为一致。
+
+**切换怎么恢复？** 先灰度验证，增量追平后控制写路由，并预演回退。金融类数据按金额和状态核对，发现偏差有明确修复流程，而非只宣布 checksum 通过。
 </details>
 
 ## 模拟生产案例：长快照拖住 Undo
 
-**故障现象：**在线更新正常，但 Undo/history list 增长，磁盘与查询延迟持续上升。**排查思路：**采样 information_schema.innodb_trx、history list、purge 和报表连接生命周期。**原理分析：**一个长 RR 一致性读保持旧快照，purge 不能删除它还可能需要的历史版本。**根因和验证证据：**模拟报表 BEGIN 后持续查询不提交，更新线程不断修改同一数据；结束报表事务后 purge 逐渐追赶，Undo 增长停止。**解决方案：**停止异常长事务，报表按明确批次读或从分析副本取得指定快照，释放连接前完成事务。**长期预防：**事务年龄告警、报表超时、连接复用边界检查，迁移/备份演练包括长快照压力。
+更新业务看起来正常，Undo 和 history list 却持续增长，磁盘与查询压力越来越大。这是一个长 RR 报表事务影响清理的模拟情境。
+
+先看 innodb_trx 中事务年龄、report 连接和 history list，再检查 purge 是否追得上。如果有一个报表很早建立快照却一直不提交，它可能仍需要历史版本，不能只怪更新量大。
+
+受控结束该报表事务后，应观察 purge 是否逐渐追赶，这是检验假设的重要对照。改成明确的批次或分析读取方式，但先决定业务是否必须看到同一时点，避免拆批后结果含义变化。
+
+长期设事务年龄告警和报表超时，检查连接复用时是否完成事务。备份、迁移的大快照同样需要评估保留历史版本的代价。
 
 ## 面试回答与核心总结
 
 ### 60 秒快速回答
 
-InnoDB 用 Read View 判断事务版本可见性，不可见沿 Undo；RC 每次一致读新快照，RR 通常首次快照复用，锁定读和写走当前读。B+Tree、覆盖索引和访问路径决定扫描成本及锁范围，next-key 保护范围不等于所有读都锁。Redo、Undo、binlog 职责不同，持久性受配置和复制边界影响。跨库迁移必须验证语义、位点和业务不变量。
+InnoDB 普通一致性读用 Read View 判断当前版本，不可见就沿 Undo 读旧版。RC 通常每条读新快照，RR 通常首次一致读后复用；FOR UPDATE 和写操作则读当前状态。索引决定扫描和锁范围，不能只看返回行数。Redo、Undo、binlog 分别负责不同恢复工作。慢查询看实际扫描、回表和等待；迁移还要验证数据含义、CDC 位点和业务结果，不能只比行数。
 
 ### 2～3 分钟深入回答
 
-给定活跃事务和一条三版本链，按 changes_visible 顺序逐个判断，再比较同一 RR 事务快照 SELECT 与 UPDATE 当前读的差别。结合联合索引推导实际扫描区间与 next-key 锁，说明为什么唯一索引比“查询再插入”可靠。随后比较 PostgreSQL tuple/VACUUM、Oracle SCN/Undo 与 InnoDB，指出 SSI、ORA 错误和 purge 的不同治理。结尾给出慢 SQL 证据链与 CDC 迁移切换/对账方案。
+我会从一个未提交余额修改讲 MVCC。别人把 100 改成 80 尚未提交，普通读可以借 Undo 看到旧 100。Read View 根据版本事务、活跃集合和界限判断可见性，必要时沿历史链回退。
 
-对于数据库选择，我不会把 Read View 当所有产品的统一实现。PostgreSQL tuple 版本与 VACUUM、Oracle SCN/Undo 和 OceanBase 分布式协调各有不同恢复成本。迁移要从时区、空字符串/NULL、decimal、排序和唯一约束验证语义，再做一致快照位点与 CDC 衔接，按主键范围及业务金额/状态对账。慢查询则看实际访问路径、回表、锁等待和返回量；加索引需要评估写放大，死锁重试应整体重新执行事务决策。
+RC 每次一致性读通常换快照，RR 则通常首次读后复用，不一定 BEGIN 时已经创建。SELECT FOR UPDATE、UPDATE 要看可锁定的当前状态，不能把它们和普通 SELECT 当同一快照。长事务还会保留旧版本，阻碍 purge。
+
+索引方面，主键叶子存整行，二级索引带主键，非覆盖时要回表。联合索引先用等值前缀，再用范围，后续列可能参与过滤或 ICP。范围锁沿实际访问路径建立，缺好索引会扫描和锁更多记录；唯一完整等值命中与未命中也要分别看。
+
+慢 SQL 先看计划、实际 rows 和 loops，再查锁等待、IO 和返回量。EXPLAIN ANALYZE 会执行，需要控制影响。死锁按整个事务有界重试，重新读和判断，不能只补最后一条。
+
+跨库我不会把 InnoDB Undo 当所有 MVCC 的实现。PG 用 tuple 与 VACUUM，Oracle 用 SCN/Undo，OceanBase 还有分布式协调。迁移先核对时区、NULL、精度和约束，再保证全量与 CDC 位点衔接，按范围比内容和业务金额状态。切换与回退预演过，才说明方案可以恢复。
 
 ### 高频追问、常见错误与速记
 
-高频追问：长事务为什么阻碍 purge？唯一未命中怎么锁？EXPLAIN ANALYZE 有何执行风险？常见错误：所有数据库默认 RR；PG 使用 InnoDB Undo；Oracle 可直接选择同名 RR；范围后索引全失效；副本等于备份。源码：ReadView::changes_visible，row_search_mvcc，row_vers_build_for_consistent_read，trx_assign_read_view。核心知识：**版本可见性→访问路径→锁区间→日志承诺→迁移语义**。
+- 高频追问：RR 快照何时创建？长事务为何拖 purge？唯一未命中锁什么？范围后哪些列还有用？
+- 容易答错：所有数据库默认 RR；快照读和当前读相同；PG 用 InnoDB Undo；有索引一定快；副本就是备份。
+- 常看的源码：`ReadView::changes_visible`、`row_search_mvcc`、`row_vers_build_for_consistent_read`、`trx_assign_read_view`。
+- 推导时把读到哪个版本、扫描哪个区间、锁住哪些位置分开。
 
 
 ## 官方资料与版本来源
 
-联网核对日期：2026-10-08。固定版本用于解释实现，不代表最新生产推荐版本。源码摘录版权见 [source-notices.txt](./source-notices.txt)，下载记录与摘要见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [ReadView::changes_visible · MySQL 8.0.36](https://raw.githubusercontent.com/mysql/mysql-server/mysql-8.0.36/storage/innobase/include/read0types.h)
 - [PostgreSQL16 隔离级别](https://www.postgresql.org/docs/16/transaction-iso.html)
@@ -1336,52 +1590,67 @@ InnoDB 用 Read View 判断事务版本可见性，不可见沿 Undo；RC 每次
 
 # RocketMQ 消息队列
 
-主线版本：Apache RocketMQ 4.9.8（tag rocketmq-all-4.9.8），以经典 Java Remoting 客户端解释；5.3.4 只在明确小节比较 Proxy、POP、Controller 等能力。Broker 升级不等于客户端自动换消费协议。
+主要看 RocketMQ 4.9.8 的经典 Java 客户端，涉及 5.x 时明确以 5.3.4 对照。这个专题围绕两个实际问题展开：消息到哪里才算发出去了，业务做到哪里才算消费成功。
 
 ## 核心知识与原理
 
 ### 路由、消息存储与发送确认
 
-NameServer 维护 Broker 路由，Broker 注册并发送心跳；Producer/Consumer 获取并缓存路由，再直接通信 Broker。NameServer 不保存消息，也不是每次发消息都必须访问的中心协调服务。Broker 保存消息，队列是 Topic 内的并行/顺序单位，客户端负载均衡按具体消费模型执行。
+Producer 先从 NameServer 获取 Topic 的 Broker、队列等路由信息，缓存后直接向 Broker 发消息。Consumer 也根据路由找 Broker。NameServer 不保存消息，也不用参与每一条消息的收发。
 
-CommitLog 是 Broker 消息主体顺序追加文件，ConsumeQueue 是 Topic/Queue 的逻辑索引，每条经典索引单元 20 字节：物理 offset（8）、消息 size（4）、tagsCode（8）；IndexFile 为 key 查询提供哈希索引，不是主要消费路径。ReputMessageService 从 CommitLog 解析后 dispatch 到 ConsumeQueue/IndexFile，消息持久化和索引构建是相关但不同阶段，宕机恢复会按有效 CommitLog 重建/追赶索引。
+Broker 把消息主体顺序追加到 CommitLog。消费按 Topic 和 Queue 进行，ConsumeQueue 保存“这条队列消息在 CommitLog 的哪个位置”，经典索引单元为 20 字节：8 字节 offset、4 字节 size、8 字节 tagsCode。IndexFile 用于按 key 查询，不是普通拉取消费的主索引。
 
-`DefaultMQProducerImpl.sendDefaultImpl → sendKernelImpl → MQClientAPIImpl.sendMessage → SendMessageProcessor → DefaultMessageStore.asyncPutMessage → CommitLog.asyncPutMessage`。appendMessage 写映射文件区域，后续刷盘/复制结果参与发送结果。同步刷盘等待到指定 offset 落盘，异步刷盘先成功应答、后台定时/进度刷盘，因此机器故障可能丢已应答但未持久化的数据。`waitStoreMsgOK`、刷盘类型、超时和 HA 配置共同决定等待，不能说只要 SYNC_FLUSH 一切可靠。
+消息追加后，ReputMessageService 继续从 CommitLog 解析，分发生成 ConsumeQueue 和 IndexFile。主体写入与消费索引生成不是同一动作，恢复时也需要追赶有效日志。
 
-传统同步主从复制等待副本达到一定 offset，可降低主故障损失，但返回 FLUSH_SLAVE_TIMEOUT/SLAVE_NOT_AVAILABLE 等状态时业务需明确处理；发送超时可能是“Broker 已写，但响应丢了”，重试可能重复。SYNC_FLUSH + SYNC_MASTER 不等于具备共识选主的集群，传统 HA、DLedger 与 5.x Controller 有不同配置与恢复条件，不能混为一套流程。
+Producer 收到发送结果时，Broker 做到哪一步，取决于配置。异步刷盘可以先响应，稍后再落磁盘；机器此时故障，可能丢掉已应答但尚未落盘的数据。同步刷盘等待指定位置持久化，但还要看 waitStoreMsgOK 和超时结果。复制到副本也是另一项等待，不应把“写本机磁盘”和“副本收到”混为一谈。
+
+发送超时尤其容易误判。Broker 可能已经写入，只是响应没到 Producer。因此重试可能产生重复，不能把超时解释为必定没发出去。传统同步主从、DLedger 和 5.x Controller 的选主与恢复方式不同；同步复制本身并不自动提供一套完整的共识选主。
 
 ### 消费、ACK、重试与死信
 
-4.x PushConsumer 底层仍由客户端 PullMessageService 拉取，拉取结果进入 ProcessQueue，再交给消费执行器；Push 指使用体验，不是每条消息必须由 Broker 主动推送网络包。经典集群消费按队列分配，同一 group 内队列被分配给消费者；广播每个实例都消费，offset 管理与重试路径不同，4.x 广播不提供与集群相同的 Broker 重试保障，业务需处理失败。
+4.x 的 PushConsumer 是对应用隐藏了拉取调度。底层 PullMessageService 仍从 Broker 拉消息，放进 ProcessQueue，再交给消费线程执行。业务感觉是“有人回调我”，网络模型却不能概括成 Broker 每条主动推送。
 
-并发消费返回 CONSUME_SUCCESS 后客户端更新本地 offset，并按协议持久化 Broker offset；应用层所谓 ACK 在此表示消费成功确认，不是经典模型中每条都用 5.x POP ACK。消费完成但 offset 未持久化就宕机，会重新收到，典型 at-least-once。失败进入 retry topic，超过重试限额进入 DLQ；顺序消费挂起当前队列重试的行为与并发 retry 路径不同，要按 listener 和客户端版本说明。DLQ 必须告警、分析和受控重放，不能当“系统自动解决失败”的垃圾桶。
+经典集群消费将队列分配给同 group 的消费者。消费方法返回成功后，客户端更新消费位置，并按相应流程把 offset 持久化。假如数据库已经提交，但进程还没保存消费位置就宕机，重启后可能再次收到那条消息。这是为什么消费必须考虑重复。
 
-At-most-once 允许丢失但不重复，at-least-once 允许重复且在恢复条件满足时继续交付，exactly-once 必须定义覆盖范围。RocketMQ 传输不自动保证任意数据库副作用恰好一次；用业务事件 ID 唯一约束与业务变更同事务提交，形成“重复投递，效果一次”。消息 ID、订单 ID、事件 ID 含义不同；一个订单可有多个合法事件，去重键必须包含事件语义。
+并发消费失败会进入重试流程，超出限额进入 DLQ；顺序消费的挂起和重试行为不同。广播消费让每个实例都收到消息，4.x 的 offset 和失败重试保障不能照搬集群模式。DLQ 需要告警、查原因和受控重放，否则失败消息只是换了个地方积压。
+
+At-most-once 允许丢失，at-least-once 允许重复。Exactly-once 一定要说清范围：MQ 不会自动把消费确认和任意数据库提交变成同一个事务。实际常用做法是事件 ID 唯一约束，并把处理记录与业务修改放在同一数据库事务里。第二次投递识别到同一事件，就返回已处理结果。
+
+订单 ID 不总是合适的去重键。一个订单可能有支付、退款、撤销等多个合法事件，应该按事件身份区分，否则退款会被当作“订单已经处理过”而丢掉。这里提到的 ACK 是消费成功确认的泛称；经典 offset 模型和 5.x POP 的逐消息 ACK 是不同机制。
 
 ### 局部顺序与积压恢复
 
-订单事件按业务 key 路由到同一队列，使用顺序消费保证该队列的串行处理；生产者并发发送、重试、队列数量变化与不同生产者仍需业务序号/状态机约束，不能把同 key hash 到队列当完整全局顺序证明。顺序消费者把任务异步分发后立即返回成功会破坏业务执行顺序。跨队列顺序需要协调或设计为可交换事件。
+订单的创建、支付、取消需要按顺序处理时，可以按订单 key 路由到同一队列，并使用顺序消费者。回调里又把任务丢给异步线程、马上返回成功，会让实际业务重新乱序。多 Producer、发送重试和队列变更也需要考虑，因此业务记录最好再检查版本号和允许的状态转换。
 
-积压由到达率 λ 与可持续完成率 μ 的差产生。恢复时间约为 backlog/(μ-λ)，仅当 μ>λ 才能清空。先区分 Broker IO、拉取、反序列化、线程池、数据库/外部服务瓶颈，再增 consumer；经典队列分配中消费者数量超过队列数量不会增加同 Topic 的有效并行。批量消费必须定义部分失败和事务大小，增加线程会放大下游压力。临时扩队列影响顺序 key 的映射，不能在顺序场景直接无脑调整。
+积压恢复先算一个简单关系。假设积压 600 万条，新消息每秒来 2000 条，当前每秒只能处理 1500 条，扩多少“等待线程”都不会自动清空。若把实际完成率提高到 5000 条/秒，净消化速率才是 3000，理论上至少还要约 2000 秒。
+
+再判断瓶颈在哪：Broker IO、拉取、反序列化，还是业务 SQL、外部接口？经典队列分配中，消费者实例超过队列数不会继续增加有效并行。线程增加而数据库连接不够，可能只是多了等待者。批量处理可减少开销，但必须说明一批里部分失败怎么重试。顺序业务扩队列还会改变 key 分布，不能在故障时随意改。
 
 ### 事务消息：Half、回查与恢复
 
-Producer 先发 Half Message，Broker 保留但不对普通消费可见；Half 成功后执行本地事务，报告 COMMIT/ROLLBACK/UNKNOWN。COMMIT 使消息进入正常可消费路径，ROLLBACK 终止；报告丢失或 UNKNOWN 由 Broker 回查 Producer。`TransactionalMessageServiceImpl.check` 扫描 Half 和操作记录，判断跳过、丢弃、回查或重新写 Half 等，回查不是无限、实时、永远有 Producer 在线的保证。
+普通写法先提交 DB 再发消息，中间宕机就会留下“业务已成功、下游不知道”。事务消息换了一种顺序：先发送 Half Message，Broker 保存它但不交给普通消费者；Producer 再执行本地事务，并报告提交、回滚或未知。
 
-本地事务结果必须持久化并可被其他 Producer 实例按 transaction/business ID 查询，不能只存在进程内 map。回查遇到“没有记录”要分尚未执行、已回滚与记录暂时不可读，不能一律 COMMIT；应使用明确状态、超时规则及 UNKNOWN。保留期与最大回查次数都构成失败边界，最终还需要业务对账。事务消息协调数据库提交与消息可见，不包含消费者的业务数据库提交，也不保证整个业务链强一致。
+提交报告丢失时，Broker 回查 Producer，让它判断本地事务到底完成了没有。因此结果必须保存在数据库里，并能按 transactionId 或业务 ID 查询，最好换一台 Producer 也能回答。只存进程内 Map，重启后就无从判断。
+
+查不到记录也不能直接返回 COMMIT。它可能还没执行、已失败，或者数据库暂时不可用。应有明确状态和 UNKNOWN 的处理方式。回查有等待、次数和记录保留的限制，不会永远替业务恢复；仍需对账检查长期没有完成的交易。
+
+事务消息主要协调生产端本地事务与消息可见性。消费者收到后如何提交自己的数据库，是下一段问题，仍需要幂等。也可以选择<a href="#c9">Outbox</a>：把待发事件和业务写入同一数据库事务，再由后台任务发送。
 
 ### 发送结果与恢复决策表
 
-成功响应只承诺当次配置要求的完成边界；SEND_OK 不是“所有副本永远无损”。FLUSH_DISK_TIMEOUT 和 FLUSH_SLAVE_TIMEOUT 等不能直接解释成消息不存在，网络 timeout 同样可能已追加；保持稳定业务 eventId，再通过有界重试和业务查询/对账恢复。可见消息的消费者不会因为 Producer 没收到成功就自动暂停，所以重复效果必须由消费者状态协议保护。
+SEND_OK 表示满足本次发送所要求的完成条件，并不是所有副本永远不会丢数据。FLUSH_DISK_TIMEOUT、FLUSH_SLAVE_TIMEOUT 以及网络超时，都不能直接说明消息不存在。保留稳定的业务事件 ID，记录待确认状态，再做有限重试、结果核查和对账。
 
-模拟 backlog=600 万条、λ=2000 条/秒，当前 μ=1500，队列永远无法清空；把 μ 提到 5000 后净恢复速率 3000 条/秒，估计至少 2000 秒。估计还需考虑重试、峰值和下游限额。若新增消费线程把 DB 连接 pending 拉高，μ 可能反降。顺序业务可优先修复毒消息、按业务 key 分流和优化单消息事务，不为追吞吐破坏顺序语义。
+Broker 故障时，先核对集群模式、最新副本位置和复制延迟，再按既定恢复流程切换。消费恢复也要限制速度，免得积压一次性冲垮数据库。消息保留期、去重记录保留期和允许重放的时间，应一起设计。
+
 
 ## 源码级解析与调用链
 
-`CommitLog.asyncPutMessage` 校验消息、处理事务/延迟属性、序列化并 append，随后结合 `submitFlushRequest` 和 `submitReplicaRequest` 的 future 汇总结果。`DefaultMQProducerImpl.sendMessageInTransaction` 先 prepare 消息，再执行 TransactionListener.executeLocalTransaction，最后 endTransaction；Broker 回查调用 checkLocalTransaction。`TransactionalMessageServiceImpl.check` 读取 Half/op 队列推进回查状态，op 记录帮助跳过已经处理的 Half。
+发送主线是 sendDefaultImpl、sendKernelImpl、Broker 的 SendMessageProcessor，再到 DefaultMessageStore 与 CommitLog。下面先看 CommitLog 怎样组合刷盘和复制结果，接着看事务生产者与 Broker 回查。
+
+回查不是凭 Half 的存在就断定业务成功。`TransactionalMessageServiceImpl.check` 结合 Half 与操作记录，决定跳过、回查、重新写入或后续处理。生产者的 executeLocalTransaction 和 checkLocalTransaction 要能回答同一业务状态。
 
 
-**源码原文连续节选：CommitLog.asyncPutMessage · RocketMQ 4.9.8 · L738–L752**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L738-L752)）。
+<div class="source-caption"><code>CommitLog.asyncPutMessage</code><span>RocketMQ 4.9.8 · L738–L752 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L738-L752">完整源码</a></span></div>
 
 ```java
         CompletableFuture<PutMessageStatus> flushResultFuture = submitFlushRequest(result, msg);
@@ -1401,8 +1670,11 @@ Producer 先发 Half Message，Broker 保留但不对普通消费可见；Half �
         messageExtBatch.setStoreTimestamp(System.currentTimeMillis());
 ```
 
+flushResultFuture 和 replicaResultFuture 分别代表刷盘、复制。组合回调会把失败状态带进 PutMessageResult，业务应检查结果，而不是仅认为方法没有抛异常就可靠成功。
 
-**源码原文连续节选：DefaultMQProducerImpl.sendMessageInTransaction · RocketMQ 4.9.8 · L1222–L1240**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L1222-L1240)）。
+
+
+<div class="source-caption"><code>DefaultMQProducerImpl.sendMessageInTransaction</code><span>RocketMQ 4.9.8 · L1222–L1240 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L1222-L1240">完整源码</a></span></div>
 
 ```java
     public TransactionSendResult sendMessageInTransaction(final Message msg,
@@ -1426,8 +1698,11 @@ Producer 先发 Half Message，Broker 保留但不对普通消费可见；Half �
         try {
 ```
 
+事务发送先检查本地事务监听器，再处理 Half 准备消息。后面才执行本地事务和 endTransaction。监听器的返回与持久状态必须一致，不能只靠进程还活着。
 
-**源码原文连续节选：TransactionalMessageServiceImpl.check · RocketMQ 4.9.8 · L127–L143**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L127-L143)）。
+
+
+<div class="source-caption"><code>TransactionalMessageServiceImpl.check</code><span>RocketMQ 4.9.8 · L127–L143 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L127-L143">完整源码</a></span></div>
 
 ```java
     public void check(long transactionTimeout, int transactionCheckMax,
@@ -1448,6 +1723,8 @@ Producer 先发 Half Message，Broker 保留但不对普通消费可见；Half �
                 log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
                 if (halfOffset < 0 || opOffset < 0) {
 ```
+
+check 从 Half 相关 Topic 的队列开始遍历；后续还要对照操作队列和检查次数。回查本身并不替 Producer 做数据库提交，Producer 要实现持久状态查询。
 
 
 ```mermaid
@@ -1497,89 +1774,110 @@ Kafka 以 partition 日志为主要组织与并行单位，配合 ISR、acks、�
 ## 面试官三层追问
 
 ### 1. 数据库提交成功但发送消息失败，怎么办？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不能简单捕获异常忽略，数据库已提交而下游永远不知道。采用 Transactional Outbox 或 RocketMQ 事务消息，并保留业务对账。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**Outbox 把业务和待投递事件写进同一数据库事务，relay 有界重试，发送成功但标记失败会重复，因此消费幂等；事务消息先 Half 再本地事务，回查从持久化业务状态恢复结果。
+普通的提交后发送存在宕机间隙。新设计可以用 Outbox，把业务与待发事件同事务保存；或用事务消息先 Half，再执行本地事务，由回查补齐未知结果。
 
-**第三层：**本地状态留存时间要覆盖回查/重放，relay 管理租约、重试、DLQ 和积压 SLA。若已有“提交后发失败”的历史数据，需要补偿扫描，不是仅上线新方案就自动修复。
+**失败怎样补回来？** Outbox 任务从持久记录继续发，发出但没标成功可能重复；事务回查根据数据库状态决定提交或回滚。两种方式都仍需要消费端识别重复。
+
+**已经漏掉的订单呢？** 新方案不会自动补历史缺口，要按已完成业务与下游结果扫描补发。给待发事件设置重试、积压年龄告警、保留期和人工处理方式。
 </details>
 
 ### 2. 消费者完成业务但 ACK 前宕机，怎么办？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**允许再次投递，在消费数据库中用事件 ID 唯一约束防止重复效果。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**去重记录与业务更新必须同一事务，先写去重再失败应一起回滚。经典客户端 success/offset 与 POP ACK 是不同协议，二者都不能跨任意业务数据库原子提交。
+消息可能再次投递，所以消费逻辑应能识别同一业务事件。事件 ID 唯一记录与业务修改放在同一数据库事务，重复投递返回此前结果。
 
-**第三层：**外部支付等非事务调用需供应商幂等键及结果查询，记录状态机与对账；超时代表未知，不能马上生成新支付请求重复扣款。关联阅读：<a href="#c9">分布式一致性</a>。
+**为什么去重也要同事务？** 如果先记处理成功，业务却回滚，下次会被挡掉；反过来业务提交后去重未落库，又会做两遍。经典 offset 和 POP ACK 都不会自然与任意 DB 原子提交。
+
+**外部付款怎么办？** 向供应商传稳定幂等键，超时后查询同一请求结果。不能因为没收到响应就换 ID 再扣一次，必要时记录 UNKNOWN 并对账。
 </details>
 
 ### 3. 消息乱序如何解决？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**同业务 key 固定队列、顺序消费，并在业务记录中校验单调版本/允许状态转换。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**多 producer 发送先后、重试与路由变更都可能影响顺序；消费者将回调工作放异步线程后提前成功，会使实际处理顺序失效。跨队列没有自动全局排序。
+同一业务 key 路由到同一队列，使用顺序消费，业务再校验版本或允许的状态变化。这解决局部顺序，不提供跨所有队列的全局顺序。
 
-**第三层：**可交换事件尽量设计为幂等累积；必须有序的事件带 sequence，缺序列暂存/补拉并设上限。顺序队列的毒消息会阻塞后续，恢复流程要允许受控隔离而非默默跳过。
+**还有哪些地方会乱？** 多 Producer 的发送先后、重试、队列调整都会影响顺序。回调里异步分发后马上成功，也会让实际数据库操作重新并行。
+
+**遇到缺一个版本怎么办？** 可以暂存未来版本或查询来源补齐，设数量和时间上限。毒消息卡住顺序队列时，需要受控修复或隔离，不能悄悄跳过关键事件。
 </details>
 
 ### 4. 消息积压如何快速恢复？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**先找消费变慢还是流量激增，再保证恢复完成率超过到达率，否则只是积压变慢。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**比较 queue lag、消费耗时、重试比例、拉取和存储指标；经典模型并行度受队列数限制，线程多也受数据库连接池约束。批量消费评估事务粒度和失败重试范围。
+先查哪里变慢，并让实际处理速度超过新消息到达速度。只增加实例数量，若仍卡在同一个数据库，积压不会因此消失。
 
-**第三层：**先下游扩容/批处理或限流，计算预计清空时间；紧急旁路只处理语义明确的可丢弃事件。顺序业务不能临时无限分片，历史重放要降速防止再次击穿依赖。
+**并行有何上限？** 经典队列分配受队列数限制；消费线程还受连接池和外部接口容量限制。批处理可能提高吞吐，但要定义部分失败与重试的范围。
+
+**多久能恢复？** 用积压量除以完成率减到达率估算。限制历史重放速度，必要时降低新流量。顺序业务扩队列要先评估 key 映射变化，避免用乱序换吞吐。
 </details>
 
 ### 5. Broker 故障如何降低消息丢失风险？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**根据 RPO 配置刷盘与副本确认，监控复制延迟和未确认状态，发送失败保留可重试记录。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**异步应答可能先于磁盘/副本；同步刷盘超时是未知结果，不是必然未写。传统同步主从不自动等价于共识选主，故障切换时应检查最新可用 offset 和集群模式。
+根据能接受的丢失范围，配置刷盘和副本确认，并检查发送返回状态。异步应答可能早于落盘或复制，故障后不一定保留。
 
-**第三层：**演练断电、主从断网、响应丢失和副本落后；配置幂等重试、备份和业务对账。即使复制也不能防止错误删除、错误重放与所有副本同时损坏。
+**同步就万无一失吗？** 同步刷盘超时仍可能已经写入；传统同步主从与 DLedger、Controller 不是同一种选主协议。切换前要核对可用副本位置和复制延迟。
+
+**如何验证可靠性？** 演练主故障、响应丢失和副本落后，验证稳定 eventId 的重试与对账。备份和错误删除恢复仍要单独设计，复制不能覆盖所有损坏。
 </details>
 
 ### 6. 事务消息能实现端到端 exactly-once 吗？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不能直接保证任意端到端效果一次，它协调 Producer 本地事务结果与消息可见性，不替 Consumer 提交业务事务。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**Half/op 队列与回查有超时和次数边界；消费者仍可能重复，回查状态也需要可恢复。ACK、数据库提交和 Broker offset 不存在一个跨三者的通用原子动作。
+不能直接保证端到端业务只做一次。事务消息主要把生产者本地结果与消息可见性联系起来，消费者的数据库仍要自己提交。
 
-**第三层：**定义“效果一次”的业务范围，唯一事件键、状态机、幂等外部调用、重放与对账共同实现可靠结果；对于不可幂等副作用明确人工补偿策略。
+**Half 后还有哪些限制？** 回查有超时、次数和记录保存限制。Producer 必须从持久状态回答，消费者依然可能重复，不能用进程内 map 或永远重试代替恢复设计。
+
+**怎样谈效果一次？** 明确业务范围，用唯一事件、同事务去重、状态检查和外部幂等键吸收重复。无法撤销的外部动作还需查询和人工补偿，而不是只承诺一个英文术语。
 </details>
 
 ## 模拟生产案例：支付成功重复发保单
 
-**故障现象：**支付事件消费成功，但消费者在 offset 持久化前宕机，重启后重复生成保单。**排查思路：**按 eventId 关联 Broker 队列 offset、业务提交时间和进程终止时间；确认不是两个合法支付事件。**原理分析：**at-least-once 投递与业务提交/消费确认窗口叠加，先查再插没有原子约束。**根因和验证证据：**模拟在 DB commit 后立即 kill，重放稳定生成第二张；添加 unique(payment_event_id) 并与保单/去重同事务后，第二次进入幂等成功路径。**解决方案：**上线唯一约束前清理既有重复，外部发单接口传幂等键；消费返回前必须确认事务成功。**长期预防：**宕机点故障注入、重复与乱序重放、DLQ 告警、业务账单对账；幂等记录保留期覆盖消息最大可重放窗口。
+消费者已提交支付业务，保存消费位置前宕机，重启后同一事件再次到来，保单生成又执行一遍。这是 at-least-once 下很典型的模拟情况。
+
+按稳定 eventId 对齐队列 offset、数据库提交和进程退出时间，先排除两个合法不同事件。若生成逻辑是查不到再插入，又无唯一约束，两次执行可能都成功。
+
+为付款事件与保单结果建立正确的业务唯一约束，并让处理记录与业务写入同一事务。外部发单接口也使用稳定幂等键。上线约束前先检查历史重复，不让建索引失败掩盖已有错误。
+
+在测试中将进程停在 DB commit 之后，重放同一事件，预期只留下一个合法结果。以后把这个宕机点、乱序和 DLQ 重放纳入测试；去重记录保留期要覆盖允许的重放时间。
 
 ## 面试回答与核心总结
 
 ### 60 秒快速回答
 
-RocketMQ 4.x 通过 NameServer 获取路由，Broker 追加 CommitLog，再构建 ConsumeQueue/IndexFile，可靠边界取决于刷盘、副本和发送结果。Push 底层拉取，业务成功与 offset 持久化之间可能重复，必须数据库幂等。顺序局限在队列及业务协议；积压恢复要让完成率大于到达率。事务消息先 Half 后本地事务再确认，丢失确认由持久状态回查，但消费者仍需幂等与对账。
+RocketMQ 先取路由，Broker 追加 CommitLog，再建立消费索引。发送成功包含哪些保障取决于刷盘与副本配置，超时可能已写入。4.x Push 底层拉取，业务提交与 offset 保存之间会重复，消费应同事务识别事件。顺序局限在队列和实际业务执行，积压要让完成率超过到达率。事务消息用 Half 与回查补生产端结果，消费者仍需幂等，对账还要覆盖长期未完成记录。
 
 ### 2～3 分钟深入回答
 
-按发送调用链讲路由、append、刷盘/复制和索引构建，再列成功、超时未知、机器故障三个结果。用业务 commit 后消费确认丢失说明重复与唯一事务的必要性。随后对比 Outbox 与 Half/回查，指出先数据库后发普通消息的裂缝、回查数据留存和失败边界。最后给出 key/sequence 顺序协议、lag/(μ-λ) 恢复估算和 Broker 故障演练，必要时明确经典 offset 与 5.x POP ACK 的区别。
+我先沿发送过程说明成功的含义。Producer 从 NameServer 取路由后直连 Broker，消息主体进入 CommitLog，ConsumeQueue 保存队列到主体的索引，IndexFile 用于 key 查询。同步刷盘和同步副本等待是两件事，配置和返回状态决定当次承诺。
 
-针对五类故障，我会逐一落地：DB 提交后发失败用 Outbox/Half；业务完成确认前宕机用同事务事件唯一约束；乱序用队列局部顺序和业务版本；积压先算净完成率并看下游；Broker 故障按刷盘、复制和集群模式定义 RPO。事务回查状态必须持久且跨 Producer 可查询，UNKNOWN 不是盲目提交。经典 offset 与 POP ACK 不混讲，DLQ 和重放要有告警、速率与幂等记录保留窗口，避免恢复操作制造第二次事故。
+Broker 已写入而响应丢失时，Producer 只看到超时，重试可能重复。消费端也有相似间隙：业务数据库提交了，消费位置还没保存就宕机，恢复后又收同一事件。所以事件 ID 唯一记录和业务修改要同事务；外部付款还要稳定幂等键与查询结果。
+
+数据库成功但普通发送失败，可用 Outbox 或事务消息。Outbox 保存待发记录；事务消息先 Half，再本地事务，最后确认。确认丢失由回查读取持久业务结果，但查不到不能乱提交，也有次数与保留限制。它不包住消费者自己的事务。
+
+顺序消息需要同 key 队列、顺序消费，还要防多 Producer、重试、队列变化和异步回调破坏实际顺序。业务版本能检查重复和缺序列，毒消息则要有受控恢复。
+
+积压先找真正耗时点，再算净处理速度。经典消费者超过队列数不会无限增速，数据库过载时加线程可能更慢。Broker 故障则按具体 HA 模式演练刷盘、复制落后和切换，保留稳定事件重试和对账。最后明确 4.x offset 与 5.x POP ACK 不混讲，DLQ 和历史重放必须有人负责。
 
 ### 高频追问、常见错误与速记
 
-高频追问：消费成功何时保存 offset？同步复制等于自动选主吗？回查状态不可读怎么办？常见错误：Push 完全没有 pull；MQ 事务包住消费数据库；发送超时必定没写；扩消费者超过队列仍无限加速；广播失败自动和集群一样重试。源码：sendDefaultImpl/sendMessageInTransaction，CommitLog.asyncPutMessage，ReputMessageService.doReput，TransactionalMessageServiceImpl.check，ConsumeMessageConcurrentlyService.processConsumeResult。核心知识：**应答边界→重复窗口→幂等事务→顺序与恢复**。
+- 高频追问：发送超时能否直接重发？消费成功后何时保存位置？回查查不到怎样答？积压多久能清空？
+- 容易答错：Push 没有 Pull；事务消息包住消费者数据库；同步复制自动等于共识选主；加消费者永远能提速。
+- 常看的源码：`sendDefaultImpl/sendMessageInTransaction`、`CommitLog.asyncPutMessage`、`ReputMessageService.doReput`、`TransactionalMessageServiceImpl.check`、`processConsumeResult`。
+- 每次回答“成功”都说清：谁完成了什么，以及下一步之前宕机由谁恢复。
 
 
 ## 官方资料与版本来源
 
-联网核对日期：2026-10-08。固定版本用于解释实现，不代表最新生产推荐版本。源码摘录版权见 [source-notices.txt](./source-notices.txt)，下载记录与摘要见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [CommitLog.asyncPutMessage · RocketMQ 4.9.8](https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java)
 - [DefaultMQProducerImpl.sendMessageInTransaction · RocketMQ 4.9.8](https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java)
@@ -1592,63 +1890,76 @@ RocketMQ 4.x 通过 NameServer 获取路由，Broker 追加 CommitLog，再构�
 
 # Redis 与分布式缓存
 
-版本基线：Redis 7.2.4；旧版编码如 ziplist 必须与版本区分。Redisson Watchdog 按公开协议说明，具体 API 和续期细节以部署的 Redisson 版本核对，不伪造一个通用续期时长。
+本章主要看 Redis 7.2.4。缓存让大多数请求不用访问数据库，但也带来两个新问题：缓存里的值什么时候会过时，缓存失效后数据库能否承受请求。
 
 ## 核心知识与原理
 
 ### 数据结构与网络模型
 
-Redis 对象有 type/encoding：String 可用整数、embstr、raw/SDS；Hash、ZSet、List 等根据大小和配置采用不同内部编码。Redis 7.2 小 Hash 与小 ZSet 典型使用 listpack，大 Hash 使用哈希表，大 ZSet 使用 dict+skiplist；List 使用 quicklist 结合 listpack，Set 小整数集合可用 intset，7.2 还存在 listpack 编码路径，超过条件转哈希表。渐进 rehash 用两张字典表分摊迁移，不能说大 key 的所有操作都天然 O(1)。编码升级、rehash、删除和序列化会有实际成本。
+Redis 的 String、Hash、List 是对外的数据类型，内部还会根据内容和大小选择不同编码。例如 String 可以直接存整数，也可以用 embstr 或 raw/SDS；小 Hash 常用 listpack，大 Hash 用哈希表；大 ZSet 结合 dict 和 skiplist，List 使用 quicklist 和 listpack。Set 的整数、小集合和较大集合也有不同路径，7.2 已有 listpack，不能总拿旧 ziplist 图解释。
 
-ae 事件循环处理网络就绪和时间事件，命令执行主路径通常由主线程串行进行。Redis 6+ 可配置多线程网络 IO，但不代表所有命令多线程并行；后台持久化子进程和 lazyfree 等也不属于同一主线程。一个 O(N) 大范围命令或 Lua 脚本可以阻塞其他请求，Lua 原子执行不等于没有性能风险。
+换编码可以节省内存，却也会产生转换成本。字典扩容用渐进 rehash，把工作分到后续操作中完成；但这不表示每个命令都只做固定少量工作。一个包含几十万元素的集合，遍历、序列化、删除和迁移都可能很重。
+
+网络通过 ae 事件循环处理就绪事件，命令执行的主要路径仍由主线程串行运行。Redis 6+ 可配置网络 IO 多线程，持久化和 lazyfree 也有后台工作，但不能据此说所有命令会并行执行。一个很慢的 Lua 脚本占着执行线程，其他请求就得等。
 
 ### 持久化、复制与集群
 
-RDB 保存时间点快照，fork 的 Copy-on-Write 在写多时增加内存与页复制压力；两个快照间更新可能丢失。AOF 记录写命令，appendfsync always/everysec/no 的延迟和持久边界不同，everysec 在异常情况下不是零丢失保证。Redis 7 使用 multipart AOF，重写生成 base/incr 与 manifest，不能拿旧单文件重写流程完全套回。RDB/AOF 是恢复手段，不取代异地备份和恢复演练。
+RDB 保存某一时点的快照，恢复后可能没有快照之后的写入。fork 后应用继续修改页面，会产生 Copy-on-Write，因此高写入时要额外留内存。AOF 记录写操作，fsync 策略决定写入延迟与可能丢失的范围。everysec 不等于任何故障下都零丢失；Redis 7 的 multipart AOF 由 base、incr 和 manifest 配合，不是旧版单文件结构。
 
-复制是异步，replication backlog 与 PSYNC 支持部分重同步，缺失历史或条件不满足则全量。Sentinel 检测故障并协调提升副本，存在检测和切换窗口；Cluster 用 16384 hash slots 分片并路由/重定向，跨 slot 多 key 操作需要同 hash tag 等约束。WAIT 让客户端等待一定副本确认，可减小风险，但不把 Redis 变成线性一致共识存储，也不保证切换一定选到含该写的副本。
+主从复制通常是异步的。主机回复成功时，副本可能还没有收到写入。PSYNC 能在历史仍保留时做部分重同步，否则要全量同步。Sentinel 负责检测故障和协调提升副本，但无法把尚未复制的数据凭空补回来。
+
+Cluster 把数据分到 16384 个 hash slot，并通过 MOVED 等机制引导客户端找正确节点。跨 slot 的多 key 操作要满足具体约束，同 hash tag 可以让相关 key 落在同一 slot。WAIT 可以等待副本确认、降低风险，却不能承诺故障切换一定选到包含全部确认写入的副本，也不是强一致存储的替代品。
 
 ### 缓存故障与一致性
 
-穿透是不存在的 key 不断落库：参数校验、短 TTL 空值和 Bloom Filter 可以减少，但 Bloom 有误判且维护需与数据变化一致。击穿是单热点过期：single-flight、互斥加载、逻辑过期和后台刷新均有时效/可用性权衡。雪崩是大量 key 同时失效或缓存集群故障：TTL 加随机、限流、依赖隔离、降级与预热组合，而不是只有随机 TTL。
+穿透指请求的 key 不存在，却不断查数据库。可以校验非法请求、短期缓存“确实不存在”的结果，或使用 Bloom Filter；暂时查库失败不能当成不存在长期缓存。击穿指一个热点 key 过期，大量线程一起查库，常用同 key 请求合并或受控加载。雪崩则是大量 key 同时过期或整个缓存故障，需要限流、隔离与降级，随机 TTL 只能解决其中一部分。
 
-Cache Aside 通常先改 DB 再删缓存，读为 miss→读库→写缓存。但慢读 A 得到旧值，写 B 提交并删除，A 随后又写旧值，仍可出现不一致。延迟双删是尽力缩短竞态窗口，延迟值没有覆盖所有 GC、网络和排队时长的可靠上界；第二次删失败也需重试。更严格场景使用版本校验、CDC/Outbox 驱动失效、TTL 收敛或直接读库，并定义最大可接受陈旧时间。
+Cache Aside 通常是写数据库后删缓存，读 miss 时查数据库再回填。顺序已经合理，仍有一个竞态：A 先读到旧数据但回填很慢；B 提交新数据并删缓存；A 最后把旧数据写回去。此时缓存又旧了。
+
+延迟双删希望第二次删除覆盖这段时间，但 A 可能因 GC、网络或排队暂停得更久，第二次删除也可能失败。它能降低某些问题的概率，无法拿固定 sleep 保证所有读都正确。应根据允许陈旧多久，选择 TTL、版本检查、CDC/Outbox 的可靠失效通知；必须准确的结果直接确认数据库。
 
 ### 分布式锁与 fencing
 
-`SET key token NX PX lease` 原子获取并设租期，token 用随机唯一值；解锁必须 Lua 比较 token 后 DEL，禁止直接删除他人的锁。锁过期后旧 owner 仍可能执行，主从异步复制切换还可能丢锁；Watchdog 自动续期依赖进程、调度和网络存活，STW/隔离可中断续期，不能保证永久排他。
-
-正确性敏感资源需 fencing token：锁/租约服务授予单调递增序号，资源端拒绝旧序号写入。Redis 随机 token 用于所有权，不等于 fencing；独立 INCR 加锁也需要保证授予与状态协议、故障切换的一致性，不能简单拼接成强一致。库存和资金优先由数据库唯一约束/条件更新保护不变量，Redis 锁只减少竞争。
+`SET key token NX PX lease` 把“没有才创建”和“设置租期”放在一次命令中。token 表示谁持有锁，解锁时用 Lua 先比较 token 再删，避免删掉后来别人的锁。
 
 ```shell
-# 协议示例：真正客户端应处理网络超时和未知获取结果。
+# 获取锁示例：响应超时不能直接判断是否取得锁。
 SET lock:order:1001 unique-owner-token NX PX 30000
 ```
 
 ```lua
--- 业务示例：仅当前 owner 删除；不能防止过期旧 owner 继续写数据库。
+-- 只有 token 相同才解锁；过期线程能否写数据库需另加保护。
 if redis.call('get', KEYS[1]) == ARGV[1] then
     return redis.call('del', KEYS[1])
 end
 return 0
 ```
 
+即使这样，A 持锁后暂停超过租期，B 仍能获得新锁；A 恢复后也可能继续修改数据库。Lua 只能防错删，不能阻止这个旧持有者写数据。Redisson Watchdog 会尝试续期，但进程暂停、网络隔离或调度延迟仍可能让续期失败。
+
+若必须拒绝旧持有者，需要资源端也参与判断。例如每次获取租约拿到单调递增的 fencing token，数据库或目标资源拒绝比已接受编号更小的请求。随机 token 没有这种顺序含义，普通 INCR 再加锁也不能自动解决故障切换的一致性。库存和资金更常见的保护是数据库条件更新和唯一约束，锁帮助减少竞争。
+
 ### 热点、大 Key 与容量
 
-热点 key 在单分片集中：本地缓存、请求合并、合理复制读及业务分片可以分担，但副本读有陈旧性。大 key 影响网络、序列化、主线程删除、迁移与复制；用 SCAN/按类型扫描受控排查，避免生产 KEYS 全扫。UNLINK 可异步回收部分内存工作，但不能消除大 key 的其他成本。关注 p99、SLOWLOG、LATENCY、used_memory、RSS、fragmentation、evictions、命中率和副本 lag；SLOWLOG 主要记录命令执行时间，不含客户端网络传输的全部延迟。
+单个热点 key 再热，也主要由一个分片承载。可用短期本地缓存、同 key 合并或业务拆分减压，但副本读取和本地缓存又有陈旧问题。大 key 还会占网络、影响主线程操作与复制。生产排查尽量用受控 SCAN，避免一次 KEYS 全扫；UNLINK 可把一部分释放工作放后台，却不能消除读取和迁移的成本。
+
+SLOWLOG 主要反映命令执行时间，不包含完整网络往返。服务端看不到慢命令而客户端很慢时，还要检查连接、网络和排队。容量除了数据本身，也要算对象/字典开销、复制 backlog、客户端缓冲、COW 和碎片；used_memory 没到 maxmemory，不代表容器内存安全。
 
 ### 缓存与锁的正常、异常、恢复路径
 
-正常读命中直接返回，miss 在受控 single-flight 中回源并带 TTL 写入；回源失败不能无限写空值掩盖系统故障，应区别确实不存在与暂时不可用。缓存集群不可用时通过准入限制回源，给非关键功能降级，恢复后分批预热，避免所有实例同时加载同一热点。TTL 的随机化降低同时过期，但对整集群宕机没有保护，故障路径必须独立设计。
+缓存不可用时，如果把全部流量放到数据库，数据库可能随即成为第二个故障点。恢复前限制同时查库的请求，给非关键功能明确降级；缓存恢复后分批预热，避免所有实例同时加载同一热点。
 
-正常锁持有者按 token 解锁，异常超时/断网先判断获取结果未知，不能随意执行关键动作；租期过期后旧 owner 必须由资源协议约束。恢复时对账业务结果而不是检查锁 key 是否存在。容量规划至少拆数据集、字典/对象开销、复制 backlog、客户端输出缓冲、持久化 COW 与碎片余量；used_memory 低于 maxmemory 也不保证 RSS 不超容器限额。
+锁请求超时也要区分“没拿到”和“结果没收到”。关键操作仍靠自己的业务条件判断。事后检查锁 key 存不存在，不能证明库存有没有重复扣；需要按事件 ID 和数据库结果对账。
+
 
 ## 源码级解析与调用链
 
-`processCommand → call → setCommand → setGenericCommand → setKey` 执行 SET 条件与过期设置；单命令条件在串行执行协议内完成。`dbDelete → dbSyncDelete / dbAsyncDelete` 根据路径释放键；异步删除不等于“指令返回后内存立即下降”。对象编码与命令代价需检查 t_string.c、t_hash.c、t_zset.c、dict.c 和 quicklist.c。
+命令从 processCommand 进入 call，SET 最后由 `setGenericCommand` 检查 NX/XX、写 key 和过期。先读这段就能确认“检查没有”和“写入”是在一次命令中完成的。
+
+删除由 dbDelete 选择同步或异步释放路径。对象编码还需继续看 t_hash.c、t_zset.c、dict.c、quicklist.c，不能只根据对外类型名估计所有操作的成本。
 
 
-**源码原文连续节选：setGenericCommand · Redis 7.2.4 · L84–L103**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/redis/redis/blob/7.2.4/src/t_string.c#L84-L103)）。
+<div class="source-caption"><code>setGenericCommand</code><span>Redis 7.2.4 · L84–L103 · <a href="https://github.com/redis/redis/blob/7.2.4/src/t_string.c#L84-L103">完整源码</a></span></div>
 
 ```c
 void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire, int unit, robj *ok_reply, robj *abort_reply) {
@@ -1673,8 +1984,11 @@ void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire,
             addReply(c, abort_reply ? abort_reply : shared.null[c->resp]);
 ```
 
+lookupKeyWrite 之后直接检查 NX/XX 是否满足，不满足就回复并返回。条件判定和后续写入处在同一次命令执行中，不需要客户端先 GET 再决定 SET。
 
-**源码原文连续节选：dbDelete · Redis 7.2.4 · L403–L408**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/redis/redis/blob/7.2.4/src/db.c#L403-L408)）。
+
+
+<div class="source-caption"><code>dbDelete</code><span>Redis 7.2.4 · L403–L408 · <a href="https://github.com/redis/redis/blob/7.2.4/src/db.c#L403-L408">完整源码</a></span></div>
 
 ```c
 int dbDelete(redisDb *db, robj *key) {
@@ -1684,6 +1998,8 @@ int dbDelete(redisDb *db, robj *key) {
 /* Prepare the string object stored at 'key' to be modified destructively
  * to implement commands like SETBIT or APPEND.
 ```
+
+dbDelete 根据 lazyfree 配置选择 dbAsyncDelete 或 dbSyncDelete。异步路径允许先移除 key，再由后台处理部分内存释放，所以命令成功与 RSS 下降不一定同时发生。
 
 
 ```mermaid
@@ -1698,95 +2014,116 @@ sequenceDiagram
  B->>DB: 提交新值
  B->>R: DEL
  A->>R: 写回旧值
- Note over A,R: TTL / 版本校验 / 可靠失效协议决定收敛边界
+ Note over A,R: 旧值会保留到何时，取决于 TTL、版本或失效通知
 ```
 
 ## 面试官三层追问
 
 ### 1. Redis 是单线程为什么还能快？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**主要数据驻内存、事件驱动减少阻塞切换、常见结构操作成本较低，避免命令执行的锁竞争。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**网络 IO 多线程、持久化子进程和异步释放与主线程命令执行分工不同。大集合、脚本、fork 和网络都可能成为瓶颈，不能说单线程使任何操作都快。
+常见操作在内存里完成，结构选择合理，事件驱动减少阻塞切换，主命令线程也避免了一些锁竞争。但速度来自这些具体条件，不是“单线程”三个字。
 
-**第三层：**以真实命令混合、value 大小和连接数压测，先优化操作成本与热点，再考虑分片。SLOWLOG 与端到端延迟一起看，区分服务器执行和网络排队。
+**多线程到底在哪？** 网络 IO 可以多线程，持久化、lazyfree 也有别的进程或线程。大范围命令和慢脚本仍可能挡住命令执行，所以其他请求会跟着慢。
+
+**性能怎么测？** 使用真实命令比例、value 大小和连接数，看热点及 p99。SLOWLOG 没慢命令时也查网络和排队，再决定优化命令、合并请求还是分片。
 </details>
 
 ### 2. 延迟双删能绝对保证一致吗？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不能，只减少某些读写竞态的时间窗口，可靠性受延迟选择和第二次删除成功影响。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**慢读暂停可超过预设 delay，第二次删后仍写旧值；网络失败可能使删除未执行。Cache Aside 本身不是跨 DB/Redis 原子事务。
+不能。它试图再删一次，覆盖读请求晚回填的情况，但延迟没有可靠覆盖所有暂停，第二次删除也可能失败。
 
-**第三层：**按业务陈旧预算选 TTL、版本校验和可靠失效事件；核心余额从数据库确认。不能承诺“sleep 500ms 即强一致”，需量化收敛及补偿。
+**500ms 为什么不可靠？** 慢读可能暂停 2 秒，等第二次删除已经完成才回填旧值。GC、网络和队列都能延长这段时间，DB 和 Redis 并没有共同事务。
+
+**需要更准确怎么办？** 先定义能接受旧值多久，再选 TTL、版本校验或可靠失效事件。核心余额从数据库确认。删除失败有重试，不把固定 sleep 当强一致证明。
 </details>
 
 ### 3. Lua 解锁为什么仍不等于强一致锁？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**Lua 防止错删他人的锁，但不能阻止旧 owner 超租期后继续执行业务。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**异步复制切换可能丢锁，Watchdog 续期也会被 STW/网络分区影响。随机所有权 token 不具备顺序版本，资源端不知道请求是不是过期 owner。
+Lua 比较 token 后删除，能防止 A 删掉 B 的锁；但 A 的租期过了以后继续写数据库，Lua 无法拦住它。
 
-**第三层：**数据库条件写/唯一约束保障结果，或使用有一致授予协议的 fencing 并让资源端验序。把锁看成减少竞争工具，明确租期与故障窗口。
+**Watchdog 能解决吗？** 它会续期，但 STW、网络或调度异常仍能让续期失败。异步复制切换还可能丢锁。随机所有权 token 也没有可供数据库比较的新旧顺序。
+
+**关键写用什么保护？** 用数据库条件写和唯一约束，或有可靠授予方式的 fencing，并由资源端拒绝旧编号。Redis 锁可以降低竞争，但最终数据判断不能只看有没有锁。
 </details>
 
 ### 4. RDB 与 AOF 如何选？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**RDB 适合快照恢复但会丢快照后更新，AOF 用写日志缩短丢失窗口，常组合使用并备份。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**fork/COW、fsync、重写和磁盘性能影响延迟；Redis7 multipart AOF 有 base/incr/manifest 协议，不是只有一个旧 AOF 文件。
+RDB 保存快照，恢复较直接但会丢快照之后的写入；AOF 记录写操作，可按 fsync 策略缩短丢失窗口。常组合使用，并安排备份。
 
-**第三层：**依据缓存可重建性或主数据 RPO 配置，恢复演练验证文件与版本兼容。缓存持久化不能让数据库/消息可靠性设计消失。
+**性能代价在哪？** fork 后写多会增加 COW 内存，fsync 和重写依赖磁盘性能。Redis 7 的 multipart AOF 有 base、incr、manifest，不是一个旧单文件的全部流程。
+
+**怎样选择？** 若只是可重建缓存，接受窗口可能不同；若当主数据使用，先定义 RPO 并做恢复演练。开启持久化不能替代数据库和消息链的可靠设计。
 </details>
 
 ### 5. Sentinel 切换为什么可能丢数据？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**主副本异步复制，成功写可能尚未到副本，切换后不可见。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**检测与提升不能让过去未复制的数据自动出现；WAIT 改善确认覆盖但不是线性一致承诺，旧主隔离期间和恢复期也需处理。
+副本可能尚未收到主机已应答的写入。Sentinel 能协调提升，但无法恢复从未到达新主的数据。
 
-**第三层：**缓存可失效重建，关键账务不能只存 Redis。配置复制约束、合理故障检测并演练 lag/分区，明确丢失容忍和降级策略。
+**WAIT 是否就够了？** WAIT 能等待副本确认、降低风险，却不是线性一致承诺，也不保证每种故障切换都选到包含该写的副本。隔离和旧主恢复也需要考虑。
+
+**业务怎么承受？** 缓存数据可失效重建，关键账务保留在数据库。测试复制 lag、断网和切换，明确什么时候降级，不把主从当零丢失承诺。
 </details>
 
 ### 6. 缓存故障为何拖垮数据库？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**原本由缓存承载的请求同时回源，使数据库连接、CPU 和队列超过容量。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**超时后立即重试把同一负载放大，多线程等待连接进一步占内存。单热点 single-flight 与全局数据库准入应分层控制。
+大量原先命中的请求同时回源，数据库的连接、CPU 和等待队列会很快超过能力。超时重试又会增加请求。
 
-**第三层：**缓存不可用时限流与分级降级，限制回源并发和重试预算，优先关键请求。容量演练要有全缓存失效场景，不能只测试高命中率。
+**同 key 合并够吗？** 它能减少一个热点的重复加载，但整缓存故障会有很多不同 key。还需要限制总回源并发，并把慢依赖和其他功能隔离。
+
+**恢复怎么做？** 非关键业务降级，关键请求在限额内查库，恢复后分批预热。容量测试包含全缓存失效，而不是只测正常的高命中率。
 </details>
 
 ## 模拟生产案例：锁超期导致重复扣库存
 
-**故障现象：**使用 SET NX PX 锁却出现两次库存扣减，日志看两请求都“获取成功”。**排查思路：**对齐锁租期、STW、网络延迟与 DB 提交时间，检查解锁 token。**原理分析：**A 获取锁后 STW 超过租期，B 获取新锁并更新，A 恢复继续执行；Lua 解锁仅防错删 B 锁。**根因与验证证据：**模拟暂停 A 40 秒、租期 30 秒可复现，数据库无事件唯一约束且写入不检验状态。**解决方案：**业务唯一事件键和库存条件更新同事务；锁用于减竞争，若采用 fencing 必须资源端拒绝旧 token。**长期预防：**超期 owner 故障注入、幂等和条件更新回归测试、监控续期失败，容量预算考虑 GC/网络停顿。
+库存已经使用 SET NX PX 锁，仍被重复扣减。A 持锁后暂停 40 秒，锁租期只有 30 秒，B 拿到新锁完成更新，A 恢复又继续。这是一个明确的模拟时间线。
+
+对齐租期、GC/暂停、获得锁和 DB 写入时间，核对 token 解锁。即使 Lua 解锁正确，A 的数据库操作也没有因此被阻止。只看两条“加锁成功”日志不会发现原因。
+
+库存修改加条件与事件唯一约束，确认重复请求只能产生一次效果。Redis 锁用来降低竞争。若采用 fencing，还需资源端拒绝旧编号，以及可靠的编号授予方式。
+
+测试主动暂停旧持有者、触发续期失败和副本切换，观察业务结果。长期监控锁失败与业务重复，不把 Watchdog 当作永不失效的互斥保证。
 
 ## 面试回答与核心总结
 
 ### 60 秒快速回答
 
-Redis 用内存结构和事件循环执行命令，IO 多线程不等于命令全面并行。复制异步，RDB/AOF 与 Sentinel/Cluster 各有持久和切换窗口。Cache Aside 先 DB 后删仍有慢读写回竞态，双删只是尽力收敛。SET NX PX 加唯一 token 和 Lua 解锁防误删，但租期/切换会破坏互斥，关键写要靠数据库约束或 fencing。回源限流与热点治理比单独增加缓存容量更重要。
+Redis 常见操作靠内存结构和事件循环，网络 IO 多线程不代表命令全部并行。缓存写库后删仍可能被慢读回填旧值，双删只是减少问题，不能承诺强一致。SET NX PX 加 token 和 Lua 防误删，但锁过期或切换后旧线程仍能写，关键数据用数据库条件或 fencing 保护。缓存故障还要限制回源，RDB、AOF 和异步复制都有各自恢复窗口。
 
 ### 2～3 分钟深入回答
 
-从对象 type/encoding 与命令复杂度解释事件循环的性能边界，再讲持久化的 fork/COW、fsync 和异步复制窗口。画慢读/写库/删缓存/旧值写回时序，给出 TTL、版本和可靠失效方案。用超租期旧 owner 继续写解释 Lua 和 Watchdog 的边界，最后把缓存故障连接到数据库准入、重试预算和全失效压测。
+我从 Cache Aside 的正常读写开始：读 miss 就查库并填缓存，写提交 DB 后删缓存。这个顺序常用，却仍有慢读先拿旧值、等新写完成并删后才回填的情况。TTL、版本和可靠失效事件可以按业务接受的陈旧时间选择，固定双删延迟无法覆盖所有暂停。
 
-如果要求严格互斥，我会用 A 超租期暂停、B 获取新锁、A 恢复继续写的时序说明 Watchdog/Lua 的能力边界。fencing 必须有单调授予协议并由资源端拒绝旧序号，随机 token 只表达所有权。缓存一致性按允许陈旧时间决定 TTL、可靠失效事件或版本校验；金融结果由数据库约束保护。最后补充全缓存故障时要保护数据库回源，持久化与复制都留有窗口，大 key、COW 和客户端缓冲也要放入进程容量预算。
+热点失效要合并同 key 加载，但整缓存宕机还需要全局回源限额和降级，否则数据库也会倒。恢复分批预热。大 key 的扫描、序列化、复制和删除成本要单独处理，UNLINK 只把一部分回收放后台。
+
+锁方面 SET NX PX 原子创建并带租期，随机 token 表示 owner，Lua 比较后删防止错删。A 暂停过租期后，B 可以拿新锁，A 恢复仍可能写数据库。Watchdog 续期也可能失败，所以资源需要自己的条件约束，或验可靠的递增 fencing 编号。
+
+持久化方面，RDB 是快照，fork 写多会有 COW；AOF fsync 决定窗口，Redis 7 是 multipart 文件组织。复制异步，Sentinel 提升不能补回未复制写入，WAIT 也不是完整强一致承诺。
+
+最后按真实命令、value 大小和连接数测 p99，SLOWLOG 与网络排队分开看。容量不只算 used_memory，还包括复制、客户端缓冲、COW 和碎片。关键金额从数据库确认，不依赖缓存或租约独自保证。
 
 ### 高频追问、常见错误与速记
 
-高频追问：WAIT 为什么不是共识？UNLINK 后 RSS 为何不立刻降？Cluster 多 key 事务怎么约束 slot？常见错误：Redis7 小 Hash 仍一律 ziplist；Lua 解锁=业务互斥永远成立；双删强一致；SLOWLOG 包含全部网络延迟。源码：setGenericCommand，dbDelete/dbAsyncDelete，dictRehash，aeMain，replication.c。核心知识：**结构成本→持久窗口→缓存收敛→租约边界→依赖保护**。
+- 高频追问：WAIT 为什么不够？UNLINK 后 RSS 为何仍高？Lua 解锁能否阻止旧 owner？整缓存故障怎样保护 DB？
+- 容易答错：Redis 7 小结构统一 ziplist；延迟双删必然一致；Watchdog 保证永不失锁；SLOWLOG 包含所有网络延迟。
+- 常看的源码：`setGenericCommand`、`dbDelete/dbAsyncDelete`、`dictRehash`、`aeMain` 与 `replication.c`。
+- 想清楚：允许缓存旧多久，失效时最多查多少库，以及租期过后谁拦住旧写。
 
 
 ## 官方资料与版本来源
 
-联网核对日期：2026-10-08。固定版本用于解释实现，不代表最新生产推荐版本。源码摘录版权见 [source-notices.txt](./source-notices.txt)，下载记录与摘要见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [dbDelete · Redis 7.2.4](https://raw.githubusercontent.com/redis/redis/7.2.4/src/db.c)
 - [setGenericCommand · Redis 7.2.4](https://raw.githubusercontent.com/redis/redis/7.2.4/src/t_string.c)
@@ -1798,31 +2135,37 @@ Redis 用内存结构和事件循环执行命令，IO 多线程不等于命令�
 
 # 分布式事务与数据一致性
 
-实现基线：Spring 5.3.31 本地事务、RocketMQ 4.9.8 事务消息、MySQL 8.0.36 业务约束。CAP 是特定模型中的理论约束，不是任意产品“任选两个特性”的采购表。
+以订单、支付和保单为例，结合 Spring 5.3、本地 MySQL 事务与 RocketMQ 4.9.8。这里最重要的不是选一个缩写，而是把每个宕机点留下的数据，以及谁负责继续处理，说清楚。
 
 ## 核心知识与原理
 
-### CAP、BASE 与业务不变量
+### CAP、BASE：先说明业务必须满足什么
 
-CAP 的 C 指原子/线性一致读写等强一致模型，A 要求未失败节点收到的操作最终完成，P 指网络分区环境。分区期间不能同时承诺此模型下的 C 与 A；正常网络并非必须主动放弃一种。工程中有延迟、部分失败和数据新鲜度等更多权衡，BASE 是面向可用与最终收敛的设计思路，不是证明任何系统迟早一致的定理。
+订单服务通知支付服务时超时了，支付到底成功没有？单个数据库事务不能回答另一个系统的执行结果。这种不确定性是分布式设计的日常问题，不只发生在真正断网时。
 
-最终一致必须有具体恢复机制：持久任务、重试、幂等、顺序约束、补偿和对账；若失败事件永久丢失、毒消息无人处理或幂等记录过早删除，系统不会自动收敛。先定义不变量，如“支付事件只能记账一次”“保单仅在支付已确认后生成”“退款不能超过实收”，再选择事务边界和恢复方案。
+CAP 描述网络分区下的一项限制：若节点之间不能通信，就无法同时保证模型中的线性一致性和所有未失败节点都能完成请求。它不是任何时候随意“选两个”。BASE 是偏向可用和异步完成的设计思路，也不意味着数据放一会儿就自己正确了。
+
+先写业务必须保持的条件，会更容易选方案。例如同一支付事件不能记账两次；只有已确认支付才能生成保单；退款不能超过实收。之后再讨论哪些操作必须一个事务完成，哪些可以稍后完成，失败多久要报警，最终由谁对账。
 
 ### 2PC、TCC、Saga 的代价与故障边界
 
-|方案|适用条件|正常流程|异常与恢复|主要代价|
-|---|---|---|---|---|
-|2PC|参与者支持准备/提交协议，需原子提交|prepare 后统一 commit|协调者/参与者保留日志；prepared 状态可能阻塞，恢复需查询决定|锁/资源持有、协调可用性与性能成本|
-|TCC|业务可显式预留资源且能撤销|Try 预留，Confirm 确认|Cancel 撤销；处理空回滚、悬挂、重复确认/撤销|侵入业务、资源预留、幂等状态机|
-|Saga|长流程可拆本地事务，允许补偿|按步骤提交本地事务|失败按语义补偿，补偿也可失败，需要重试/人工恢复|中间态可见、补偿非物理回滚、隔离弱|
-|事务消息|本地 DB + RocketMQ 可恢复回查|Half→本地事务→确认|未知回查，超限需对账|回查记录、消费幂等与异步延迟|
-|Outbox|同 DB 可存业务与事件，有 relay/CDC|业务+事件同事务，异步发送|发送/标记裂缝造成重复，消费者幂等|积压管理、清理、重复与顺序治理|
+2PC 先让参与者准备，再统一决定提交或回滚。它要求参与者和协调者支持相应协议，并留下恢复日志。准备好后协调者失联，参与者可能继续持有资源、等待决定，因此并非免费获得原子性和高可用。数据库都支持事务，也不代表所有接口和外部支付都能加入 XA。
 
-2PC 不提供无代价高可用，不能因参与者全有数据库就直接宣称全链路支持 XA。TCC Try 和 Cancel 必须以事务状态协调：Cancel 先到要落下撤销标记，后到 Try 不可再预留；否则空回滚之后的悬挂会永久占资源。Saga 补偿是新业务动作，如退款不是把过去扣款“从历史删除”；邮件/短信等不可逆步骤必须提前考虑。
+TCC 把动作拆成预留、确认和取消。例如 Try 冻结库存，Confirm 真正扣减，Cancel 解除冻结。它需要业务代码提供这三个动作，还要处理重复和乱序：Cancel 先到时记录已撤销，晚来的 Try 不能再冻结资源，这解决空回滚之后的悬挂问题。
+
+Saga 让多个本地事务逐步提交，后面失败时执行补偿。例如订单失败后退款、释放库存。补偿也是一次新的业务操作，可能失败，需要重试或人工处理；它不是数据库回滚，无法让已经发出的短信变成从未发出。
+
+|方案|什么时候考虑？|最需要承担的工作|
+|---|---|---|
+|2PC|参与者支持协议，确实需要协调原子提交|资源持有、协调者故障和 prepared 恢复|
+|TCC|资源能提前预留，业务能确认或撤销|实现三个动作，处理幂等、空回滚、悬挂|
+|Saga|流程较长，允许中间状态，动作可补偿|记录每步结果，处理补偿失败和不可逆动作|
+|事务消息|要协调本地提交与 MQ 可见性|持久回查状态、消费幂等、超限对账|
+|Outbox|业务和事件能写在同一数据库|后台发送、重复投递、积压与顺序处理|
 
 ### Transactional Outbox 源码与业务协议
 
-Outbox 没有一个所有框架统一的 JDK 类，它是应用数据库协议。Spring TransactionTemplate/事务代理建立本地边界，业务行和 event 行一次提交。relay 领取待发送事件，发布 MQ，再标记 SENT。发送成功但 mark SENT 前崩溃必然可能重发；不能通过先标记后发送来“去重”，那会在标记后宕机时永久丢消息。
+支付数据库提交成功，发 MQ 前进程死了，下游就永远收不到通知。Outbox 的改法是：在同一个数据库事务里，既更新订单，也写一条“还有这个事件要发送”的记录。提交失败时两者一起撤销，提交成功后发送任务即使重启也能继续。
 
 ```sql
 -- 业务示例：Outbox 与订单写入同一数据库本地事务。
@@ -1845,22 +2188,33 @@ INSERT INTO outbox_event VALUES
 COMMIT;
 ```
 
-relay 不能长期持有数据库锁做无限网络发送：可使用短事务领取并记录 lease/owner，提交后发消息，再按 owner 条件完成；过期 lease 重新领取会重复，但不应丢失。若使用 `FOR UPDATE SKIP LOCKED`，明确 MySQL 8 或对应数据库支持情况，并注意跳过记录可能改变顺序。每个 aggregate 的版本序列需要单独有序推进，CDC 也不能无条件跨分区承诺全局顺序。
+后台 relay 读取待发记录，发送 MQ，成功后标记 SENT。它在发送成功后、标记前宕机，恢复后仍可能再发。这是有意选择的结果：允许重复，消费端可以识别；若先标 SENT 再发，标记后宕机就可能永久丢通知。
 
-消费者在同一数据库事务中 INSERT processed_event 与业务条件更新，unique 冲突后查询已完成状态，只有确认过去事务成功才返回幂等成功。不要将 Redis 去重写成功后再独立写 DB；DB 失败会造成事件被误认为已处理。外部副作用无法纳入同一 DB 事务时，使用稳定供应商幂等键、状态 PENDING/UNKNOWN/SUCCEEDED 和结果查询。
+发送不宜长时间持有数据库行锁。可以用短事务领取任务并记录租期，提交后发送，完成时校验领取者。租期过后重新领取仍可能重复，所以消费幂等不可省略。SKIP LOCKED 等领取方式还受数据库版本影响，跳过前面的行也可能改变同一订单的事件顺序。
 
-### 失败矩阵：恢复责任必须落到组件
+消费端把 processed_event 的唯一事件 ID 和业务更新放在同一事务。事务失败，处理记录也回滚，下次还能重试；重复键时核实之前确实已成功，再返回已处理。先在 Redis 写“处理过”，再写数据库，数据库失败却留下去重标记，会把正常重试挡住。
 
-业务本地事务未提交就宕机，订单与 Outbox 一起回滚；本地已提交但 relay 未发送，待发记录驱动恢复；MQ 已收但应答丢失或 SENT 未提交，重复投递由消费幂等吸收；消费业务提交但确认丢失，再次投递查询同一事件结果；外部服务结果未知，依靠稳定幂等键和查询。任何一格若只写“重试即可”，都还缺次数、超时、恢复 owner、持久状态和人工处理条件。
+### 每个宕机点留下什么，谁接着处理
 
-TCC 的状态应限定 New→Reserved→Confirmed 或 Cancelled，Cancelled 后迟到 Try 不可预留。Saga 的补偿状态要单独记录 RETRYING/FAILED，而不能把回调执行过当完成。对账从不变量出发，比如支付账与保单账按 paymentEventId 关联，“有支付无保单”“无支付有保单”“重复保单”分别修复；没有统一 eventId 的粗粒度订单号会把合法后续事件误判重复。
+沿着同一支付事件看五个位置：本地提交前宕机，两张表一起回滚；提交后未发送，Outbox 继续发送；发出后未标 SENT，消费端识别重复；消费提交后未确认，再次投递仍得到同一结果；外部渠道结果未知，用原 requestId 查询或幂等重试。
+
+每一步还要规定等待多久、重试多少、记录保存多久、由哪个任务扫描，以及什么时候交给人工。只写“最终一致”没有提供这些动作，就还没有一个可恢复的实现。
+
+### 订单、支付与保单的状态机
+
+调用支付接口超时，先把结果记为 UNKNOWN。继续使用同一个业务 requestId 查询渠道，不要马上换 ID 再扣一次。确认成功后才本地记账并产生可靠事件，保单服务以 paymentEventId 等稳定身份识别重复。
+
+若保单已生效，补偿通常要走撤保或退款流程，不是删除一行就完成。对账可以明确查三类记录：有支付无保单、无支付有保单、同一支付重复保单。事件 ID 选择和保留期决定历史重放时还能不能识别重复。
+
 
 ## 源码级解析与调用链
 
-`TransactionAspectSupport.invokeWithinTransaction` 保证本地资源边界，不能自动纳入 MQ 网络调用。RocketMQ 的 `sendMessageInTransaction → executeLocalTransaction → endTransaction` 与 `TransactionalMessageServiceImpl.check → checkLocalTransaction` 建立提交/回查链。真正业务可靠性由“本地状态可恢复、消息重复可接受、非法状态转换被拒绝”三个不变量提供，而非单个注解。
+Outbox 是业务表和后台任务的一种做法，没有一个通用 JDK 类能替你完成它。Spring 的 `invokeWithinTransaction` 只建立本地事务。RocketMQ 的 sendMessageInTransaction 和 check 处理另一段消息确认。
+
+本章再次引用回查入口，是为了对应恢复责任：Broker 会检查待决消息，但真正本地交易状态仍由 Producer 查询。数据库中的 eventId、状态和约束必须由业务设计。
 
 
-**源码原文连续节选：TransactionalMessageServiceImpl.check · RocketMQ 4.9.8 · L127–L143**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L127-L143)）。
+<div class="source-caption"><code>TransactionalMessageServiceImpl.check</code><span>RocketMQ 4.9.8 · L127–L143 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L127-L143">完整源码</a></span></div>
 
 ```java
     public void check(long transactionTimeout, int transactionCheckMax,
@@ -1882,6 +2236,8 @@ TCC 的状态应限定 New→Reserved→Confirmed 或 Cancelled，Cancelled 后�
                 if (halfOffset < 0 || opOffset < 0) {
 ```
 
+check 从 Half 相关 Topic 的队列开始遍历；后续还要对照操作队列和检查次数。回查本身并不替 Producer 做数据库提交，Producer 要实现持久状态查询。
+
 
 ```mermaid
 sequenceDiagram
@@ -1899,7 +2255,7 @@ sequenceDiagram
  MQ->>C: 事件（可重复）
  C->>C: processed_event + 保单（本地事务）
  C-->>MQ: 消费成功
- Note over R,C: 超时 / 宕机重试由幂等与状态机吸收
+ Note over R,C: 重试可能重复，消费者检查事件与业务状态
 ```
 
 ```mermaid
@@ -1913,96 +2269,113 @@ stateDiagram-v2
  Confirmed --> Confirmed: 重复 Confirm
 ```
 
-### 订单、支付与保单的状态机
-
-订单创建可同步完成本地事务；支付请求使用稳定业务 requestId，超时进入 UNKNOWN 查询渠道结果，避免换 ID 重试造成重复扣款。支付确认在本地一次记账并发可靠事件；保单生成以 paymentEventId/业务唯一键幂等。业务补偿可能是退款、撤单或人工审核，已经生效保单不能简单删除行，必须遵守业务撤销流程。重试最大时长、人工处理 SLA 和对账范围属于架构设计的一部分。
-
 ## 面试官三层追问
 
 ### 1. 最终一致是否意味着可以不设计失败路径？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不是，最终一致依赖失败操作被保存并最终成功或被业务补偿，不能凭时间流逝恢复。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**Outbox/事务消息保证待完成意图可恢复，幂等状态机吸收重复，重试和对账处理未收敛记录；丢失意图或永久毒消息会破坏前提。
+不能。失败动作必须被保存，之后有人继续处理，或按业务规则补偿。消息已经永久丢失，不会因为过了半小时就自动恢复。
 
-**第三层：**定义收敛 SLA、积压上限、告警和人工兜底；用户界面暴露处理中/失败状态，避免同步成功提示掩盖下游永久失败。
+**机制如何配合？** Outbox 或事务消息保存待完成工作；唯一事件和状态检查识别重复；任务重试和对账处理未完成记录。任何一步无人接手，都可能永久卡住。
+
+**对用户怎么说明？** 定义处理中、失败和完成状态，以及多久报警、多久人工处理。下游仍在失败时，不让同步返回的“成功”掩盖尚未完成的业务。
 </details>
 
 ### 2. Outbox 是否无重复？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不是。它消除业务提交成功却没有持久待发记录的窗口，但发送成功与标记之间仍可能重复。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**先发后标记可重发，先标记后发会丢失，因此选择可恢复重复；消费者去重与业务同事务保证效果一次。relay lease 过期也可能重领。
+不是。Outbox 保证本地业务成功时留下待发事件，但发送到 MQ 与标记 SENT 之间仍有宕机间隙，恢复后可能再发。
 
-**第三层：**稳定 eventId、消费者约束、顺序版本和记录保留窗口共同设计，监控 oldest unsent age 而不只队列数。清理只删除已完成且超过恢复窗口的记录。
+**为什么不先标 SENT？** 那会在标记后发送前宕机时漏消息。先发再标允许重复，消费端能通过同事务事件唯一记录吸收它，这是更容易恢复的选择。
+
+**还需什么？** 稳定 eventId、领取租期、消费幂等和顺序版本，监控最老未发事件。清理要保留足够的恢复和重放时间，不能只按数量删历史。
 </details>
 
 ### 3. TCC 如何处理空回滚和悬挂？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**Cancel 先到时即使资源尚未预留，也要记录撤销状态；后到 Try 见到撤销不能执行。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**状态转换通过唯一 transactionId 和条件更新协调，Try/Confirm/Cancel 都幂等；并发 Cancel 与 Try 需在同一原子状态协议中决定胜者。
+Cancel 先到时，即使没预留过资源，也记录已取消。后到的 Try 查到这个结果，就不能再预留，否则资源可能永远悬挂。
 
-**第三层：**预留有过期/扫描恢复，但过期不能擅自推翻已确认业务；协调者恢复和资源服务对账都要有依据。测试乱序、重复、宕机和部分参与者不可用。
+**并发怎么决定？** 同一 transactionId 的状态通过唯一记录和条件更新协调，Try、Confirm、Cancel 都要幂等。检查状态与预留若分成不受保护的两步，仍会竞态。
+
+**超时恢复怎么做？** 扫描预留记录并查询可靠决定，不能随意撤销已经确认的交易。演练乱序、重复、宕机和部分参与者离线，验证资源最终没有残留。
 </details>
 
 ### 4. Saga 补偿为什么不是数据库回滚？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**每步本地事务已经提交，对其他系统可见，补偿只能执行新的逆向业务动作。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**逆动作也可能失败，且不一定精确可逆；库存释放、退款和撤保单要按当前状态检查，避免补偿覆盖后续合法变更。
+因为前面本地事务已提交，别人可能已看到结果。退款是一笔新交易，不是让过去扣款从未发生；短信也无法收回。
 
-**第三层：**设计 forward/compensate 的幂等键、执行日志和人工恢复；不可逆步骤放在合适位置或预确认之后，不能承诺全链路瞬间原子。
+**补偿为什么也会失败？** 它仍要访问数据库和外部系统，而且当前状态可能已有后续合法变化。需要自己的幂等键、检查和重试，不是无条件反向 UPDATE。
+
+**流程怎么安排？** 记录每步及补偿结果，给不可逆动作合适位置，失败可进入人工处理。Saga 允许中间状态，用户与下游要能识别它，不要包装成瞬时原子操作。
 </details>
 
 ### 5. 超时后为何不能直接认定失败？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**超时只说明调用方没收到结果，对端可能已经提交，这是未知状态。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**使用稳定 requestId 重试或查询结果，对端唯一约束/幂等响应识别过去成功；每次生成新 ID 会变成新的业务请求。
+超时只表示调用方没收到结果，对端可能已经成功。首先保持同一个业务请求身份，查询或幂等重试。
 
-**第三层：**支付 UNKNOWN 设置查询、退避、截止和人工对账，不能立即退款同时重付。取消也要与原执行竞争协调，避免双向动作都成功。
+**换 ID 会怎样？** 对端可能把它当全新付款请求，再扣一次。稳定 requestId 和唯一约束让对端能返回过去结果；UNKNOWN 则保存尚未确认的事实。
+
+**支付流程怎么恢复？** 有界退避查询、记录截止和对账，不同时发退款和新付款。取消也需要与原执行协调，避免原动作与取消都留下错误结果。
 </details>
 
 ### 6. MQ 顺序如何和状态机结合？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**传输局部顺序降低乱序，状态机仍验证事件版本和合法转换，拒绝重复或过时变更。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**unique(aggregate_id, version) 约束事件版本，消费者 lastVersion 条件更新；缺少版本可暂存或查询来源补齐，不能简单丢弃未来事件。
+传输局部顺序降低乱序，业务仍根据版本和状态判断这条事件能否执行。重复或旧事件不应把已支付订单改回待支付。
 
-**第三层：**定义缺序列超时与暂存上限，恢复历史事件时限制速度；跨业务不可逆动作按事件语义设计，而非所有事件一律“只保留最新”。
+**版本如何检查？** 按 aggregate 和 version 建唯一约束，条件更新 lastVersion。未来版本先到时，可以暂存或查来源补齐；简单丢掉可能让业务永远缺一步。
+
+**重放怎么控？** 暂存有上限和超时，历史重放限制速率。不同事件有不同含义，付款、退款不能统一用“只留最新值”的方式覆盖。
 </details>
 
 ## 模拟生产案例：Outbox 已发未标记
 
-**故障现象：**relay 重启后同一支付事件投递两次，保单服务有重复请求。**排查思路：**关联稳定 eventId、relay lease 与 MQ 发送结果，检查本地 SENT 提交。**原理分析：**发送完成后进程宕机，NEW/CLAIMED 记录过期被重新领取，这属于预期恢复窗口。**根因和验证证据：**模拟在 send 成功后 kill，事件重新出现；消费者 unique eventId 同事务后只产生一个保单，重复返回成功。**解决方案：**保留重复投递能力并实现正确幂等，不将 mark SENT 提前；外部发单 API 使用同一幂等键。**长期预防：**逐宕机点注入、lease 到期与回收测试、积压年龄与 DLQ 告警，对账检查“已付无保单”和重复保单。
+relay 已发送支付事件，标 SENT 前宕机，重启后再次发送。这里用模拟情境说明重复为什么不应直接被当成 Outbox 设计失败。
+
+按 eventId、领取租期和发送记录查看任务。若 MQ 已收到，Outbox 仍为待处理状态，过期重新领取就是合理恢复；没有消费幂等才会产生重复业务。
+
+保持先发再标，不为了消除重复改成先标后发。消费端用同事务唯一事件与业务写入，外部接口传相同幂等键。检查历史重复结果，并按业务修复。
+
+测试在每个提交和发送间隙停进程，重启后检查不漏事件、结果不重复。监控最老待发时间与失败重试，定期对账已付无保单、重复保单，保留人工处理入口。
 
 ## 面试回答与核心总结
 
 ### 60 秒快速回答
 
-先定义业务不变量和失败边界，再选事务方案。2PC 原子但有资源持有和恢复阻塞；TCC 需预留与幂等状态处理空回滚/悬挂；Saga 是新业务补偿而非物理回滚。DB 与 MQ 用同事务 Outbox 或 Half/回查，消息仍可能重复，消费去重与业务同事务。超时属于未知，用稳定 requestId 查询恢复，最终一致必须有重试、对账和人工处理 SLA。
+分布式事务先明确哪些业务结果必须一起成立。2PC 需要协议和恢复资源，TCC 要能预留、确认、取消，Saga 是新的补偿动作。DB 与 MQ 常用同事务 Outbox 或 Half/回查，仍允许重复，所以消费去重与业务一起提交。超时是未知，稳定 requestId 查询恢复。最终完成需要持久记录、有限重试、对账和人工处理，不会靠等待自动发生。
 
 ### 2～3 分钟深入回答
 
-以支付已提交而消息发送失败建立问题，比较 Outbox 与事务消息的意图持久化方式。画 relay 发送成功未标记的重复窗口，解释为什么必须先发后标记并在消费端吸收重复。再用订单/支付/保单状态机讲 UNKNOWN、版本、唯一约束和补偿；根据是否能预留、是否可逆、是否支持协调协议决定 TCC/Saga/2PC，而非所有跨服务都套分布式事务。
+我先用支付提交后通知失败说明问题：数据库已经成功，普通发消息之前宕机，就没有下游通知。解决重点是成功时留下可恢复的待办。Outbox 把业务和事件同事务保存；事务消息先 Half，再本地事务，再报告，未知时回查持久结果。
 
-我会再列失败矩阵，说明本地未提交、已提交未投递、已发送未标记、消费已提交未确认分别由哪个持久组件恢复。对外支付超时保留 UNKNOWN，重复调用使用同 requestId，不更换 ID 重新扣费。补偿是新业务动作，已生效保单不能简单删数据库行，必须遵守撤销/退款流程。恢复有最大重试窗口、对账周期和人工兜底，衡量最老未处理事件年龄而非只看数量。这样才能说明最终一致是可验证协议，不是随时间自然发生。
+Outbox 发送成功未标 SENT 时会重发，先标再发则可能丢失，所以应选择能识别的重复。消费记录和业务必须同事务，数据库失败时记录也撤销。外部支付不能纳入这条本地事务，则使用稳定幂等键和 UNKNOWN 查询，避免换 ID 再做一遍。
+
+2PC 适合支持协议且确实需要协调提交的参与者，代价是 prepared 资源和故障等待。TCC 是业务预留，Cancel 先到要留取消记录，晚到 Try 不再执行；Confirm 和 Cancel 也要幂等。Saga 逐步提交，补偿是退款等新动作，补偿也可能失败，已经发出短信不能物理回滚。
+
+订单支付保单要各有允许的状态变化和事件版本。重复支付不能重复记账，未来版本先到不能随手丢掉；已生效保单需要合规撤销流程，不是删行。每个宕机点都应明确留下什么、哪个组件继续、多久报警。
+
+最后设置重试、记录保留和人工处理时间，对账按业务条件查有支付无保单、无支付有保单及重复结果。这样才有可检验的最终完成，而不是把“最终一致”当一句保证。
 
 ### 高频追问、常见错误与速记
 
-高频追问：回查记录保留多久？补偿失败谁接管？CDC 是否全局顺序？常见错误：CAP 随意选两个；Outbox 无重复；Redis 去重后 DB 失败也算处理成功；支付超时必定失败；Saga 没有中间状态。源码/协议入口：invokeWithinTransaction，sendMessageInTransaction，TransactionalMessageServiceImpl.check；业务 SQL 的唯一约束、条件 UPDATE 和 lease。核心知识：**意图持久化→重复吸收→状态约束→失败恢复→对账**。
+- 高频追问：发送后标记前死了怎么办？空回滚如何挡迟到 Try？补偿失败谁处理？支付超时为何不能换 ID？
+- 容易答错：CAP 随时任选两个；Outbox 没重复；Saga 没中间态；Redis 标去重后 DB 可独立失败；超时就是未执行。
+- 常看的入口：`invokeWithinTransaction`、`sendMessageInTransaction`、`TransactionalMessageServiceImpl.check`，以及业务唯一约束、条件 UPDATE 和领取租期。
+- 把每个宕机点写出剩余记录和恢复人，比先选一个框架名有用。
 
 
 ## 官方资料与版本来源
 
-联网核对日期：2026-10-08。固定版本用于解释实现，不代表最新生产推荐版本。源码摘录版权见 [source-notices.txt](./source-notices.txt)，下载记录与摘要见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [TransactionAspectSupport.invokeWithinTransaction · Spring Framework 5.3.31](https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java)
 - [TransactionalMessageServiceImpl.check · RocketMQ 4.9.8](https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java)
@@ -2013,39 +2386,29 @@ stateDiagram-v2
 
 # 微服务、高并发与系统稳定性
 
-版本基线：Spring Cloud Gateway 3.1.8、Reactor Core 3.4.34、Netty 4.1.108.Final（与 Spring Boot 2.7 时代机制相符）。版本组合只是分析基线，实际依赖树和补丁安全性应由部署项目管理。
+使用 Gateway 3.1.8、Reactor 3.4.34 和 Netty 4.1.108.Final 解释 Spring Boot 2.7 时代的实现。先从一个现象讲起：认证数据库变慢，为什么网关里不需要认证的接口也跟着卡住？
 
 ## 核心知识与原理
 
 ### Gateway、Reactor 与 EventLoop
 
-Gateway 基于 WebFlux 路由请求，RoutePredicateHandlerMapping 找到 Route，FilteringWebHandler 合并 GlobalFilter 与路由 GatewayFilter 并排序，DefaultGatewayFilterChain 递归调用 filter；前置逻辑依序进入，后置响应逻辑按 reactive 链完成。NettyRoutingFilter 使用 Reactor Netty 发请求，NettyWriteResponseFilter 写回响应。MVC Servlet Filter 与这条 reactive 链不能混为一套。
+Gateway 找到匹配的 Route 后，把 GlobalFilter 与路由过滤器合并排序，沿过滤器链调用。NettyRoutingFilter 发出下游请求，响应再沿 reactive 链返回，NettyWriteResponseFilter 负责写回。Servlet Filter 与这条 WebFlux 链属于不同模型。
 
-Netty NioEventLoop 管理一组 channel 的 selector/IO 与任务队列，某个 channel 一般注册到一个 EventLoop，串行处理其事件。不等于“一连接一线程”。run 循环选择 IO，处理 selected keys，按 ioRatio 等机制执行任务；任务里的阻塞 JDBC、文件操作、Thread.sleep 会占住共享 EventLoop，许多无关连接一起停顿。调大连接数无法弥补事件线程被阻塞。
+Netty 一个 EventLoop 通常负责多个连接，轮流处理 IO 就绪事件和任务。它不是一个连接一条线程。若认证过滤器在里面直接执行阻塞 JDBC，EventLoop 等数据库结果时，其负责的其他连接也无法及时处理。这就解释了“一个依赖慢，许多无关请求一起慢”。
 
-Reactor 的 Mono 表示 0/1 个结果，Flux 表示 0..N，订阅驱动执行。`subscribeOn` 影响订阅/源执行上下文，`publishOn` 影响其后的信号处理；不是在任意位置放一个操作符就把前面所有阻塞调用安全搬走。桥接阻塞任务通常用 `Mono.fromCallable(...).subscribeOn(boundedElastic())`，但 boundedElastic 也有线程/排队限制，下游连接和超时仍需单独约束。不得在 handler 内手动 subscribe 然后马上返回，丢掉生命周期、错误传播与取消协议。
-
-### 背压的范围与取消
-
-Reactive Streams 的 request(n) 从 subscriber 向上游声明需求，源根据协议发 onNext，不允许以背压名义随意超发。publishOn 引入队列与预取，在下游变慢时上游按需求调节；背压不保证所有外部系统自动减速，也不代表任意缓冲无限安全。HTTP 来源、消息队列和数据库连接各有自身流控，需要边界桥接。选择 onBackpressureBuffer/Drop/Latest 时要符合业务语义，关键支付不能直接丢弃。
-
-取消只是通知终止订阅，阻塞 native/JDBC 操作是否可及时中断由具体驱动决定；超时取消后旧任务可能仍占连接。Reactor Context 用于订阅上下文传播，不应拿 ThreadLocal 作为跨 scheduler 的租户/事务唯一来源。链路追踪和日志 MDC 必须使用兼容上下文传播桥接，确保线程复用清理。
-
-### 限流、熔断与隔离
-
-令牌桶以速率补充 token 并允许容量范围内突发；漏桶平滑输出但增加排队/可能拒绝；滑动窗口比固定窗口减少边界翻倍，但精度与存储成本受实现影响。分布式限流需要原子状态、时间源及失败策略，Redis Lua 常用于单次原子判定，Redis 不可用时 fail-open/fail-closed 需按业务明确。
-
-超时是等待预算，重试是新增工作，熔断在依赖失败率/慢调用达到阈值时快速拒绝，降级给可接受替代结果，舱壁限制一个依赖耗尽全部并发。每层都独立重试会相乘：3 层各最多尝试 3 次，最坏 27 次调用；仅对可重试且幂等操作，设总尝试/总时间预算、指数退避、随机抖动和 retry budget。下游已经过载时更短超时加更多重试反而更差。
+返回 Mono 并不会改变已经执行的阻塞代码。Mono 表示零或一个结果，Flux 表示多个结果，它们需要订阅后才按链执行。桥接阻塞调用时，应延迟执行，并把它放到适当的工作线程中，例如下面的 fromCallable 与 subscribeOn。
 
 ```java
-// 业务示例：阻塞 DAO 显式隔离，仍需 DAO/连接池超时与并发准入。
+// 把阻塞查询放到工作线程，另设连接和语句超时。
 Mono<Order> load(long id) {
     return Mono.fromCallable(() -> blockingDao.find(id))
         .subscribeOn(Schedulers.boundedElastic())
         .timeout(Duration.ofMillis(300));
-    // timeout 不保证数据库语句立即停止，也不替代业务幂等和连接预算。
+    // timeout 后 SQL 可能仍在执行，不能只靠这个限制数据库压力。
 }
 ```
+
+subscribeOn 影响订阅和源的执行位置，publishOn 影响后续信号处理的线程。把 publishOn 写在一个已经执行的 JDBC 调用后面，不会把那次调用重新搬走。boundedElastic 也有线程和排队限制，还需要数据库连接限额和超时。过滤器内部手动 subscribe 后马上返回，会脱离请求的错误、完成与取消管理，通常应直接返回组合后的链。
 
 ```xml
 <!-- 项目配置示例：版本由 Boot/Cloud BOM 管理，不能混入 Gateway MVC starter。 -->
@@ -2055,24 +2418,47 @@ Mono<Order> load(long id) {
 </dependency>
 ```
 
+### 背压的范围与取消
+
+下游一次只能处理 10 条，就通过 request(10) 向上游声明需求，按 Reactive Streams 规则接收信号。publishOn 会用队列和预取在不同线程之间转交，消费完一定数量后再补需求。这是背压的核心，不是让所有外部系统自动按你的速度生产。
+
+无限 onBackpressureBuffer 会把来不及处理的内容继续留在内存，仍可能 OOM。Drop 或 Latest 适合允许丢弃中间状态的场景，支付事件则不能照这样丢掉。数据库、HTTP 和 MQ 有各自的流控，要在接入处明确如何限量。
+
+timeout 后订阅被取消，也不保证 JDBC 语句立即停止。底层驱动可能仍在等结果，继续占连接。跨 scheduler 传递租户、追踪或事务信息时，需要 Reactor Context 和相应桥接；ThreadLocal 只跟线程走，不能自动跟每个请求走。
+
+### 限流、熔断与隔离
+
+令牌桶允许按补充速率处理请求，并允许桶容量范围内的突发。漏桶更偏向平滑输出，来得太快就排队或拒绝。滑动窗口检查最近一段时间，比固定窗口减少某些跨边界突发，代价是更复杂的统计。分布式限流若依赖 Redis，还要决定 Redis 故障时放行还是拒绝。
+
+超时限制等多久；熔断在持续失败或慢调用时暂时快速拒绝；降级给可接受的替代结果；舱壁则限制某个依赖占用的线程、连接或并发，避免它耗尽整个服务资源。这些措施要一起看，而不是只加一个注解。
+
+重试会增加请求。若三个调用层每层最多尝试三次，一个原始请求最坏会触发 27 次底层调用。原调用超时却还没结束时，重试还会和它同时运行。应只对适合重试的幂等操作使用有限次数、总时间限制、退避与抖动，尽量在合适的一层重试。
+
 ### 高可用、灰度与容量规划
 
-链路追踪记录 trace/span、依赖耗时和错误，结合 RED（rate/errors/duration）与资源指标区分排队和执行；仅看平均响应时间会漏尾延迟。灰度通过租户/用户/请求标签稳定路由，流量染色在所有调用和异步消息中传播，避免写新库、读旧服务的交叉组合。发布先验证兼容 schema、可回退配置及混合版本，不让一次数据库变更消灭回退路径。
+链路追踪先帮我们拆开等待：时间花在网关、排队、借连接、SQL，还是下游网络？再看每段的请求量、错误和耗时分位数，平均值常会掩盖少数很慢的请求。
 
-高可用不是实例数等于二：需要跨故障域、依赖冗余、容量余量、故障检测与演练。每层估算 λ、服务时间 W、并发 L≈λW，连接/线程/队列预算要符合瓶颈资源；不是把所有池调成 1000。压测包含峰值、慢依赖、缓存失效、Broker 切换和长尾，识别 closed-loop 压测在服务变慢时自动降低到达率而掩盖排队的风险；用开放到达模型和正确尾延迟统计补充。
+灰度应让同一用户或租户稳定进入指定版本，并把标记传到后续调用和消息里。数据库结构先做兼容扩展，旧消费者也应能处理新事件。回滚代码不会自动恢复已经写错的数据，发布前要把数据修复和回退条件想清楚。
+
+容量要用实际服务时间估算。稳定条件下，并发量大致是吞吐乘以耗时，再通过压测检查资源竞争和长尾。两台实例不等于能扛住一台故障：剩余实例、数据库和缓存都要留余量，故障域也不能完全重合。
+
+压测应覆盖慢依赖、缓存故障、Broker 切换和突发。某些闭环工具在服务变慢后自己降低发送速度，让排队问题看起来没那么严重，需要补充按固定到达率施压的测试。
 
 ### 容量与雪崩的数值推演
 
-某依赖稳定吞吐 1000 请求/秒、平均执行 20ms，执行中并发平均约 20；当它变为 500ms，若到达率不变，需求并发升至约 500，超出连接池后进入排队。若上游每次超时再补两次，实际负载可迅速增加到三倍。正确动作是依据下游可持续完成率限准入、截断等待、控制重试和降级，而不是只把线程池扩到 500 以上。
+一个依赖每秒处理 1000 个请求，平均 20ms，平均同时执行的请求约 20。耗时变成 500ms、到达率仍不变时，需求并发变成约 500。连接不够就排队，排队耗时又触发重试，于是情况继续恶化。
 
-排查慢接口先找 trace 的排队/连接获取/执行段，再结合 EventLoop、工作池和连接池栈。同一慢依赖若污染所有路由，要检查共享资源与舱壁；仅特定路由恶化则检查查询/热点。恢复过程中逐级开放流量并观察 p99、reject、pending 和错误率，避免重启全部实例同时预热缓存/连接形成第二次冲击。故障复盘保留时间线及已证实、待证实的假设，不能用 CPU 低直接得出“没有性能瓶颈”。
+先限制新请求进入，给等不到资源的请求明确失败，对非关键功能降级，再逐步恢复。直接把线程数调到 500，只会让更多线程等同一批数据库连接。恢复时也要慢慢放量，避免所有实例重启后一起预热，制造第二次冲击。关联阅读：<a href="#c1">线程池</a>、<a href="#c4">Netty 内存</a>、<a href="#c8">缓存回源</a>。
+
 
 ## 源码级解析与调用链
 
-`FilteringWebHandler.handle → DefaultGatewayFilterChain.filter → GatewayFilter.filter` 建立 reactive 拦截链；Netty `NioEventLoop.run → select → processSelectedKeys → runAllTasks` 执行 IO 与队列工作。Reactor `FluxPublishOn` 在 onNext 入队，按 scheduler 与 request/consumed 信号执行 drain 并补充需求，队列容量和预取参与背压。观察 operator 类型与调用栈比“用了 Mono 所以不会阻塞”更可靠。
+Gateway 从 `FilteringWebHandler.handle` 建立过滤器链。Netty 的 `NioEventLoop.run` 轮流执行 IO 和队列任务，Reactor 的 `FluxPublishOn` 把信号放入队列，交由 scheduler 消费。
+
+沿这三个片段，分别回答请求先过哪些过滤器、线程什么时候被占住，以及数据在哪个队列等下游。这样比看到 Mono 就断言非阻塞更具体。
 
 
-**源码原文连续节选：FilteringWebHandler.handle · Spring Cloud Gateway 3.1.8 · L75–L86**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/spring-cloud/spring-cloud-gateway/blob/v3.1.8/spring-cloud-gateway-server/src/main/java/org/springframework/cloud/gateway/handler/FilteringWebHandler.java#L75-L86)）。
+<div class="source-caption"><code>FilteringWebHandler.handle</code><span>Spring Cloud Gateway 3.1.8 · L75–L86 · <a href="https://github.com/spring-cloud/spring-cloud-gateway/blob/v3.1.8/spring-cloud-gateway-server/src/main/java/org/springframework/cloud/gateway/handler/FilteringWebHandler.java#L75-L86">完整源码</a></span></div>
 
 ```java
 	public Mono<Void> handle(ServerWebExchange exchange) {
@@ -2089,8 +2475,11 @@ Mono<Order> load(long id) {
 		}
 ```
 
+过滤器链把全局过滤器与路由过滤器放在一起排序，再继续执行。调用顺序由 order 决定，不能只根据 Bean 注册顺序判断。
 
-**源码原文连续节选：NioEventLoop.run · Netty 4.1.108.Final · L552–L569**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/netty/netty/blob/netty-4.1.108.Final/transport/src/main/java/io/netty/channel/nio/NioEventLoop.java#L552-L569)）。
+
+
+<div class="source-caption"><code>NioEventLoop.run</code><span>Netty 4.1.108.Final · L552–L569 · <a href="https://github.com/netty/netty/blob/netty-4.1.108.Final/transport/src/main/java/io/netty/channel/nio/NioEventLoop.java#L552-L569">完整源码</a></span></div>
 
 ```java
                         if (strategy > 0) {
@@ -2113,8 +2502,11 @@ Mono<Order> load(long id) {
                     ranTasks = runAllTasks(0); // This will run the minimum number of tasks
 ```
 
+ioRatio 为 100 时处理 IO 后运行任务；其他情况下按 IO 用时为任务分配时间。一个任务自己阻塞很久，这种时间分配也无法让它凭空变成可中断的异步调用。
 
-**源码原文连续节选：FluxPublishOn.onNext · Reactor 3.4.34 · L214–L231**（保留逻辑，仅规范显示缩进，可能止于方法中间；[完整上下文](https://github.com/reactor/reactor-core/blob/v3.4.34/reactor-core/src/main/java/reactor/core/publisher/FluxPublishOn.java#L214-L231)）。
+
+
+<div class="source-caption"><code>FluxPublishOn.onNext</code><span>Reactor 3.4.34 · L214–L231 · <a href="https://github.com/reactor/reactor-core/blob/v3.4.34/reactor-core/src/main/java/reactor/core/publisher/FluxPublishOn.java#L214-L231">完整源码</a></span></div>
 
 ```java
 		public void onNext(T t) {
@@ -2137,6 +2529,8 @@ Mono<Order> load(long id) {
 				Operators.onDiscard(t, actual.currentContext());
 ```
 
+onNext 先把值交给队列，再触发调度。队列满等异常会沿错误处理传递。后续 drain 与 request 配合，才构成跨线程处理和需求补充。
+
 
 ```mermaid
 flowchart LR
@@ -2145,7 +2539,7 @@ flowchart LR
  C --> D["Pipeline / reactive 链"]
  B --> E["taskQueue / runAllTasks"]
  D --> F{"是否阻塞工作？"}
- F -->|是| G["有界隔离池 / 并发预算"]
+ F -->|是| G["有界工作池 / 限制并发"]
  F -->|否| H["异步 IO / 返回 Mono"]
  G --> I["结果信号 / EventLoop 写回"]
  H --> I
@@ -2153,12 +2547,12 @@ flowchart LR
 
 ```mermaid
 flowchart TD
- A["上游请求 / 总超时预算"] --> B["限流与舱壁准入"]
+ A["请求进入 / 限定总等待时间"] --> B["限流 / 检查依赖并发"]
  B --> C["熔断检查"]
  C --> D["调用依赖 / 单次超时"]
  D --> E{"成功？"}
  E -->|是| F["返回 / 记录指标"]
- E -->|否| G{"幂等且有重试预算？"}
+ E -->|否| G{"可安全重试，且尚未超限？"}
  G -->|是| H["退避 + 抖动 / 有界次数"]
  H --> C
  G -->|否| I["降级 / 明确失败"]
@@ -2167,89 +2561,110 @@ flowchart TD
 ## 面试官三层追问
 
 ### 1. Gateway 用了 Reactor，为何还会全站卡顿？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**reactive 容器不能把阻塞调用自动变异步，EventLoop 内阻塞会影响它负责的多个连接。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**jstack 多次看到 reactor-http-nio 线程停在 JDBC/socket read 或 sleep，NioEventLoop.run 无法继续 selected key 与 task 处理。一个 channel 串行不代表一个线程只服务该 channel。
+因为 reactive 不会把同步调用自动变成非阻塞。EventLoop 内执行 JDBC，数据库慢时同一线程负责的多个连接都会等。
 
-**第三层：**使用异步客户端或有界阻塞隔离，依赖超时和舱壁同时设置；压测慢下游，并用受控阻塞检测工具发现错误调用点。增加 Netty 线程只算暂缓。
+**怎样定位到这段代码？** 多次线程栈看到 reactor-http-nio 停在同步查询或 read，而不是继续处理 NioEventLoop 的事件。trace 再确认时间确实花在认证依赖。
+
+**怎么修？** 采用异步客户端，必要阻塞调用放有界工作池，配独立并发与连接超时。慢依赖压测看其他路由是否受影响，不只加 Netty 线程。
 </details>
 
 ### 2. publishOn 和 subscribeOn 如何区分？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**subscribeOn 改变订阅/源执行上下文，publishOn 改变后续信号处理线程。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**publishOn 通过预取队列与 drain 转发信号，fromCallable 的阻塞源可用 subscribeOn 调度；已经执行的阻塞代码不会因后面加 publishOn 被重新迁移。
+subscribeOn 影响订阅和源执行的位置，publishOn 影响它之后的信号处理线程。位置决定作用，不能只背“切线程”。
 
-**第三层：**控制线程切换次数和队列，不能每个 operator 都换池。事务与租户通过正确 Context 协议，桥接 JDBC 时重新定义本地事务边界。
+**publishOn 做了什么？** 它入队、按 scheduler drain，再按消费进度补请求。阻塞源可用 fromCallable 配 subscribeOn；已经发生的阻塞不会因后面一个操作符重新搬家。
+
+**怎么避免滥用？** 不每一步都换池，控制队列和预取，正确传 Context。涉及 JDBC 时重新确认事务在哪个线程开始，不把 ThreadLocal 当跨线程状态。
 </details>
 
 ### 3. 背压是否等于不会 OOM？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**不是。协议内限制需求，但无界 buffer、外部推送源或业务持有对象仍可导致增长。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**request(n)、prefetch 和队列协调每段流，onBackpressureBuffer 若选无界会把压力转为内存；取消不保证所有底层阻塞动作立即结束。
+不等于。协议内控制需求，但无界缓冲、外部不遵守需求的来源、业务长期持有对象，仍可能把内存用完。
 
-**第三层：**每个边界定义并发/容量/超时和丢弃语义，监控缓冲长度与旧任务占用。关键交易不能用 Drop/Latest 随意丢事件，需可靠队列承接。
+**预取和取消呢？** request、prefetch、队列协调每段处理。onBackpressureBuffer 若无界，只是把压力转到内存；取消也不一定让底层 JDBC 立即停止。
+
+**怎样保护资源？** 每个接入点明确容量、并发、超时与拒绝方式。不能对重要支付直接 Drop/Latest；需要可靠队列承接，再按下游能力处理。
 </details>
 
 ### 4. 重试为什么会导致雪崩？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**失败时新增请求正好打到已过载依赖，且多层重试次数相乘。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**超时的原请求可能仍执行，再次尝试与旧调用并行；相同退避时间产生同步峰值，抖动与全链路预算能减轻但不消除过载。
+它把新增工作发给一个已经忙不过来的依赖，原来超时的请求还可能继续执行。多个层分别重试，又会把次数相乘。
 
-**第三层：**重试只放合适一层、限制总时间/次数，结合熔断、舱壁和幂等；设置请求级重试预算及服务级重试占比，故障时先限流而非自动无限补偿。
+**抖动解决什么？** 固定等待会让许多调用一起再次冲击，随机抖动把它们错开。但它不能使超载系统突然有更多能力，还需要限制总次数和总时间。
+
+**如何配合其他措施？** 只在合适的一层做幂等、有界重试，持续失败时熔断，按依赖隔离并发，过载时限流和降级。监控重试占比，不等失败后无限补调用。
 </details>
 
 ### 5. 线程池和连接池应该设多大？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**由到达率、服务时间、CPU/IO 与下游容量决定，没有统一 CPU×N 能覆盖所有场景。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**L≈λW 是稳定条件下平均关系；排队、长尾和资源竞争会破坏简单估计。连接是数据库并发限制，线程多于连接只增加等待者。
+先看实际到达率、执行时间和下游容量，没有对所有任务都合适的 CPU 乘数。数据库最多承受多少并行查询，比开多少等待线程更重要。
 
-**第三层：**建立端到端预算，压测找吞吐拐点，保留故障时剩余实例容量；限制队列等待并监控 active/pending/reject，不能以“无拒绝”为成功指标。
+**L≈λW 怎么用？** 它描述稳定情况下的平均并发关系，可做初步估算；排队、长尾和争用要再压测。线程比连接多得多时，许多线程只是等连接。
+
+**怎样验收容量？** 找吞吐拐点和尾延迟，控制排队和拒绝，预留一台故障后的剩余能力。不能以压测“没拒绝”为唯一目标，长时间排队也是失败。
 </details>
 
 ### 6. 灰度发布如何保证可恢复？
-<details markdown="1"><summary>展开三层参考答案</summary>
 
-**第一层：**稳定流量分组、观测新旧版本、明确自动/人工回退条件，并保障数据格式兼容。
+<details markdown="1"><summary>查看回答与追问</summary>
 
-**第二层：**header 染色跨调用和消息传播，schema 先兼容扩展再迁移，旧消费者仍能处理事件；异步链路缺标签会让灰度失控。
+稳定划分流量，观测新旧版本，提前规定回退条件，同时保证数据库和事件格式兼容。灰度不只是把 5% 请求随机打给新实例。
 
-**第三层：**按租户不变量/错误率/尾延迟比对，预演回退和流量切换。回滚代码不自动回滚已提交的数据，危险写入要事先设计修复方案。
+**异步链路怎么处理？** 标签需要跨调用和 MQ 传递，旧消费者仍要认识事件。schema 先兼容扩展，再迁移，否则旧代码可能已无法回退。
+
+**数据写错了怎么办？** 代码回滚不会撤销已提交的数据。重要变更准备修复和对账，灰度比较租户结果、错误率和 p99，并演练真正的回退过程。
 </details>
 
 ## 模拟生产案例：认证过滤器阻塞事件循环
 
-**故障现象：**Gateway CPU 不高，多个无关接口同时超时，数据库短时变慢后迅速放大。**排查思路：**对齐 trace、event-loop 栈、数据库连接 pending 与客户端重试；确认是否只有认证链执行慢。**原理分析：**GlobalFilter 中同步 JDBC 查询用户，多个 channel 共用 EventLoop 被阻塞，超时重试进一步叠加。**根因和验证证据：**模拟 DAO sleep，reactor-http-nio 栈长期停在同步查询；改为有界隔离并减少每层重试后，无关路由恢复，而认证按预算明确失败。**解决方案：**使用可接受时效的认证缓存/异步客户端，必要 JDBC 有界隔离和专门准入，设置连接与调用超时。**长期预防：**慢依赖注入、线程阻塞检查、trace 上下文测试、总重试预算及事件循环延迟告警。关联阅读：<a href="#c1">线程池拒绝</a>、<a href="#c4">Netty 内存</a>、<a href="#c8">缓存失效</a>。
+认证 GlobalFilter 直接调用 JDBC，下游变慢后，多条无关路由同时超时，CPU 却不高。这是共享 EventLoop 被阻塞的模拟情境。
+
+看 trace 里认证时间，连续线程栈看 reactor-http-nio 是否停在同步查询，再看连接池 pending 和客户端重试。若其他路由也由这些 EventLoop 处理，就能解释为什么影响扩大。
+
+用异步客户端，或把必要阻塞操作移到有界工作池，并限制认证并发和连接等待。根据安全要求设计缓存与失败响应，不把所有失败直接放行。减少多层重复重试，逐步恢复流量。
+
+用慢 DAO 验证无关路由能继续处理，认证则按设定时间明确失败。以后测试依赖变慢、取消后任务残留与 Context 传播，同时监控 EventLoop 延迟和总重试量。
 
 ## 面试回答与核心总结
 
 ### 60 秒快速回答
 
-Gateway 的 reactive filter 链运行在 Netty 事件模型上，一个 EventLoop 服务多个连接，阻塞 JDBC 会扩大故障。Reactor 用 request(n)、队列和调度实现背压，subscribeOn 与 publishOn 作用位置不同，但不能自动保护外部资源。稳定性需要总超时、单层有界重试、抖动、熔断和舱壁；容量按实际服务时间与下游能力估算，灰度必须兼容数据和异步链路并预演回退。
+一个 Netty EventLoop 服务多个连接，阻塞 JDBC 会让其他连接一起等。Reactor 用需求和队列协调处理，subscribeOn 与 publishOn 位置不同，返回 Mono 不自动非阻塞。稳定性要限制总等待、重试与并发，持续故障时熔断和降级，按依赖隔离资源。容量用实际吞吐和耗时估算并压测，灰度还需标签传播、数据兼容和真实回退，代码回滚不会撤销已写数据。
 
 ### 2～3 分钟深入回答
 
-从 RoutePredicateHandlerMapping 到 FilteringWebHandler 讲路由与 filter 进入/返回顺序，再用 EventLoop 的 IO/task 循环解释同步认证为何拖慢无关接口。说明 fromCallable 的隔离与 publishOn 的预取队列，强调取消后 JDBC 可能继续占资源。随后计算三层三次尝试如何放大到 27 次，提出端到端预算、幂等和 retry budget。最后按 L≈λW、吞吐拐点与故障余量做容量设计，用流量染色和兼容 schema 保证发布可恢复。
+我先解释线程模型：EventLoop 轮流处理多个 channel 的 IO 和任务，不是一连接一线程。Gateway 过滤器若在里面做同步 JDBC，数据库慢会让这一批连接都不能及时继续。返回 Mono 只是类型，已执行的阻塞代码不会自动改变。
 
-在容量上我会给一个依赖变慢的数值例子：1000QPS、20ms 时平均执行并发 20，升到 500ms 就需要约 500，资源不足后排队，叠加重试会更坏。此时限制准入和全链路预算优于扩线程。发布侧要稳定流量分组、标签贯穿异步事件，schema 先兼容，回退代码不回滚数据。验证使用慢依赖、缓存失效和 Broker 故障压测，观察队列/连接 pending 与业务 p99，并避免闭环压测降低到达率掩盖排队。
+阻塞源可以用 fromCallable 延迟，再用 subscribeOn 放到合适工作线程；publishOn 主要影响后续信号。队列、预取和 request 协调背压，但无限 buffer 仍能占满内存，外部来源也需单独限量。timeout 取消后 JDBC 可能仍占连接，线程上下文要正确转成订阅 Context。
+
+当一个依赖变慢，平均并发需求约为到达率乘耗时。1000QPS 从 20ms 变 500ms，需要的平均并发从 20 变 500，池不够开始排队；再加重试就更坏。先限制准入、等待和总尝试，退避带抖动，只对可重试且幂等操作执行。持续故障用熔断，按依赖隔离线程或并发，非关键功能降级。
+
+容量测试找吞吐拐点与业务 p99，覆盖缓存故障、慢依赖和一台实例退出。不要让闭环工具自动降到达率后误以为稳定，也不要只增加线程和连接。
+
+发布则稳定分用户或租户，标签传到异步消息，数据库和事件先保证新旧兼容。回退条件用错误率、尾延迟和业务结果；写错数据要有修复方案。最后通过 trace、队列、连接和线程栈定位等待发生在哪一段，再决定改法。
 
 ### 高频追问、常见错误与速记
 
-高频追问：timeout 会停止 SQL 吗？MDC 怎么跨线程？压测是否掩盖排队？常见错误：一连接一线程；返回 Mono 就非阻塞；boundedElastic 无限；背压一定不 OOM；增加连接池就提升 DB 吞吐；代码回滚自动修复数据。源码：FilteringWebHandler.handle，DefaultGatewayFilterChain.filter，NioEventLoop.run/runAllTasks，FluxPublishOn.onNext/drain，Reactor request 协议。核心知识：**事件线程→有界异步→依赖预算→恢复与发布**。
+- 高频追问：timeout 会停止 SQL 吗？发布后哪些线程处理信号？MDC 怎么传？闭环压测会漏什么？
+- 容易答错：一连接一线程；返回 Mono 就非阻塞；boundedElastic 无限；背压不会 OOM；多加连接一定快；代码回滚恢复数据。
+- 常看的源码：`FilteringWebHandler.handle`、`DefaultGatewayFilterChain.filter`、`NioEventLoop.run/runAllTasks`、`FluxPublishOn.onNext` 和 request 处理。
+- 顺着一次请求看它在哪等，资源被谁占，再决定限流、隔离还是改调用方式。
 
 
 ## 官方资料与版本来源
 
-联网核对日期：2026-10-08。固定版本用于解释实现，不代表最新生产推荐版本。源码摘录版权见 [source-notices.txt](./source-notices.txt)，下载记录与摘要见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [NioEventLoop.run · Netty 4.1.108.Final](https://raw.githubusercontent.com/netty/netty/netty-4.1.108.Final/transport/src/main/java/io/netty/channel/nio/NioEventLoop.java)
 - [FluxPublishOn.onNext · Reactor 3.4.34](https://raw.githubusercontent.com/reactor/reactor-core/v3.4.34/reactor-core/src/main/java/reactor/core/publisher/FluxPublishOn.java)

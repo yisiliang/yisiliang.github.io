@@ -19,6 +19,7 @@
     };
     [...article.querySelector('.study').children].forEach(node => {
       if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else if(node.matches('details.question')){flush();heading=node.querySelector('h3');text.push(node.querySelector('.answer').textContent);flush();}
       else text.push(node.textContent);
     }); flush();
     article.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
@@ -50,7 +51,7 @@
   function setMode(next) {
     mode=next;root.classList.toggle('quick-mode',mode==='quick');
     $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'面试速查';
-    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'面试速查':'深度学习');});
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'面试速查':'完整阅读');});
     makeToc();
   }
   function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
