@@ -4,7 +4,7 @@
 
 ## 文件
 
-- index.html：独立阅读页，13节、3张教学流程图、逐页原文定位、注意力交互计算器。
+- index.html：独立阅读页，16节、4张教学流程图、逐页原文定位、注意力交互计算器。
 - style.css：从distributed阅读视觉复制并局部扩展，未共享或修改原CSS。
 - attention.js：两维查询滑块、因果mask开关，固定手设K/V。
 - verify.py：Python标准库计算Q/K/V、softmax、causal mask、两头拼接、位置编码、FFN、LayerNorm、词表概率与交叉熵；校验目录锚点、ID和资源。
@@ -49,3 +49,11 @@
 - 公共页包含一份Umami；build_offline.py在打包时剥离统计脚本。
 - 更新正文后重新构建离线包，运行verify.py；发布时等待Pages built并核对线上HTML、CSS、JS和ZIP。
 - 当前交付为单篇基础论文解析；BERT/GPT/RAG/LoRA均未创建。
+
+## 深入解读增补（2026年10月8日）
+
+- 增加innovation、learning、to-chatgpt三节，保持旧锚点可访问。
+- 前史与创新：Bahdanau论文、原文§2/§3/§4及表1/表3；区分已有构件与架构组合贡献。
+- 后续演进：GPT（2018）、GPT-2（2019）、GPT-3（2020）、Scaling Laws（2020）、Chinchilla（2022）、InstructGPT（2022）、ChatGPT首次发布资料（2022-11-30）。正文逐段提供主来源链接。
+- 公布的历史事实与本文工程分析分开；不推测GPT-3.5参数量或实际训练预算，不把时间线视为必然因果证明。
+- verify.py增加参数量、复杂度代入、FP16显存计算及交叉熵梯度的有限差分检验。RLHF目标明确为教学简式，省略额外预训练项，不宣称实现完整PPO。

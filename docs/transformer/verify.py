@@ -50,6 +50,17 @@ near(softmax([2,1,0])[0],.665241)
 near(-(log(.8)+log(.5))/2,.458145)
 for row in ([.707107,0,.707107],[2,1,0]):
     for aa,bb in zip(softmax(row),softmax([s+100 for s in row])):near(aa,bb)
+# Independent checks for the new parameter, complexity and memory examples.
+assert 8*512*64 == 512*512 == 262144
+assert 128**2*512 == 8388608 and 128*512**2 == 33554432
+assert 8192**2*512 == 34359738368
+assert 8192**2*2/1024**2 == 128 and 8*8192**2*2/1024**3 == 1
+# Finite-difference check of d cross-entropy / d logits = p - one_hot.
+z=[log(.6),log(.3),log(.1)];eps=1e-5
+for j in range(3):
+    plus=z.copy();minus=z.copy();plus[j]+=eps;minus[j]-=eps
+    derivative=(-log(softmax(plus)[1])+log(softmax(minus)[1]))/(2*eps)
+    assert isclose(derivative,[.6,-.7,.1][j],abs_tol=1e-8)
 # Verify page topology and every local asset; don't rely on visual counts.
 class Page(HTMLParser):
     def __init__(self):super().__init__();self.ids=[];self.links=[];self.sections=0
@@ -61,10 +72,10 @@ class Page(HTMLParser):
             if k in attrs:self.links.append(attrs[k])
 p=Page();p.feed((ROOT/'index.html').read_text())
 assert len(p.ids)==len(set(p.ids))
-assert p.sections==13
+assert p.sections==16
 for link in p.links:
     if link.startswith('#'):assert link[1:] in p.ids,link
     elif link.startswith('./'):assert (ROOT/link[2:]).exists(),link
 result={'attention_weights':a,'attention_output':o,'causal_weights':am,'causal_output':om,'two_heads':heads,'position_encoding':pe,'ffn':ff,'layer_norm':ln,'loss':-(log(.8)+log(.5))/2}
 print(json.dumps(result,ensure_ascii=False,indent=2))
-print('PASS: numerical examples, softmax invariance, causal zeros, 13 sections, unique ids, internal anchors and assets')
+print('PASS: numerical examples, softmax invariance, causal zeros, 16 sections, unique ids, internal anchors and assets')
