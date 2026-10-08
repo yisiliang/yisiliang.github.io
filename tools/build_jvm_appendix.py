@@ -21,8 +21,8 @@ def build():
     section = f'''{START}
 <section aria-labelledby="appendix-xstream-title">
 <a id="appendix-xstream"></a>
-<h1 id="appendix-xstream-title">附录A · XStream1.4.4与每请求new XStream()：周期性Full GC分析</h1>
-<p><a href="./analysis-xstream-1.4.4-fgc.md" download>下载修订稿（Markdown）</a> · <a href="./xstream-lab.zip" download>下载实验与证据包</a> · <a href="./xstream-review.md">检查记录</a></p>
+<h1 id="appendix-xstream-title">附录A · 每个请求都new XStream()，为什么会增加CMS回收压力？</h1>
+<p><a href="./analysis-xstream-1.4.4-fgc.md" download>下载正文（Markdown）</a></p>
 <details><summary>展开本附录目录</summary>{toc}</details>
 {content}
 </section>
@@ -32,8 +32,10 @@ def build():
         source = re.sub(re.escape(START) + r'.*?' + re.escape(END), lambda _: section, source, count=1, flags=re.S)
     else:
         source = source.replace('</article>', section + '\n</article>', 1)
-    nav = '<a href="#appendix-xstream">附录A · XStream1.4.4周期性Full GC分析</a>'
-    if nav not in source:
+    nav = '<a href="#appendix-xstream">附录A · XStream1.4.4与CMS回收压力</a>'
+    if re.search(r'<nav>.*?<a href="#appendix-xstream">', source, re.S):
+        source = re.sub(r'<a href="#appendix-xstream">附录A[^<]*</a>', lambda _: nav, source, count=1)
+    else:
         source = source.replace('</nav>', nav + '</nav>', 1)
     source = source.replace('76节 · 62张图', '76节 · 1篇附录 · 62张图')
     source = source.replace('<a href="#chapter-73">阅读案例</a></div>', '<a href="#chapter-73">阅读案例</a><a href="#appendix-xstream">附录</a></div>', 1)

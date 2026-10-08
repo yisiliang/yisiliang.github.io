@@ -17,7 +17,7 @@ CAP与BASE文章从网络分区推导理论边界，并通过订单与积分案�
 
 Transformer文章固定arXiv:1706.03762v5，通过16节深入解读、4张图解与交互计算器串起Q/K/V、多头、位置编码、Encoder—Decoder和训练推理，并分析创新点、计算与显存取舍、梯度学习、GPT预训练及2017—2022年走向ChatGPT的演进，附可重新计算的教学矩阵与离线包。
 
-JVM附录新增[XStream1.4.4周期性Full GC分析](https://yisiliang.github.io/jvm/#appendix-xstream)，结合实例级构造器缓存、反射类生成与元空间GC机制，提供经核对的源码、同负载复测、实验与日志下载。
+JVM附录[XStream1.4.4与CMS回收压力](https://yisiliang.github.io/jvm/#appendix-xstream)按Oracle JDK8与CMS展开，解释实例级构造器缓存、反射类生成、元空间高水位，以及复用实例和升级版本的作用。
 
 源码教程固定上游标签与完整提交，提供真实节选、机制图、正文推导、验证记录和离线包。实验记录区分已执行与仅提供步骤/预期；学习基线不等于最新生产版本。
 
