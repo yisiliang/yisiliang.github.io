@@ -50,3 +50,7 @@ python3 examples/md5-cas-model.py
 `apache-license.txt`为上游LICENSE完整原文，`nacos-notice.txt`为上游NOTICE原文；节选版权及编排说明见`source-notices.txt`。未修改源码正文，未打包完整源码树。Java高亮为本包自有着色，无第三方脚本依赖。
 
 主任务浏览器验收：桌面与390px手机页面可读，无全页横向溢出；41段初始源码及最终43段均以两版checkout独立核验。offline.html为打包中间文件，不作为公开页面提交；核验器也支持直接读取ZIP中的离线HTML。
+
+## 2026年10月8日复审
+
+本轮用3.2.4/2.5.4 checkout逐字核对43段源码；补充MD5内容比较的ABA边界。未运行Server、Java SDK、数据库或集群故障实验。

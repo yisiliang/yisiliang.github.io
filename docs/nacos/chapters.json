@@ -673,7 +673,7 @@
     "method": true,
     "body": [
       "ConfigOperationService依赖ConfigInfoPersistService接口，实际一致性必须继续看到实现。ExternalConfigInfoPersistServiceImpl使用外部数据库：insertOrUpdate先查询三元组是否存在，再调用addConfigInfo或updateConfigInfo。updateConfigInfo在TransactionTemplate事务中读现存内容、执行更新并记录修改历史，ConfigOperateResult表达最终状态。这不是把配置正文广播给Raft多数派后再存MySQL的统一模型。",
-      "数据库是这一路配置持久化的权威来源，Server本地缓存和dump文件服务于查询与通知。多个Server共享同一MySQL可看到提交结果，但缓存传播有延迟；数据库不可用时，缓存读与配置写的表现会不同。CAS路径在SQL条件里限制旧MD5，避免两个发布者的读后写竞争。普通insertOrUpdate的查询存在性与写操作仍可能遇到并发插入/唯一键冲突，调用层必须处理错误而不是把先查询到不存在当作锁。"
+      "数据库是这一路配置持久化的权威来源，Server本地缓存和dump文件服务于查询与通知。多个Server共享同一MySQL可看到提交结果，但缓存传播有延迟；数据库不可用时，缓存读与配置写的表现会不同。CAS路径在SQL条件里限制旧MD5，避免两个发布者的读后写竞争。这个条件比较内容摘要，不是单调递增版本号：内容A→B→A后，旧客户端携带A的MD5仍可能满足条件。若业务要求发现任何中间修改，应另外设计版本/审计校验；也不要把MD5当成安全认证。普通insertOrUpdate的查询存在性与写操作仍可能遇到并发插入/唯一键冲突，调用层必须处理错误而不是把先查询到不存在当作锁。"
     ],
     "fields": [
       [

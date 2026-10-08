@@ -90,6 +90,10 @@ def transform(source, name, offline=False):
     source=source.replace('</head>',f'<style id="reader-design">{CSS}</style></head>',1)
     source=source.replace('</body>',f'<script id="reader-controls">{JS}</script></body>',1)
     if offline:
+        # An extracted ZIP has no sibling website directories. These are
+        # optional online reading links, not dependencies for offline rendering.
+        source=source.replace('href="../"','href="https://yisiliang.github.io/"')
+        source=re.sub(r'href="\.\./([a-z][a-z-]*)/"',r'href="https://yisiliang.github.io/\1/"',source)
         source=re.sub(r'<a\b[^>]*href="(?:\./)?'+re.escape(name)+r'-offline\.zip"[^>]*>.*?</a>','',source,flags=re.S)
     return source
 

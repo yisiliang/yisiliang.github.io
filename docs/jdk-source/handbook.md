@@ -4572,7 +4572,7 @@ flowchart TD
  N2 --> N3
 ```
 
-set(null)只把value设为null，Entry仍在，下一次get返回null；remove之后get才重新初始化。另一个边界：ThreadLocal让各线程拥有独立映射，但若人为把同一个可变对象set到多个线程，该对象本身仍被共享，不会自动获得线程安全。
+set(null)只把value设为null，Entry仍在，下一次get返回null；remove之后get才重新初始化。另一个边界：ThreadLocal让各线程拥有独立映射，但若人为把同一个可变对象set到多个线程，该对象本身仍被共享，不会自动获得线程安全。InheritableThreadLocal的继承发生在线程创建时，不是在每次任务提交时；复用已有worker不会重新取得提交者当前值，默认childValue也不深复制值对象。异步任务应显式传递上下文，并在执行任务的线程上恢复或清理。
 
 口述答案：值归当前Thread的ThreadLocalMap管理，Entry弱key强value；开放寻址需要在删除时修复探测链，机会性清理不保证及时回收。线程池要按任务在worker的finally里remove，不能把弱引用当成自动资源释放。
 

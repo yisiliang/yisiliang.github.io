@@ -1,5 +1,7 @@
 # 源码节选边界校验
 
+2026年10月8日的8组技术文章复审见[审核记录](../docs/technical-review-2026-10-08.md)。跨目录发布检查运行`python3 tools/audit_articles.py`，覆盖全部8篇及现有离线包；技术机制和固定源码仍须分别核对。离线转换器会把跨教程的相对导航改为网站绝对链接，避免解压后访问不存在的兄弟目录。
+
 `repair_source_excerpts.py`检查JDK、RocketMQ、Redis三本手册的全部源码卡片，使用各手册内已固定版本的原始源码ZIP，不获取或替换上游源码。修复后同步Markdown、网页代码、行号、链接和离线包；正文与图表不变。
 
 运行环境建议Python3.12（tree-sitter0.26与Python3.14存在兼容问题）。首次安装：

@@ -24,3 +24,5 @@ JDK附录[ThreadLocal状态残留与偶发SQL异常](https://yisiliang.github.io
 源码教程固定上游标签与完整提交，提供真实节选、机制图、正文推导、验证记录和离线包。实验记录区分已执行与仅提供步骤/预期；学习基线不等于最新生产版本。
 
 首页目录维护与发布检查见[tools/README.md](tools/README.md)。Support、Privacy Policy和历史技术文章保留原地址，不在首页展示。
+
+MySQL、NGINX、Spring Boot、Nacos、CAP与BASE、Transformer、JVM与JDK源码的[2026年10月8日复审记录](docs/technical-review-2026-10-08.md)列出已修正问题、源码证据、验证范围与后续优化顺序。

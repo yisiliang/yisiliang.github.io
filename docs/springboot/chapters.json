@@ -25,9 +25,9 @@
       "环境完成：无业务Bean",
       "refresh完成：服务器已启动",
       "Runner成功：预热完成",
-      "ready：允许接流量"
+      "ready：发布就绪状态"
     ],
-    "failure": "准备环境就失败时context仍为null；refresh或Runner失败时handleRunFailure可拿到context并关闭资源。Runner主动关闭上下文与抛异常不同：前者可能使ready跳过但返回已关闭context；后者走失败链。应用监听器执行过慢也会延长启动，因为这条编排不是无条件异步。",
+    "failure": "准备环境就失败时context仍为null；refresh或Runner失败时handleRunFailure可拿到context并关闭资源。Runner主动关闭上下文与抛异常不同：前者可能使ready跳过但返回已关闭context；后者走失败链。应用监听器执行过慢也会延长启动，因为这条编排不是无条件异步。端口可在Runner之前监听；只有部署平台消费Readiness探针并按结果路由，才能阻挡未就绪流量。Ready事件本身不执行网络隔离。",
     "experiment": "将样例的ApplicationRunner加入Thread.sleep(3000)，监听ApplicationStartedEvent与ApplicationReadyEvent输出时间。预期两事件相差约3秒。再在Runner抛IllegalStateException，预期Started可能出现而Ready不出现，进程启动失败。此实验是教学步骤，本次未启动真实服务器。",
     "compare": ""
   },

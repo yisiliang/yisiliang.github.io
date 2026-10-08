@@ -233,11 +233,11 @@
     "version": "3.5.16",
     "sha": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
     "repository": "spring-boot",
-    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/reactive/context/WebServerStartStopLifecycle.java",
-    "start": 40,
-    "end": 47,
-    "sha256": "06459f68ddb6957e854aa9d9587990606d4b4c4eeee93ed3385477c5f6bb9419",
-    "text": "\tpublic void start() {\n\t\tthis.weServerManager.start();\n\t\tthis.running = true;\n\t}\n\n\t@Override\n\tpublic void stop() {\n\t\tthis.running = false;"
+    "path": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/context/WebServerStartStopLifecycle.java",
+    "start": 42,
+    "end": 48,
+    "sha256": "e5964b7461e8b5180b4ae6796f0950daf81348e9d66d2d7b4f65c0fd20578836",
+    "text": "\t@Override\n\tpublic void start() {\n\t\tthis.webServer.start();\n\t\tthis.running = true;\n\t\tthis.applicationContext\n\t\t\t.publishEvent(new ServletWebServerInitializedEvent(this.webServer, this.applicationContext));\n\t}"
   },
   {
     "version": "3.5.16",

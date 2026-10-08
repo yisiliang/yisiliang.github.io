@@ -60,3 +60,7 @@ java -jar target/source-lab-1.0.0.jar --server.port=8088
 - 没有运行完整2.7.18实验工程；两版变化来自固定源码对照，3.5.16实验验证不等同于两版所有业务迁移回归通过。
 - 本次额外用Chromium实际检查390px和320px手机视口：document.scrollWidth等于视口宽度，无全页横向溢出；顶部控件为104px双行，1440px桌面仍为68px单行。ConfigData搜索状态为1/38；多次搜索前后56个代码块textContent完全一致，源码复制内容不受mark影响。手机/桌面截图已人工检查，站点发布后仍需线上验收。
 - 源码外链需要网络，Maven首次解析需要网络；离线阅读正文、图、搜索和主题无需网络。
+
+## 2026年10月8日复审
+
+本轮逐字核对56段源码及三组固定SHA。第14章同名生命周期类由Reactive改为Servlet，包含Override及ServletWebServerInitializedEvent；同步清单、摘要与行号。第2图改为发布就绪状态，补充端口监听与平台探针边界。未重跑Web服务器或Maven实验，历史实测记录保持原日期。

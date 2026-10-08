@@ -106,7 +106,7 @@ Boot的SpringApplication持有primarySources、initializers、listeners和启动
 
 run里的context最初为null，随后创建；Startup记录启动耗时；listeners从starting到environmentPrepared、contextPrepared、contextLoaded、started、ready逐段通知。BootstrapContext提供早期对象共享，之后close(context)交接到真正的ApplicationContext。
 
-<figure class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 815 215" role="img" aria-labelledby="diagram-title-2"><title id="diagram-title-2">启动全过程：成功不是一个瞬间：关键状态推进</title><defs><marker id="arrow-2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0L6 3L0 6" fill="#648eb9"/></marker></defs><path d="M390 58H412 M603 91V114H207V130 M390 162H412" fill="none" stroke="#648eb9" stroke-width="2" marker-end="url(#arrow-2)"/><rect x="25" y="25" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="41" y="52" fill="#254c75" font-size="12">01 · 状态/交接</text><text x="41" y="74" fill="#20324d" font-size="15">环境完成：无业务Bean</text><rect x="420" y="25" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="436" y="52" fill="#254c75" font-size="12">02 · 状态/交接</text><text x="436" y="74" fill="#20324d" font-size="15">refresh完成：服务器已启动</text><rect x="25" y="130" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="41" y="157" fill="#254c75" font-size="12">03 · 状态/交接</text><text x="41" y="179" fill="#20324d" font-size="15">Runner成功：预热完成</text><rect x="420" y="130" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="436" y="157" fill="#254c75" font-size="12">04 · 状态/交接</text><text x="436" y="179" fill="#20324d" font-size="15">ready：允许接流量</text></svg><figcaption>图2 · 关键交接点；完整调用及异常分支见正文</figcaption></figure>
+<figure class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 815 215" role="img" aria-labelledby="diagram-title-2"><title id="diagram-title-2">启动全过程：成功不是一个瞬间：关键状态推进</title><defs><marker id="arrow-2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0L6 3L0 6" fill="#648eb9"/></marker></defs><path d="M390 58H412 M603 91V114H207V130 M390 162H412" fill="none" stroke="#648eb9" stroke-width="2" marker-end="url(#arrow-2)"/><rect x="25" y="25" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="41" y="52" fill="#254c75" font-size="12">01 · 状态/交接</text><text x="41" y="74" fill="#20324d" font-size="15">环境完成：无业务Bean</text><rect x="420" y="25" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="436" y="52" fill="#254c75" font-size="12">02 · 状态/交接</text><text x="436" y="74" fill="#20324d" font-size="15">refresh完成：服务器已启动</text><rect x="25" y="130" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="41" y="157" fill="#254c75" font-size="12">03 · 状态/交接</text><text x="41" y="179" fill="#20324d" font-size="15">Runner成功：预热完成</text><rect x="420" y="130" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="436" y="157" fill="#254c75" font-size="12">04 · 状态/交接</text><text x="436" y="179" fill="#20324d" font-size="15">ready：发布就绪状态</text></svg><figcaption>图2 · 关键交接点；完整调用及异常分支见正文</figcaption></figure>
 
 ### 沿真实调用链推演
 
@@ -158,7 +158,7 @@ run创建DefaultBootstrapContext→listeners.starting→DefaultApplicationArgume
 
 ### 分支与失败边界
 
-准备环境就失败时context仍为null；refresh或Runner失败时handleRunFailure可拿到context并关闭资源。Runner主动关闭上下文与抛异常不同：前者可能使ready跳过但返回已关闭context；后者走失败链。应用监听器执行过慢也会延长启动，因为这条编排不是无条件异步。
+准备环境就失败时context仍为null；refresh或Runner失败时handleRunFailure可拿到context并关闭资源。Runner主动关闭上下文与抛异常不同：前者可能使ready跳过但返回已关闭context；后者走失败链。应用监听器执行过慢也会延长启动，因为这条编排不是无条件异步。端口可在Runner之前监听；只有部署平台消费Readiness探针并按结果路由，才能阻挡未就绪流量。Ready事件本身不执行网络隔离。
 
 ### 可复现实验与观察点
 
@@ -829,17 +829,16 @@ Framework refresh.onRefresh→Boot createWebServer→getWebServerFactory→facto
 		initPropertySources();
 ```
 
-[真实源码 · WebServerStartStopLifecycle.java:40–47 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/reactive/context/WebServerStartStopLifecycle.java#L40-L47)
+[真实源码 · WebServerStartStopLifecycle.java:42–48 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/context/WebServerStartStopLifecycle.java#L42-L48)
 
 ```java
-	public void start() {
-		this.weServerManager.start();
-		this.running = true;
-	}
-
 	@Override
-	public void stop() {
-		this.running = false;
+	public void start() {
+		this.webServer.start();
+		this.running = true;
+		this.applicationContext
+			.publishEvent(new ServletWebServerInitializedEvent(this.webServer, this.applicationContext));
+	}
 ```
 
 ### 分支与失败边界

@@ -1025,7 +1025,7 @@ write filter收集`r->out`，检查flush/last/缓冲标志，计算limit与sendf
 
 proxy cache至少两层：共享keys_zone里保存索引、状态、引用等，磁盘文件保存headers/body。`ngx_http_file_cache_open`通过r->cache检查waiting/reading，查询共享节点，再决定是否打开磁盘文件、读取header与有效期。cold启动期间loader逐步恢复索引；manager控制容量和失效清理。keys_zone容量不等于body缓存容量，max_size也不是请求buffer上限。
 
-cache key由proxy配置生成，默认和scheme、proxy_host、request_uri等有关；用户自定义key必须包含业务隔离维度。Cookie、Authorization、Set-Cookie、Cache-Control、Vary等参与可缓存资格或变体处理；不能仅凭GET+200就断言会落缓存。忽略响应缓存头可能缓存私人数据，教程采用无账号的虚构端点。
+cache key由proxy配置生成，默认和scheme、proxy_host、request_uri等有关；用户自定义key必须包含业务隔离维度。请求Cookie本身不会自动禁止缓存，也不会自动进入默认cache key；响应Set-Cookie默认阻止保存，Authorization、Cache-Control与Vary另有资格或变体规则。不能把这几种头混成同一条规则，也不能仅凭GET+200就断言会落缓存。忽略响应缓存头可能缓存私人数据，教程采用无账号的虚构端点。
 
 MISS可能发到上游，HIT从文件返回，EXPIRED可能等待刷新或重验证，STALE要符合策略。`proxy_cache_lock`协调同key填充者，等待和lock age/timeout是独立边界；它不是跨任意缓存key的一把全局请求锁。background update通过子请求等路径更新，跨进程共享状态仍需锁与引用管理。
 
@@ -1065,7 +1065,7 @@ MISS可能发到上游，HIT从文件返回，EXPIRED可能等待刷新或重验
 
 **实验：**lab`/cache/`两次curl `-i`，看`X-Lab-Cache`从MISS到HIT；等待有效期再请求观察过期路径，后端时间值帮助判断内容复用。并发首请求用于lock实验需控制上游变慢，不能只凭HIT比例证明没有重复回源。
 
-**失败边界：**cache key漏租户维度比缓存未命中严重得多；服务不可用时use_stale提高可用性，但内容过旧的业务后果由应用决定。本书未执行缓存流程，配置和预期依据固定代码。
+**失败边界：**cache key漏租户维度比缓存未命中严重得多；服务不可用时use_stale提高可用性，但内容过旧的业务后果由应用决定。对登录态请求要按业务定义同一个绕过条件，分别配置proxy_cache_bypass（不读缓存）和proxy_no_cache（不保存响应）；只禁保存仍可能读到已有缓存，只禁读取仍可能把私人响应存进去。本书未执行缓存流程，配置和预期依据固定代码。
 
 [返回目录](#top)
 

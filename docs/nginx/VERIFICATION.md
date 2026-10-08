@@ -40,3 +40,7 @@ python3 verify.py /path/to/nginx-release-1.28.0-checkout
 主任务已验证浏览器全文检索与主题控件；390px手机视口下长源码路径溢出已修复，公开与离线页面同步。
 
 offline-index.html仅作离线包生成中间文件，不作为公开网页提交。核验器可分别识别公开或离线index.html，不依赖中间文件。
+
+## 2026年10月8日复审
+
+本轮逐字核对24段源码与固定1.28.0 checkout；细分请求Cookie、响应Set-Cookie及cache_bypass/no_cache两个方向。NGINX集成实验仍未执行。

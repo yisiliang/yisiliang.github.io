@@ -999,7 +999,7 @@ ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
 
 lock_rec_lock以mode、block、heap_no、index和事务线程请求记录锁，先走fast path，不满足时slow path处理冲突和等待。记录锁对象通过页与位图定位索引记录，不是把SQL WHERE字符串存起来当锁。扫描路径会影响实际锁住的记录与间隙。
 
-next-key把记录与其前方间隙组合，gap锁保护插入范围。唯一索引完整等值命中与范围查询、未命中查询的锁行为不能一概而论；隔离级别、访问索引及外键/唯一性检查会改变锁集合。RC通常减少搜索中的gap锁，但仍有约束检查相关例外。
+next-key把记录与其前方间隙组合，gap锁保护插入范围。纯gap锁之间可以共存，gap S/X并不像记录S/X那样互斥；它们主要阻止向间隙插入。插入意向锁还要按具体插入位置与已有范围锁判断冲突，不能用“X必定排斥另一把X”解释所有data_locks输出。唯一索引完整等值命中与范围查询、未命中查询的锁行为不能一概而论；隔离级别、访问索引及外键/唯一性检查会改变锁集合。RC通常减少搜索中的gap锁，但仍有约束检查相关例外。
 
 latch短时保护页内存结构，事务锁可能保持到事务结束。慢SQL锁住很多索引项后，其他请求等待不代表某个热点页latch无法释放。使用performance_schema.data_locks/data_lock_waits观察索引名、锁模式、状态和阻塞关系，再把它映射回执行计划与SQL条件。
 
