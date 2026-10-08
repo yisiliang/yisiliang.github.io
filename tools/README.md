@@ -45,3 +45,14 @@ python3 tools/validate_source_library.py
 该检查验证页面锚点、本地资源、统计文件、离线包完整性和统计代码边界；源码节选及机制准确性还需各教程的`VERIFICATION.md`与固定源码基线核验。
 
 上游源码窗口保留原始空白以支持逐字核验；`.gitattributes`仅对这些节选及Nacos包含原文的页面放宽对应空白检查。Spring Boot实验的`target/`和Nacos打包中间页不提交。
+
+## 分布式理论文章
+
+`docs/distributed/index.html`与`style.css`维护CAP与BASE图解文章。它是理论与教学案例，不套用源码手册的版本、节选数统计。更新后运行：
+
+```sh
+python3 tools/build_distributed_offline.py
+python3 tools/build_homepage.py
+```
+
+离线包仅包含文章与本地CSS，不含统计脚本；继续阅读链接指向公开网站。首页目录中的理论入口排在Nacos前面，发布时检查目录锚点、手机布局、离线资源及线上HTML。
