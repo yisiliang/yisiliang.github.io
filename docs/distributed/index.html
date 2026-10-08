@@ -9,9 +9,9 @@
 </head>
 <body>
 <a class="skip" href="#content">跳至正文</a>
-<header><div class="wrap"><a class="home" href="../">← 源码学习库</a><p class="eyebrow">DISTRIBUTED SYSTEMS / FOUNDATIONS</p><h1>CAP与BASE</h1><p class="lead">从网络分区的限制，走到最终一致性的实现。</p><p class="intro">先理解哪些承诺无法同时兑现，再决定哪些操作必须等待、哪些状态可以暂时落后，以及故障后如何恢复业务约束。</p><div class="tags"><span>8节机制分析</span><span>3张流程图解</span><span>业务案例与面试复述</span></div><div class="links"><a href="./cap-base-offline.zip" download>下载离线阅读包 ↓</a><a href="../nacos/">继续阅读Nacos ↗</a></div></div></header>
+<header><div class="wrap"><a class="home" href="../">← 源码学习库</a><p class="eyebrow">DISTRIBUTED SYSTEMS / FOUNDATIONS</p><h1>CAP与BASE</h1><p class="lead">从网络分区的限制，走到最终一致性的实现。</p><p class="intro">先理解哪些承诺无法同时兑现，再决定哪些操作必须等待、哪些状态可以暂时落后，以及故障后如何恢复业务约束。</p><div class="tags"><span>9节机制分析</span><span>4张流程图解</span><span>业务案例与面试复述</span></div><div class="links"><a href="./cap-base-offline.zip" download>下载离线阅读包 ↓</a><a href="../nacos/">继续阅读Nacos ↗</a></div></div></header>
 <div class="layout wrap">
-<nav aria-label="文章目录"><p class="eyebrow">阅读路径</p><a href="#problem">01 · 为什么会有取舍</a><a href="#cap">02 · CAP的精确定义</a><a href="#partition">03 · 两副本推导与分区恢复</a><a href="#base">04 · BASE的三个承诺</a><a href="#acid">05 · CAP、BASE与ACID</a><a href="#workflow">06 · 订单与积分：落地闭环</a><a href="#choices">07 · 按操作选择一致性</a><a href="#interview">08 · 面试复述与自测</a><a href="#references">参考资料</a></nav>
+<nav aria-label="文章目录"><p class="eyebrow">阅读路径</p><a href="#problem">01 · 为什么会有取舍</a><a href="#cap">02 · CAP的精确定义</a><a href="#partition">03 · 两副本推导与分区恢复</a><a href="#base">04 · BASE的三个承诺</a><a href="#acid">05 · CAP、BASE与ACID</a><a href="#workflow">06 · 订单与积分：落地闭环</a><a href="#choices">07 · 按操作选择一致性</a><a href="#interview">08 · 面试复述与自测</a><a href="#cap-paper">09 · CAP原论文精读</a><a href="#references">参考资料</a></nav>
 <main id="content">
 <section id="problem"><p class="eyebrow">01 / THE PROBLEM</p><h2>为什么多放一份数据，反而多了一道难题</h2>
 <p>单节点保存<code>x=0</code>时，写入与读取可以围绕同一份状态协调。为了让一个节点故障后仍有副本可用，我们把数据复制到节点A与B。新的问题随之出现：A接到<code>x=1</code>，B什么时候知道这次更新？写入成功应等待几个副本？A与B之间失联，但两边都还能接到客户端请求时，B应该如何回答？</p>
@@ -89,6 +89,79 @@
 <details><summary>“返回受理中”能否绕过CAP？</summary><p>不能。它改变了接口承诺：可靠保存请求意图可以完成受理操作，但原写入尚未完成。客户端仍需查询终态，系统仍要承担后续处理、幂等和恢复责任。</p></details>
 <details><summary>上线前怎样验证这条链路？</summary><p>在提交前后、MQ确认前后、消费提交前后注入进程崩溃；并发重复投递、延迟和乱序事件；恢复后核对每笔业务的唯一流水、积分总额、outbox终态和告警。这里提供验证思路，没有宣称已运行生产故障实验。</p></details>
 </section>
+<section id="cap-paper"><p class="eyebrow">09 / READ THE ORIGINAL PAPER</p><h2>原论文精读：Gilbert与Lynch究竟证明了什么</h2>
+<p>论文为Seth Gilbert与Nancy Lynch的<em>Brewer’s Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web Services</em>。以下解析依据链接中的12页PDF，页码均按PDF页序计算。先读前面的两副本例子，再读本节的执行构造，便能把“CAP三选二”还原成有假设、有量词、有反证过程的理论结论。</p>
+<div class="callout"><strong>核心结论：</strong>在允许网络分区的模型中，不存在一种读写算法，能够对所有允许的执行，同时保证线性一致性和可用性。限制针对算法能兑现的承诺，不取决于机器是否足够快，也不要求节点宕机。</div>
+<h3 id="paper-map">9.1 阅读地图：不只有一个CAP证明</h3>
+<div class="table-wrap"><table><thead><tr><th>PDF位置</th><th>原文内容</th><th>阅读时要回答的问题</th></tr></thead><tbody>
+<tr><td>第2—4页 · §2</td><td>原子读写对象、可用性、分区容错的形式化定义。</td><td>C究竟是哪一种一致性？A是否有固定响应时限？哪些故障被模型允许？</td></tr>
+<tr><td>第4—5页 · 定理1</td><td>纯异步模型中的不可能性证明。</td><td>两种执行为什么对读取侧不可区分？矛盾发生在哪里？</td></tr>
+<tr><td>第5—6页 · 推论1.1</td><td>即使只要求无丢消息的执行保持原子一致，也有额外限制。</td><td>“消息永久丢失”和“消息只是很慢”能否区分？</td></tr>
+<tr><td>第6—7页 · §3.2</td><td>分别保留两种性质的简单构造。</td><td>每个构造依赖什么假设，放弃了哪项保证？</td></tr>
+<tr><td>第7—8页 · 定理2与§4.3</td><td>有时钟和已知时间上界时，不可能性仍成立，但能提供不同的降级保证。</td><td>知道通信超时，是否等于知道远端数据？</td></tr>
+<tr><td>第9—11页 · 定义3与定理4</td><td>Delayed-t一致性及中心节点协议的构造。</td><td>恢复后多久、以什么条件，重新约束跨节点操作顺序？</td></tr>
+</tbody></table></div>
+<h3 id="paper-model">9.2 研究对象与模型：一个变量就足够暴露限制</h3>
+<p>研究对象是可读写的数据对象：初始值为<code>v₀</code>，客户端执行<code>write(v)</code>与<code>read()</code>。至少两个节点通过消息共同提供这个对象；客户端可向不同节点请求。这里不需要SQL事务或复杂业务。一个简单读写对象已经足以证明这些承诺不能同时实现，更多业务代码不会补足被分区切断的信息。</p>
+<p><strong>C是原子一致性，也称线性一致性。</strong>全部操作必须能安排成一个合法的总顺序，看起来各自在调用与返回之间的某个瞬间生效，并尊重实际时间先后：写完成之后才开始的读，必须返回该值或更晚写入的值。时间重叠的操作则可以选择合法顺序。它不要求所有物理副本每一瞬间都相同；内部传播可以有延迟，但客户端观察必须满足这一规则。</p>
+<p><strong>A要求每个非故障节点收到的请求最终完成。</strong>论文不规定多少毫秒内完成，因此这里的A既不同于响应延迟SLO，也不同于年度在线率。但不能永久等下去，或以任意错误响应替代成功完成的原读写操作。读写返回还必须与所承诺的对象语义结合讨论。</p>
+<p><strong>P通过允许任意数量的消息丢失来建模。</strong>跨分区消息可以永远到不了，分区内部节点却可以正常工作。论文明确不研究节点停止故障；证明只需要通信失效。定理1讨论公平执行：不能靠让一个正常节点永久得不到运行机会来制造反例，但公平调度不意味着跨分区丢失的消息必须被送达。</p>
+<p>异步模型中没有时钟，节点根据收到的消息和本地计算决策。模型没有提供可用于区分“消息丢失”和“消息迟到”的有限通信时间上界。上述假设是后面证明能成立的条件，不能省略后只剩一句“分布式系统不可能一致”。</p>
+<p class="cite">原文：<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf#page=3">§2定义，第3页</a>；<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf#page=4">异步模型与定理1，第4页</a>。</p>
+<h3 id="paper-theorem-one">9.3 定理1：用三个执行，证明算法不存在</h3>
+<p>反证法先假设存在算法𝒜，能满足原子一致性、可用性和分区容错。将网络划成两个不相交、非空的节点集合G₁与G₂，两集合之间的消息全部丢失。设置初始值<code>v₀=0</code>，新写入值<code>v₁=1</code>。</p>
+<div class="table-wrap"><table><thead><tr><th>执行</th><th>请求与通信</th><th>由假设推出的结果</th></tr></thead><tbody>
+<tr><td>α₁：只写</td><td>G₁接到write(1)，两侧没有其他客户端请求，跨分区消息均未到达。</td><td>A要求写在有限的执行前缀内完成；不能等待另一侧到无限久。</td></tr>
+<tr><td>α₂：只读</td><td>没有任何写入，G₂接到read()，跨分区消息均未到达。</td><td>A要求读取完成；C要求没有写入时返回初始值0。</td></tr>
+<tr><td>α：先写后读</td><td>先运行α₁直到写完成，再运行α₂的读取过程，跨分区消息继续丢失。</td><td>G₂的观察与α₂相同，所以读取仍返回0；但C要求它返回1。</td></tr>
+</tbody></table></div>
+<figure class="diagram"><div class="timeline"><div><b>对照世界α₂</b><span>没有发生写入<br>G₂未收到G₁消息<br>read()必须返回0</span></div><div><b>组合世界α</b><span>G₁的write(1)已完成<br>G₂仍未收到G₁消息<br>随后read()按C必须返回1</span></div></div><figcaption>图4 · 两个世界对G₂的本地观察可以完全相同，却要求不同的正确答案；这是不可区分性矛盾。</figcaption></figure>
+<p>α₁没有给G₂引入任何客户端请求，也没有送达来自G₁的信息。可以安排G₂看到与α₂相同的本地事件。因此对G₂而言，组合执行α与只有读取的α₂不可区分。算法不能根据完全相同的输入与本地状态，凭空判断另一个世界是否完成了写入。</p>
+<p>但组合执行里，写入已返回，读取才开始，二者没有时间重叠，不能把读取任意排列到写入之前来解释旧值。G₂返回0违反C；无限等待违反A；猜测返回1则在根本没有写入的α₂里违反C。因此最初假设的算法不存在。</p>
+<p><strong>量词是证明力量的来源。</strong>定理不是说某一种主从方案失败，而是说任何想兑现全部承诺的算法，都存在一个模型允许的执行使承诺不能同时成立。反例只需发生一次，就足以否定“对所有允许执行都保证正确”的声明；它不表示普通网络运行时每一次请求都会遇到这个问题。</p>
+<p class="cite">原文：<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf#page=5">α₁、α₂与α的正式构造，第5页</a>。</p>
+<h3 id="paper-corollary">9.4 推论1.1：“最终没丢消息”不等于“消息足够及时”</h3>
+<p>尝试把要求放宽：所有公平执行中保持可用；只有在所有消息最终都送达、没有丢失的公平执行中，才保证原子一致；真正丢消息时允许旧值。推论1.1指出：在纯异步模型中，这组保证仍不能同时实现。</p>
+<p>证明从定理1出发。一个始终保证A的算法，必然存在允许丢消息的公平执行α，在某个有限时刻返回违反原子一致性的结果。截取到这个结果为止的有限前缀α′，再构造另一个执行α″：保留此前相同的可观察事件，把尚未到达的消息解释为延迟，并在此后全部送达。</p>
+<p>α″最终没有丢消息，但错误响应已经出现。把消息在之后补送，不能改写客户端已经观察到的操作历史。因此算法违反了它对“无丢消息执行”的原子一致承诺，假设再次矛盾。</p>
+<div class="callout"><strong>这里构造的是另一个执行。</strong>不是把原执行里真正丢失的消息复活，而是让同一个有限观察前缀出现在“所有消息最终送达”的执行中。纯异步节点在响应时无法区分这两种未来。</div>
+<p>这个结果不否定异步复制的最终一致性。被否定的是更严格的组合：分区时请求始终完成，同时所有最终无丢消息的执行从头到尾保持线性一致。消息后续抵达可以帮助收敛当前状态，却不能把过去已经返回的旧读变成线性一致。</p>
+<p class="cite">原文：<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf#page=5">推论1.1，第5—6页</a>。</p>
+<h3 id="paper-pairs">9.5 “任意两个可实现”的构造，分别放弃什么</h3>
+<p>第3.2节不是只给口诀。C＋P的例子是指定中心节点维护权威值，其他节点转发请求，收到确认再回复；通信失效时请求可能不完成。C＋A可以在排除分区且消息送达的假设下采用同样的集中处理。A＋P则可以放弃原子一致性，极端例子是读取总返回初始值，真实系统可进一步定义更有价值的弱一致性。</p>
+<p>因此，AP标签本身没有规定旧值最多落后多久，也没有承诺业务最终正确；CA的构造排除了分区条件，并没有创造“永远不会分区”的网络。CP也不要求所有节点一起停止服务，只是不能要求所有非故障节点的每个请求都能继续完成。</p>
+<p class="cite">原文：<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf#page=6">§3.2，第6—7页</a>。</p>
+<h3 id="paper-timing">9.6 定理2：时钟能识别超时，不能创造远端信息</h3>
+<p>第4节加入更强的时间假设。每个节点有时钟，走速相同，但显示值不要求同步；消息要么在已知时间<code>t_msg</code>内到达，要么丢失；收到消息后的处理也有已知上界<code>t_local</code>。这里应按论文自己的定义理解“部分同步”，不要将它直接等同于所有其他文献中的同名模型。</p>
+<p>定理2说明：即使有这些计时能力，只要允许任意消息丢失，仍不存在对所有执行同时保证A与原子一致性的读写对象。知道对方无法通信，并不等于知道对方有没有执行写入。</p>
+<p>证明仍然构造G₁完成写入、G₂随后读取的分区执行。但这次时钟可观察，不能直接忽略经过的时间。作者在“只有读取、没有写入”的对照执行前加入长空闲区间，至少覆盖写入执行的时长，再将两个执行叠合。这样既保证写完成后读才开始，也保留G₂无法区分两个世界的条件，得到同样的旧读矛盾。</p>
+<p class="cite">原文：<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf#page=7">模型与定理2，第7—8页</a>。</p>
+<h3 id="paper-timeout">9.7 为什么时间上界能改变降级保证</h3>
+<p>定理2仍成立，但推论1.1在这个模型中不再成立，因为模型已提供判断通信是否按时完成的能力。节点可先请求中心节点，等待<code>2 × t_msg + t_local</code>：请求去程、处理与回复回程。及时收到回复就用中心结果；超时则返回本地已知值或确认请求，接受原子一致性可能被破坏。</p>
+<p>在全部消息按模型上界送达的执行中，可以保持原子一致性；丢消息时采取较弱的响应策略。这项能力来自模型增加的假设。生产系统设置500毫秒超时，只是选择等待预算，不能由此证明“凡是没丢失的消息都在500毫秒内到达”。网络拥塞、队列积压和进程暂停均可能使工程超时出现。</p>
+<p>尤其要区分写请求的确认含义。论文讨论弱化的读写对象保证，不是在证明一个超时确认已经同步到全部副本，更没有证明它已经完成生产系统要求的持久化与业务副作用。</p>
+<p class="cite">原文：<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf#page=8">§4.3，第8页</a>。</p>
+<h3 id="paper-delayed">9.8 Delayed-t一致性：恢复约束精确到操作顺序</h3>
+<p>定义3给出比“最终会好”更具体的弱一致性条件。它要求存在操作偏序P：所有写操作有序，所有读操作相对于写操作有序；每次读返回其在P中前一个写的值，没有前序写则返回初始值；P还要尊重各节点提交请求的顺序。这里的偏序P是数学记号，不是CAP中的分区容错P。</p>
+<p>除此之外，它规定两种跨节点时间约束：整个执行的消息都正常送达时，保留原子一致性的实际时间顺序；发生丢消息时，若操作θ已经完成，随后存在一个长度大于t、没有消息丢失的区间，操作φ在这个区间结束后才开始，那么φ不能在P里排到θ之前。</p>
+<pre class="paper-code"><code>操作θ完成
+    ↓
+正常通信持续超过t，期间没有消息丢失
+    ↓
+操作φ开始
+    ↓
+φ不能被解释为发生在θ之前</code></pre>
+<p>简单例子：没有其他写入时，write(1)已完成，随后网络正常超过t，再发起read()，后者不能仍表现得像这次写入从未发生。这个例子帮助理解定义，但完整条件是对读写操作顺序的约束，而不是一个不附条件的“数据只会落后t秒”指标。</p>
+<p>第10—11页的协议变体使用中心节点C分配递增序列号，节点读取中心值或已缓存的最高已知序列号；写入与更新广播在超时后继续重试。原文将写重试等待约束为<code>t − 4 × t_timeout</code>以内，将中心重发等待约束为<code>t − 2 × t_timeout</code>以内，以安排恢复窗口中的传播；参数选择需让这些等待预算有意义。</p>
+<p>定理4的证明把写操作按中心获知它们的顺序排列，把读放到其所返回值对应的写之后；再论证一段足够长的正常通信区间能让此前更新经中心传播，从而约束区间结束后开始的操作。这里是论文给出的协议与证明思路，不应直接复制成处理并发写、去重、节点崩溃和持久化的生产协议。</p>
+<p>它不保证无限分区期间的数据同步，不保证网络刚恢复的一瞬间所有读就线性一致，也不提供库存不超卖、资金守恒等业务不变量的证明。现实系统的恢复时限还依赖重试、负载、积压和故障假设，不能直接把论文的t当成自己的SLA。</p>
+<p class="cite">原文：<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf#page=9">定义3，第9页</a>；<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf#page=10">协议构造，第10页</a>；<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf#page=11">定理4，第11页</a>。</p>
+<h3 id="paper-boundaries">9.9 结论边界：论文没有替我们做业务设计</h3>
+<ul><li>它没有证明所有分布式系统在正常通信时也必须放弃C或A；限制针对包含分区的全部允许执行。</li><li>它没有证明CP意味着整个集群停机，或AP意味着可以任意返回错误数据；可服务范围与弱一致性语义仍需定义。</li><li>它没有证明BASE和最终一致性自动保证业务正确；副本收敛与业务约束成立是两个问题。</li><li>它没有证明超时等于失败；远端可能执行成功而回复丢失。</li><li>它没有证明某个数据库、注册中心或消息系统整体属于CP或AP；必须分析具体操作、协议、读取路径和故障模式。</li><li>它没有在本论文的模型中解决节点停止故障、业务事务、持久化与外部副作用；这些需要额外机制与证明。</li></ul>
+<blockquote>“另一侧完成了写入”和“另一侧没有写入”，对当前节点可能完全不可区分，但线性一致性要求两个世界给出不同答案；可用性又不允许无限等待。CAP证明的是这种信息约束。工程设计随后要决定允许哪些操作等待、哪些观察暂时落后，以及满足什么条件才能恢复承诺。</blockquote>
+<details><summary>闭卷自测：能否不看原文，复现证明？</summary><p>画出G₁、G₂与初始值；构造只写α₁、只读α₂、先写后读α；指出A在哪两处保证完成，C在哪两处要求不同值；说明G₂为什么不可区分。再解释推论1.1为何构造“延迟后送达”的另一个执行，以及定理2为什么要加入空闲时间。最后写出Delayed-t恢复条件，而不只背诵“最终一致”。</p></details>
+</section>
+
 <section id="references"><p class="eyebrow">PRIMARY REFERENCES</p><h2>参考资料与继续阅读</h2><ul>
 <li><a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf">Seth Gilbert与Nancy Lynch，Brewer’s Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web Services，2002</a>：形式化定义与不可能性证明。</li>
 <li><a href="https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/">Eric Brewer，CAP Twelve Years Later: How the “Rules” Have Changed，2012</a>：作者对“三选二”、分区管理和恢复的解释。</li>

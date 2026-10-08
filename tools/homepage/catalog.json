@@ -105,7 +105,7 @@
         "name": "CAP与BASE",
         "version": "分布式理论与一致性设计",
         "path": "distributed",
-        "detail": "8节机制分析 · 3张图解 · 业务案例"
+        "detail": "9节机制分析 · 4张图解 · 原论文精读"
       },
       {
         "name": "Nacos",
