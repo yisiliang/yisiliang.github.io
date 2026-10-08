@@ -56,3 +56,18 @@ python3 tools/build_homepage.py
 ```
 
 离线包仅包含文章与本地CSS，不含统计脚本；继续阅读链接指向公开网站。首页目录中的理论入口排在Nacos前面，发布时检查目录锚点、手机布局、离线资源及线上HTML。
+
+## 资料页统一阅读样式
+
+首页目录中的8本源码手册采用`distributed`文章的深蓝底色、紫色强调色、衬线标题和左右阅读布局。共享样式与交互源文件在`reader/style.css`、`reader/controls.js`，在线与离线页面均内嵌这些资源。
+
+修改共享样式，或重新生成任一本手册后，运行：
+
+```sh
+python3 tools/style_readers.py
+python3 tools/validate_source_library.py
+python3 docs/nginx/verify.py
+python3 docs/nacos/verify.py
+```
+
+脚本读取首页目录，保留正文、源码与SVG原文，通过页头和目录布局转换统一8本手册，并同步已有离线ZIP及本地离线中间页。重复执行不会重复添加页头、样式或控件。搜索、复制与图解放大沿用各手册实现；默认深色，明暗偏好在8本手册间共享，手机目录通过“展开目录”显示。SVG保留原有颜色与图例，打印恢复纸面排版。CAP与BASE文章及应用支持、隐私页面分别维护。

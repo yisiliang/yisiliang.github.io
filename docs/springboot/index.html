@@ -8,7 +8,112 @@
 article,main,.hero,footer{min-width:0}article p,article li,article a,article h1,article h2,article h3,article blockquote,article td,article th,footer{overflow-wrap:anywhere}article pre{max-width:100%;min-width:0;white-space:pre;overflow-wrap:normal;word-break:normal}article pre code,article pre mark{white-space:pre;overflow-wrap:normal;word-break:normal}article p code,article li code,article a code,article mark{overflow-wrap:anywhere}article table{width:100%;max-width:100%;overflow-x:auto}article figure,.diagram,.diagram-wrap{max-width:100%;min-width:0}.diagram-wrap{width:100%;overflow-x:auto}.diagram svg{max-width:none}button{white-space:nowrap;flex-shrink:0}input{min-width:0}
 @media(max-width:720px){html{scroll-padding-top:116px}.topbar{height:104px;display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:38px 42px;gap:4px 10px;padding:8px 12px}#menu{grid-column:1;grid-row:1}.brand{grid-column:2;grid-row:1}#theme{grid-column:3;grid-row:1}.search{grid-column:1/-1;grid-row:2;margin-left:0;width:100%;min-width:0;gap:7px}.search input{flex:1;width:0;min-width:60px;height:36px}.search button{flex-shrink:0;height:36px}.search #search-status{display:inline-block;flex-shrink:0;max-width:52px;font-size:11px}aside{top:104px}main{margin-top:104px}.hero,article{width:100%}.diagram{overflow:visible}.diagram-wrap{overflow:auto}dialog{max-width:calc(100vw - 16px);padding:10px}dialog .viewer-body{max-width:100%;overflow:auto}}
 @media print{.topbar,aside,.top,.copy,.diagram button{display:none}main{margin:0;padding:0}article{border:0;padding:0}.hero{background:#fff;color:#20324d;border:1px solid #ddd}.hero a{color:#215b96}pre{white-space:pre-wrap;overflow:visible}h2{break-before:page}}
-</style><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script></head><body><header class="topbar"><button id="menu" aria-label="展开目录" aria-expanded="false">目录</button><a class="brand" href="../">源码之下</a><div class="search"><input id="query" aria-label="搜索正文" placeholder="搜索正文"><button id="find">查找</button><button id="next">下一处</button><span id="search-status" aria-live="polite"></span></div><button id="theme" aria-label="切换明暗主题">明暗</button></header><aside><div class="nav-head">Spring Boot源码学习</div><div class="nav-note">3.5.16主线 · 2.7.18对照<br>27章 · 27幅图 · 56段真实源码<br><a href="./springboot-offline.zip">下载离线包</a> · <a href="./springboot-examples.zip">实验工程</a></div><nav aria-label="章节目录"><a href="#chapter-01">01. 先画责任边界：Boot编排，Framework执行</a><a href="#chapter-02">02. 启动全过程：成功不是一个瞬间</a><a href="#chapter-03">03. WebApplicationType与上下文选择</a><a href="#chapter-04">04. Environment：优先级是有序源，不是覆盖文件</a><a href="#chapter-05">05. ConfigData：为什么先无Profile再有Profile</a><a href="#chapter-06">06. ConfigData导入：Location、Resource与可选失败</a><a href="#chapter-07">07. 自动配置候选：从注解走到imports资源</a><a href="#chapter-08">08. 候选筛选：排除和条件的两个层次</a><a href="#chapter-09">09. OnClassCondition：元数据与加载隔离</a><a href="#chapter-10">10. OnBeanCondition：退让与解析时序</a><a href="#chapter-11">11. OnPropertyCondition：false、缺失和havingValue</a><a href="#chapter-12">12. 自动配置排序：定义顺序与实例顺序分开</a><a href="#chapter-13">13. Bean生命周期：从定义到初始化与代理</a><a href="#chapter-14">14. Servlet上下文：创建服务器与启动服务器</a><a href="#chapter-15">15. Tomcat工厂与Servlet注册：适配器的责任</a><a href="#chapter-16">16. MVC：Boot提供默认值，DispatcherServlet处理请求</a><a href="#chapter-17">17. Binder：源名称、目标类型和错误策略</a><a href="#chapter-18">18. ConfigurationProperties生命周期、构造绑定与校验</a><a href="#chapter-19">19. Actuator：发现、可用性、暴露与鉴权是四个问题</a><a href="#chapter-20">20. Runner与可用性：存活不等于就绪</a><a href="#chapter-21">21. 日志与FailureAnalyzer：早期初始化和诊断链</a><a href="#chapter-22">22. AOT与Native：构建期固定结构的代价</a><a href="#chapter-23">23. 测试切片：受控容器比缩小@SpringBootTest更明确</a><a href="#chapter-24">24. 2.7.18→3.5.16：迁移证据与责任归属</a><a href="#chapter-25">25. DataSource退让：用一个完整案例串起条件</a><a href="#chapter-26">26. 关闭与优雅停机：把流量状态与资源回收串起来</a><a href="#chapter-27">27. 复现实验室：一个小应用验证多条主线</a></nav></aside><main><div class="hero"><div class="eyebrow">READING SPRING BOOT SOURCE</div><h1>先串启动旅程，再看容器状态</h1><p>配置源 → 自动配置候选 → Bean定义 → 实例与WebServer → 业务就绪</p><div class="hero-meta"><span>固定3.5.16 / 2.7.18</span><span>Framework6.2.19边界</span><span>27幅内嵌图解</span><span>56段固定SHA源码</span></div><p><a href="#chapter-01">从责任边界开始 →</a></p></div><article><h1 id="spring-boot">Spring Boot源码学习：从启动约定到容器状态</h1>
+</style><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script><style id="reader-design">/* Shared reading design: CAP / BASE palette, typography and page geometry. */
+:root,html.dark,body.reader-page,body.reader-page.dark,body.reader-page.light {
+  color-scheme:dark;--bg:#111c2b;--paper:#18263a;--panel:#18263a;--ink:#e8eaf1;
+  --muted:#aab5c9;--accent:#c0afff;--blue:#c0afff;--line:#344157;
+  --code:#1e2d43;--quote:#18263a;--head:#e8eaf1;--shadow:none;
+}
+body.reader-page.reader-light {
+  color-scheme:light;--bg:#f6f7fb;--paper:#edeff7;--panel:#edeff7;--ink:#263248;
+  --muted:#606c82;--accent:#67529e;--blue:#67529e;--line:#d4d8e5;--code:#e9edf5;
+  --quote:#edeff7;--head:#263248;
+}
+html{scroll-padding-top:24px}
+body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif}
+.reader-page a,.reader-page.dark a{color:var(--accent)}
+.reader-page p,.reader-page li{overflow-wrap:anywhere}
+.reader-page p{margin:18px 0}
+.reader-page button,.reader-page input{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.reader-page button{cursor:pointer;font-size:13px}
+.reader-page a:focus-visible,.reader-page button:focus-visible,.reader-page input:focus-visible,.reader-page summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.reader-page .reader-wrap{width:calc(100% - 80px);max-width:1240px;margin:auto}
+.reader-page header.reader-header{height:auto;position:static;inset:auto;display:block;padding:32px 0 50px;border:0;border-bottom:1px solid var(--line);background:linear-gradient(125deg,#1c2940,var(--bg));backdrop-filter:none;color:var(--ink)}
+.reader-page.reader-light header.reader-header{background:linear-gradient(125deg,#ebe7f6,var(--bg))}
+.reader-header .home{font-size:14px}
+.reader-page .reader-header .hero{max-width:none;padding:0;margin:0;background:none;box-shadow:none;border:0;border-radius:0;color:var(--ink)}
+.reader-page .reader-header .eyebrow,.reader-page .reader-header small{display:block;font-size:11px;letter-spacing:2px;color:var(--accent);margin:26px 0 10px}
+.reader-page .reader-header h1{font:600 clamp(40px,6vw,72px)/1.2 Georgia,'Songti SC',serif;margin:14px 0 22px;padding:0;border:0;max-width:1100px;color:var(--ink)}
+.reader-page .reader-header .lead,.reader-page .reader-header .subtitle{font-size:23px;color:var(--accent);margin:0 0 16px;opacity:1}
+.reader-page .reader-header p:not(.lead){color:var(--muted);max-width:820px;opacity:1}
+.reader-page .reader-header .hero-meta,.reader-page .reader-header .stats,.reader-page .reader-header .badges{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0}
+.reader-page .reader-header .hero-meta span,.reader-page .reader-header .stats span,.reader-page .reader-header .badges span{font-size:12px;padding:4px 12px;border:1px solid var(--line);border-radius:20px;color:var(--ink);background:none}
+.reader-page .reader-header .links,.reader-page .reader-header .actions{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:14px}
+.reader-page .reader-header .links a,.reader-page .reader-header .start{padding:0;background:none;border:0;border-radius:0;color:var(--accent);font-size:14px}
+.reader-page .reader-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px;padding-top:36px}
+.reader-page .reader-layout>aside,.reader-page .reader-layout>nav{position:sticky;inset:auto;top:24px;align-self:start;display:block;width:auto;height:auto;max-height:calc(100vh - 48px);overflow:auto;background:none;border:0;padding:0 8px 0 0;box-shadow:none;z-index:auto;font-size:13px}
+.reader-page .reader-layout>main{margin:0;padding:0 0 60px;min-width:0;width:auto;max-width:none}
+.reader-page main article{max-width:none;margin:0;padding:0;background:none;border:0;border-radius:0;box-shadow:none;color:var(--ink)}
+.reader-page .reader-tools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.reader-page .reader-tools #menu{display:none}
+.reader-page .search{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 18px}
+.reader-page .search input,.reader-page aside>input{width:100%;min-width:0;margin-bottom:6px}
+.reader-page .nav-head,.reader-page .sidebar-label,.reader-page nav>strong{display:block;font-size:12px;letter-spacing:1px;color:var(--accent);padding:0;margin:0 0 12px}
+.reader-page .nav-head span,.reader-page .nav-note{display:block;color:var(--muted);font-size:12px}
+.reader-page aside nav{position:static;max-height:none;padding:0;font-size:13px}
+.reader-page nav a{display:block;color:var(--muted);padding:8px 0;border:0;border-radius:0;line-height:1.7;font-size:13px}
+.reader-page nav a:hover,.reader-page nav a.active{color:var(--accent);background:var(--panel)}
+.reader-page nav a span{color:var(--accent);margin-right:8px}
+.reader-page nav details{padding:0;margin:0;border:0;background:none}
+.reader-page nav summary{padding:0;color:var(--muted)}
+.reader-page nav summary a{display:inline}
+.reader-page .nav-sub{border-left:1px solid var(--line);margin:0 0 10px 6px;padding-left:12px}
+.reader-page .jump{padding:0;margin:14px 0;background:none;border-color:var(--line)}
+.reader-page main h1,.reader-page main h2{font:600 28px/1.5 'Songti SC',serif;color:var(--ink);border-color:var(--line);margin:38px 0 22px}
+.reader-page main h3{font-size:20px;color:var(--ink)}
+.reader-page main section,.reader-page .chapter{padding-bottom:38px;margin-bottom:38px;border-color:var(--line)}
+.reader-page blockquote,.reader-page .callout,.reader-page .note{margin:26px 0;padding:18px 22px;border:0;border-left:3px solid var(--accent);background:var(--panel);color:var(--ink);border-radius:0}
+.reader-page code{font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent);background:var(--code);padding:2px 5px;border-radius:4px}
+.reader-page pre,.reader-page pre code{color:#d7e0ed;background:#152236;font-size:13px;line-height:1.7}
+.reader-page pre code{padding:0;border-radius:0;overflow-wrap:normal}
+.reader-page .source-card,.reader-page .source,.reader-page .source-block,.reader-page .source-box{border-color:var(--line);background:var(--panel);box-shadow:none}
+.reader-page .source-head,.reader-page .source-bar,.reader-page .source-meta,.reader-page .source-label{background:var(--panel);color:var(--muted);border-color:var(--line)}
+.reader-page .hljs-comment,.reader-page .comment{color:#a5b6ce}
+.reader-page .hljs-keyword,.reader-page .keyword{color:#dbb9ff}
+.reader-page .hljs-string{color:#a8d8b0}
+.reader-page .hljs-title,.reader-page .hljs-type{color:#9ccfff}
+.reader-page .hljs-number,.reader-page .hljs-literal{color:#ffd59b}
+.reader-page figure,.reader-page .diagram,.reader-page .mechanism{margin:28px 0;padding:20px;border:1px solid var(--line);border-radius:12px;background:#152236;overflow:auto}
+/* Fixed-source SVGs keep their own light canvas and color legends. */
+.reader-page figure svg{background:#f6f8fc;border-radius:6px}
+.reader-page figcaption{font-size:12px;color:var(--muted);background:none;padding:16px 0 0}
+.reader-page table{border-collapse:collapse;width:100%;font-size:14px;color:var(--ink)}
+.reader-page th,.reader-page td{border:1px solid var(--line);padding:14px;text-align:left;vertical-align:top;background:none;color:var(--ink)}
+.reader-page th{background:var(--panel);color:var(--accent)}
+.reader-page .table-wrap,.reader-page .table-scroll{overflow:auto;margin:26px 0}
+.reader-page main article>table{display:block;overflow:auto}
+.reader-page mark{background:#d5b35b;color:#152236}
+.reader-page footer{font-size:13px;color:var(--muted);background:none;border-color:var(--line)}
+.reader-page .reader-skip{position:absolute;top:-80px;left:20px;padding:12px;background:var(--panel);z-index:50}
+.reader-page .reader-skip:focus{top:8px}
+.reader-page #progress{display:none}
+@media(max-width:950px){.reader-page .reader-layout{grid-template-columns:180px minmax(0,1fr);gap:26px}.reader-page .reader-wrap{width:calc(100% - 48px)}}
+@media(max-width:700px){
+ .reader-page .reader-wrap{width:calc(100% - 36px)}
+ .reader-page header.reader-header{padding-bottom:32px}
+ .reader-page .reader-header .lead,.reader-page .reader-header .subtitle{font-size:20px}
+ .reader-page .reader-layout{display:block;padding-top:24px}
+ .reader-page .reader-layout>aside,.reader-page .reader-layout>nav{position:static;display:block;max-height:none;width:auto;padding:0 0 20px;margin-bottom:28px;border-bottom:1px solid var(--line)}
+ .reader-page .reader-tools #menu{display:block}
+ .reader-page .reader-layout>aside nav{max-height:360px;overflow:auto}
+ .reader-page.reader-collapsed aside nav,.reader-page.reader-collapsed aside .jump{display:none}
+ .reader-page main h1,.reader-page main h2{font-size:25px}
+ .reader-page figure,.reader-page .diagram,.reader-page .mechanism{padding:16px}
+ .reader-page blockquote,.reader-page .callout{padding:16px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{
+ body.reader-page{background:white;color:#20324d;--ink:#20324d;--muted:#62718a;--line:#dde5f0;--panel:#f1f4fa;--accent:#67529e}
+ .reader-page header.reader-header,.reader-page .reader-layout>aside,.reader-page .reader-layout>nav,.reader-page .reader-skip{display:none}
+ .reader-page .reader-layout{display:block;width:100%;padding:0}
+ .reader-page .reader-layout>main{padding:0}
+ .reader-page pre,.reader-page pre code{background:#f1f4fa;color:#20324d;white-space:pre-wrap}
+}
+.reader-page[data-reader="nacos"] figure svg{background:#152236}
+.reader-page .reader-tools #theme,.reader-page .reader-tools #print{display:block}
+.reader-page aside nav{border:0;background:none}
+.reader-page nav a.hide,.reader-page nav a.hidden{display:none}
+</style></head><body class="reader-page" data-reader="springboot"><a class="reader-skip" href="#reader-content">跳至正文</a><header class="reader-header"><div class="reader-wrap"><a class="home" href="../">← 源码学习库</a><div class="hero"><div class="eyebrow">READING SPRING BOOT SOURCE</div><h1>Spring Boot</h1><p class="lead">先串启动旅程，再看容器状态</p><p>配置源 → 自动配置候选 → Bean定义 → 实例与WebServer → 业务就绪</p><div class="hero-meta"><span>固定3.5.16 / 2.7.18</span><span>Framework6.2.19边界</span><span>27幅内嵌图解</span><span>56段固定SHA源码</span></div><p><a href="#chapter-01">从责任边界开始 →</a></p><div class="links"><a href="./springboot-offline.zip" download>下载离线阅读包 ↓</a><a href="./handbook.md">Markdown手册</a></div></div></div></header><div class="reader-layout reader-wrap"><aside><div class="reader-tools"><button id="menu" aria-label="展开目录" aria-expanded="false">目录</button><button id="theme" aria-label="切换明暗主题">明暗</button></div><div class="search"><input id="query" aria-label="搜索正文" placeholder="搜索正文"><button id="find">查找</button><button id="next">下一处</button><span id="search-status" aria-live="polite"></span></div><div class="nav-head">Spring Boot源码学习</div><div class="nav-note">3.5.16主线 · 2.7.18对照<br>27章 · 27幅图 · 56段真实源码<br><a href="./springboot-offline.zip">下载离线包</a> · <a href="./springboot-examples.zip">实验工程</a></div><nav aria-label="章节目录"><a href="#chapter-01">01. 先画责任边界：Boot编排，Framework执行</a><a href="#chapter-02">02. 启动全过程：成功不是一个瞬间</a><a href="#chapter-03">03. WebApplicationType与上下文选择</a><a href="#chapter-04">04. Environment：优先级是有序源，不是覆盖文件</a><a href="#chapter-05">05. ConfigData：为什么先无Profile再有Profile</a><a href="#chapter-06">06. ConfigData导入：Location、Resource与可选失败</a><a href="#chapter-07">07. 自动配置候选：从注解走到imports资源</a><a href="#chapter-08">08. 候选筛选：排除和条件的两个层次</a><a href="#chapter-09">09. OnClassCondition：元数据与加载隔离</a><a href="#chapter-10">10. OnBeanCondition：退让与解析时序</a><a href="#chapter-11">11. OnPropertyCondition：false、缺失和havingValue</a><a href="#chapter-12">12. 自动配置排序：定义顺序与实例顺序分开</a><a href="#chapter-13">13. Bean生命周期：从定义到初始化与代理</a><a href="#chapter-14">14. Servlet上下文：创建服务器与启动服务器</a><a href="#chapter-15">15. Tomcat工厂与Servlet注册：适配器的责任</a><a href="#chapter-16">16. MVC：Boot提供默认值，DispatcherServlet处理请求</a><a href="#chapter-17">17. Binder：源名称、目标类型和错误策略</a><a href="#chapter-18">18. ConfigurationProperties生命周期、构造绑定与校验</a><a href="#chapter-19">19. Actuator：发现、可用性、暴露与鉴权是四个问题</a><a href="#chapter-20">20. Runner与可用性：存活不等于就绪</a><a href="#chapter-21">21. 日志与FailureAnalyzer：早期初始化和诊断链</a><a href="#chapter-22">22. AOT与Native：构建期固定结构的代价</a><a href="#chapter-23">23. 测试切片：受控容器比缩小@SpringBootTest更明确</a><a href="#chapter-24">24. 2.7.18→3.5.16：迁移证据与责任归属</a><a href="#chapter-25">25. DataSource退让：用一个完整案例串起条件</a><a href="#chapter-26">26. 关闭与优雅停机：把流量状态与资源回收串起来</a><a href="#chapter-27">27. 复现实验室：一个小应用验证多条主线</a></nav></aside><main id="reader-content"><article><h1 id="spring-boot">Spring Boot源码学习：从启动约定到容器状态</h1>
 <blockquote>
 <p>源码之下，系统之上。固定Spring Boot3.5.16主线、2.7.18对照；Spring Framework6.2.19解释容器与MVC边界。先沿启动旅程理解状态，再用真实调用链验证。</p>
 </blockquote>
@@ -1254,7 +1359,7 @@ public class DataSourceAutoConfiguration {
 </ol>
 <h2 id="_144">文件、归属与实验结果的边界</h2>
 <p>所有短源码片段来自Spring项目，Apache License2.0许可；源码版权归原作者。本页的图解和机制解释是独立导读，未改写片段中的语义。<code>source-notices.txt</code>列出完整文件、固定SHA和行号；<code>source-manifest.json</code>提供片段文本及SHA-256，方便复核。离线版不加载统计，不依赖CDN，只有点击上游外链才联网。实验依赖下载需要Maven仓库；这与手册离线阅读无关。</p>
-<p>验证记录与局限见<a href="./VERIFICATION.md">VERIFICATION.md</a>。没有执行的Native/平台探针/真实数据库实验只标预期，不宣称通过。遇到版本漂移先核对本文三组SHA，再做具体环境测试。</p></article><footer>独立源码导读 · 源码版权归原作者 · Apache License2.0 · <a href="./source-notices.txt">归属说明</a> · <a href="./VERIFICATION.md">验证记录</a></footer></main><a class="top" href="#" aria-label="返回顶部">↑ 顶部</a><dialog id="viewer"><button id="viewer-close">关闭图解</button><div id="viewer-body" class="viewer-body"></div></dialog><script>
+<p>验证记录与局限见<a href="./VERIFICATION.md">VERIFICATION.md</a>。没有执行的Native/平台探针/真实数据库实验只标预期，不宣称通过。遇到版本漂移先核对本文三组SHA，再做具体环境测试。</p></article><footer>独立源码导读 · 源码版权归原作者 · Apache License2.0 · <a href="./source-notices.txt">归属说明</a> · <a href="./VERIFICATION.md">验证记录</a></footer></main></div><a class="top" href="#" aria-label="返回顶部">↑ 顶部</a><dialog id="viewer"><button id="viewer-close">关闭图解</button><div id="viewer-body" class="viewer-body"></div></dialog><script>
 const menu=document.getElementById('menu'),aside=document.querySelector('aside');menu.onclick=()=>{aside.classList.toggle('open');menu.setAttribute('aria-expanded',String(aside.classList.contains('open')));};document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{aside.classList.remove('open');menu.setAttribute('aria-expanded','false');});
 try{if(localStorage.getItem('boot-theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}
 document.getElementById('theme').onclick=()=>{document.documentElement.classList.toggle('dark');try{localStorage.setItem('boot-theme',document.documentElement.classList.contains('dark')?'dark':'light')}catch(e){}};
@@ -1262,4 +1367,14 @@ document.querySelectorAll('pre').forEach(p=>{let b=document.createElement('butto
 const viewer=document.getElementById('viewer');document.getElementById('viewer-close').onclick=()=>viewer.close();viewer.onclick=e=>{if(e.target===viewer)viewer.close()};document.querySelectorAll('.diagram').forEach(f=>{let svg=f.querySelector('svg'),wrap=document.createElement('div');wrap.className='diagram-wrap';svg.before(wrap);wrap.append(svg);let b=document.createElement('button');b.textContent='放大图解';b.onclick=()=>{const clone=svg.cloneNode(true);clone.querySelectorAll('[id]').forEach(n=>n.id='viewer-'+n.id);clone.querySelectorAll('[aria-labelledby]').forEach(n=>n.setAttribute('aria-labelledby','viewer-'+n.getAttribute('aria-labelledby')));clone.querySelectorAll('[marker-end]').forEach(n=>n.setAttribute('marker-end',n.getAttribute('marker-end').replace('#','#viewer-')));document.getElementById('viewer-body').replaceChildren(clone);viewer.showModal();};f.prepend(b)});
 let marks=[],current=-1;const input=document.getElementById('query'),status=document.getElementById('search-status');function search(){document.querySelectorAll('article mark').forEach(m=>m.replaceWith(document.createTextNode(m.textContent)));document.querySelector('article').normalize();marks=[];current=-1;const q=input.value.trim();if(!q){status.textContent='';return}const nodes=[],walker=document.createTreeWalker(document.querySelector('article'),NodeFilter.SHOW_TEXT);while(walker.nextNode())if(!walker.currentNode.parentElement.closest('svg,button'))nodes.push(walker.currentNode);for(const n of nodes){const s=n.nodeValue,lo=s.toLowerCase(),needle=q.toLowerCase();let at=0,i=lo.indexOf(needle);if(i<0)continue;const f=document.createDocumentFragment();while(i>=0){f.append(document.createTextNode(s.slice(at,i)));const m=document.createElement('mark');m.textContent=s.slice(i,i+q.length);f.append(m);marks.push(m);at=i+q.length;i=lo.indexOf(needle,at)}f.append(document.createTextNode(s.slice(at)));n.replaceWith(f)}status.textContent=marks.length+'处';next();}function next(){if(!marks.length)return;current=(current+1)%marks.length;marks[current].scrollIntoView({block:'center'});status.textContent=(current+1)+'/'+marks.length;}document.getElementById('find').onclick=search;document.getElementById('next').onclick=next;input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();search()}};
 if('IntersectionObserver' in window){const observer=new IntersectionObserver(entries=>{for(const e of entries)if(e.isIntersecting){document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.hash==='#'+e.target.id));}},{rootMargin:'-85px 0px -65% 0px'});document.querySelectorAll('article h2[id^="chapter-"]').forEach(h=>observer.observe(h));}
+</script><script id="reader-controls">/* Shared appearance and mobile navigation; existing search/diagram handlers stay. */
+(()=>{
+ const body=document.body, theme=document.getElementById('theme'), menu=document.getElementById('menu');
+ try{body.classList.toggle('reader-light',localStorage.getItem('source-library-theme')==='light')}catch(e){}
+ function label(){if(theme)theme.textContent=body.classList.contains('reader-light')?'深色阅读':'浅色阅读'}
+ label();
+ if(theme)theme.onclick=()=>{body.classList.toggle('reader-light');label();try{localStorage.setItem('source-library-theme',body.classList.contains('reader-light')?'light':'dark')}catch(e){}};
+ if(menu){body.classList.add('reader-collapsed');menu.setAttribute('aria-expanded','false');menu.textContent='展开目录';menu.onclick=()=>{body.classList.toggle('reader-collapsed');const open=!body.classList.contains('reader-collapsed');menu.setAttribute('aria-expanded',String(open));menu.textContent=open?'收起目录':'展开目录'};}
+ document.querySelectorAll('nav a').forEach(a=>a.addEventListener('click',()=>{if(innerWidth<=700&&menu){body.classList.add('reader-collapsed');menu.setAttribute('aria-expanded','false');menu.textContent='展开目录'}}));
+})();
 </script></body></html>
