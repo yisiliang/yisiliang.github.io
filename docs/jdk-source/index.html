@@ -52,8 +52,17 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 .reader-page main article{max-width:none;margin:0;padding:0;background:none;border:0;border-radius:0;box-shadow:none;color:var(--ink)}
 .reader-page .reader-tools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
 .reader-page .reader-tools #menu{display:none}
-.reader-page .search{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 18px}
-.reader-page .search input,.reader-page aside>input{width:100%;min-width:0;margin-bottom:6px}
+/* Keep the field and actions together; status gets its own full-width row. */
+.reader-page .search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:0 0 18px;align-items:stretch}
+.reader-page .search:has(#find){grid-template-columns:minmax(0,1fr) auto auto}
+.reader-page .search input{grid-column:1;grid-row:1;width:100%;min-width:0;margin:0;box-sizing:border-box}
+.reader-page .search button{grid-row:1;margin:0;white-space:nowrap}
+.reader-page .search #next{display:block}
+.reader-page .search #search-status{grid-column:1/-1;grid-row:2;margin:0;min-width:0;overflow-wrap:anywhere}
+.reader-page .search #search-status:empty{display:none}
+.reader-page aside>input{width:100%;min-width:0;margin-bottom:6px}
+/* Sidebar scroll containers clip outward outlines, so draw these inside. */
+.reader-page .search input:focus-visible,.reader-page .search button:focus-visible,.reader-page aside>input:focus-visible{outline-offset:-3px}
 .reader-page .nav-head,.reader-page .sidebar-label,.reader-page nav>strong{display:block;font-size:12px;letter-spacing:1px;color:var(--accent);padding:0;margin:0 0 12px}
 .reader-page .nav-head span,.reader-page .nav-note{display:block;color:var(--muted);font-size:12px}
 .reader-page aside nav{position:static;max-height:none;padding:0;font-size:13px}
