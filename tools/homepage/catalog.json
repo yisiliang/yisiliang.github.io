@@ -79,28 +79,16 @@
   },
   {
     "id": "network",
-    "title": "网络与流量治理",
-    "en": "NETWORK & TRAFFIC",
-    "description": "从连接与事件循环，到代理、路由与负载均衡。",
+    "title": "网络与分布式系统",
+    "en": "NETWORK & DISTRIBUTED SYSTEMS",
+    "description": "从连接与流量治理，到一致性、服务发现与协调。",
     "books": [
       {
         "name": "NGINX",
         "version": "1.28.0",
         "path": "nginx",
         "detail": "24章 · 24张图 · 24段源码"
-      }
-    ],
-    "future": [
-      "网关",
-      "负载均衡"
-    ]
-  },
-  {
-    "id": "distributed",
-    "title": "分布式与平台基础",
-    "en": "DISTRIBUTED SYSTEMS",
-    "description": "从CAP与BASE的取舍，到服务之间的通信、协调与运行。",
-    "books": [
+      },
       {
         "name": "CAP与BASE",
         "version": "分布式理论与一致性设计",
@@ -115,9 +103,21 @@
       }
     ],
     "future": [
+      "网关",
+      "负载均衡",
       "RPC",
       "任务调度",
       "容器"
+    ]
+  },
+  {
+    "id": "ai",
+    "title": "AI与大模型基础",
+    "en": "AI & MODEL FOUNDATIONS",
+    "description": "从经典论文出发，理解模型如何表示、学习与生成。",
+    "books": [],
+    "future": [
+      "Transformer：Attention Is All You Need"
     ]
   }
 ]
