@@ -126,7 +126,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 .reader-page aside nav{border:0;background:none}
 .reader-page nav a.hide,.reader-page nav a.hidden{display:none}
 .reader-page h1,.reader-page h2,.reader-page h3,.reader-page h4{overflow-wrap:anywhere}
-</style></head><body class="reader-page" data-reader="jvm"><a class="reader-skip" href="#reader-content">跳至正文</a><header class="reader-header"><div class="reader-wrap"><a class="home" href="../">← 源码学习库</a><div class="hero"><div class="eyebrow">UNDERSTANDING THE JVM</div><h1>JVM</h1><p class="lead">从知识点到完整理解</p><p>纯阅读 · 原理推演 · 离线图解</p><div class="hero-meta"><span>JDK8 / HotSpot</span><span>62张内嵌SVG</span><span>2026年10月1日修订</span></div><a class="start" href="#chapter-60">从阅读路线开始 →</a></div></div></header><div class="reader-layout reader-wrap"><aside><div class="reader-tools"><button id="menu" aria-label="打开章节目录">☰</button><button id="theme" title="切换背景">浅色 / 深色</button><button id="print">打印</button></div><div class="search"><input id="search" type="search" placeholder="查找知识点…" aria-label="查找全文"><span id="search-status"></span><button id="next" title="下一个结果">↓</button></div><div class="nav-head">阅读目录<span>76节 · 62张图</span></div><div class="jump"><a href="#chapter-60">全书导航</a><a href="#chapter-73">阅读案例</a></div><nav><a href="#chapter-0">0. 先看结论：哪些章节最重要？</a><a href="#chapter-1">1. JVM 整体架构</a><a href="#chapter-2">2. JVM 运行时数据区 —— 第一高频题</a><a href="#chapter-3">3. Java 栈到底放了什么？</a><a href="#chapter-4">4. 一个 Java 对象到底有多大？</a><a href="#chapter-5">5. `new Object()` 背后发生了什么？</a><a href="#chapter-6">6. 类加载机制</a><a href="#chapter-7">7. 什么时候会触发类初始化？</a><a href="#chapter-8">8. 双亲委派模型</a><a href="#chapter-9">9. JVM 如何判断对象已经“死了”？</a><a href="#chapter-10">10. 强引用 / 软引用 / 弱引用 / 虚引用</a><a href="#chapter-11">11. GC 基础算法</a><a href="#chapter-12">12. 为什么 JVM 要分代？</a><a href="#chapter-13">13. 新生代对象分配与 Minor GC</a><a href="#chapter-14">14. Minor GC / Major GC / Full GC 有什么区别？</a><a href="#chapter-15">15. GC 收集器全家桶</a><a href="#chapter-16">16. CMS —— 面试重灾区</a><a href="#chapter-17">17. G1 —— JDK 8 面试重点</a><a href="#chapter-18">18. CMS 和 G1 怎么比较？</a><a href="#chapter-19">19. Safepoint —— 很多人背 GC，却答不好这题</a><a href="#chapter-20">20. Stop-The-World 到底是什么？</a><a href="#chapter-21">21. GC 日志怎么看？</a><a href="#chapter-22">22. 一套标准 JVM 故障排查流程</a><a href="#chapter-23">23. 常用 JVM 命令</a><a href="#chapter-24">24. Direct Memory —— 架构师很容易被追问</a><a href="#chapter-25">25. Java Memory Model（JMM）</a><a href="#chapter-26">26. happens-before —— JMM 面试核心</a><a href="#chapter-27">27. volatile 到底保证什么？</a><a href="#chapter-28">28. DCL 为什么必须加 volatile？</a><a href="#chapter-29">29. synchronized 原理</a><a href="#chapter-30">30. CAS —— 为什么是原子的？</a><a href="#chapter-31">31. 线程状态</a><a href="#chapter-32">32. Class 文件结构：面试掌握到什么程度？</a><a href="#chapter-33">33. JVM 方法调用指令</a><a href="#chapter-34">34. JVM 为什么是“栈式虚拟机”？</a><a href="#chapter-35">35. JIT：为什么 Java 越跑越快？</a><a href="#chapter-36">36. 逃逸分析</a><a href="#chapter-37">37. 去优化 Deoptimization</a><a href="#chapter-38">38. 常见 OOM 分类</a><a href="#chapter-39">39. 高频生产故障：内存泄漏怎么分析？</a><a href="#chapter-40">40. ThreadLocal 为什么可能内存泄漏？</a><a href="#chapter-41">41. HashMap / ConcurrentHashMap 为什么也值得和 JVM 一起准备？</a><a href="#chapter-42">42. 面试官最喜欢的“连环追问”</a><a href="#chapter-43">43. 面试故障场景题</a><a href="#chapter-44">44. JDK 8 JVM 参数：面试需要掌握的</a><a href="#chapter-45">45. JVM 参数调优的正确逻辑</a><a href="#chapter-46">46. 源码级阅读地图（OpenJDK 8 HotSpot）</a><a href="#chapter-47">47. 一张图串起整个 JVM</a><a href="#chapter-48">48. 面试速记口诀</a><a href="#chapter-49">49. 面试前必须能“脱稿回答”的 30 题</a><a href="#chapter-50">50. 架构师级别再加 10 题</a><a href="#chapter-51">51. 你在面试中应该避免的错误答案</a><a href="#chapter-52">52. 快速学习路线</a><a href="#chapter-53">53. 八个纯阅读场景：现象、原因与结论</a><a href="#chapter-54">54. 最终面试答题模板</a><a href="#chapter-55">55. 最后一张“面试知识地图”</a><a href="#chapter-56">56. 一页纸终极复习版</a><a href="#chapter-57">57. JDK 版本演进与默认值对照表（防止答旧知识）</a><a href="#chapter-58">58. Java 线程模型与虚拟线程（现代加分项）</a><a href="#chapter-59">59. 原生内存与可观测工具补全</a><a href="#chapter-60">60. 从“面试摘要”到“速通全书”：阅读导航</a><a href="#chapter-61">61. 一个对象的完整旅程：从源码到回收</a><a href="#chapter-62">62. 常量池、方法区与堆外内存：把位置和责任分清</a><a href="#chapter-63">63. 对象大小、访问定位与数组：从16字节推导</a><a href="#chapter-64">64. 引用、类卸载与“活着但没有用了”</a><a href="#chapter-65">65. 新生代复制与晋升：把一轮GC画完整</a><a href="#chapter-66">66. CMS与G1补强：并发正确性、RSet与空间失败</a><a href="#chapter-67">67. 类加载补强：懒解析、初始化失败与隔离</a><a href="#chapter-68">68. 字节码补强：签名、分派、语法糖与异常</a><a href="#chapter-69">69. JMM补强：用可见性链代替“刷新主内存”</a><a href="#chapter-70">70. Monitor与wait/notify：把语义、实现和优化分层</a><a href="#chapter-71">71. 编译优化补强：javac、OSR、内联与去优化</a><a href="#chapter-72">72. 故障阅读方法：先看证据能说明什么</a><a href="#chapter-73">73. 纯阅读推演：看结果、理解机制，不做实验</a><a href="#chapter-74">74. 反例与口述答案：收束全书</a><a href="#chapter-75">75. 修订依据与版本使用说明</a></nav></aside><main id="reader-content"><article><p><a id="handbook-title"></a></p>
+</style></head><body class="reader-page" data-reader="jvm"><a class="reader-skip" href="#reader-content">跳至正文</a><header class="reader-header"><div class="reader-wrap"><a class="home" href="../">← 源码学习库</a><div class="hero"><div class="eyebrow">UNDERSTANDING THE JVM</div><h1>JVM</h1><p class="lead">从知识点到完整理解</p><p>纯阅读 · 原理推演 · 离线图解</p><div class="hero-meta"><span>JDK8 / HotSpot</span><span>62张内嵌SVG</span><span>2026年10月1日修订</span><span>2026年10月8日附录更新</span></div><a class="start" href="#chapter-60">从阅读路线开始 →</a></div></div></header><div class="reader-layout reader-wrap"><aside><div class="reader-tools"><button id="menu" aria-label="打开章节目录">☰</button><button id="theme" title="切换背景">浅色 / 深色</button><button id="print">打印</button></div><div class="search"><input id="search" type="search" placeholder="查找知识点…" aria-label="查找全文"><span id="search-status"></span><button id="next" title="下一个结果">↓</button></div><div class="nav-head">阅读目录<span>76节 · 1篇附录 · 62张图</span></div><div class="jump"><a href="#chapter-60">全书导航</a><a href="#chapter-73">阅读案例</a><a href="#appendix-xstream">附录</a></div><nav><a href="#chapter-0">0. 先看结论：哪些章节最重要？</a><a href="#chapter-1">1. JVM 整体架构</a><a href="#chapter-2">2. JVM 运行时数据区 —— 第一高频题</a><a href="#chapter-3">3. Java 栈到底放了什么？</a><a href="#chapter-4">4. 一个 Java 对象到底有多大？</a><a href="#chapter-5">5. `new Object()` 背后发生了什么？</a><a href="#chapter-6">6. 类加载机制</a><a href="#chapter-7">7. 什么时候会触发类初始化？</a><a href="#chapter-8">8. 双亲委派模型</a><a href="#chapter-9">9. JVM 如何判断对象已经“死了”？</a><a href="#chapter-10">10. 强引用 / 软引用 / 弱引用 / 虚引用</a><a href="#chapter-11">11. GC 基础算法</a><a href="#chapter-12">12. 为什么 JVM 要分代？</a><a href="#chapter-13">13. 新生代对象分配与 Minor GC</a><a href="#chapter-14">14. Minor GC / Major GC / Full GC 有什么区别？</a><a href="#chapter-15">15. GC 收集器全家桶</a><a href="#chapter-16">16. CMS —— 面试重灾区</a><a href="#chapter-17">17. G1 —— JDK 8 面试重点</a><a href="#chapter-18">18. CMS 和 G1 怎么比较？</a><a href="#chapter-19">19. Safepoint —— 很多人背 GC，却答不好这题</a><a href="#chapter-20">20. Stop-The-World 到底是什么？</a><a href="#chapter-21">21. GC 日志怎么看？</a><a href="#chapter-22">22. 一套标准 JVM 故障排查流程</a><a href="#chapter-23">23. 常用 JVM 命令</a><a href="#chapter-24">24. Direct Memory —— 架构师很容易被追问</a><a href="#chapter-25">25. Java Memory Model（JMM）</a><a href="#chapter-26">26. happens-before —— JMM 面试核心</a><a href="#chapter-27">27. volatile 到底保证什么？</a><a href="#chapter-28">28. DCL 为什么必须加 volatile？</a><a href="#chapter-29">29. synchronized 原理</a><a href="#chapter-30">30. CAS —— 为什么是原子的？</a><a href="#chapter-31">31. 线程状态</a><a href="#chapter-32">32. Class 文件结构：面试掌握到什么程度？</a><a href="#chapter-33">33. JVM 方法调用指令</a><a href="#chapter-34">34. JVM 为什么是“栈式虚拟机”？</a><a href="#chapter-35">35. JIT：为什么 Java 越跑越快？</a><a href="#chapter-36">36. 逃逸分析</a><a href="#chapter-37">37. 去优化 Deoptimization</a><a href="#chapter-38">38. 常见 OOM 分类</a><a href="#chapter-39">39. 高频生产故障：内存泄漏怎么分析？</a><a href="#chapter-40">40. ThreadLocal 为什么可能内存泄漏？</a><a href="#chapter-41">41. HashMap / ConcurrentHashMap 为什么也值得和 JVM 一起准备？</a><a href="#chapter-42">42. 面试官最喜欢的“连环追问”</a><a href="#chapter-43">43. 面试故障场景题</a><a href="#chapter-44">44. JDK 8 JVM 参数：面试需要掌握的</a><a href="#chapter-45">45. JVM 参数调优的正确逻辑</a><a href="#chapter-46">46. 源码级阅读地图（OpenJDK 8 HotSpot）</a><a href="#chapter-47">47. 一张图串起整个 JVM</a><a href="#chapter-48">48. 面试速记口诀</a><a href="#chapter-49">49. 面试前必须能“脱稿回答”的 30 题</a><a href="#chapter-50">50. 架构师级别再加 10 题</a><a href="#chapter-51">51. 你在面试中应该避免的错误答案</a><a href="#chapter-52">52. 快速学习路线</a><a href="#chapter-53">53. 八个纯阅读场景：现象、原因与结论</a><a href="#chapter-54">54. 最终面试答题模板</a><a href="#chapter-55">55. 最后一张“面试知识地图”</a><a href="#chapter-56">56. 一页纸终极复习版</a><a href="#chapter-57">57. JDK 版本演进与默认值对照表（防止答旧知识）</a><a href="#chapter-58">58. Java 线程模型与虚拟线程（现代加分项）</a><a href="#chapter-59">59. 原生内存与可观测工具补全</a><a href="#chapter-60">60. 从“面试摘要”到“速通全书”：阅读导航</a><a href="#chapter-61">61. 一个对象的完整旅程：从源码到回收</a><a href="#chapter-62">62. 常量池、方法区与堆外内存：把位置和责任分清</a><a href="#chapter-63">63. 对象大小、访问定位与数组：从16字节推导</a><a href="#chapter-64">64. 引用、类卸载与“活着但没有用了”</a><a href="#chapter-65">65. 新生代复制与晋升：把一轮GC画完整</a><a href="#chapter-66">66. CMS与G1补强：并发正确性、RSet与空间失败</a><a href="#chapter-67">67. 类加载补强：懒解析、初始化失败与隔离</a><a href="#chapter-68">68. 字节码补强：签名、分派、语法糖与异常</a><a href="#chapter-69">69. JMM补强：用可见性链代替“刷新主内存”</a><a href="#chapter-70">70. Monitor与wait/notify：把语义、实现和优化分层</a><a href="#chapter-71">71. 编译优化补强：javac、OSR、内联与去优化</a><a href="#chapter-72">72. 故障阅读方法：先看证据能说明什么</a><a href="#chapter-73">73. 纯阅读推演：看结果、理解机制，不做实验</a><a href="#chapter-74">74. 反例与口述答案：收束全书</a><a href="#chapter-75">75. 修订依据与版本使用说明</a><a href="#appendix-xstream">附录A · XStream1.4.4周期性Full GC分析</a></nav></aside><main id="reader-content"><article><p><a id="handbook-title"></a></p>
 <h1>《深入理解 Java 虚拟机》面试速通手册（JDK 8 / HotSpot）</h1>
 <blockquote>
 <p>目标：不是按原书章节复述，而是把《深入理解 Java 虚拟机》中<strong>面试最常问、最容易被追问、最能体现 JVM 理解深度</strong>的知识重新组织成一套面试体系。</p>
@@ -5444,6 +5444,778 @@ Collector 如何回收
 你如何通过 GC Log、Thread Dump、Heap Dump 找到根因
 </code></pre>
 <p>如果这条链能完整讲出来，并能继续解释 CMS / G1 / Safepoint / JMM / JIT，JVM 这部分就不再只是“背题”，而是形成真正可用于架构和生产排障的知识体系。</p>
+<!-- JVM-XSTREAM-APPENDIX:START -->
+<section aria-labelledby="appendix-xstream-title">
+<a id="appendix-xstream"></a>
+<h1 id="appendix-xstream-title">附录A · XStream1.4.4与每请求new XStream()：周期性Full GC分析</h1>
+<p><a href="./analysis-xstream-1.4.4-fgc.md" download>下载修订稿（Markdown）</a> · <a href="./xstream-lab.zip" download>下载实验与证据包</a> · <a href="./xstream-review.md">检查记录</a></p>
+<details><summary>展开本附录目录</summary><div class="toc">
+<ul>
+<li><a href="#xstream-0-先看结论对象能回收为什么仍反复full-gc">0. 先看结论：对象能回收，为什么仍反复Full GC？</a></li>
+<li><a href="#xstream-1-适用边界先确认实际provider">1. 适用边界：先确认实际provider</a><ul>
+<li><a href="#xstream-11-实验环境">1.1 实验环境</a></li>
+<li><a href="#xstream-12-厂商判断是选择分支不是跨jvm行为保证">1.2 厂商判断是选择分支，不是跨JVM行为保证</a></li>
+</ul>
+</li>
+<li><a href="#xstream-2-源码调用链缓存在哪一层失效">2. 源码调用链：缓存在哪一层失效？</a><ul>
+<li><a href="#xstream-21-每次构造xstream默认provider跟着实例创建">2.1 每次构造XStream，默认provider跟着实例创建</a></li>
+<li><a href="#xstream-22-普通pojo的反序列化进入reflectionprovider">2.2 普通POJO的反序列化进入reflectionProvider</a></li>
+<li><a href="#xstream-23-真正的重复点provider实例上的构造器缓存">2.3 真正的重复点：provider实例上的构造器缓存</a></li>
+<li><a href="#xstream-24-jdk8的这次调用立即生成类">2.4 JDK8的这次调用立即生成类</a></li>
+</ul>
+</li>
+<li><a href="#xstream-3-类增长规律按实例与不同类型计数">3. 类增长规律：按实例与不同类型计数</a></li>
+<li><a href="#xstream-4-为什么对象能回收元空间仍会锯齿上涨">4. 为什么对象能回收，元空间仍会锯齿上涨？</a><ul>
+<li><a href="#xstream-41-请求结束只意味着引用可能不再存活">4.1 请求结束只意味着引用可能不再存活</a></li>
+<li><a href="#xstream-42-类卸载是否需要full-gc取决于收集器">4.2 类卸载是否需要Full GC，取决于收集器</a></li>
+</ul>
+</li>
+<li><a href="#xstream-5-元空间高水位分配受限后触发gc不是先越界提交">5. 元空间高水位：分配受限后触发GC，不是先越界提交</a><ul>
+<li><a href="#xstream-51-三个容易混淆的量">5.1 三个容易混淆的量</a></li>
+<li><a href="#xstream-52-从分配失败到gc与重试">5.2 从分配失败到GC与重试</a></li>
+<li><a href="#xstream-53-gc之后高水位会重新调整">5.3 GC之后，高水位会重新调整</a></li>
+</ul>
+</li>
+<li><a href="#xstream-6-数据核验机制稳定频率与耗时需要看实验口径">6. 数据核验：机制稳定，频率与耗时需要看实验口径</a><ul>
+<li><a href="#xstream-61-历史主对照各自对应一批运行">6.1 历史主对照：各自对应一批运行</a></li>
+<li><a href="#xstream-62-本次同请求量复测">6.2 本次同请求量复测</a></li>
+<li><a href="#xstream-63-历史参数矩阵采样最大值不等于全过程峰值">6.3 历史参数矩阵：采样最大值不等于全过程峰值</a></li>
+</ul>
+</li>
+<li><a href="#xstream-7-什么时候只是反复回收什么时候会oom">7. 什么时候只是反复回收，什么时候会OOM？</a><ul>
+<li><a href="#xstream-71-短命实例有生成压力不一定有持续泄漏">7.1 短命实例：有生成压力，不一定有持续泄漏</a></li>
+<li><a href="#xstream-72-长期保留每请求实例回收条件被破坏">7.2 长期保留每请求实例：回收条件被破坏</a></li>
+<li><a href="#xstream-73-上限与原生内存预算">7.3 上限与原生内存预算</a></li>
+</ul>
+</li>
+<li><a href="#xstream-8-修复先降低生成量再安排内存预算">8. 修复：先降低生成量，再安排内存预算</a><ul>
+<li><a href="#xstream-81-复用完成配置的实例">8.1 复用完成配置的实例</a></li>
+<li><a href="#xstream-82-升级并验证provider的实际行为">8.2 升级并验证provider的实际行为</a></li>
+<li><a href="#xstream-83-参数只能影响回收时机和资源边界">8.3 参数只能影响回收时机和资源边界</a></li>
+</ul>
+</li>
+<li><a href="#xstream-9-诊断与回归按证据逐步缩小范围">9. 诊断与回归：按证据逐步缩小范围</a></li>
+<li><a href="#xstream-附录a可复现实验">附录A：可复现实验</a></li>
+<li><a href="#xstream-附录b证据与修订边界">附录B：证据与修订边界</a></li>
+<li><a href="#xstream-附录c源码索引与阅读顺序">附录C：源码索引与阅读顺序</a></li>
+</ul>
+</div>
+</details>
+<blockquote>
+<p>修订与核验：2026年10月8日。本文讨论JDK8、普通POJO、XStream1.4.4实际选中<code>Sun14ReflectionProvider</code>的场景。
+实验使用Amazon Corretto8u462／macOS arm64。为触发旧版provider选择分支，实验程序在XStream初始化前将<code>java.vm.vendor</code>改为<code>Oracle Corporation</code>；这不等于在Oracle JDK上完成了性能测试。
+文中的源码结论、历史实测、本次复测和待验证推断分别标明。性能数字只描述对应实验，不是生产环境的承诺。</p>
+</blockquote>
+<h2 id="xstream-0-先看结论对象能回收为什么仍反复full-gc">0. 先看结论：对象能回收，为什么仍反复Full GC？</h2>
+<p>问题的起点不是POJO对象泄漏，而是<strong>短命XStream实例不断生成短命反射类</strong>。</p>
+<p>XStream1.4.4的<code>Sun14ReflectionProvider</code>用实例字段<code>constructorCache</code>缓存序列化构造器。每个新provider第一次处理一个业务类型时，都会调用JDK8的<code>ReflectionFactory.newConstructorForSerialization(type, Object.&lt;init&gt;)</code>。在本文POJO场景中，该调用立即生成一个<code>GeneratedSerializationConstructorAccessorN</code>类，并交给新的<code>DelegatingClassLoader</code>定义。</p>
+<p>复用同一个XStream时，同一类型随后命中缓存；每请求重新创建XStream时，下一请求又从空缓存开始。请求结束后，这些类通常可以卸载，但生成速率没有降低。在本文启用类卸载的ParallelGC配置下，元空间分配压力反复触发<code>Full GC (Metadata GC Threshold)</code>，于是监控表现为“元空间锯齿＋类反复卸载＋周期性停顿”。</p>
+<pre><code class="language-text">每请求新建XStream／provider
+  → 每个实例第一次处理某种POJO时，构造器缓存未命中
+  → ReflectionFactory生成新的序列化构造器accessor类
+  → 类元数据累积，元空间扩展受到当前GC高水位约束
+  → 元数据分配失败进入GC及分配重试路径
+  → ParallelGC执行Full GC，卸载不可达类及其加载器
+  → 请求继续，再次累积
+</code></pre>
+<p>核心修复是<strong>停止重复生成类</strong>：复用完成配置的XStream，或升级到移除了这条实例化路径的版本。元空间参数影响回收时机和内存预算，不能代替代码修复。</p>
+<h2 id="xstream-1-适用边界先确认实际provider">1. 适用边界：先确认实际provider</h2>
+<h3 id="xstream-11-实验环境">1.1 实验环境</h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>配置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>运行时</td>
+<td>Amazon Corretto8u462，<code>1.8.0_462</code>，macOS arm64</td>
+</tr>
+<tr>
+<td>旧版依赖</td>
+<td><code>com.thoughtworks.xstream:xstream:1.4.4</code></td>
+</tr>
+<tr>
+<td>XML解析依赖</td>
+<td><code>xpp3:xpp3_min:1.1.4c</code>、<code>xmlpull:xmlpull:1.1.3.1</code></td>
+</tr>
+<tr>
+<td>对象图</td>
+<td>一个<code>Order</code>，含String与int字段；固定可信XML</td>
+</tr>
+<tr>
+<td>GC复测</td>
+<td>显式<code>-XX:+UseParallelGC</code>，<code>-Xms1g -Xmx1g</code></td>
+</tr>
+<tr>
+<td>元空间</td>
+<td>主对照未设置<code>MetaspaceSize</code>或<code>MaxMetaspaceSize</code></td>
+</tr>
+<tr>
+<td>引用保留</td>
+<td><code>new</code>不累积XStream；<code>static</code>复用一个实例；<code>new-retain</code>另作反例</td>
+</tr>
+</tbody>
+</table>
+<h3 id="xstream-12-厂商判断是选择分支不是跨jvm行为保证">1.2 厂商判断是选择分支，不是跨JVM行为保证</h3>
+<p>1.4.4根据初始化时读取的<code>java.vm.vendor</code>等条件选择provider。<code>Sun</code>、<code>Oracle</code>会命中对应分支；其他判断还包括<code>Apple</code>、<code>IBM</code>、<code>Hewlett-Packard Company</code>、<code>Blackdown</code>、<code>Hitachi</code>、<code>SAP AG</code>、<code>FreeBSD Foundation</code>，BEA另有VM版本判断。还必须满足Java版本及内部类可用性等条件，provider实例化也可能失败并回退。</p>
+<p>因此，不能将“厂商名称出现在白名单里”直接写成“该JVM一定产生本文的GC行为”。特别是IBM或JRockit，其内部实现不等于本文核验的HotSpot实现。</p>
+<p>本次在同一Corretto上确认了两条分支：</p>
+<table>
+<thead>
+<tr>
+<th>条件</th>
+<th>实际provider</th>
+<th style="text-align: right;">1,000请求新增目标accessor类</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>保留真实<code>Amazon.com Inc.</code></td>
+<td><code>PureJavaReflectionProvider</code></td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>初始化前改为<code>Oracle Corporation</code></td>
+<td><code>Sun14ReflectionProvider</code></td>
+<td style="text-align: right;">1,000</td>
+</tr>
+</tbody>
+</table>
+<p>生产诊断应直接输出<code>xstream.getReflectionProvider().getClass().getName()</code>，同时记录依赖版本、JDK版本和厂商。<strong>仅凭<code>new XStream()</code>或某个版本号，不能确认命中本案例。</strong></p>
+<h2 id="xstream-2-源码调用链缓存在哪一层失效">2. 源码调用链：缓存在哪一层失效？</h2>
+<p>以下XStream节选取自1.4.4源码包，与上游发布提交<code>c4c71226515fa42809a48d9ae702756e2831f379</code>对应；JDK反射节选取自本机Corretto8u462的<code>src.zip</code>。完整文件链接见附录C。</p>
+<h3 id="xstream-21-每次构造xstream默认provider跟着实例创建">2.1 每次构造XStream，默认provider跟着实例创建</h3>
+<p><code>XStream</code>的构造器创建一个<code>JVM</code>辅助对象；未显式传入provider时，由这个辅助对象选择并缓存provider。这里缓存的是<strong>当前辅助对象所用的provider</strong>，不是整个应用共用的全局provider。</p>
+<p><code>XStream.java:435–439</code>，构造器开头节选（不是完整方法）：</p>
+<pre><code class="language-java">        ConverterRegistry converterRegistry) {
+        jvm = new JVM();
+        if (reflectionProvider == null) {
+            reflectionProvider = jvm.bestReflectionProvider();
+        }
+</code></pre>
+<p><code>JVM.java:241–267</code>，完整方法：</p>
+<pre><code class="language-java">    public synchronized ReflectionProvider bestReflectionProvider() {
+        if (reflectionProvider == null) {
+            try {
+                String className = null;
+                if (canUseSun14ReflectionProvider()) {
+                    className = &quot;com.thoughtworks.xstream.converters.reflection.Sun14ReflectionProvider&quot;;
+                }
+                if (className != null) {
+                    Class cls = loadClass(className);
+                    if (cls != null) {
+                        reflectionProvider = (ReflectionProvider) cls.newInstance();
+                    }
+                }
+                if (reflectionProvider == null) {
+                    reflectionProvider = new PureJavaReflectionProvider();
+                }
+            } catch (InstantiationException e) {
+                reflectionProvider = new PureJavaReflectionProvider();
+            } catch (IllegalAccessException e) {
+                reflectionProvider = new PureJavaReflectionProvider();
+            } catch (AccessControlException e) {
+                // thrown when trying to access sun.misc package in Applet context.
+                reflectionProvider = new PureJavaReflectionProvider();
+            }
+        }
+        return reflectionProvider;
+    }
+</code></pre>
+<h3 id="xstream-22-普通pojo的反序列化进入reflectionprovider">2.2 普通POJO的反序列化进入reflectionProvider</h3>
+<p>本文<code>Order</code>走反射转换器，而不是所有XML节点都无条件走这条路径。String、集合、自定义converter等可能走其他转换逻辑；已有对象或对象引用也可能避免创建新实例。</p>
+<p><code>AbstractReflectionConverter.java:419–430</code>，完整方法：</p>
+<pre><code class="language-java">    protected Object instantiateNewInstance(HierarchicalStreamReader reader, UnmarshallingContext context) {
+        String attributeName = mapper.aliasForSystemAttribute(&quot;resolves-to&quot;);
+        String readResolveValue = attributeName == null ? null : reader.getAttribute(attributeName);
+        Object currentObject = context.currentObject();
+        if (currentObject != null) {
+            return currentObject;
+        } else if (readResolveValue != null) {
+            return reflectionProvider.newInstance(mapper.realClass(readResolveValue));
+        } else {
+            return reflectionProvider.newInstance(context.getRequiredType());
+        }
+    }
+</code></pre>
+<h3 id="xstream-23-真正的重复点provider实例上的构造器缓存">2.3 真正的重复点：provider实例上的构造器缓存</h3>
+<p><code>Sun14ReflectionProvider.java:61–99</code>，字段与完整方法节选：</p>
+<pre><code class="language-java">    private transient ReflectionFactory reflectionFactory = ReflectionFactory.getReflectionFactory();
+    private transient Map constructorCache =new HashMap();
+
+    public Sun14ReflectionProvider() {
+        super();
+    }
+
+    public Sun14ReflectionProvider(FieldDictionary dic) {
+        super(dic);
+    }
+
+    public Object newInstance(Class type) {
+        try {
+            Constructor customConstructor = getMungedConstructor(type);
+            return customConstructor.newInstance(new Object[0]);
+        } catch (NoSuchMethodException e) {
+            throw new ObjectAccessException(&quot;Cannot construct &quot; + type.getName(), e);
+        } catch (SecurityException e) {
+            throw new ObjectAccessException(&quot;Cannot construct &quot; + type.getName(), e);
+        } catch (InstantiationException e) {
+            throw new ObjectAccessException(&quot;Cannot construct &quot; + type.getName(), e);
+        } catch (IllegalAccessException e) {
+            throw new ObjectAccessException(&quot;Cannot construct &quot; + type.getName(), e);
+        } catch (IllegalArgumentException e) {
+            throw new ObjectAccessException(&quot;Cannot construct &quot; + type.getName(), e);
+        } catch (InvocationTargetException e) {
+            throw new ObjectAccessException(&quot;Cannot construct &quot; + type.getName(), e);
+        }
+    }
+
+    private Constructor getMungedConstructor(Class type) throws NoSuchMethodException {
+        synchronized (constructorCache) {
+            Constructor ctor = (Constructor)constructorCache.get(type);
+            if (ctor == null) {
+                ctor = reflectionFactory.newConstructorForSerialization(type, Object.class.getDeclaredConstructor(new Class[0]));
+                constructorCache.put(type, ctor);
+            }
+            return ctor;
+        }
+</code></pre>
+<p>要读准这段代码，有三个关键点：</p>
+<ol>
+<li><code>constructorCache</code>是实例字段，每个新provider都从空缓存开始。</li>
+<li>同一个provider按<code>Class</code>缓存。即使一个请求里出现100个同类型对象，也不需要生成100个accessor；第一次未命中后，后续对象复用构造器。</li>
+<li><code>newInstance()</code>没有优先调用业务类已有的无参构造器。因此，本案例不要求POJO缺少无参构造器，也不要求POJO实现<code>Serializable</code>。</li>
+</ol>
+<p>这不是“缓存永不命中”，而是<strong>缓存只能在当前实例内命中，跨请求创建新实例就无法复用它</strong>。</p>
+<h3 id="xstream-24-jdk8的这次调用立即生成类">2.4 JDK8的这次调用立即生成类</h3>
+<p><code>ReflectionFactory.java:353–362</code>，完整方法：</p>
+<pre><code class="language-java">    public Constructor&lt;?&gt; newConstructorForSerialization
+        (Class&lt;?&gt; classToInstantiate, Constructor&lt;?&gt; constructorToCall)
+    {
+        // Fast path
+        if (constructorToCall.getDeclaringClass() == classToInstantiate) {
+            return constructorToCall;
+        }
+        return generateConstructor(classToInstantiate, constructorToCall);
+    }
+
+</code></pre>
+<p>业务类<code>Order</code>与传入构造器所属的<code>Object</code>不同，因此走<code>generateConstructor()</code>。该方法没有跨调用缓存，而是创建新的<code>MethodAccessorGenerator</code>。这是序列化构造器的生成路径，<strong>不是普通Method.invoke达到反射inflation阈值后才生成accessor的路径</strong>，不能套用“调用15次以后才生成”的解释。</p>
+<p><code>ReflectionFactory.java:393–418</code>，完整方法：</p>
+<pre><code class="language-java">    private final Constructor&lt;?&gt; generateConstructor(Class&lt;?&gt; classToInstantiate,
+                                                     Constructor&lt;?&gt; constructorToCall) {
+
+
+        ConstructorAccessor acc = new MethodAccessorGenerator().
+            generateSerializationConstructor(classToInstantiate,
+                                             constructorToCall.getParameterTypes(),
+                                             constructorToCall.getExceptionTypes(),
+                                             constructorToCall.getModifiers(),
+                                             constructorToCall.getDeclaringClass());
+        Constructor&lt;?&gt; c = newConstructor(constructorToCall.getDeclaringClass(),
+                                          constructorToCall.getParameterTypes(),
+                                          constructorToCall.getExceptionTypes(),
+                                          constructorToCall.getModifiers(),
+                                          langReflectAccess().
+                                          getConstructorSlot(constructorToCall),
+                                          langReflectAccess().
+                                          getConstructorSignature(constructorToCall),
+                                          langReflectAccess().
+                                          getConstructorAnnotations(constructorToCall),
+                                          langReflectAccess().
+                                          getConstructorParameterAnnotations(constructorToCall));
+        setConstructorAccessor(c, acc);
+        c.setAccessible(true);
+        return c;
+    }
+</code></pre>
+<p><code>ClassDefiner.java:54–64</code>，完整方法：</p>
+<pre><code class="language-java">    static Class&lt;?&gt; defineClass(String name, byte[] bytes, int off, int len,
+                                final ClassLoader parentClassLoader)
+    {
+        ClassLoader newLoader = AccessController.doPrivileged(
+            new PrivilegedAction&lt;ClassLoader&gt;() {
+                public ClassLoader run() {
+                        return new DelegatingClassLoader(parentClassLoader);
+                    }
+                });
+        return unsafe.defineClass(name, bytes, off, len, newLoader, null);
+    }
+</code></pre>
+<p>每次生成的accessor类由新的<code>DelegatingClassLoader</code>定义，使其可以独立于长期存活的业务类加载器被卸载。</p>
+<p>这里要分清内存位置：<strong>ClassLoader实例、Constructor对象、accessor实例及Class镜像在Java堆；生成类的元数据在Metaspace。</strong>不能说“新类加载器实例进入Metaspace”。</p>
+<h2 id="xstream-3-类增长规律按实例与不同类型计数">3. 类增长规律：按实例与不同类型计数</h2>
+<p>在本文路径中，可把目标accessor数量近似写成：</p>
+<pre><code class="language-text">新增序列化accessor类数
+  = 各provider实例实际遇到的、构造器缓存首次未命中的类型数之和
+</code></pre>
+<p>假设每请求创建一个新的XStream，且每个请求都反序列化N种走此provider的业务类，则目标accessor增长约为<code>请求数×N</code>。同一请求中同类型对象重复出现，不额外增加这一类型的accessor。</p>
+<p>如果复用一个XStream，每个相关Class通常只生成一次，范围是<strong>这个provider实例的生命周期</strong>。重建配置实例、使用多个实例、应用重部署或同名类来自不同加载器，都会改变这个范围，不能概括成“每个类终生只生成一次”。</p>
+<p>2026年10月8日本次复测：</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th style="text-align: right;">请求／调用数</th>
+<th style="text-align: right;">TraceClassLoading中的目标accessor数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.4.4，<code>new</code>，选择Sun14 provider</td>
+<td style="text-align: right;">1,000</td>
+<td style="text-align: right;">1,000</td>
+</tr>
+<tr>
+<td>1.4.4，<code>static</code>，选择Sun14 provider</td>
+<td style="text-align: right;">1,000</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>直接调用JDK8 ReflectionFactory</td>
+<td style="text-align: right;">500</td>
+<td style="text-align: right;">500</td>
+</tr>
+<tr>
+<td>1.4.5，<code>new</code>，同样的POJO</td>
+<td style="text-align: right;">1,000</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>计数只匹配<code>[Loaded sun.reflect.GeneratedSerializationConstructorAccessor数字 …]</code>。<code>ClassLoadingMXBean.getTotalLoadedClassCount()</code>还包含初始化、监控和普通反射产生的其他类，只能作为辅助指标，不能与目标accessor数直接画等号。</p>
+<h2 id="xstream-4-为什么对象能回收元空间仍会锯齿上涨">4. 为什么对象能回收，元空间仍会锯齿上涨？</h2>
+<h3 id="xstream-41-请求结束只意味着引用可能不再存活">4.1 请求结束只意味着引用可能不再存活</h3>
+<p>引用关系可简化为：</p>
+<pre><code class="language-text">XStream实例
+  → Sun14ReflectionProvider
+    → constructorCache
+      → 合成Constructor
+        → ConstructorAccessor实例
+          → accessor的Class及定义它的DelegatingClassLoader
+            → 该加载器所属的类元数据
+</code></pre>
+<p>请求结束、这些对象失去强可达路径后，相关类通常具备卸载条件。但“变得不可达”与“已经卸载”是两件事。业务POJO对象可被堆GC回收，并不代表本轮GC已经做了类卸载。</p>
+<p>此外，<code>DelegatingClassLoader</code>指向它的父加载器，并不意味着父加载器反向持有所有子加载器；业务类加载器长期存活不会自动阻止这些临时加载器卸载。仍需检查线程上下文加载器、静态字段、缓存等实际引用链。</p>
+<h3 id="xstream-42-类卸载是否需要full-gc取决于收集器">4.2 类卸载是否需要Full GC，取决于收集器</h3>
+<p>本文主实验使用ParallelGC，启用类卸载时，相关回收发生在Full GC中；普通Young GC不执行这类卸载。</p>
+<p>但这不能推广成所有JDK8收集器的规则：CMS可在启用<code>CMSClassUnloadingEnabled</code>的CMS周期中处理类卸载；G1可在启用<code>ClassUnloadingWithConcurrentMark</code>的并发标记周期中处理类卸载。相关周期仍有停顿阶段，但不必对应一条日志中的<code>Full GC</code>。关闭类卸载后，本来不可达的临时类也可能长期占用元空间。</p>
+<p>来源：<a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp">JDK8u462 CMS实现</a>、<a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp">G1实现</a>。</p>
+<p>因此，诊断要同时看<strong>生成速度、引用存活、类卸载配置与GC日志</strong>。“unloaded持续增长”证明清理发生过，不能单独证明整个应用没有其他泄漏。</p>
+<h2 id="xstream-5-元空间高水位分配受限后触发gc不是先越界提交">5. 元空间高水位：分配受限后触发GC，不是先越界提交</h2>
+<h3 id="xstream-51-三个容易混淆的量">5.1 三个容易混淆的量</h3>
+<table>
+<thead>
+<tr>
+<th>量</th>
+<th>含义</th>
+<th>不能据此推导什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>used／MU</td>
+<td>元数据已用量</td>
+<td>不能把它当成GC高水位或进程RSS</td>
+</tr>
+<tr>
+<td>committed／MC</td>
+<td>JVM已提交的元空间容量</td>
+<td>不等于所有容量都放了存活元数据，也不等于RSS</td>
+</tr>
+<tr>
+<td>GC高水位</td>
+<td>当前允许扩展元空间的阈值</td>
+<td>不保证等于每次采样的used或committed</td>
+</tr>
+</tbody>
+</table>
+<p><code>MetaspaceSize</code>影响初始GC高水位，并在JDK8高水位调整逻辑中作为下界；它不是预先分配固定大小的元空间，也不是其最大容量。<code>MaxMetaspaceSize</code>限制元空间提交容量。默认值应在实际JVM上查，本文机器约为21MiB，不能把这个数字写成所有JDK的恒定值。</p>
+<h3 id="xstream-52-从分配失败到gc与重试">5.2 从分配失败到GC与重试</h3>
+<p>JDK8u462的<code>MetaspaceGC::allowed_expansion()</code>根据当前committed、GC高水位和最大容量，计算允许扩展的余量。需要扩展时，如果这一余量不足，分配可以返回失败；并不需要先成功提交一块已经超过高水位的内存。</p>
+<p>初始化完成后，<code>Metaspace::allocate()</code>在分配失败时进入<code>CollectorPolicy::satisfy_failed_metadata_allocation()</code>，通过<code>VM_CollectForMetadataAllocation</code>请求GC及分配重试。该流程有重新分配、扩展、回收和进一步重试等分支，最终仍失败才报告元数据OOM。</p>
+<pre><code class="language-text">尝试分配元数据
+  → 当前空间与扩展额度不足，或原生内存提交失败
+  → 进入元数据分配失败处理
+  → 按收集器策略执行GC／尝试扩展／重新分配
+  → 成功：继续运行；仍失败：报告OOM
+</code></pre>
+<p><strong>即使没有显式设置MaxMetaspaceSize，这条失败处理路径仍然存在。</strong>原文“没有设置上限就缺少先GC再重试的兜底”不成立。</p>
+<p>源码：<a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/memory/metaspace.cpp">metaspace.cpp</a>、<a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/memory/collectorPolicy.cpp">collectorPolicy.cpp</a>、<a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/shared/vmGCOperations.cpp">vmGCOperations.cpp</a>。这里用OpenJDK8u462源码交叉核对HotSpot机制，不把它当成对所有厂商二进制实现的逐字证明。</p>
+<h3 id="xstream-53-gc之后高水位会重新调整">5.3 GC之后，高水位会重新调整</h3>
+<p><code>compute_new_size()</code>考虑GC后的committed、<code>MinMetaspaceFreeRatio</code>、<code>MaxMetaspaceFreeRatio</code>以及收缩策略，决定是否调整高水位。许多小加载器还会带来chunk开销和碎片，所以GC日志中的used、提交容量与阈值并不一一相等。</p>
+<p>在本案例里，Full GC反复卸载大量临时类，之后又继续生成，因此容易出现相似的触发区间。但不能据此推导“高水位永远固定”“峰值严格等于MetaspaceSize”或“Full GC次数恒定”。</p>
+<h2 id="xstream-6-数据核验机制稳定频率与耗时需要看实验口径">6. 数据核验：机制稳定，频率与耗时需要看实验口径</h2>
+<h3 id="xstream-61-历史主对照各自对应一批运行">6.1 历史主对照：各自对应一批运行</h3>
+<p>已核对原始<code>app.log</code>与<code>gc.log</code>，两批运行均为4线程，<code>-Xms1g -Xmx1g</code>，不累积XStream引用。</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th style="text-align: right;">1.4.4，每请求new</th>
+<th style="text-align: right;">1.4.4，static复用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>完成请求</td>
+<td style="text-align: right;">200,000</td>
+<td style="text-align: right;">800,000</td>
+</tr>
+<tr>
+<td>loadedDelta</td>
+<td style="text-align: right;">200,660</td>
+<td style="text-align: right;">172</td>
+</tr>
+<tr>
+<td>Full GC</td>
+<td style="text-align: right;">66，全部Metadata GC Threshold</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>Young GC</td>
+<td style="text-align: right;">66次Metadata GC Threshold＋3次Allocation Failure</td>
+<td style="text-align: right;">85次Allocation Failure</td>
+</tr>
+<tr>
+<td>应用线程累计停止时间</td>
+<td style="text-align: right;">1.0747254秒</td>
+<td style="text-align: right;">0.0278989秒</td>
+</tr>
+<tr>
+<td>实验程序DONE elapsed</td>
+<td style="text-align: right;">8.5秒</td>
+<td style="text-align: right;">1.0秒</td>
+</tr>
+</tbody>
+</table>
+<p>这两列负载不同，能够支持“共享实例大幅减少类增长，本次运行消除了该Full GC现象”，不能直接当成严格的同负载吞吐比。累计停止时间来自<code>PrintGCApplicationStoppedTime</code>，包含所有记录的应用线程停顿，并不只统计Full GC。</p>
+<p>原文的<code>320,677</code>来自另一批320,000请求，不能放进200,000请求这一行；原文static的<code>185</code>也来自其他运行。本表统一使用同批日志。</p>
+<h3 id="xstream-62-本次同请求量复测">6.2 本次同请求量复测</h3>
+<p>重新编译实验源码后，以相同4线程、200,000请求复测。主机上曾有其他实验同时运行，因此耗时只用于记录，不做严格性能排名；两批日志均确认provider、完成次数和checksum正确。</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th style="text-align: right;">new</th>
+<th style="text-align: right;">static</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>请求数</td>
+<td style="text-align: right;">200,000</td>
+<td style="text-align: right;">200,000</td>
+</tr>
+<tr>
+<td>loadedDelta</td>
+<td style="text-align: right;">200,660</td>
+<td style="text-align: right;">171</td>
+</tr>
+<tr>
+<td>Full GC</td>
+<td style="text-align: right;">66，全部Metadata GC Threshold</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>Young GC</td>
+<td style="text-align: right;">66次Metadata GC Threshold＋3次Allocation Failure</td>
+<td style="text-align: right;">22次Allocation Failure</td>
+</tr>
+<tr>
+<td>累计应用线程停止时间</td>
+<td style="text-align: right;">1.1359755秒</td>
+<td style="text-align: right;">0.0623071秒</td>
+</tr>
+<tr>
+<td>DONE elapsed</td>
+<td style="text-align: right;">11.7秒</td>
+<td style="text-align: right;">0.7秒</td>
+</tr>
+</tbody>
+</table>
+<p><code>new</code>主结果与历史运行吻合；static仍有Young GC，所以修复目标不是“所有GC都变成0”，而是这条类生成路径及对应的元数据GC压力消失。</p>
+<h3 id="xstream-63-历史参数矩阵采样最大值不等于全过程峰值">6.3 历史参数矩阵：采样最大值不等于全过程峰值</h3>
+<p>以下取自每批<code>jstat</code>采样文件。YGC／FGC是<strong>最后一次成功采样时的累计值</strong>，不是由完整GC日志重新统计的最终次数；内存列也是采样命中的最大值，可能漏掉峰值。MB数值实际按MiB（1024²字节）换算。</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>Xmx</th>
+<th>元空间参数</th>
+<th>采样末次YGC／FGC</th>
+<th>采样最大MU／MC（MiB）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M1</td>
+<td>256m</td>
+<td>默认</td>
+<td>278／46</td>
+<td>20.7／29.4</td>
+</tr>
+<tr>
+<td>M2</td>
+<td>1g</td>
+<td>默认</td>
+<td>94／47</td>
+<td>18.4／26.4</td>
+</tr>
+<tr>
+<td>M3</td>
+<td>4g</td>
+<td>默认</td>
+<td>48／48</td>
+<td>6.8／18.0</td>
+</tr>
+<tr>
+<td>M4</td>
+<td>4g</td>
+<td>MetaspaceSize=512m</td>
+<td>19／2</td>
+<td>322.4／512.0</td>
+</tr>
+<tr>
+<td>M5</td>
+<td>256m</td>
+<td>MetaspaceSize=512m</td>
+<td>259／2</td>
+<td>321.1／510.3</td>
+</tr>
+<tr>
+<td>M6</td>
+<td>1g</td>
+<td>MetaspaceSize=512m</td>
+<td>68／2</td>
+<td>322.4／512.0</td>
+</tr>
+<tr>
+<td>M7</td>
+<td>4g</td>
+<td>MetaspaceSize=192m，MaxMetaspaceSize=192m</td>
+<td>20／6</td>
+<td>107.9／168.8</td>
+</tr>
+</tbody>
+</table>
+<p>M3的DONE日志反而记录MU=17.45MiB、MC=25.25MiB，均大于采样表里的“最大值”。这直接说明原文把低频采样最大值称作真实峰值不准确。M1～M3最后采样的卸载数也不是DONE时的最终卸载数，修订版不再混用。</p>
+<p>这些数据支持有限的结论：默认阈值下，改变堆大小没有消除元数据GC压力；调大MetaspaceSize后，采样中的GC次数减少，但元空间积累量明显增大。<strong>不能据此规定生产参数，也不能证明高水位越大单次停顿必然越长。</strong>停顿还需完整日志、负载与存活量对照。</p>
+<p>原文给出的T1“9次GC原始序列”目前只有<code>app.log</code>与<code>samples.csv</code>可核对，未找到声称的<code>T1_hwm128/gc.log</code>，因此删除那段看似精确的原始GC引用，保留可核查的采样记录。</p>
+<h2 id="xstream-7-什么时候只是反复回收什么时候会oom">7. 什么时候只是反复回收，什么时候会OOM？</h2>
+<h3 id="xstream-71-短命实例有生成压力不一定有持续泄漏">7.1 短命实例：有生成压力，不一定有持续泄漏</h3>
+<p><code>new</code>且不累积引用时，Full GC能够卸载大部分生成类。历史20万请求运行最终记录<code>unloadedTotal=198,351</code>，本次记录198,368。类加载数持续增加、卸载数也持续增加，是“生成—清理循环”的证据。</p>
+<p>只要卸载及内存预算足够，程序可以持续运行，不必然OOM。但这并不保证每个生产系统都会频繁Full GC：请求量、观察时长、收集器、阈值和类卸载设置都会改变表现。</p>
+<h3 id="xstream-72-长期保留每请求实例回收条件被破坏">7.2 长期保留每请求实例：回收条件被破坏</h3>
+<p>如果应用在长期存活的集合里持续保留每请求创建的XStream，其构造器缓存及accessor也跟着存活。此时既增加元空间负担，也保留大量XStream内部堆对象。</p>
+<p>M8使用<code>-Xmx256m -XX:MaxMetaspaceSize=128m</code>并保留每请求实例，原始异常是：</p>
+<pre><code class="language-text">java.lang.OutOfMemoryError: GC overhead limit exceeded
+</code></pre>
+<p>最后采样MU约26.1MiB、MC约38.0MiB，远未达到128MiB元空间上限。<strong>该实验说明保留策略会导致内存问题，但本次先失败的是堆／GC开销保护，不能充当Metaspace OOM的直接实测证据。</strong>也不能仅凭这个结果承诺换某个参数就一定先报Metaspace OOM。</p>
+<p>同样，<code>static</code>复用一个实例与<code>static Map</code>无限累积每请求实例是两种完全不同的保留策略。固定大小的ThreadLocal或实例池，也不能只凭名称就判定为持续类增长。</p>
+<h3 id="xstream-73-上限与原生内存预算">7.3 上限与原生内存预算</h3>
+<p>达到MaxMetaspaceSize不等于立刻OOM：JVM可能通过GC卸载无用类，再让分配成功；若存活类、碎片或预算使分配持续失败，才会报告元数据OOM。</p>
+<p>不设置该参数也不等于无限物理内存。提交失败、其他原生分配失败或容器／操作系统终止都可能出现，具体失败形式不能一律写成<code>OutOfMemoryError: Metaspace</code>。本文没有完成这些原生内存耗尽场景的独立复测。</p>
+<h2 id="xstream-8-修复先降低生成量再安排内存预算">8. 修复：先降低生成量，再安排内存预算</h2>
+<h3 id="xstream-81-复用完成配置的实例">8.1 复用完成配置的实例</h3>
+<pre><code class="language-java">private static final XStream XSTREAM = createXStream();
+
+private static XStream createXStream() {
+    XStream x = new XStream();
+    x.alias(&quot;order&quot;, Order.class);
+    // alias、converter、注解等配置在发布实例前完成。
+    return x;
+}
+
+public Order parse(String xml) {
+    return (Order) XSTREAM.fromXML(xml);
+}
+</code></pre>
+<p>这段代码说明复用方式，不代表1.4.4已经具有现代版本的类型白名单安全框架。</p>
+<p>XStream1.4.4的类文档与<a href="https://x-stream.github.io/faq.html">官方FAQ</a>说明：创建并配置完成后，可以跨线程共享，但动态注解自动发现是例外。还应确保自定义converter、共享对象与其他扩展本身满足并发要求；不要在请求过程中修改共享实例的配置。</p>
+<p>本次1,000请求trace显示，复用后目标accessor由1,000个降为1个。这个收益来自缓存生命周期改变，不是<code>static</code>关键字本身的特殊GC能力；依赖注入容器管理的长期实例同样可以实现复用。</p>
+<h3 id="xstream-82-升级并验证provider的实际行为">8.2 升级并验证provider的实际行为</h3>
+<p>核对XStream1.4.5源码后，<code>Sun14ReflectionProvider.newInstance()</code>已经改为<code>unsafe.allocateInstance(type)</code>；本次在同一JDK与POJO下，1,000次新建XStream未观察到目标序列化accessor。</p>
+<p>这里的1.4.5是<strong>源码变更的历史边界，不是当前生产推荐版本</strong>。升级目标应结合当前受支持版本、安全公告、XML兼容性与业务回归选择，参阅<a href="https://x-stream.github.io/changes.html">官方版本历史</a>及<a href="https://x-stream.github.io/security.html">安全说明</a>。升级消除的是本文路径，不能保证所有动态代理、其他反射机制或自定义converter从此不再生成类。</p>
+<h3 id="xstream-83-参数只能影响回收时机和资源边界">8.3 参数只能影响回收时机和资源边界</h3>
+<table>
+<thead>
+<tr>
+<th>参数／措施</th>
+<th>合理用途</th>
+<th>边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MetaspaceSize</td>
+<td>调整初始元数据GC触发时机</td>
+<td>调大可减少启动期或短窗口内GC，但也可能积累更多临时元数据；不能一概规定保持默认或一律禁止调大</td>
+</tr>
+<tr>
+<td>MaxMetaspaceSize</td>
+<td>在整体内存预算内限制元空间容量</td>
+<td>上限过小可能增加GC或导致OOM；256m不是通用安全值</td>
+</tr>
+<tr>
+<td>Xmx</td>
+<td>安排堆预算</td>
+<td>不能停止本文的反射类生成；预算要考虑堆实际提交、元空间、线程栈、CodeCache、直接内存和其他原生开销</td>
+</tr>
+<tr>
+<td>GC与类卸载设置</td>
+<td>改变回收策略与停顿形态</td>
+<td>必须以目标收集器日志核验；不能只比较FGC计数</td>
+</tr>
+</tbody>
+</table>
+<p>没有适用于所有应用的“总限额60%～70%”固定公式。扩容是否改善单实例负载，也取决于总请求量是否固定、流量如何分摊，不能简单写成“加机器无效”。</p>
+<h2 id="xstream-9-诊断与回归按证据逐步缩小范围">9. 诊断与回归：按证据逐步缩小范围</h2>
+<ol>
+<li><strong>确认配置与选择分支。</strong>记录XStream版本、JDK版本、实际provider及GC参数，排除其他converter路径。</li>
+<li><strong>核对GC原因。</strong>在本文ParallelGC场景中，统计<code>Full GC (Metadata GC Threshold)</code>；CMS／G1还需结合各自周期日志。</li>
+<li><strong>确认生成类。</strong>短时开启类加载跟踪，计数目标accessor，而不是只看总类加载数。</li>
+<li><strong>观察生成与卸载是否循环。</strong>联合查看类计数、MU／MC、加载器统计，并保留采样时间。不同命令不是同一个原子快照。</li>
+<li><strong>在相同负载下验证修复。</strong>对比目标accessor数、GC原因、停顿分布、成功请求数与checksum。其他原因的GC仍可能发生。</li>
+</ol>
+<pre><code class="language-bash"># JDK8；启用类加载跟踪时应控制采集窗口和日志大小
+jstat -class &lt;pid&gt; 2000
+jstat -gc &lt;pid&gt; 2000
+jcmd &lt;pid&gt; VM.classloader_stats
+
+# 精确匹配目标类的加载记录
+awk '/^\[Loaded sun\.reflect\.GeneratedSerializationConstructorAccessor[0-9]+ / {n++}
+     END {print n+0}' trace.log
+
+# 完整GC日志中的Full GC原因分布
+# grep没有匹配时返回1，不表示Java运行失败
+awk '/Full GC \(/ {s=$0; sub(/^.*Full GC \(/,&quot;&quot;,s); sub(/\).*$/,&quot;&quot;,s); n[s]++}
+     END {for (s in n) print n[s], s}' gc.log
+</code></pre>
+<p><code>VM.classloader_stats</code>可以观察加载器实例；<code>TraceClassLoading</code>里看到<code>DelegatingClassLoader</code>这个类加载一次，不意味着只创建了一个加载器实例。额外的<code>CompositeClassLoader</code>来自XStream自身，不能把它的实例计数直接当成JDK反射生成类数。</p>
+<h2 id="xstream-附录a可复现实验">附录A：可复现实验</h2>
+<p>下载本页提供的实验与证据包。<code>lab/</code>保留LegacyProviderBench、Metrics、VersionProbe三份实验源码，<code>evidence/</code>保存历史主对照、本次复测与矩阵采样，<code>SHA256SUMS</code>记录校验值。仅使用包内固定可信XML。</p>
+<p>请使用<strong>JDK8的java、javac和Maven环境</strong>。1.4.4是历史故障复现版本，不应用于处理不可信输入。</p>
+<pre><code class="language-bash">cd lab
+# 如系统有多个JDK，应先让JAVA_HOME与PATH指向JDK8
+java -version
+mvn -q clean package
+mvn -q dependency:build-classpath -Dmdep.outputFile=classpath.txt
+CP=&quot;target/classes:$(cat classpath.txt)&quot;
+
+# 1）不同缓存生命周期；本程序会在初始化前设置测试vendor
+java -XX:+TraceClassLoading -cp &quot;$CP&quot; -Dlegacy.bench.vendor=&quot;Oracle Corporation&quot;   lab.LegacyProviderBench new 1 1000 &gt; new-trace.log 2&gt;&amp;1
+java -XX:+TraceClassLoading -cp &quot;$CP&quot; -Dlegacy.bench.vendor=&quot;Oracle Corporation&quot;   lab.LegacyProviderBench static 1 1000 &gt; static-trace.log 2&gt;&amp;1
+
+# 2）同负载GC对照。分别单独运行，适合做性能比较
+java -Xms1g -Xmx1g -XX:+UseParallelGC -XX:+PrintGCDetails   -XX:+PrintGCApplicationStoppedTime -Xloggc:new-gc.log   -cp &quot;$CP&quot; -Dlegacy.bench.vendor=&quot;Oracle Corporation&quot;   lab.LegacyProviderBench new 4 50000 &gt; new-app.log 2&gt;&amp;1
+java -Xms1g -Xmx1g -XX:+UseParallelGC -XX:+PrintGCDetails   -XX:+PrintGCApplicationStoppedTime -Xloggc:static-gc.log   -cp &quot;$CP&quot; -Dlegacy.bench.vendor=&quot;Oracle Corporation&quot;   lab.LegacyProviderBench static 4 50000 &gt; static-app.log 2&gt;&amp;1
+
+# 3）独立验证JDK8的序列化构造器生成行为
+java -XX:+TraceClassLoading -cp &quot;$CP&quot; lab.VersionProbe rf 500 &gt; rf.log 2&gt;&amp;1
+
+# 4）保留真实vendor，检查默认provider；本机Corretto为PureJava
+java -XX:+TraceClassLoading -Dlegacy.bench.keep.vendor=true   -cp &quot;$CP&quot; lab.LegacyProviderBench new 1 1000 &gt; native-vendor.log 2&gt;&amp;1
+
+# 5）历史变更对照：切换依赖并重新生成classpath；1.4.5不是生产推荐版本
+mvn -q clean package dependency:build-classpath   -Dxstream.version=1.4.5 -Dmdep.outputFile=classpath.txt
+CP=&quot;target/classes:$(cat classpath.txt)&quot;
+java -XX:+TraceClassLoading -cp &quot;$CP&quot; -Dlegacy.bench.vendor=&quot;Oracle Corporation&quot;   lab.LegacyProviderBench new 1 1000 &gt; upgrade-trace.log 2&gt;&amp;1
+</code></pre>
+<p>预期分别观察到1,000／1／500／0／0个目标accessor（native-vendor结果只适用于本文Corretto环境）。Full GC具体次数和耗时不要求复现为本文数值。<code>VersionProbe.rf</code>不进入其其他对象图模式。</p>
+<h2 id="xstream-附录b证据与修订边界">附录B：证据与修订边界</h2>
+<table>
+<thead>
+<tr>
+<th>证据</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>evidence/history/A_144_new_200k/</code></td>
+<td>20万请求的app.log与完整gc.log</td>
+</tr>
+<tr>
+<td><code>evidence/history/B_144_static_800k/</code></td>
+<td>80万请求的app.log与完整gc.log</td>
+</tr>
+<tr>
+<td><code>evidence/history/M1…M8/</code></td>
+<td>各参数场景的app.log与samples.csv；目录保留原始名称</td>
+</tr>
+<tr>
+<td><code>evidence/history/T1_hwm128/</code></td>
+<td>仅存app.log、samples.csv；没有可核验的原始gc.log</td>
+</tr>
+<tr>
+<td><code>evidence/rerun/</code></td>
+<td>本次7组复测日志及rerun-results.json中的执行命令与结果</td>
+</tr>
+<tr>
+<td><code>review.md</code></td>
+<td>原文问题清单、修正依据及未完成验证</td>
+</tr>
+</tbody>
+</table>
+<p>本次没有重新运行全部历史参数矩阵、长时间高水位实验或独立Metaspace OOM实验；矩阵作为已有日志的再核查材料。也没有将单机耗时外推为生产吞吐率。</p>
+<h2 id="xstream-附录c源码索引与阅读顺序">附录C：源码索引与阅读顺序</h2>
+<table>
+<thead>
+<tr>
+<th>源码</th>
+<th>建议阅读位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/x-stream/xstream/blob/c4c71226515fa42809a48d9ae702756e2831f379/xstream/src/java/com/thoughtworks/xstream/XStream.java#L435">XStream1.4.4：XStream.java</a></td>
+<td>构造器创建JVM辅助对象并选择provider；272行起为线程安全说明</td>
+</tr>
+<tr>
+<td><a href="https://github.com/x-stream/xstream/blob/c4c71226515fa42809a48d9ae702756e2831f379/xstream/src/java/com/thoughtworks/xstream/core/JVM.java#L241">1.4.4：JVM.java</a></td>
+<td>bestReflectionProvider与厂商判断</td>
+</tr>
+<tr>
+<td><a href="https://github.com/x-stream/xstream/blob/c4c71226515fa42809a48d9ae702756e2831f379/xstream/src/java/com/thoughtworks/xstream/converters/reflection/AbstractReflectionConverter.java#L419">1.4.4：AbstractReflectionConverter.java</a></td>
+<td>instantiateNewInstance</td>
+</tr>
+<tr>
+<td><a href="https://github.com/x-stream/xstream/blob/c4c71226515fa42809a48d9ae702756e2831f379/xstream/src/java/com/thoughtworks/xstream/converters/reflection/Sun14ReflectionProvider.java#L61">1.4.4：Sun14ReflectionProvider.java</a></td>
+<td>实例缓存及getMungedConstructor</td>
+</tr>
+<tr>
+<td><a href="https://github.com/x-stream/xstream/blob/6263a53e8b8c4d1b092a32fa1abcadb6acfce45b/xstream/src/java/com/thoughtworks/xstream/converters/reflection/Sun14ReflectionProvider.java#L62">1.4.5：Sun14ReflectionProvider.java</a></td>
+<td>newInstance改用Unsafe.allocateInstance</td>
+</tr>
+<tr>
+<td><a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/sun/reflect/ReflectionFactory.java#L353">JDK8u462：ReflectionFactory.java</a></td>
+<td>序列化构造器fast path与生成路径；与本机src.zip交叉核对</td>
+</tr>
+<tr>
+<td><a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/sun/reflect/MethodAccessorGenerator.java#L763">JDK8u462：MethodAccessorGenerator.java</a></td>
+<td>类名自增与字节码生成</td>
+</tr>
+<tr>
+<td><a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/sun/reflect/ClassDefiner.java#L54">JDK8u462：ClassDefiner.java</a></td>
+<td>每个生成类的新DelegatingClassLoader</td>
+</tr>
+<tr>
+<td><a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/memory/metaspace.cpp#L1488">JDK8u462：metaspace.cpp</a></td>
+<td>can_expand、allowed_expansion、compute_new_size及分配失败处理</td>
+</tr>
+<tr>
+<td><a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/shared/vmGCOperations.cpp">JDK8u462：vmGCOperations.cpp</a></td>
+<td>VM_CollectForMetadataAllocation的回收与重试分支</td>
+</tr>
+</tbody>
+</table>
+<p>阅读时先看“实例缓存→每次生成”的Java路径，再看“扩展受限→GC重试”的HotSpot路径。两条链衔接起来，才能解释为什么对象可以回收，系统仍不断付出类加载和GC的代价。</p>
+</section>
+<!-- JVM-XSTREAM-APPENDIX:END -->
 </article><footer>正文以MD为编辑入口 · 图已内嵌，阅读无需联网</footer></main></div><button id="up" aria-label="回到顶部">↑</button><dialog id="viewer"><div class="viewer-bar"><strong>图解详情</strong><div><button id="zoom-out">−</button><button id="zoom-reset">100%</button><button id="zoom-in">＋</button><button id="close-viewer">关闭 ✕</button></div></div><div id="viewer-body"></div></dialog><script>const $=s=>document.querySelector(s);
 $('#menu').onclick=()=>document.body.classList.toggle('nav-open');
 $('#theme').onclick=()=>{document.body.classList.toggle('dark');localStorage.setItem('jvm-reader-dark',document.body.classList.contains('dark')?'1':'0');};
@@ -5451,7 +6223,7 @@ try{if(localStorage.getItem('jvm-reader-dark')==='1')document.body.classList.add
 $('#print').onclick=()=>window.print();
 $('#up').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
 document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>document.body.classList.remove('nav-open'));
-const anchors=[...document.querySelectorAll('article a[id^="chapter-"]')];
+const anchors=[...document.querySelectorAll('article a[id^="chapter-"], article a[id="appendix-xstream"]')];
 const observer=new IntersectionObserver(entries=>{for(const e of entries)if(e.isIntersecting){document.querySelectorAll('nav a.active').forEach(a=>a.classList.remove('active'));const a=document.querySelector('nav a[href="#'+e.target.id+'"]');if(a)a.classList.add('active');}},{rootMargin:'-75px 0px -75% 0px'});
 anchors.forEach(a=>observer.observe(a));
 let scale=1,originalWidth=0,svg;

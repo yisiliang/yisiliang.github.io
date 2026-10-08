@@ -83,3 +83,16 @@ python3 tools/build_homepage.py
 ```
 
 公共页面包含一份Umami，离线包自动剥离统计，保留本地CSS、JS和数值核验脚本。原PDF通过固定版本链接引用。
+
+
+## JVM附录
+
+XStream附录的编辑入口是`docs/jvm/analysis-xstream-1.4.4-fgc.md`，检查记录为`docs/jvm/xstream-review.md`。原有76节正文保持独立；附录生成器只替换标记区间，并维护附录入口。
+
+```sh
+python3 -m pip install -r tools/requirements-jvm-appendix.txt
+python3 tools/build_jvm_appendix.py
+python3 tools/build_homepage.py
+```
+
+`docs/jvm/xstream-lab.zip`保存最小JDK8实验工程、历史主对照、矩阵采样、本次复测与SHA256SUMS。修改实验结论时同步更新证据包与检查记录；不要把采样最大值当作真实峰值，也不要把未重跑场景写成新实测。
