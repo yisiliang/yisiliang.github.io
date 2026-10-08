@@ -11,9 +11,11 @@
 |数据库|[MySQL8.4.0](https://yisiliang.github.io/mysql/)|
 |缓存与消息|[Redis](https://yisiliang.github.io/redis/) · [RocketMQ](https://yisiliang.github.io/rocketmq/)|
 |网络与分布式系统|[NGINX1.28.0](https://yisiliang.github.io/nginx/) · [CAP与BASE](https://yisiliang.github.io/distributed/) · [Nacos3.2.4 / 2.5.4对照](https://yisiliang.github.io/nacos/)|
-|AI与大模型基础|尚未发布；首篇计划为Transformer：《Attention Is All You Need》通俗解读|
+|AI与大模型基础|[Transformer：《Attention Is All You Need》通俗解读](https://yisiliang.github.io/transformer/)|
 
 CAP与BASE文章从网络分区推导理论边界，并通过订单与积分案例解释可靠消息、幂等、重试、补偿与对账，提供离线阅读包，并附Gilbert与Lynch原论文精读：定理1的执行构造、推论1.1、定理2及Delayed-t恢复约束，均标注PDF页码。
+
+Transformer文章固定arXiv:1706.03762v5，通过13节解读、3张图解与交互计算器串起Q/K/V、多头、位置编码、Encoder—Decoder和训练推理，附可重新计算的教学矩阵与离线包。
 
 源码教程固定上游标签与完整提交，提供真实节选、机制图、正文推导、验证记录和离线包。实验记录区分已执行与仅提供步骤/预期；学习基线不等于最新生产版本。
 

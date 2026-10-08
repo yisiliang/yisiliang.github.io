@@ -70,4 +70,16 @@ python3 docs/nginx/verify.py
 python3 docs/nacos/verify.py
 ```
 
-脚本读取首页目录，保留正文、源码与SVG原文，通过页头和目录布局转换统一8本手册，并同步已有离线ZIP及本地离线中间页。重复执行不会重复添加页头、样式或控件。搜索、复制与图解放大沿用各手册实现；默认深色，明暗偏好在8本手册间共享，手机目录通过“展开目录”显示。SVG保留原有颜色与图例，打印恢复纸面排版。CAP与BASE文章及应用支持、隐私页面分别维护。
+脚本读取首页目录，保留正文、源码与SVG原文，通过页头和目录布局转换统一8本手册，并同步已有离线ZIP及本地离线中间页。重复执行不会重复添加页头、样式或控件。搜索、复制与图解放大沿用各手册实现；默认深色，明暗偏好在8本手册间共享，手机目录通过“展开目录”显示。SVG保留原有颜色与图例，打印恢复纸面排版。CAP与BASE、Transformer论文解读及应用支持、隐私页面分别维护。目录记录中的`kind: paper`表示独立论文页，共享阅读器脚本跳过这类页面。
+
+## Transformer论文解读
+
+正文、样式与注意力计算器位于`docs/transformer/`，原文基线与验证记录见`VERIFICATION.md`。更新后运行：
+
+```sh
+python3 docs/transformer/build_offline.py
+python3 docs/transformer/verify.py
+python3 tools/build_homepage.py
+```
+
+公共页面包含一份Umami，离线包自动剥离统计，保留本地CSS、JS和数值核验脚本。原PDF通过固定版本链接引用。

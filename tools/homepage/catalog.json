@@ -115,9 +115,15 @@
     "title": "AI与大模型基础",
     "en": "AI & MODEL FOUNDATIONS",
     "description": "从经典论文出发，理解模型如何表示、学习与生成。",
-    "books": [],
-    "future": [
-      "Transformer：Attention Is All You Need"
-    ]
+    "books": [
+      {
+        "name": "Transformer",
+        "version": "Attention Is All You Need · 2017",
+        "path": "transformer",
+        "kind": "paper",
+        "detail": "13节解读 · 3张图解 · 交互手算"
+      }
+    ],
+    "future": []
   }
 ]

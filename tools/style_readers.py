@@ -11,7 +11,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 CSS = (ROOT / 'tools/reader/style.css').read_text()
 JS = (ROOT / 'tools/reader/controls.js').read_text()
-BOOKS = {b['path']: b for c in json.loads((ROOT/'tools/homepage/catalog.json').read_text()) for b in c['books'] if b['path'] != 'distributed'}
+BOOKS = {b['path']: b for c in json.loads((ROOT/'tools/homepage/catalog.json').read_text()) for b in c['books'] if b['path'] != 'distributed' and b.get('kind', 'source') == 'source'}
 
 class Elements(HTMLParser):
     def __init__(self, source):
