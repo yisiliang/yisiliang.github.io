@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="OpenJDK8u源码速读：40章、124张图、180段真实源码。按类归章，完整流程与字段级推演。"><title>JDK源码速读 · OpenJDK8u图解手册</title><style>:root{--bg:#f6f8fc;--paper:#fff;--ink:#20324d;--muted:#62718a;--line:#dde5f0;--blue:#2457a7;--code:#f0f4fa;--quote:#edf4ff;--shadow:0 12px 35px #223f6810;color-scheme:light}
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="OpenJDK8u源码速读：40章、1篇附录、130张图、180段真实源码。按类归章，完整流程与字段级推演。"><title>JDK源码速读 · OpenJDK8u图解手册</title><style>:root{--bg:#f6f8fc;--paper:#fff;--ink:#20324d;--muted:#62718a;--line:#dde5f0;--blue:#2457a7;--code:#f0f4fa;--quote:#edf4ff;--shadow:0 12px 35px #223f6810;color-scheme:light}
 *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:85px}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:16px;line-height:1.85}
 button,input{font:inherit}button{cursor:pointer;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:5px 12px;color:var(--ink)}button:hover{border-color:var(--blue);color:var(--blue)}a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
 .topbar{height:68px;position:fixed;inset:0 0 auto;z-index:20;display:flex;align-items:center;gap:16px;padding:0 28px;background:var(--paper);border-bottom:1px solid var(--line)}.brand{font-weight:750;color:var(--ink);font-size:18px;white-space:nowrap}.brand span{font-size:12px;color:var(--muted);margin-left:12px;font-weight:500}.search{display:flex;align-items:center;margin-left:auto;gap:6px}.search input{width:250px;min-width:80px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 12px;color:var(--ink)}#search-status{font-size:12px;color:var(--muted)}#menu{display:none}
@@ -129,7 +129,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 .reader-page aside nav{border:0;background:none}
 .reader-page nav a.hide,.reader-page nav a.hidden{display:none}
 .reader-page h1,.reader-page h2,.reader-page h3,.reader-page h4{overflow-wrap:anywhere}
-</style></head><body class="reader-page" data-reader="jdk-source"><a class="reader-skip" href="#reader-content">跳至正文</a><header class="reader-header"><div class="reader-wrap"><a class="home" href="../">← 源码学习库</a><div class="hero"><div class="eyebrow">READING THE JDK SOURCE</div><h1>JDK</h1><p class="lead">沿着代码，读懂机制</p><p>按类归章 · 逐段解释 · 状态推演 · 纯阅读</p><div class="hero-meta"><span>jdk8u462-b08</span><span>124张内嵌SVG</span><span>180段带行号源码</span><span>纯阅读 / 离线</span></div><a class="start" href="#chapter-0">从阅读路线开始 →</a><div class="links"><a href="./jdk-source-offline.zip" download>下载离线阅读包 ↓</a><a href="./handbook.md">Markdown手册</a></div></div></div></header><div class="reader-layout reader-wrap"><aside><div class="reader-tools"><button id="menu" aria-label="打开章节目录">☰</button><button id="theme">浅色 / 深色</button><button id="print">打印</button></div><div class="search"><input id="search" type="search" placeholder="查找类名、方法、机制…" aria-label="查找全文"><span id="search-status"></span><button id="next" title="下一个结果">↓</button></div><div class="nav-head">源码阅读目录<span>40章 · 124张图 · 180段源码</span></div><div class="jump"><a href="#chapter-0">阅读路线</a><a href="#chapter-35">协议展开</a><a href="#chapter-38">追问检查</a></div><nav><a href="#chapter-0">0. 阅读路线：先读主干，再读并发协议</a><details class="chapter-nav"><summary><a href="#chapter-1">1. String：表示、不可变、复制与相等</a></summary><div class="nav-sub"><a href="#chapter-1-section-223">1.1 String：不可变对象到底保护了什么</a><a href="#chapter-1-section-311">1.2 equals的两条快速路径与内容路径</a></div></details><details class="chapter-nav"><summary><a href="#chapter-2">2. StringBuilder：有效长度、容量增长与结果复制</a></summary><div class="nav-sub"><a href="#chapter-2-section-356">2.1 StringBuilder：可变数组如何减少复制</a><a href="#chapter-2-section-444">2.2 Builder变成String时发生了什么</a></div></details><details class="chapter-nav"><summary><a href="#chapter-3">3. Integer：包装、缓存、身份与数值</a></summary><div class="nav-sub"><a href="#chapter-3-section-489">3.1 Integer：缓存、装箱与身份比较</a><a href="#chapter-3-section-577">3.2 三个相等关系与null拆箱</a></div></details><details class="chapter-nav"><summary><a href="#chapter-4">4. ArrayList：增删改查、扩容、迭代器与subList</a></summary><div class="nav-sub"><a href="#chapter-4-section-662">4.1 数组与增删容量维护</a><a href="#chapter-4-section-750">4.2 迭代器状态与subList共享视图</a><a href="#chapter-4-section-838">4.3 把size、容量、modCount放在同一张表</a></div></details><details class="chapter-nav"><summary><a href="#chapter-5">5. LinkedList：双向链、两端API与定位成本</a></summary><div class="nav-sub"><a href="#chapter-5-section-973">5.1 LinkedList：有了节点为什么索引访问仍慢</a><a href="#chapter-5-section-1061">5.2 两端API与索引API的成本来源</a></div></details><details class="chapter-nav"><summary><a href="#chapter-6">6. HashMap：构造、读写、扩容、树化与删除全流程</a></summary><div class="nav-sub"><a href="#chapter-6-section-1156">6.1 threshold的两种身份与初始化全过程</a><a href="#chapter-6-section-1269">6.2 数据组织、散列定位与put路径</a><a href="#chapter-6-section-1357">6.3 putVal逐分支解释，尤其看e和p</a><a href="#chapter-6-section-1486">6.4 get、containsKey与null的歧义</a><a href="#chapter-6-section-1511">6.5 容量增长与低高位拆分</a><a href="#chapter-6-section-1599">6.6 扩容的位运算，按二进制亲手推</a><a href="#chapter-6-section-1706">6.7 树化、树桶结构与退化路径</a><a href="#chapter-6-section-1794">6.8 把树化触发的计数器数明白</a><a href="#chapter-6-section-1936">6.9 树桶如何比较，为什么还保留next</a><a href="#chapter-6-section-1973">6.10 remove如何断链，退化为什么不只看6</a><a href="#chapter-6-section-2010">6.11 可变key、modCount与容量估算</a><a href="#chapter-6-section-2040">6.12 完整生命周期复述</a></div></details><details class="chapter-nav"><summary><a href="#chapter-7">7. HashSet：复用HashMap完成去重</a></summary><div class="nav-sub"><a href="#chapter-7-section-2073">7.1 HashSet：用键实现去重</a><a href="#chapter-7-section-2126">7.2 返回值为何依赖PRESENT哨兵</a></div></details><details class="chapter-nav"><summary><a href="#chapter-8">8. LinkedHashMap：散列定位、顺序维护与LRU钩子</a></summary><div class="nav-sub"><a href="#chapter-8-section-2171">8.1 LinkedHashMap：桶索引与顺序链同时维护</a><a href="#chapter-8-section-2239">8.2 一份Entry同时属于两个索引结构</a></div></details><details class="chapter-nav"><summary><a href="#chapter-9">9. TreeMap：键比较与红黑树平衡</a></summary><div class="nav-sub"><a href="#chapter-9-section-2284">9.1 TreeMap：比较关系与红黑树</a><a href="#chapter-9-section-2337">9.2 compare为0定义键等价，红黑树控制高度</a></div></details><details class="chapter-nav"><summary><a href="#chapter-10">10. PriorityQueue：数组堆、上浮与下沉</a></summary><div class="nav-sub"><a href="#chapter-10-section-2382">10.1 PriorityQueue：数组堆只维护局部优先关系</a><a href="#chapter-10-section-2450">10.2 上浮与下沉的数组下标推演</a></div></details><details class="chapter-nav"><summary><a href="#chapter-11">11. ConcurrentHashMap：读写、协作扩容、计数与计算</a></summary><div class="nav-sub"><a href="#chapter-11-section-2559">11.1 初始化竞争、负hash节点和sizeCtl</a><a href="#chapter-11-section-2678">11.2 普通读写与桶头协调</a><a href="#chapter-11-section-2766">11.3 锁桶前后的两个世界</a><a href="#chapter-11-section-2791">11.4 ForwardingNode与协作迁移</a><a href="#chapter-11-section-2879">11.5 迁移完成不是只改table引用</a><a href="#chapter-11-section-2903">11.6 分散计数与compute边界</a><a href="#chapter-11-section-2991">11.7 computeIfAbsent与缓存值的生命周期</a><a href="#topic-11-8">11.8 初始化权的CAS与table发布：不用全局锁初始化所有写入</a><a href="#topic-11-9">11.9 TreeBin的读协调：get不锁桶头，不等于没有任何同步</a><a href="#topic-11-10">11.10 线程安全覆盖到哪里：组合操作、值对象与GC引用链</a></div></details><details class="chapter-nav"><summary><a href="#chapter-12">12. CopyOnWriteArrayList：写时复制、发布与快照</a></summary><div class="nav-sub"><a href="#chapter-12-section-3024">12.1 CopyOnWriteArrayList：读者为什么不怕写者改数组</a><a href="#chapter-12-section-3112">12.2 安全发布与快照保留成本</a></div></details><details class="chapter-nav"><summary><a href="#chapter-13">13. ConcurrentLinkedQueue：CAS交接、逻辑删除与指针修正</a></summary><div class="nav-sub"><a href="#chapter-13-section-3160">13.1 ConcurrentLinkedQueue：无锁队列如何逻辑删除</a><a href="#chapter-13-section-3248">13.2 为什么逻辑删除后仍要导航与帮忙</a></div></details><details class="chapter-nav"><summary><a href="#chapter-14">14. ThreadLocal：线程归属、开放寻址、初始化与清理</a></summary><div class="nav-sub"><a href="#chapter-14-section-3295">14.1 线程归属、弱键强值与初始化</a><a href="#chapter-14-section-3383">14.2 缺项初始化与set(null)的字段级推演</a><a href="#chapter-14-section-3480">14.3 开放寻址、陈旧项与探测链修复</a><a href="#chapter-14-section-3568">14.4 清理是探测链维护，不是一个GC魔法</a><a href="#topic-14-5">14.5 set不是简单赋值：碰撞、陈旧项与维护阈值</a><a href="#topic-14-6">14.6 replaceStaleEntry为什么先向后检查再交换位置</a><a href="#topic-14-7">14.7 rehash先清理再判断扩容，扩容也会过滤stale</a><a href="#topic-14-8">14.8 线程池中的两种保留链与正确清理位置</a></div></details><details class="chapter-nav"><summary><a href="#chapter-15">15. AtomicInteger：可见性、CAS与原子更新边界</a></summary><div class="nav-sub"><a href="#chapter-15-section-3614">15.1 AtomicInteger与Unsafe：原子更新不是普通加一</a><a href="#chapter-15-section-3702">15.2 CAS重试中的函数副作用</a></div></details><details class="chapter-nav"><summary><a href="#chapter-16">16. LongAdder：分散计数、结构维护与聚合语义</a></summary><div class="nav-sub"><a href="#chapter-16-section-3747">16.1 LongAdder：分散热点为什么换来了非快照sum</a><a href="#chapter-16-section-3835">16.2 Cell结构维护与读取成本</a></div></details><details class="chapter-nav"><summary><a href="#chapter-17">17. LockSupport：permit、阻塞与上层条件协议</a></summary><div class="nav-sub"><a href="#chapter-17-section-3868">17.1 LockSupport：permit怎样避免先唤醒后睡眠的问题</a><a href="#chapter-17-section-3956">17.2 permit与业务条件各自负责什么</a></div></details><details class="chapter-nav"><summary><a href="#chapter-18">18. AQS：独占、共享、条件队列与取消协议</a></summary><div class="nav-sub"><a href="#chapter-18-section-4009">18.1 独占获取与等待队列</a><a href="#chapter-18-section-4097">18.2 入队CAS与SIGNAL为什么是两个协议</a><a href="#chapter-18-section-4216">18.3 共享传播及Latch、Semaphore状态语义</a><a href="#chapter-18-section-4304">18.4 共享获取的返回值怎样驱动传播</a><a href="#chapter-18-section-4328">18.5 Condition条件队列与重获锁</a><a href="#chapter-18-section-4416">18.6 Condition的重入次数与中断阶段</a></div></details><details class="chapter-nav"><summary><a href="#chapter-19">19. ReentrantLock：重入、公平、获取方式与释放</a></summary><div class="nav-sub"><a href="#chapter-19-section-4465">19.1 ReentrantLock：可重入、公平与释放</a><a href="#chapter-19-section-4553">19.2 四种获取方式不是同一种等待语义</a></div></details><details class="chapter-nav"><summary><a href="#chapter-20">20. ReentrantReadWriteLock：读写计数、重入与降级</a></summary><div class="nav-sub"><a href="#chapter-20-section-4671">20.1 ReentrantReadWriteLock：读写状态与锁降级</a><a href="#chapter-20-section-4759">20.2 读锁也要记每线程重入</a></div></details><details class="chapter-nav"><summary><a href="#chapter-21">21. ArrayBlockingQueue：循环数组与阻塞条件</a></summary><div class="nav-sub"><a href="#chapter-21-section-4792">21.1 ArrayBlockingQueue：循环数组与两条Condition</a><a href="#chapter-21-section-4860">21.2 循环数组的索引与通知边界</a></div></details><details class="chapter-nav"><summary><a href="#chapter-22">22. LinkedBlockingQueue：链表双锁与跨侧通知</a></summary><div class="nav-sub"><a href="#chapter-22-section-4917">22.1 LinkedBlockingQueue：头尾双锁与原子计数</a><a href="#chapter-22-section-4970">22.2 双锁、原子count和跨侧通知</a></div></details><details class="chapter-nav"><summary><a href="#chapter-23">23. SynchronousQueue：等待节点的直接配对</a></summary><div class="nav-sub"><a href="#chapter-23-section-5078">23.1 SynchronousQueue：没有容量的直接交接</a><a href="#chapter-23-section-5146">23.2 同一零容量队列的三种提交结果</a></div></details><details class="chapter-nav"><summary><a href="#chapter-24">24. DelayQueue：到期顺序与leader等待</a></summary><div class="nav-sub"><a href="#chapter-24-section-5229">24.1 DelayQueue：到期堆与leader等待</a><a href="#chapter-24-section-5282">24.2 leader只负责精确等待最近到期</a></div></details><details class="chapter-nav"><summary><a href="#chapter-25">25. ThreadPoolExecutor：提交、Worker、执行、拒绝与关闭</a></summary><div class="nav-sub"><a href="#chapter-25-section-5357">25.1 execute三阶段与入队复查</a><a href="#chapter-25-section-5445">25.2 提交与关闭交错，为什么offer后要再读ctl</a><a href="#chapter-25-section-5458">25.3 ctl、Worker与getTask退出</a><a href="#chapter-25-section-5546">25.4 addWorker不是直接new Thread就算成功</a><a href="#chapter-25-section-5642">25.5 runWorker中的异常与钩子顺序</a><a href="#chapter-25-section-5666">25.6 关闭状态、拒绝策略与终止</a><a href="#chapter-25-section-5754">25.7 四种拒绝策略与Future完成是两件事</a><a href="#chapter-25-section-5839">25.8 从吞吐、延迟与容量理解配置</a></div></details><details class="chapter-nav"><summary><a href="#chapter-26">26. FutureTask：执行权、完成状态、等待与取消</a></summary><div class="nav-sub"><a href="#chapter-26-section-5872">26.1 FutureTask：状态机、结果与等待线程</a><a href="#chapter-26-section-5960">26.2 执行权、完成权与等待链分别协调</a></div></details><details class="chapter-nav"><summary><a href="#chapter-27">27. CompletableFuture：依赖图、执行器与异常传播</a></summary><div class="nav-sub"><a href="#chapter-27-section-6023">27.1 CompletableFuture：结果依赖图与执行线程</a><a href="#chapter-27-section-6111">27.2 thenApply与thenCompose的结果类型</a><a href="#chapter-27-section-6229">27.3 默认执行器与取消</a></div></details><details class="chapter-nav"><summary><a href="#chapter-28">28. ScheduledThreadPoolExecutor：时间堆、周期与异常</a></summary><div class="nav-sub"><a href="#chapter-28-section-6286">28.1 ScheduledThreadPoolExecutor：固定频率、固定延迟与异常</a><a href="#chapter-28-section-6374">28.2 同一周期任务与不同任务的并发</a></div></details><details class="chapter-nav"><summary><a href="#chapter-29">29. Thread：启动、执行、中断与native边界</a></summary><div class="nav-sub"><a href="#chapter-29-section-6422">29.1 Thread：start、run、interrupt的边界</a><a href="#chapter-29-section-6510">29.2 中断标记不等于任务控制完成</a></div></details><details class="chapter-nav"><summary><a href="#chapter-30">30. NIO：Buffer索引、共享视图与直接内存</a></summary><div class="nav-sub"><a href="#chapter-30-section-6577">30.1 Buffer索引状态与区间推演</a><a href="#chapter-30-section-6665">30.2 compact搬数据，flip和clear只改索引</a><a href="#chapter-30-section-6692">30.3 模板生成、直接内存与清理</a><a href="#chapter-30-section-6780">30.4 直接内存失败重试与统计口径</a></div></details><details class="chapter-nav"><summary><a href="#chapter-31">31. Stream：惰性管道、Sink链与并行边界</a></summary><div class="nav-sub"><a href="#chapter-31-section-6828">31.1 Stream：惰性管道为什么终结时才遍历</a><a href="#chapter-31-section-6916">31.2 Sink逆向包装，元素正向流动</a></div></details><details class="chapter-nav"><summary><a href="#chapter-32">32. ForkJoinPool：双端队列、工作窃取与阻塞</a></summary><div class="nav-sub"><a href="#chapter-32-section-6962">32.1 ForkJoinPool：工作窃取与普通线程池的区别</a><a href="#chapter-32-section-7050">32.2 等待join与阻塞外部资源不同</a></div></details><details class="chapter-nav"><summary><a href="#chapter-33">33. Proxy：类型生成、缓存与handler调用</a></summary><div class="nav-sub"><a href="#chapter-33-section-7086">33.1 Proxy：接口代理类型与调用转发</a><a href="#chapter-33-section-7139">33.2 生成类型、缓存类型、调用转发三个阶段</a></div></details><details class="chapter-nav"><summary><a href="#chapter-34">34. ClassLoader：加载路线、定义与类型身份</a></summary><div class="nav-sub"><a href="#chapter-34-section-7187">34.1 ClassLoader：父委派、定义与类型身份</a><a href="#chapter-34-section-7255">34.2 委派、定义、解析、初始化分别读</a></div></details><a href="#chapter-35">35. 把关键协议展开：分支、时序与状态</a><a href="#chapter-36">36. 横向对照：把相似名字拆开</a><a href="#chapter-37">37. 五个只读案例：把源码连成系统行为</a><a href="#chapter-38">38. 高频追问与阅读检查表</a><a href="#chapter-39">39. 源码索引、版本与版权</a></nav></aside><main id="reader-content"><article><p><a id="handbook-title"></a></p>
+</style></head><body class="reader-page" data-reader="jdk-source"><a class="reader-skip" href="#reader-content">跳至正文</a><header class="reader-header"><div class="reader-wrap"><a class="home" href="../">← 源码学习库</a><div class="hero"><div class="eyebrow">READING THE JDK SOURCE</div><h1>JDK</h1><p class="lead">沿着代码，读懂机制</p><p>按类归章 · 逐段解释 · 状态推演 · 纯阅读</p><div class="hero-meta"><span>jdk8u462-b08</span><span>130张内嵌SVG</span><span>180段带行号源码</span><span>纯阅读 / 离线</span></div><a class="start" href="#chapter-0">从阅读路线开始 →</a><div class="links"><a href="./jdk-source-offline.zip" download>下载离线阅读包 ↓</a><a href="./handbook.md">Markdown手册</a></div></div></div></header><div class="reader-layout reader-wrap"><aside><div class="reader-tools"><button id="menu" aria-label="打开章节目录">☰</button><button id="theme">浅色 / 深色</button><button id="print">打印</button></div><div class="search"><input id="search" type="search" placeholder="查找类名、方法、机制…" aria-label="查找全文"><span id="search-status"></span><button id="next" title="下一个结果">↓</button></div><div class="nav-head">源码阅读目录<span>40章 · 1篇附录 · 130张图 · 180段源码</span></div><div class="jump"><a href="#chapter-0">阅读路线</a><a href="#chapter-35">协议展开</a><a href="#chapter-38">追问检查</a><a href="#appendix-threadlocal-datasource">附录</a></div><nav><a href="#chapter-0">0. 阅读路线：先读主干，再读并发协议</a><details class="chapter-nav"><summary><a href="#chapter-1">1. String：表示、不可变、复制与相等</a></summary><div class="nav-sub"><a href="#chapter-1-section-223">1.1 String：不可变对象到底保护了什么</a><a href="#chapter-1-section-311">1.2 equals的两条快速路径与内容路径</a></div></details><details class="chapter-nav"><summary><a href="#chapter-2">2. StringBuilder：有效长度、容量增长与结果复制</a></summary><div class="nav-sub"><a href="#chapter-2-section-356">2.1 StringBuilder：可变数组如何减少复制</a><a href="#chapter-2-section-444">2.2 Builder变成String时发生了什么</a></div></details><details class="chapter-nav"><summary><a href="#chapter-3">3. Integer：包装、缓存、身份与数值</a></summary><div class="nav-sub"><a href="#chapter-3-section-489">3.1 Integer：缓存、装箱与身份比较</a><a href="#chapter-3-section-577">3.2 三个相等关系与null拆箱</a></div></details><details class="chapter-nav"><summary><a href="#chapter-4">4. ArrayList：增删改查、扩容、迭代器与subList</a></summary><div class="nav-sub"><a href="#chapter-4-section-662">4.1 数组与增删容量维护</a><a href="#chapter-4-section-750">4.2 迭代器状态与subList共享视图</a><a href="#chapter-4-section-838">4.3 把size、容量、modCount放在同一张表</a></div></details><details class="chapter-nav"><summary><a href="#chapter-5">5. LinkedList：双向链、两端API与定位成本</a></summary><div class="nav-sub"><a href="#chapter-5-section-973">5.1 LinkedList：有了节点为什么索引访问仍慢</a><a href="#chapter-5-section-1061">5.2 两端API与索引API的成本来源</a></div></details><details class="chapter-nav"><summary><a href="#chapter-6">6. HashMap：构造、读写、扩容、树化与删除全流程</a></summary><div class="nav-sub"><a href="#chapter-6-section-1156">6.1 threshold的两种身份与初始化全过程</a><a href="#chapter-6-section-1269">6.2 数据组织、散列定位与put路径</a><a href="#chapter-6-section-1357">6.3 putVal逐分支解释，尤其看e和p</a><a href="#chapter-6-section-1486">6.4 get、containsKey与null的歧义</a><a href="#chapter-6-section-1511">6.5 容量增长与低高位拆分</a><a href="#chapter-6-section-1599">6.6 扩容的位运算，按二进制亲手推</a><a href="#chapter-6-section-1706">6.7 树化、树桶结构与退化路径</a><a href="#chapter-6-section-1794">6.8 把树化触发的计数器数明白</a><a href="#chapter-6-section-1936">6.9 树桶如何比较，为什么还保留next</a><a href="#chapter-6-section-1973">6.10 remove如何断链，退化为什么不只看6</a><a href="#chapter-6-section-2010">6.11 可变key、modCount与容量估算</a><a href="#chapter-6-section-2040">6.12 完整生命周期复述</a></div></details><details class="chapter-nav"><summary><a href="#chapter-7">7. HashSet：复用HashMap完成去重</a></summary><div class="nav-sub"><a href="#chapter-7-section-2073">7.1 HashSet：用键实现去重</a><a href="#chapter-7-section-2126">7.2 返回值为何依赖PRESENT哨兵</a></div></details><details class="chapter-nav"><summary><a href="#chapter-8">8. LinkedHashMap：散列定位、顺序维护与LRU钩子</a></summary><div class="nav-sub"><a href="#chapter-8-section-2171">8.1 LinkedHashMap：桶索引与顺序链同时维护</a><a href="#chapter-8-section-2239">8.2 一份Entry同时属于两个索引结构</a></div></details><details class="chapter-nav"><summary><a href="#chapter-9">9. TreeMap：键比较与红黑树平衡</a></summary><div class="nav-sub"><a href="#chapter-9-section-2284">9.1 TreeMap：比较关系与红黑树</a><a href="#chapter-9-section-2337">9.2 compare为0定义键等价，红黑树控制高度</a></div></details><details class="chapter-nav"><summary><a href="#chapter-10">10. PriorityQueue：数组堆、上浮与下沉</a></summary><div class="nav-sub"><a href="#chapter-10-section-2382">10.1 PriorityQueue：数组堆只维护局部优先关系</a><a href="#chapter-10-section-2450">10.2 上浮与下沉的数组下标推演</a></div></details><details class="chapter-nav"><summary><a href="#chapter-11">11. ConcurrentHashMap：读写、协作扩容、计数与计算</a></summary><div class="nav-sub"><a href="#chapter-11-section-2559">11.1 初始化竞争、负hash节点和sizeCtl</a><a href="#chapter-11-section-2678">11.2 普通读写与桶头协调</a><a href="#chapter-11-section-2766">11.3 锁桶前后的两个世界</a><a href="#chapter-11-section-2791">11.4 ForwardingNode与协作迁移</a><a href="#chapter-11-section-2879">11.5 迁移完成不是只改table引用</a><a href="#chapter-11-section-2903">11.6 分散计数与compute边界</a><a href="#chapter-11-section-2991">11.7 computeIfAbsent与缓存值的生命周期</a><a href="#topic-11-8">11.8 初始化权的CAS与table发布：不用全局锁初始化所有写入</a><a href="#topic-11-9">11.9 TreeBin的读协调：get不锁桶头，不等于没有任何同步</a><a href="#topic-11-10">11.10 线程安全覆盖到哪里：组合操作、值对象与GC引用链</a></div></details><details class="chapter-nav"><summary><a href="#chapter-12">12. CopyOnWriteArrayList：写时复制、发布与快照</a></summary><div class="nav-sub"><a href="#chapter-12-section-3024">12.1 CopyOnWriteArrayList：读者为什么不怕写者改数组</a><a href="#chapter-12-section-3112">12.2 安全发布与快照保留成本</a></div></details><details class="chapter-nav"><summary><a href="#chapter-13">13. ConcurrentLinkedQueue：CAS交接、逻辑删除与指针修正</a></summary><div class="nav-sub"><a href="#chapter-13-section-3160">13.1 ConcurrentLinkedQueue：无锁队列如何逻辑删除</a><a href="#chapter-13-section-3248">13.2 为什么逻辑删除后仍要导航与帮忙</a></div></details><details class="chapter-nav"><summary><a href="#chapter-14">14. ThreadLocal：线程归属、开放寻址、初始化与清理</a></summary><div class="nav-sub"><a href="#chapter-14-section-3295">14.1 线程归属、弱键强值与初始化</a><a href="#chapter-14-section-3383">14.2 缺项初始化与set(null)的字段级推演</a><a href="#chapter-14-section-3480">14.3 开放寻址、陈旧项与探测链修复</a><a href="#chapter-14-section-3568">14.4 清理是探测链维护，不是一个GC魔法</a><a href="#topic-14-5">14.5 set不是简单赋值：碰撞、陈旧项与维护阈值</a><a href="#topic-14-6">14.6 replaceStaleEntry为什么先向后检查再交换位置</a><a href="#topic-14-7">14.7 rehash先清理再判断扩容，扩容也会过滤stale</a><a href="#topic-14-8">14.8 线程池中的两种保留链与正确清理位置</a></div></details><details class="chapter-nav"><summary><a href="#chapter-15">15. AtomicInteger：可见性、CAS与原子更新边界</a></summary><div class="nav-sub"><a href="#chapter-15-section-3614">15.1 AtomicInteger与Unsafe：原子更新不是普通加一</a><a href="#chapter-15-section-3702">15.2 CAS重试中的函数副作用</a></div></details><details class="chapter-nav"><summary><a href="#chapter-16">16. LongAdder：分散计数、结构维护与聚合语义</a></summary><div class="nav-sub"><a href="#chapter-16-section-3747">16.1 LongAdder：分散热点为什么换来了非快照sum</a><a href="#chapter-16-section-3835">16.2 Cell结构维护与读取成本</a></div></details><details class="chapter-nav"><summary><a href="#chapter-17">17. LockSupport：permit、阻塞与上层条件协议</a></summary><div class="nav-sub"><a href="#chapter-17-section-3868">17.1 LockSupport：permit怎样避免先唤醒后睡眠的问题</a><a href="#chapter-17-section-3956">17.2 permit与业务条件各自负责什么</a></div></details><details class="chapter-nav"><summary><a href="#chapter-18">18. AQS：独占、共享、条件队列与取消协议</a></summary><div class="nav-sub"><a href="#chapter-18-section-4009">18.1 独占获取与等待队列</a><a href="#chapter-18-section-4097">18.2 入队CAS与SIGNAL为什么是两个协议</a><a href="#chapter-18-section-4216">18.3 共享传播及Latch、Semaphore状态语义</a><a href="#chapter-18-section-4304">18.4 共享获取的返回值怎样驱动传播</a><a href="#chapter-18-section-4328">18.5 Condition条件队列与重获锁</a><a href="#chapter-18-section-4416">18.6 Condition的重入次数与中断阶段</a></div></details><details class="chapter-nav"><summary><a href="#chapter-19">19. ReentrantLock：重入、公平、获取方式与释放</a></summary><div class="nav-sub"><a href="#chapter-19-section-4465">19.1 ReentrantLock：可重入、公平与释放</a><a href="#chapter-19-section-4553">19.2 四种获取方式不是同一种等待语义</a></div></details><details class="chapter-nav"><summary><a href="#chapter-20">20. ReentrantReadWriteLock：读写计数、重入与降级</a></summary><div class="nav-sub"><a href="#chapter-20-section-4671">20.1 ReentrantReadWriteLock：读写状态与锁降级</a><a href="#chapter-20-section-4759">20.2 读锁也要记每线程重入</a></div></details><details class="chapter-nav"><summary><a href="#chapter-21">21. ArrayBlockingQueue：循环数组与阻塞条件</a></summary><div class="nav-sub"><a href="#chapter-21-section-4792">21.1 ArrayBlockingQueue：循环数组与两条Condition</a><a href="#chapter-21-section-4860">21.2 循环数组的索引与通知边界</a></div></details><details class="chapter-nav"><summary><a href="#chapter-22">22. LinkedBlockingQueue：链表双锁与跨侧通知</a></summary><div class="nav-sub"><a href="#chapter-22-section-4917">22.1 LinkedBlockingQueue：头尾双锁与原子计数</a><a href="#chapter-22-section-4970">22.2 双锁、原子count和跨侧通知</a></div></details><details class="chapter-nav"><summary><a href="#chapter-23">23. SynchronousQueue：等待节点的直接配对</a></summary><div class="nav-sub"><a href="#chapter-23-section-5078">23.1 SynchronousQueue：没有容量的直接交接</a><a href="#chapter-23-section-5146">23.2 同一零容量队列的三种提交结果</a></div></details><details class="chapter-nav"><summary><a href="#chapter-24">24. DelayQueue：到期顺序与leader等待</a></summary><div class="nav-sub"><a href="#chapter-24-section-5229">24.1 DelayQueue：到期堆与leader等待</a><a href="#chapter-24-section-5282">24.2 leader只负责精确等待最近到期</a></div></details><details class="chapter-nav"><summary><a href="#chapter-25">25. ThreadPoolExecutor：提交、Worker、执行、拒绝与关闭</a></summary><div class="nav-sub"><a href="#chapter-25-section-5357">25.1 execute三阶段与入队复查</a><a href="#chapter-25-section-5445">25.2 提交与关闭交错，为什么offer后要再读ctl</a><a href="#chapter-25-section-5458">25.3 ctl、Worker与getTask退出</a><a href="#chapter-25-section-5546">25.4 addWorker不是直接new Thread就算成功</a><a href="#chapter-25-section-5642">25.5 runWorker中的异常与钩子顺序</a><a href="#chapter-25-section-5666">25.6 关闭状态、拒绝策略与终止</a><a href="#chapter-25-section-5754">25.7 四种拒绝策略与Future完成是两件事</a><a href="#chapter-25-section-5839">25.8 从吞吐、延迟与容量理解配置</a></div></details><details class="chapter-nav"><summary><a href="#chapter-26">26. FutureTask：执行权、完成状态、等待与取消</a></summary><div class="nav-sub"><a href="#chapter-26-section-5872">26.1 FutureTask：状态机、结果与等待线程</a><a href="#chapter-26-section-5960">26.2 执行权、完成权与等待链分别协调</a></div></details><details class="chapter-nav"><summary><a href="#chapter-27">27. CompletableFuture：依赖图、执行器与异常传播</a></summary><div class="nav-sub"><a href="#chapter-27-section-6023">27.1 CompletableFuture：结果依赖图与执行线程</a><a href="#chapter-27-section-6111">27.2 thenApply与thenCompose的结果类型</a><a href="#chapter-27-section-6229">27.3 默认执行器与取消</a></div></details><details class="chapter-nav"><summary><a href="#chapter-28">28. ScheduledThreadPoolExecutor：时间堆、周期与异常</a></summary><div class="nav-sub"><a href="#chapter-28-section-6286">28.1 ScheduledThreadPoolExecutor：固定频率、固定延迟与异常</a><a href="#chapter-28-section-6374">28.2 同一周期任务与不同任务的并发</a></div></details><details class="chapter-nav"><summary><a href="#chapter-29">29. Thread：启动、执行、中断与native边界</a></summary><div class="nav-sub"><a href="#chapter-29-section-6422">29.1 Thread：start、run、interrupt的边界</a><a href="#chapter-29-section-6510">29.2 中断标记不等于任务控制完成</a></div></details><details class="chapter-nav"><summary><a href="#chapter-30">30. NIO：Buffer索引、共享视图与直接内存</a></summary><div class="nav-sub"><a href="#chapter-30-section-6577">30.1 Buffer索引状态与区间推演</a><a href="#chapter-30-section-6665">30.2 compact搬数据，flip和clear只改索引</a><a href="#chapter-30-section-6692">30.3 模板生成、直接内存与清理</a><a href="#chapter-30-section-6780">30.4 直接内存失败重试与统计口径</a></div></details><details class="chapter-nav"><summary><a href="#chapter-31">31. Stream：惰性管道、Sink链与并行边界</a></summary><div class="nav-sub"><a href="#chapter-31-section-6828">31.1 Stream：惰性管道为什么终结时才遍历</a><a href="#chapter-31-section-6916">31.2 Sink逆向包装，元素正向流动</a></div></details><details class="chapter-nav"><summary><a href="#chapter-32">32. ForkJoinPool：双端队列、工作窃取与阻塞</a></summary><div class="nav-sub"><a href="#chapter-32-section-6962">32.1 ForkJoinPool：工作窃取与普通线程池的区别</a><a href="#chapter-32-section-7050">32.2 等待join与阻塞外部资源不同</a></div></details><details class="chapter-nav"><summary><a href="#chapter-33">33. Proxy：类型生成、缓存与handler调用</a></summary><div class="nav-sub"><a href="#chapter-33-section-7086">33.1 Proxy：接口代理类型与调用转发</a><a href="#chapter-33-section-7139">33.2 生成类型、缓存类型、调用转发三个阶段</a></div></details><details class="chapter-nav"><summary><a href="#chapter-34">34. ClassLoader：加载路线、定义与类型身份</a></summary><div class="nav-sub"><a href="#chapter-34-section-7187">34.1 ClassLoader：父委派、定义与类型身份</a><a href="#chapter-34-section-7255">34.2 委派、定义、解析、初始化分别读</a></div></details><a href="#chapter-35">35. 把关键协议展开：分支、时序与状态</a><a href="#chapter-36">36. 横向对照：把相似名字拆开</a><a href="#chapter-37">37. 五个只读案例：把源码连成系统行为</a><a href="#chapter-38">38. 高频追问与阅读检查表</a><a href="#chapter-39">39. 源码索引、版本与版权</a><a href="#appendix-threadlocal-datasource">附录A · ThreadLocal与偶发SQL异常</a></nav></aside><main id="reader-content"><article><p><a id="handbook-title"></a></p>
 <h1>JDK源码速读：从数据结构到并发状态机</h1>
 <blockquote>
 <p>面向纯阅读的OpenJDK8u图解手册。按同一类或完整框架归章，章内从字段、不变量和调用流程进入源码，配真实连续节选与手工推演。无需编译Java、运行实验或搭建环境。</p>
@@ -9116,7 +9116,7 @@ ThreadLocalMap <span class="hljs-title function_">getMap</span><span class="hljs
 <p>CompletableFuture同时保存结果与待触发Completion依赖。一个阶段完成后推动后继，不需要调用者手工逐个get串起来。普通thenApply可能在完成源阶段的线程或注册时的当前线程运行；Async版本按相应执行器规则调度，不能只看方法名中的Future。</p>
 <h3 id="chapter-27-section-6029">字段关系与主干流程</h3>
 <figure class="diagram"><div class="diagram-tools"><span>图92</span><button class="expand" type="button">放大查看 ↗</button></div><div class="diagram-scroll"><svg id="diagram-86-my-svg" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" style="max-width: 380px; background-color: white;" viewBox="4 4 380 424" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#diagram-86-my-svg{font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;font-size:16px;fill:#173358;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#diagram-86-my-svg .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#diagram-86-my-svg .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#diagram-86-my-svg .error-icon{fill:#fff3d9;}#diagram-86-my-svg .error-text{fill:#000c26;stroke:#000c26;}#diagram-86-my-svg .edge-thickness-normal{stroke-width:1px;}#diagram-86-my-svg .edge-thickness-thick{stroke-width:3.5px;}#diagram-86-my-svg .edge-pattern-solid{stroke-dasharray:0;}#diagram-86-my-svg .edge-thickness-invisible{stroke-width:0;fill:none;}#diagram-86-my-svg .edge-pattern-dashed{stroke-dasharray:3;}#diagram-86-my-svg .edge-pattern-dotted{stroke-dasharray:2;}#diagram-86-my-svg .marker{fill:#6480a3;stroke:#6480a3;}#diagram-86-my-svg .marker.cross{stroke:#6480a3;}#diagram-86-my-svg svg{font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;font-size:16px;}#diagram-86-my-svg p{margin:0;}#diagram-86-my-svg .label{font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;color:#173358;}#diagram-86-my-svg .cluster-label text{fill:#000c26;}#diagram-86-my-svg .cluster-label span{color:#000c26;}#diagram-86-my-svg .cluster-label span p{background-color:transparent;}#diagram-86-my-svg .label text,#diagram-86-my-svg span{fill:#173358;color:#173358;}#diagram-86-my-svg .node rect,#diagram-86-my-svg .node circle,#diagram-86-my-svg .node ellipse,#diagram-86-my-svg .node polygon,#diagram-86-my-svg .node path{fill:#eaf2ff;stroke:#7399c9;stroke-width:1px;}#diagram-86-my-svg .rough-node .label text,#diagram-86-my-svg .node .label text,#diagram-86-my-svg .image-shape .label,#diagram-86-my-svg .icon-shape .label{text-anchor:middle;}#diagram-86-my-svg .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#diagram-86-my-svg .rough-node .label,#diagram-86-my-svg .node .label,#diagram-86-my-svg .image-shape .label,#diagram-86-my-svg .icon-shape .label{text-align:center;}#diagram-86-my-svg .node.clickable{cursor:pointer;}#diagram-86-my-svg .root .anchor path{fill:#6480a3!important;stroke-width:0;stroke:#6480a3;}#diagram-86-my-svg .arrowheadPath{fill:#0b0b0b;}#diagram-86-my-svg .edgePaths .path{stroke:#6480a3;stroke-width:1px;}#diagram-86-my-svg .flowchart-link{stroke:#6480a3;fill:none;}#diagram-86-my-svg .edgeLabel{background-color:#e6f5ef;text-align:center;}#diagram-86-my-svg .edgeLabel p{background-color:#e6f5ef;}#diagram-86-my-svg .edgeLabel rect{opacity:0.5;background-color:#e6f5ef;fill:#e6f5ef;}#diagram-86-my-svg .labelBkg{background-color:rgba(230, 245, 239, 0.5);}#diagram-86-my-svg .cluster rect{fill:#fff3d9;stroke:hsl(41.0526315789, 60%, 82.5490196078%);stroke-width:1px;}#diagram-86-my-svg .cluster text{fill:#000c26;}#diagram-86-my-svg .cluster span{color:#000c26;}#diagram-86-my-svg .node .collapsed-indicator{fill:hsl(41.0526315789, 60%, 82.5490196078%);stroke:none;opacity:0.6;}#diagram-86-my-svg .node .collapsed-separator{stroke:hsl(41.0526315789, 60%, 82.5490196078%);stroke-width:0.75px;}#diagram-86-my-svg div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;font-size:12px;background:#fff3d9;border:1px solid hsl(41.0526315789, 60%, 82.5490196078%);border-radius:2px;pointer-events:none;z-index:100;}#diagram-86-my-svg .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#173358;}#diagram-86-my-svg rect.text{fill:none;stroke-width:0;}#diagram-86-my-svg .icon-shape,#diagram-86-my-svg .image-shape{background-color:#e6f5ef;text-align:center;}#diagram-86-my-svg .icon-shape p,#diagram-86-my-svg .image-shape p{background-color:#e6f5ef;padding:2px;}#diagram-86-my-svg .icon-shape .label rect,#diagram-86-my-svg .image-shape .label rect{opacity:0.5;background-color:#e6f5ef;fill:#e6f5ef;}#diagram-86-my-svg .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#diagram-86-my-svg .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#diagram-86-my-svg .node .neo-node{stroke:#7399c9;}#diagram-86-my-svg [data-look="neo"].node rect,#diagram-86-my-svg [data-look="neo"].cluster rect,#diagram-86-my-svg [data-look="neo"].node polygon{stroke:url(#diagram-86-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-86-my-svg [data-look="neo"].swimlane.cluster rect{filter:none;}#diagram-86-my-svg [data-look="neo"].node path{stroke:url(#diagram-86-my-svg-gradient);stroke-width:1px;}#diagram-86-my-svg [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-86-my-svg [data-look="neo"].node .neo-line path{stroke:#7399c9;filter:none;}#diagram-86-my-svg [data-look="neo"].node circle{stroke:url(#diagram-86-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-86-my-svg [data-look="neo"].node circle .state-start{fill:#000000;}#diagram-86-my-svg [data-look="neo"].icon-shape .icon{fill:url(#diagram-86-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-86-my-svg [data-look="neo"].icon-shape .icon-neo path{stroke:url(#diagram-86-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-86-my-svg :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="diagram-86-my-svg_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-86-my-svg_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-86-my-svg_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-86-my-svg_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-86-my-svg_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-86-my-svg_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-86-my-svg_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-86-my-svg_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-86-my-svg_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-86-my-svg_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-86-my-svg_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"/></marker><marker id="diagram-86-my-svg_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"/></marker><g class="root"><g class="clusters"/><g class="edges edgePaths"><path d="M164,207.6L176.92893218813452,207.6Q184,207.6 184,200.52893218813452L184,55.071067811865476Q184,48 191.07106781186548,48L220,48" id="diagram-86-my-svg-L_R_M0_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 206.27166748046875 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-86-L_R_M0_0" data-points="W3sieCI6MTY0LCJ5IjoyMDcuNn0seyJ4IjoxODQsInkiOjIwNy42fSx7IngiOjE4NCwieSI6NDh9LHsieCI6MjI0LCJ5Ijo0OH1d" data-look="neo" marker-end="url(#diagram-86-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M164,213.2L196.92893218813452,213.2Q204,213.2 204,206.1289321881345L204,167.07106781186548Q204,160 211.07106781186548,160L220,160" id="diagram-86-my-svg-L_R_M1_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 99.87167358398438 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-86-L_R_M1_0" data-points="W3sieCI6MTY0LCJ5IjoyMTMuMn0seyJ4IjoyMDQsInkiOjIxMy4yfSx7IngiOjIwNCwieSI6MTYwfSx7IngiOjIyNCwieSI6MTYwfV0=" data-look="neo" marker-end="url(#diagram-86-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M164,218.8L196.92893218813452,218.8Q204,218.8 204,225.8710678118655L204,264.9289321881345Q204,272 211.07106781186548,272L220,272" id="diagram-86-my-svg-L_R_M2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 99.87169647216797 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-86-L_R_M2_0" data-points="W3sieCI6MTY0LCJ5IjoyMTguOH0seyJ4IjoyMDQsInkiOjIxOC44fSx7IngiOjIwNCwieSI6MjcyfSx7IngiOjIyNCwieSI6MjcyfV0=" data-look="neo" marker-end="url(#diagram-86-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M164,224.4L176.92893218813452,224.4Q184,224.4 184,231.47106781186548L184,376.9289321881345Q184,384 191.07106781186548,384L220,384" id="diagram-86-my-svg-L_R_M3_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 206.27171325683594 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-86-L_R_M3_0" data-points="W3sieCI6MTY0LCJ5IjoyMjQuNH0seyJ4IjoxODQsInkiOjIyNC40fSx7IngiOjE4NCwieSI6Mzg0fSx7IngiOjIyNCwieSI6Mzg0fV0=" data-look="neo" marker-end="url(#diagram-86-my-svg_flowchart-v2-pointEnd-margin)"/></g><g class="edgeLabels"/><g class="nodes"><g class="node default" id="diagram-86-my-svg-flowchart-R-0" data-look="neo" transform="translate(88, 216)"><rect class="basic label-container" style="" x="-76" y="-24" width="152" height="48"/><g class="label" style="" transform="translate(-60, -12)"><rect/><foreignObject width="120" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: nowrap; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>核心结构 / 状态</p></span></div></foreignObject></g></g><g class="node default" id="diagram-86-my-svg-flowchart-M0-2" data-look="neo" transform="translate(300, 48)"><rect class="basic label-container" style="" x="-76" y="-36" width="152" height="72"/><g class="label" style="" transform="translate(-60, -24)"><rect/><foreignObject width="120" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>result：正常结果或AltResult</p></span></div></foreignObject></g></g><g class="node default" id="diagram-86-my-svg-flowchart-M1-4" data-look="neo" transform="translate(300, 160)"><rect class="basic label-container" style="" x="-76" y="-36" width="152" height="72"/><g class="label" style="" transform="translate(-60, -24)"><rect/><foreignObject width="120" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>stack：后继Completion</p></span></div></foreignObject></g></g><g class="node default" id="diagram-86-my-svg-flowchart-M2-6" data-look="neo" transform="translate(300, 272)"><rect class="basic label-container" style="" x="-76" y="-36" width="152" height="72"/><g class="label" style="" transform="translate(-60, -24)"><rect/><foreignObject width="120" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>UniApply：单输入变换</p></span></div></foreignObject></g></g><g class="node default" id="diagram-86-my-svg-flowchart-M3-8" data-look="neo" transform="translate(300, 384)"><rect class="basic label-container" style="" x="-76" y="-36" width="152" height="72"/><g class="label" style="" transform="translate(-60, -24)"><rect/><foreignObject width="120" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Executor：Async阶段调度</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="diagram-86-my-svg-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><defs><filter id="diagram-86-my-svg-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><linearGradient id="diagram-86-my-svg-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#7399c9" stop-opacity="1"/><stop offset="100%" stop-color="hsl(156, 2.8571428571%, 83.137254902%)" stop-opacity="1"/></linearGradient></svg></div><figcaption>图示用于机制导读 · 可滚动，支持放大缩小</figcaption></figure><figure class="diagram"><div class="diagram-tools"><span>图93</span><button class="expand" type="button">放大查看 ↗</button></div><div class="diagram-scroll"><svg id="diagram-87-my-svg" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" style="max-width: 168px; background-color: white;" viewBox="4 4 168 400" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#diagram-87-my-svg{font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;font-size:16px;fill:#173358;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#diagram-87-my-svg .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#diagram-87-my-svg .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#diagram-87-my-svg .error-icon{fill:#fff3d9;}#diagram-87-my-svg .error-text{fill:#000c26;stroke:#000c26;}#diagram-87-my-svg .edge-thickness-normal{stroke-width:1px;}#diagram-87-my-svg .edge-thickness-thick{stroke-width:3.5px;}#diagram-87-my-svg .edge-pattern-solid{stroke-dasharray:0;}#diagram-87-my-svg .edge-thickness-invisible{stroke-width:0;fill:none;}#diagram-87-my-svg .edge-pattern-dashed{stroke-dasharray:3;}#diagram-87-my-svg .edge-pattern-dotted{stroke-dasharray:2;}#diagram-87-my-svg .marker{fill:#6480a3;stroke:#6480a3;}#diagram-87-my-svg .marker.cross{stroke:#6480a3;}#diagram-87-my-svg svg{font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;font-size:16px;}#diagram-87-my-svg p{margin:0;}#diagram-87-my-svg .label{font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;color:#173358;}#diagram-87-my-svg .cluster-label text{fill:#000c26;}#diagram-87-my-svg .cluster-label span{color:#000c26;}#diagram-87-my-svg .cluster-label span p{background-color:transparent;}#diagram-87-my-svg .label text,#diagram-87-my-svg span{fill:#173358;color:#173358;}#diagram-87-my-svg .node rect,#diagram-87-my-svg .node circle,#diagram-87-my-svg .node ellipse,#diagram-87-my-svg .node polygon,#diagram-87-my-svg .node path{fill:#eaf2ff;stroke:#7399c9;stroke-width:1px;}#diagram-87-my-svg .rough-node .label text,#diagram-87-my-svg .node .label text,#diagram-87-my-svg .image-shape .label,#diagram-87-my-svg .icon-shape .label{text-anchor:middle;}#diagram-87-my-svg .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#diagram-87-my-svg .rough-node .label,#diagram-87-my-svg .node .label,#diagram-87-my-svg .image-shape .label,#diagram-87-my-svg .icon-shape .label{text-align:center;}#diagram-87-my-svg .node.clickable{cursor:pointer;}#diagram-87-my-svg .root .anchor path{fill:#6480a3!important;stroke-width:0;stroke:#6480a3;}#diagram-87-my-svg .arrowheadPath{fill:#0b0b0b;}#diagram-87-my-svg .edgePaths .path{stroke:#6480a3;stroke-width:1px;}#diagram-87-my-svg .flowchart-link{stroke:#6480a3;fill:none;}#diagram-87-my-svg .edgeLabel{background-color:#e6f5ef;text-align:center;}#diagram-87-my-svg .edgeLabel p{background-color:#e6f5ef;}#diagram-87-my-svg .edgeLabel rect{opacity:0.5;background-color:#e6f5ef;fill:#e6f5ef;}#diagram-87-my-svg .labelBkg{background-color:rgba(230, 245, 239, 0.5);}#diagram-87-my-svg .cluster rect{fill:#fff3d9;stroke:hsl(41.0526315789, 60%, 82.5490196078%);stroke-width:1px;}#diagram-87-my-svg .cluster text{fill:#000c26;}#diagram-87-my-svg .cluster span{color:#000c26;}#diagram-87-my-svg .node .collapsed-indicator{fill:hsl(41.0526315789, 60%, 82.5490196078%);stroke:none;opacity:0.6;}#diagram-87-my-svg .node .collapsed-separator{stroke:hsl(41.0526315789, 60%, 82.5490196078%);stroke-width:0.75px;}#diagram-87-my-svg div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;font-size:12px;background:#fff3d9;border:1px solid hsl(41.0526315789, 60%, 82.5490196078%);border-radius:2px;pointer-events:none;z-index:100;}#diagram-87-my-svg .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#173358;}#diagram-87-my-svg rect.text{fill:none;stroke-width:0;}#diagram-87-my-svg .icon-shape,#diagram-87-my-svg .image-shape{background-color:#e6f5ef;text-align:center;}#diagram-87-my-svg .icon-shape p,#diagram-87-my-svg .image-shape p{background-color:#e6f5ef;padding:2px;}#diagram-87-my-svg .icon-shape .label rect,#diagram-87-my-svg .image-shape .label rect{opacity:0.5;background-color:#e6f5ef;fill:#e6f5ef;}#diagram-87-my-svg .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#diagram-87-my-svg .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#diagram-87-my-svg .node .neo-node{stroke:#7399c9;}#diagram-87-my-svg [data-look="neo"].node rect,#diagram-87-my-svg [data-look="neo"].cluster rect,#diagram-87-my-svg [data-look="neo"].node polygon{stroke:url(#diagram-87-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-87-my-svg [data-look="neo"].swimlane.cluster rect{filter:none;}#diagram-87-my-svg [data-look="neo"].node path{stroke:url(#diagram-87-my-svg-gradient);stroke-width:1px;}#diagram-87-my-svg [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-87-my-svg [data-look="neo"].node .neo-line path{stroke:#7399c9;filter:none;}#diagram-87-my-svg [data-look="neo"].node circle{stroke:url(#diagram-87-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-87-my-svg [data-look="neo"].node circle .state-start{fill:#000000;}#diagram-87-my-svg [data-look="neo"].icon-shape .icon{fill:url(#diagram-87-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-87-my-svg [data-look="neo"].icon-shape .icon-neo path{stroke:url(#diagram-87-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-87-my-svg :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="diagram-87-my-svg_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-87-my-svg_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-87-my-svg_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-87-my-svg_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-87-my-svg_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-87-my-svg_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-87-my-svg_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-87-my-svg_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-87-my-svg_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-87-my-svg_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-87-my-svg_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"/></marker><marker id="diagram-87-my-svg_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"/></marker><g class="root"><g class="clusters"/><g class="edges edgePaths"><path d="M88,60L88,96" id="diagram-87-my-svg-L_N0_N1_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 32 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-87-L_N0_N1_0" data-points="W3sieCI6ODgsInkiOjYwfSx7IngiOjg4LCJ5IjoxMDB9XQ==" data-look="neo" marker-end="url(#diagram-87-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M88,172L88,208" id="diagram-87-my-svg-L_N1_N2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 32 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-87-L_N1_N2_0" data-points="W3sieCI6ODgsInkiOjE3Mn0seyJ4Ijo4OCwieSI6MjEyfV0=" data-look="neo" marker-end="url(#diagram-87-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M88,284L88,320" id="diagram-87-my-svg-L_N2_N3_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 32 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-87-L_N2_N3_0" data-points="W3sieCI6ODgsInkiOjI4NH0seyJ4Ijo4OCwieSI6MzI0fV0=" data-look="neo" marker-end="url(#diagram-87-my-svg_flowchart-v2-pointEnd-margin)"/></g><g class="edgeLabels"/><g class="nodes"><g class="node default" id="diagram-87-my-svg-flowchart-N0-0" data-look="neo" transform="translate(88, 36)"><rect class="basic label-container" style="" x="-76" y="-24" width="152" height="48"/><g class="label" style="" transform="translate(-60, -12)"><rect/><foreignObject width="120" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: nowrap; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>注册后继阶段</p></span></div></foreignObject></g></g><g class="node default" id="diagram-87-my-svg-flowchart-N1-1" data-look="neo" transform="translate(88, 136)"><rect class="basic label-container" style="" x="-76" y="-36" width="152" height="72"/><g class="label" style="" transform="translate(-60, -24)"><rect/><foreignObject width="120" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>源阶段完成发布result</p></span></div></foreignObject></g></g><g class="node default" id="diagram-87-my-svg-flowchart-N2-2" data-look="neo" transform="translate(88, 248)"><rect class="basic label-container" style="" x="-76" y="-36" width="152" height="72"/><g class="label" style="" transform="translate(-60, -24)"><rect/><foreignObject width="120" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>postComplete触发依赖</p></span></div></foreignObject></g></g><g class="node default" id="diagram-87-my-svg-flowchart-N3-3" data-look="neo" transform="translate(88, 360)"><rect class="basic label-container" style="" x="-76" y="-36" width="152" height="72"/><g class="label" style="" transform="translate(-60, -24)"><rect/><foreignObject width="120" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>变换或组合产生新阶段</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="diagram-87-my-svg-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><defs><filter id="diagram-87-my-svg-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><linearGradient id="diagram-87-my-svg-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#7399c9" stop-opacity="1"/><stop offset="100%" stop-color="hsl(156, 2.8571428571%, 83.137254902%)" stop-opacity="1"/></linearGradient></svg></div><figcaption>图示用于机制导读 · 可滚动，支持放大缩小</figcaption></figure><h3 id="chapter-27-section-6034">源码路径与解释</h3>
-<h4 id="chapter-27-section-6037">源码1：static <U> CompletableFuture<U> asyncSupplyStage(Executor e,</h4>
+<h4 id="chapter-27-section-6037">源码1：static &lt;U&gt; CompletableFuture&lt;U&gt; asyncSupplyStage(Executor e,</h4>
 <p><strong>CompletableFuture·<a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L1614-L1620">L1614–L1620</a></strong></p>
 <blockquote>
 <p>连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。</p>
@@ -9134,7 +9134,7 @@ ThreadLocalMap <span class="hljs-title function_">getMap</span><span class="hljs
     e.execute(<span class="hljs-keyword">new</span> <span class="hljs-title class_">AsyncSupply</span>&lt;U&gt;(d, f));
     <span class="hljs-keyword">return</span> d;
 }</code></pre></div></section><p>创建新Future并向Executor提交AsyncSupply。默认supplyAsync使用asyncPool，本基线通常选择公共ForkJoinPool，不适合无节制放入长期阻塞任务。</p>
-<h4 id="chapter-27-section-6052">源码2：public <U> CompletableFuture<U> thenApply(</h4>
+<h4 id="chapter-27-section-6052">源码2：public &lt;U&gt; CompletableFuture&lt;U&gt; thenApply(</h4>
 <p><strong>CompletableFuture·<a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L1994-L1997">L1994–L1997</a></strong></p>
 <blockquote>
 <p>连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。</p>
@@ -11684,8 +11684,693 @@ ThreadLocalMap <span class="hljs-title function_">getMap</span><span class="hljs
 <li><a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/sun/misc/Unsafe.java">Unsafe</a>：jdk/src/share/classes/sun/misc/Unsafe.java</li>
 </ul>
 <h2 id="chapter-39-section-8310">版权与隐私范围</h2>
-<p>只使用公开OpenJDK源码、通用说明与虚构例子。正文不引用简历、工作项目、业务数据、聊天记录、凭据或本机目录；公开页沿用站点既有访问统计；离线包不加载统计脚本或外部资源，点击上游链接时才联网。源码及其版权头保留在<a href="./openjdk-source.zip">原始源码包</a>，对应<a href="./source-notices.txt">完整版权声明</a>与<a href="./openjdk-license.txt">上游许可证</a>一并提供。</p>
+<p>源码章节使用公开OpenJDK源码、通用说明与虚构例子；附录收录经脱敏的故障复盘，不包含人员标识、真实系统名称、业务数据、凭据或本机目录。公开页沿用站点既有访问统计；离线包不加载统计脚本或外部资源，点击上游链接时才联网。源码及其版权头保留在<a href="./openjdk-source.zip">原始源码包</a>，对应<a href="./source-notices.txt">完整版权声明</a>与<a href="./openjdk-license.txt">上游许可证</a>一并提供。</p>
 <p>Java源码、构建模板与native入口有不同证据边界。切换到其他JDK版本应重新确认实现，不将本期阈值、字段布局与调度机制当作跨版本永久保证。</p>
+<!-- JDK-THREADLOCAL-APPENDIX:START -->
+<section aria-labelledby="appendix-threadlocal-datasource-title">
+<a id="appendix-threadlocal-datasource"></a>
+<h1 id="appendix-threadlocal-datasource-title">附录A · 一次偶发SQL异常：ThreadLocal状态残留与多数据源切换</h1>
+<p>从ThreadLocal与线程池的源码机制，走进一次偶发线上问题的完整排查链。</p>
+<p><a href="./analysis-threadlocal-datasource.md" download>下载本附录（Markdown）</a> · <a href="#chapter-14">回看ThreadLocal</a> · <a href="#chapter-25">回看线程池</a></p>
+<details><summary>展开本附录目录</summary><div class="toc">
+<ul>
+<li><a href="#threadlocal-case-一先把场景摆清楚两个dao一个工厂一个线程中的选库键">一、先把场景摆清楚：两个DAO、一个工厂、一个线程中的选库键</a><ul>
+<li><a href="#threadlocal-case-11-大部分dao为多例固定访问db1的dao被配置为单例">1.1 大部分DAO为多例，固定访问db1的DAO被配置为单例</a></li>
+<li><a href="#threadlocal-case-12-数据源映射统一为00与01">1.2 数据源映射统一为00与01</a></li>
+<li><a href="#threadlocal-case-13-需要分开跟踪两个状态">1.3 需要分开跟踪两个状态</a></li>
+</ul>
+</li>
+<li><a href="#threadlocal-case-二这套选库机制怎样工作">二、这套选库机制怎样工作</a><ul>
+<li><a href="#threadlocal-case-21-切库方法只设置threadlocal">2.1 切库方法只设置ThreadLocal</a></li>
+<li><a href="#threadlocal-case-22-工厂读取选库键选择数据源再重置线程值">2.2 工厂读取选库键，选择数据源，再重置线程值</a></li>
+<li><a href="#threadlocal-case-23-选库发生在dao创建时">2.3 选库发生在DAO创建时</a></li>
+</ul>
+</li>
+<li><a href="#threadlocal-case-三三次请求01如何留下又被另一个dao读到">三、三次请求：01如何留下，又被另一个DAO读到</a><ul>
+<li><a href="#threadlocal-case-31-第一次请求先设置01再创建单例dao1">3.1 第一次请求：先设置01，再创建单例DAO1</a></li>
+<li><a href="#threadlocal-case-32-第二次请求同样设置01单例缓存却绕过重置">3.2 第二次请求：同样设置01，单例缓存却绕过重置</a></li>
+<li><a href="#threadlocal-case-33-第三次请求创建非单例dao2默认查询却选到了01">3.3 第三次请求：创建非单例DAO2，默认查询却选到了01</a></li>
+<li><a href="#threadlocal-case-34-把两个状态放在同一张表里">3.4 把两个状态放在同一张表里</a></li>
+</ul>
+</li>
+<li><a href="#threadlocal-case-四为什么偶发也为什么难查">四、为什么偶发，也为什么难查</a><ul>
+<li><a href="#threadlocal-case-41-少量单例路径留下状态后续调用多数会覆盖它">4.1 少量单例路径留下状态，后续调用多数会覆盖它</a></li>
+<li><a href="#threadlocal-case-42-异常位置看不到前面的状态设置">4.2 异常位置看不到前面的状态设置</a></li>
+<li><a href="#threadlocal-case-43-报错时threadlocal可能看起来正常">4.3 报错时，ThreadLocal可能看起来正常</a></li>
+<li><a href="#threadlocal-case-44-请求结束不会自动清空threadlocal">4.4 请求结束不会自动清空ThreadLocal</a></li>
+</ul>
+</li>
+<li><a href="#threadlocal-case-五怎么修复让设置与重置配对">五、怎么修复：让设置与重置配对</a><ul>
+<li><a href="#threadlocal-case-51-将动态选库的dao1改为非单例">5.1 将动态选库的DAO1改为非单例</a></li>
+<li><a href="#threadlocal-case-52-再看同样的三次请求">5.2 再看同样的三次请求</a></li>
+<li><a href="#threadlocal-case-53-在业务出口清理覆盖提前返回与异常">5.3 在业务出口清理，覆盖提前返回与异常</a></li>
+<li><a href="#threadlocal-case-54-固定数据源也是一种设计选择">5.4 固定数据源也是一种设计选择</a></li>
+</ul>
+</li>
+<li><a href="#threadlocal-case-六排查与验证沿同一线程还原时间线">六、排查与验证：沿同一线程还原时间线</a></li>
+<li><a href="#threadlocal-case-七复盘结论">七、复盘结论</a></li>
+</ul>
+</div>
+</details>
+<p>某业务系统线上偶尔出现ORA-00942“表或视图不存在”。报错的是一个默认查询db0的非单例DAO：目标表在db0中存在，本次业务也没有调用切库方法，但查询仍然失败。</p>
+<p>这次排查需要解释的，是<strong>一个没有主动切库的查询，为什么会使用db1的数据源</strong>。沿着DAO创建和数据源注入过程往前分析，可以串起一条跨业务的状态链：前面的业务设置了01，随后获取已有的单例DAO，没有经过工厂重置选库状态；后面的业务在同一线程上创建非单例DAO，读到了残留01。</p>
+<p>项目中大部分DAO都配置为多例，获取前一般会调用<code>locateDataBase()</code>设置目标库，随后通过DAO创建完成选库与重置。<code>biz.staffDAO</code>的业务只访问db1，实现时考虑到它不需要在数据库之间切换，便将它配置为单例；获取前设置01的调用方式仍然保留。</p>
+<p>这一差异不会立即影响它自己的db1查询，却改变了线程状态的重置路径。下面先介绍正常调用约定，再用两个DAO和三次请求说明问题。数据库、包名和业务标识均采用通用名称。</p>
+<h2 id="threadlocal-case-一先把场景摆清楚两个dao一个工厂一个线程中的选库键">一、先把场景摆清楚：两个DAO、一个工厂、一个线程中的选库键</h2>
+<h3 id="threadlocal-case-11-大部分dao为多例固定访问db1的dao被配置为单例">1.1 大部分DAO为多例，固定访问db1的DAO被配置为单例</h3>
+<p>项目的常见调用方式是：获取DAO前先调用<code>locateDataBase()</code>，无论DAO是单例还是多例，都沿用这一步。对于多例DAO，后续创建过程会进入工厂，读取刚设置的键，并在退出时恢复00。</p>
+<p><code>biz.staffDAO</code>只访问db1，因此实现时选择复用一个单例实例。这个选择关注的是“DAO需要访问哪个库”，而工厂里的线程状态重置还依赖“每次获取DAO是否会重新创建实例”。</p>
+<p>为观察这两种调用路径，取以下两个DAO作为例子，它们都通过<code>dsFactory</code>注入DataSource：</p>
+<table>
+<thead>
+<tr>
+<th>对象</th>
+<th>Bean名称</th>
+<th>作用域</th>
+<th>目标库与调用方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DAO1：StaffDAO</td>
+<td><code>biz.staffDAO</code></td>
+<td>单例</td>
+<td>始终访问db1，每次获取前都调用<code>locateDataBase("01")</code></td>
+</tr>
+<tr>
+<td>DAO2：PagedQueryDAO</td>
+<td><code>biz.pagedQueryDAO</code></td>
+<td>非单例（多例）</td>
+<td>本例取默认查询db0的分支，获取前省略选库设置</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="hljs language-xml"><span class="hljs-comment">&lt;!-- DAO1：单例。 --&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">bean</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;biz.staffDAO&quot;</span>
+      <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;com.example.persistence.StaffDAOImpl&quot;</span>
+      <span class="hljs-attr">singleton</span>=<span class="hljs-string">&quot;true&quot;</span> <span class="hljs-attr">lazy-init</span>=<span class="hljs-string">&quot;true&quot;</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">property</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;dataSource&quot;</span> <span class="hljs-attr">ref</span>=<span class="hljs-string">&quot;dsFactory&quot;</span> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">property</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;sqlMapClient&quot;</span> <span class="hljs-attr">ref</span>=<span class="hljs-string">&quot;sqlMapClient&quot;</span> /&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">bean</span>&gt;</span>
+
+<span class="hljs-comment">&lt;!-- DAO2：非单例。 --&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">bean</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;biz.pagedQueryDAO&quot;</span>
+      <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;com.example.persistence.PagedQueryDAOImpl&quot;</span>
+      <span class="hljs-attr">singleton</span>=<span class="hljs-string">&quot;false&quot;</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">property</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;dataSource&quot;</span> <span class="hljs-attr">ref</span>=<span class="hljs-string">&quot;dsFactory&quot;</span> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">property</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;sqlMapClient&quot;</span> <span class="hljs-attr">ref</span>=<span class="hljs-string">&quot;sqlMapClient&quot;</span> /&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">bean</span>&gt;</span>
+</code></pre>
+<p>DAO1的查询始终属于db1，第一次、第二次及后续每次获取它之前，业务都会先设置01。</p>
+<p>DAO2在这里代表一种依赖默认库的调用分支：业务要查db0，认为工厂会采用默认00，所以没有显式调用<code>locateDataBase("00")</code>。这是触发本次异常的分支；多数遵循获取前设置选库键的调用，不会直接沿用旧键。</p>
+<p>示例将DAO1延迟到首次获取时创建，以观察初始化过程。这是两个不同的Bean，它们分别对应两段业务；两段业务可以属于不同接口，也可以在同一次请求中先后执行。</p>
+<h3 id="threadlocal-case-12-数据源映射统一为00与01">1.2 数据源映射统一为00与01</h3>
+<pre><code class="hljs language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">bean</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;dsFactory&quot;</span>
+      <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;com.example.framework.DataSourceFactoryBean&quot;</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">property</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;defaultDSKey&quot;</span> <span class="hljs-attr">value</span>=<span class="hljs-string">&quot;00&quot;</span> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">property</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;dataSources&quot;</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">map</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">entry</span> <span class="hljs-attr">key</span>=<span class="hljs-string">&quot;00&quot;</span> <span class="hljs-attr">value-ref</span>=<span class="hljs-string">&quot;db0DS&quot;</span> /&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">entry</span> <span class="hljs-attr">key</span>=<span class="hljs-string">&quot;01&quot;</span> <span class="hljs-attr">value-ref</span>=<span class="hljs-string">&quot;db1DS&quot;</span> /&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">map</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">bean</span>&gt;</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>数据源键</th>
+<th>DataSource</th>
+<th>对应数据库</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>00，默认键</td>
+<td><code>db0DS</code></td>
+<td>db0</td>
+</tr>
+<tr>
+<td>01</td>
+<td><code>db1DS</code></td>
+<td>db1</td>
+</tr>
+</tbody>
+</table>
+<p>工厂本身保持共享，连接池也是已有对象。工厂做的是从映射中选择一个DataSource引用，而不是每次创建连接池。</p>
+<h3 id="threadlocal-case-13-需要分开跟踪两个状态">1.3 需要分开跟踪两个状态</h3>
+<p>理解这个问题，最重要的是不要把“线程中的选库键”与“DAO持有的数据源”当成同一个状态。</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>存放位置</th>
+<th>什么时候变化</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>regionCode</code>选库键</td>
+<td>当前工作线程的ThreadLocal中</td>
+<td>调用<code>locateDataBase()</code>时设置；工厂<code>getObject()</code>退出时重置</td>
+</tr>
+<tr>
+<td>DAO的<code>dataSource</code>引用</td>
+<td>已经创建的DAO实例中</td>
+<td>DAO创建并完成属性注入时确定</td>
+</tr>
+</tbody>
+</table>
+<p>例如，DAO1已经持有<code>db1DS</code>，后续获取前再把<code>regionCode</code>设成01，DAO1仍然使用原来的db1DS。查询可以正常执行，但线程中的01还需要由工厂调用或业务出口重置。</p>
+<p>两个DAO之间传递的也不是DataSource引用，而是同一线程中尚未重置的<code>regionCode</code>。</p>
+<h2 id="threadlocal-case-二这套选库机制怎样工作">二、这套选库机制怎样工作</h2>
+<h3 id="threadlocal-case-21-切库方法只设置threadlocal">2.1 切库方法只设置ThreadLocal</h3>
+<p>业务切库方法的相关逻辑如下：</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">protected</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">locateDataBase</span><span class="hljs-params">(String dataSourceKey)</span> {
+    <span class="hljs-type">DataSourceFactoryBean</span> <span class="hljs-variable">factory</span> <span class="hljs-operator">=</span>
+            (DataSourceFactoryBean) context.getBean(<span class="hljs-string">&quot;&amp;dsFactory&quot;</span>);
+    factory.pickDataSource(dataSourceKey);
+}
+</code></pre>
+<p>其中，<code>pickDataSource()</code>只是设置当前线程的值：</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">pickDataSource</span><span class="hljs-params">(String region)</span> {
+    regionCode.set(region);
+}
+</code></pre>
+<p>因此，调用<code>locateDataBase("01")</code>的含义是：<strong>让接下来进入工厂的数据源选择过程读取01。</strong>它不会直接修改已有DAO，也不会直接更换已有连接。</p>
+<h3 id="threadlocal-case-22-工厂读取选库键选择数据源再重置线程值">2.2 工厂读取选库键，选择数据源，再重置线程值</h3>
+<p>以下是与本问题有关的逻辑节选，省略其他分支、接口方法和配置访问器：</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">private</span> Map dataSources;
+<span class="hljs-keyword">private</span> <span class="hljs-type">String</span> <span class="hljs-variable">defaultDSKey</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;00&quot;</span>;
+<span class="hljs-keyword">private</span> <span class="hljs-type">ThreadLocal</span> <span class="hljs-variable">regionCode</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ThreadLocal</span>();
+
+<span class="hljs-keyword">public</span> Object <span class="hljs-title function_">getObject</span><span class="hljs-params">()</span> {
+    <span class="hljs-keyword">try</span> {
+        <span class="hljs-type">String</span> <span class="hljs-variable">region</span> <span class="hljs-operator">=</span> (String) regionCode.get();
+        <span class="hljs-keyword">if</span> (region == <span class="hljs-literal">null</span>) {
+            region = defaultDSKey;
+        }
+
+        <span class="hljs-type">DataSource</span> <span class="hljs-variable">selected</span> <span class="hljs-operator">=</span> (DataSource) dataSources.get(region);
+        <span class="hljs-keyword">if</span> (selected == <span class="hljs-literal">null</span>) {
+            <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">IllegalStateException</span>(<span class="hljs-string">&quot;DataSource key is not configured&quot;</span>);
+        }
+        <span class="hljs-keyword">return</span> selected;
+    } <span class="hljs-keyword">finally</span> {
+        regionCode.set(defaultDSKey);
+    }
+}
+</code></pre>
+<p>这里有两个决定后续行为的规则：</p>
+<ul>
+<li><strong>只有<code>regionCode</code>为<code>null</code>时，才使用默认键00。</strong>线程中只要已有01，本次即使没有调用切库方法，也会选择01。</li>
+<li><strong>只有进入<code>getObject()</code>，才会执行这里的<code>finally</code>。</strong>获取已有的单例DAO不需要重新注入属性，因此不会触发这段重置。</li>
+</ul>
+<p><code>return selected</code>会先确定返回对象，再执行<code>finally</code>，然后将这个对象返回给调用方。假如选出的是<code>db1DS</code>，<code>finally</code>把线程值改回00之后，返回的仍然是<code>db1DS</code>；容器随后把它注入DAO。</p>
+<h3 id="threadlocal-case-23-选库发生在dao创建时">2.3 选库发生在DAO创建时</h3>
+<p>对于这里讨论的工厂实现，新DAO的数据源注入路径可以概括为：</p>
+<pre><code class="hljs language-text">创建DAO
+→ 为dataSource属性获取工厂产品
+→ getObject()读取当前线程的regionCode
+→ 选出db0DS或db1DS
+→ finally将regionCode重置为00
+→ 返回已选出的DataSource，注入DAO
+→ DAO使用该DataSource执行SQL
+</code></pre>
+<p><code>ref="dsFactory"</code>获取的是工厂提供的DataSource；<code>getBean("&amp;dsFactory")</code>获取的是工厂本身，用来设置选库键。<a href="https://spring.io/blog/2011/08/09/what-s-a-factorybean/">Spring FactoryBean说明</a></p>
+<p>常见的多例DAO调用顺序是：</p>
+<pre><code class="hljs language-text">locateDataBase(目标键)
+→ getBean()创建多例DAO
+→ getObject()读取目标键并选出DataSource
+→ finally重置00
+→ DAO使用本次选出的DataSource查询
+</code></pre>
+<p>因此，大部分业务都能按预期选库并恢复线程状态。</p>
+<p>单例DAO初始化完成后，再次<code>getBean()</code>只返回已有实例，不走创建和属性注入流程。获取前虽然仍然设置了选库键，后面却不再有对应的工厂重置。<strong>只访问一个库，可以解释为什么DAO自身查询正常；但设置选库键之后，仍需要执行重置。</strong></p>
+<blockquote>
+<p>版本范围：本文分析“DAO创建时通过工厂重新选库”的调用路径。Spring1.2.9获取FactoryBean产品时直接调用<code>getObject()</code>，可以对应这条路径；采用产品缓存的其他版本，需要结合实际依赖核对产品获取方式。工厂实例的作用域与工厂产品的缓存语义分别管理。<a href="https://repo.maven.apache.org/maven2/org/springframework/spring/1.2.9/spring-1.2.9-sources.jar">Spring1.2.9源码包</a></p>
+</blockquote>
+<h2 id="threadlocal-case-三三次请求01如何留下又被另一个dao读到">三、三次请求：01如何留下，又被另一个DAO读到</h2>
+<p>为展示完整过程，假设三次请求依次由工作线程T处理，业务出口没有清理ThreadLocal，中间也没有其他操作覆盖选库键。单例DAO1最初尚未创建。</p>
+<p>实际系统中，DAO1也可以在容器启动时完成初始化。这里把初始化放在第一次请求，是为了把实例绑定与线程状态变化放在同一条时间线上。</p>
+<h3 id="threadlocal-case-31-第一次请求先设置01再创建单例dao1">3.1 第一次请求：先设置01，再创建单例DAO1</h3>
+<p>第一次请求通过DAO1查询db1。在获取DAO1前，业务先调用<code>locateDataBase("01")</code>：</p>
+<pre><code class="hljs language-java">locateDataBase(<span class="hljs-string">&quot;01&quot;</span>);
+<span class="hljs-type">StaffDAO</span> <span class="hljs-variable">dao1</span> <span class="hljs-operator">=</span> (StaffDAO) context.getBean(<span class="hljs-string">&quot;biz.staffDAO&quot;</span>);
+<span class="hljs-keyword">return</span> dao1.findByNo(staffNo);
+</code></pre>
+<p>此时DAO1尚未创建，容器创建实例并注入DataSource。工厂读取到线程T中的01，选择<code>db1DS</code>，在<code>finally</code>中把选库键恢复为00，再返回db1DS供容器注入DAO1。</p>
+<p>DAO1使用db1DS查询db1，数据源符合业务预期。第一次请求结束时：</p>
+<pre><code class="hljs language-text">DAO1实例持有的DataSource = db1DS  ← 正确绑定db1
+线程T中的regionCode      = 00     ← 工厂已重置
+</code></pre>
+<p>单例DAO1初始化完成后由容器缓存，后续<code>getBean()</code>返回这个实例。<a href="https://docs.spring.io/spring-framework/reference/core/beans/factory-scopes.html">Spring Bean作用域说明</a></p>
+<figure class="threadlocal-case-diagram"><button class="expand" type="button" aria-label="放大图1：首次设置01并创建单例DAO1，绑定db1DS后选库键恢复00">放大图解 ↗</button><div class="diagram-body"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 730" role="img" aria-labelledby="threadlocal-case-figure-1-title threadlocal-case-figure-1-desc">
+<title id="threadlocal-case-figure-1-title">图1 · 首次获取单例DAO1：查询db1并重置01</title>
+<desc id="threadlocal-case-figure-1-desc">线程T首次查询db1，本次获取单例DAO1；locateDataBase(&quot;01&quot;)，regionCode设为01；首次获取DAO1，创建实例，触发数据源注入；工厂读取01，选出的返回对象为db1DS；工厂执行finally，regionCode重置为00；返回并注入db1DS，DAO1正确绑定db1DS；DAO1查询db1，查询正常，实例进入单例缓存；第一次请求完成，线程键为00；DAO1持有db1DS</desc>
+<defs><marker id="threadlocal-case-figure-1-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs>
+<rect width="1000" height="730" rx="16" fill="#f7f9fc"/>
+<g font-family="PingFang SC,Microsoft YaHei,Noto Sans CJK SC,sans-serif">
+<text x="30" y="42" font-size="22" font-weight="600" fill="#24364c">图1 · 首次获取单例DAO1：查询db1并重置01</text>
+<text x="30" y="76" font-size="15" fill="#657892">先读左列01—04，再沿箭头读右列05—08 · 跟踪线程键与DAO数据源</text>
+<rect x="30" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="48" y="142" font-size="17" font-weight="600" fill="#24364c">01 · 线程T首次查询db1</text>
+<text x="48" y="175" font-size="16" fill="#24364c">本次获取单例DAO1</text>
+<path d="M250 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-1-arrow)"/>
+<rect x="30" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="48" y="267" font-size="17" font-weight="600" fill="#24364c">02 · locateDataBase(&quot;01&quot;)</text>
+<text x="48" y="300" font-size="16" fill="#24364c">regionCode设为01</text>
+<path d="M250 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-1-arrow)"/>
+<rect x="30" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="48" y="392" font-size="17" font-weight="600" fill="#24364c">03 · 首次获取DAO1</text>
+<text x="48" y="425" font-size="16" fill="#24364c">创建实例，触发数据源注入</text>
+<path d="M250 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-1-arrow)"/>
+<rect x="30" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="48" y="517" font-size="17" font-weight="600" fill="#24364c">04 · 工厂读取01</text>
+<text x="48" y="550" font-size="16" fill="#24364c">选出的返回对象为db1DS</text>
+<path d="M470 531 H500 V94 H750 V102" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-1-arrow)"/>
+<rect x="530" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="548" y="142" font-size="17" font-weight="600" fill="#24364c">05 · 工厂执行finally</text>
+<text x="548" y="175" font-size="16" fill="#24364c">regionCode重置为00</text>
+<path d="M750 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-1-arrow)"/>
+<rect x="530" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="548" y="267" font-size="17" font-weight="600" fill="#24364c">06 · 返回并注入db1DS</text>
+<text x="548" y="300" font-size="16" fill="#24364c">DAO1正确绑定db1DS</text>
+<path d="M750 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-1-arrow)"/>
+<rect x="530" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="548" y="392" font-size="17" font-weight="600" fill="#24364c">07 · DAO1查询db1</text>
+<text x="548" y="425" font-size="16" fill="#24364c">查询正常，实例进入单例缓存</text>
+<path d="M750 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-1-arrow)"/>
+<rect x="530" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="548" y="517" font-size="17" font-weight="600" fill="#24364c">08 · 第一次请求完成</text>
+<text x="548" y="550" font-size="16" fill="#24364c">线程键为00；DAO1持有db1DS</text>
+<rect x="30" y="632" width="940" height="64" rx="12" fill="#fff" stroke="#d6deea"/>
+<text x="48" y="670" font-size="15" fill="#657892">首次设置01后进入工厂，选库键被读取并重置；DAO1正确查询db1。</text>
+</g></svg></div><figcaption>图1：首次设置01并创建单例DAO1，绑定db1DS后选库键恢复00</figcaption></figure>
+<h3 id="threadlocal-case-32-第二次请求同样设置01单例缓存却绕过重置">3.2 第二次请求：同样设置01，单例缓存却绕过重置</h3>
+<p>第二次请求仍然通过DAO1查询db1，执行与第一次相同的代码：</p>
+<pre><code class="hljs language-java">locateDataBase(<span class="hljs-string">&quot;01&quot;</span>);
+<span class="hljs-type">StaffDAO</span> <span class="hljs-variable">dao1</span> <span class="hljs-operator">=</span> (StaffDAO) context.getBean(<span class="hljs-string">&quot;biz.staffDAO&quot;</span>);
+<span class="hljs-keyword">return</span> dao1.findByNo(staffNo);
+</code></pre>
+<p><code>locateDataBase("01")</code>再次把线程T中的<code>regionCode</code>设成01。但这次DAO1已经在单例缓存中，<code>getBean()</code>直接返回已有实例，不重新创建，也不重新注入DataSource。</p>
+<p>因此，工厂的<code>getObject()</code>没有执行，其中的<code>finally</code>也没有执行。<strong>第一次是“设置01→进入工厂→重置00”；第二次则是“设置01→命中单例缓存→没有经过重置”。</strong></p>
+<p>DAO1仍然持有第一次正确绑定的db1DS，所以它照常查询db1，正常路径下不会暴露这次状态残留。第二次请求结束时：</p>
+<pre><code class="hljs language-text">DAO1仍然持有的DataSource = db1DS  ← 本次查询仍然正确
+线程T中的regionCode      = 01     ← 已设置，却没有被重置
+</code></pre>
+<p><strong>问题不在于DAO1第二次查询用了错误的库，而在于它查询正常结束后，把01留给了后面的业务。</strong>若业务出口也没有清理，该值便会继续保留在线程T中。</p>
+<figure class="threadlocal-case-diagram"><button class="expand" type="button" aria-label="放大图2：第二次设置01后命中单例缓存，DAO1查询正常但线程键残留">放大图解 ↗</button><div class="diagram-body"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 730" role="img" aria-labelledby="threadlocal-case-figure-2-title threadlocal-case-figure-2-desc">
+<title id="threadlocal-case-figure-2-title">图2 · 再次获取单例DAO1：查询正常，01却残留</title>
+<desc id="threadlocal-case-figure-2-desc">线程T再次查询db1，本次仍然获取单例DAO1；locateDataBase(&quot;01&quot;)，再次将regionCode设为01；命中DAO1单例缓存，返回已有实例，不重新创建；不重新注入DataSource，DAO1继续持有正确的db1DS；未调用工厂getObject()，工厂finally也没有执行；DAO1正常查询db1，本次查询未暴露线程状态残留；业务退出且未清理，线程T的regionCode仍为01；第二次请求完成，线程键为01；DAO1持有db1DS</desc>
+<defs><marker id="threadlocal-case-figure-2-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs>
+<rect width="1000" height="730" rx="16" fill="#f7f9fc"/>
+<g font-family="PingFang SC,Microsoft YaHei,Noto Sans CJK SC,sans-serif">
+<text x="30" y="42" font-size="22" font-weight="600" fill="#24364c">图2 · 再次获取单例DAO1：查询正常，01却残留</text>
+<text x="30" y="76" font-size="15" fill="#657892">先读左列01—04，再沿箭头读右列05—08 · 跟踪线程键与DAO数据源</text>
+<rect x="30" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="48" y="142" font-size="17" font-weight="600" fill="#24364c">01 · 线程T再次查询db1</text>
+<text x="48" y="175" font-size="16" fill="#24364c">本次仍然获取单例DAO1</text>
+<path d="M250 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-2-arrow)"/>
+<rect x="30" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="48" y="267" font-size="17" font-weight="600" fill="#24364c">02 · locateDataBase(&quot;01&quot;)</text>
+<text x="48" y="300" font-size="16" fill="#24364c">再次将regionCode设为01</text>
+<path d="M250 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-2-arrow)"/>
+<rect x="30" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="48" y="392" font-size="17" font-weight="600" fill="#24364c">03 · 命中DAO1单例缓存</text>
+<text x="48" y="425" font-size="16" fill="#24364c">返回已有实例，不重新创建</text>
+<path d="M250 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-2-arrow)"/>
+<rect x="30" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="48" y="517" font-size="17" font-weight="600" fill="#24364c">04 · 不重新注入DataSource</text>
+<text x="48" y="550" font-size="16" fill="#24364c">DAO1继续持有正确的db1DS</text>
+<path d="M470 531 H500 V94 H750 V102" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-2-arrow)"/>
+<rect x="530" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="548" y="142" font-size="17" font-weight="600" fill="#24364c">05 · 未调用工厂getObject()</text>
+<text x="548" y="175" font-size="16" fill="#24364c">工厂finally也没有执行</text>
+<path d="M750 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-2-arrow)"/>
+<rect x="530" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="548" y="267" font-size="17" font-weight="600" fill="#24364c">06 · DAO1正常查询db1</text>
+<text x="548" y="300" font-size="16" fill="#24364c">本次查询未暴露线程状态残留</text>
+<path d="M750 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-2-arrow)"/>
+<rect x="530" y="360" width="440" height="92" rx="12" fill="#ffe5e5" stroke="#a5b6ce"/>
+<text x="548" y="392" font-size="17" font-weight="600" fill="#24364c">07 · 业务退出且未清理</text>
+<text x="548" y="425" font-size="16" fill="#24364c">线程T的regionCode仍为01</text>
+<path d="M750 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-2-arrow)"/>
+<rect x="530" y="485" width="440" height="92" rx="12" fill="#ffe5e5" stroke="#a5b6ce"/>
+<text x="548" y="517" font-size="17" font-weight="600" fill="#24364c">08 · 第二次请求完成</text>
+<text x="548" y="550" font-size="16" fill="#24364c">线程键为01；DAO1持有db1DS</text>
+<rect x="30" y="632" width="940" height="64" rx="12" fill="#fff" stroke="#d6deea"/>
+<text x="48" y="670" font-size="15" fill="#657892">DAO1因固定访问db1被配置为单例；仍按惯例设置01，再次获取却绕过重置。</text>
+</g></svg></div><figcaption>图2：第二次设置01后命中单例缓存，DAO1查询正常但线程键残留</figcaption></figure>
+<h3 id="threadlocal-case-33-第三次请求创建非单例dao2默认查询却选到了01">3.3 第三次请求：创建非单例DAO2，默认查询却选到了01</h3>
+<p>第三次请求通过DAO2查询db0。它按照默认库调用，不设置选库键：</p>
+<pre><code class="hljs language-java"><span class="hljs-comment">// 业务预期访问默认库db0，本次没有调用locateDataBase()。</span>
+<span class="hljs-type">PagedQueryDAO</span> <span class="hljs-variable">dao2</span> <span class="hljs-operator">=</span>
+        (PagedQueryDAO) context.getBean(<span class="hljs-string">&quot;biz.pagedQueryDAO&quot;</span>);
+<span class="hljs-type">DataGrid</span> <span class="hljs-variable">grid</span> <span class="hljs-operator">=</span> dao2.query(<span class="hljs-string">&quot;biz.query.fetchSummary&quot;</span>, queryDTO, <span class="hljs-literal">true</span>);
+</code></pre>
+<p>DAO2是非单例，容器创建新实例并通过工厂注入DataSource。这时读取的<code>regionCode</code>不是“本次请求设置了什么”，而是“线程T目前保存着什么”。它读到的是上一次留下的01。</p>
+<p>接下来按代码顺序发生四件事：</p>
+<ol>
+<li>工厂读取01，选出<code>db1DS</code>。</li>
+<li>工厂的<code>finally</code>将线程T中的<code>regionCode</code>重置为00。</li>
+<li>工厂返回此前选出的<code>db1DS</code>，容器将它注入新DAO2。</li>
+<li>DAO2通过db1DS执行原本用于db0的查询；目标对象在当前连接下不可见时，报ORA-00942。</li>
+</ol>
+<p><strong>“本次没有切库”只能说明本次没有写入01，不能说明线程中没有01。</strong>默认00也不是每次请求自动应用的初始化值，它只在线程值为空时作为回退值使用。</p>
+<p>到SQL报错时：</p>
+<pre><code class="hljs language-text">DAO2实例持有的DataSource = db1DS  ← 已经绑定错误
+线程T中的regionCode      = 00     ← 工厂已经重置
+</code></pre>
+<p>这两个状态并不矛盾：线程值已恢复正常，不会追溯修改DAO2已经拿到的数据源。</p>
+<figure class="threadlocal-case-diagram"><button class="expand" type="button" aria-label="放大图3：非单例DAO2读取残留01，重置后仍返回db1DS">放大图解 ↗</button><div class="diagram-body"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 730" role="img" aria-labelledby="threadlocal-case-figure-3-title threadlocal-case-figure-3-desc">
+<title id="threadlocal-case-figure-3-title">图3 · 新建非单例DAO2：默认查询读到残留01</title>
+<desc id="threadlocal-case-figure-3-desc">线程T处理第三次请求，预期查询db0，本次没有设置选库键；获取非单例DAO2，容器创建新实例，开始数据源注入；工厂读取残留01，选出的返回对象为db1DS；工厂执行finally，regionCode重置为00；工厂仍返回db1DS，容器将此前选出的对象注入DAO2；DAO2执行db0的查询，实际连接来自db1DS；目标对象在当前库不可见，SQL报ORA-00942；异常现场的两个状态，线程键为00；DAO2持有db1DS</desc>
+<defs><marker id="threadlocal-case-figure-3-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs>
+<rect width="1000" height="730" rx="16" fill="#f7f9fc"/>
+<g font-family="PingFang SC,Microsoft YaHei,Noto Sans CJK SC,sans-serif">
+<text x="30" y="42" font-size="22" font-weight="600" fill="#24364c">图3 · 新建非单例DAO2：默认查询读到残留01</text>
+<text x="30" y="76" font-size="15" fill="#657892">先读左列01—04，再沿箭头读右列05—08 · 跟踪线程键与DAO数据源</text>
+<rect x="30" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="48" y="142" font-size="17" font-weight="600" fill="#24364c">01 · 线程T处理第三次请求</text>
+<text x="48" y="175" font-size="16" fill="#24364c">预期查询db0，本次没有设置选库键</text>
+<path d="M250 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-3-arrow)"/>
+<rect x="30" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="48" y="267" font-size="17" font-weight="600" fill="#24364c">02 · 获取非单例DAO2</text>
+<text x="48" y="300" font-size="16" fill="#24364c">容器创建新实例，开始数据源注入</text>
+<path d="M250 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-3-arrow)"/>
+<rect x="30" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="48" y="392" font-size="17" font-weight="600" fill="#24364c">03 · 工厂读取残留01</text>
+<text x="48" y="425" font-size="16" fill="#24364c">选出的返回对象为db1DS</text>
+<path d="M250 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-3-arrow)"/>
+<rect x="30" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="48" y="517" font-size="17" font-weight="600" fill="#24364c">04 · 工厂执行finally</text>
+<text x="48" y="550" font-size="16" fill="#24364c">regionCode重置为00</text>
+<path d="M470 531 H500 V94 H750 V102" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-3-arrow)"/>
+<rect x="530" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="548" y="142" font-size="17" font-weight="600" fill="#24364c">05 · 工厂仍返回db1DS</text>
+<text x="548" y="175" font-size="16" fill="#24364c">容器将此前选出的对象注入DAO2</text>
+<path d="M750 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-3-arrow)"/>
+<rect x="530" y="235" width="440" height="92" rx="12" fill="#ffe5e5" stroke="#a5b6ce"/>
+<text x="548" y="267" font-size="17" font-weight="600" fill="#24364c">06 · DAO2执行db0的查询</text>
+<text x="548" y="300" font-size="16" fill="#24364c">实际连接来自db1DS</text>
+<path d="M750 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-3-arrow)"/>
+<rect x="530" y="360" width="440" height="92" rx="12" fill="#ffe5e5" stroke="#a5b6ce"/>
+<text x="548" y="392" font-size="17" font-weight="600" fill="#24364c">07 · 目标对象在当前库不可见</text>
+<text x="548" y="425" font-size="16" fill="#24364c">SQL报ORA-00942</text>
+<path d="M750 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-3-arrow)"/>
+<rect x="530" y="485" width="440" height="92" rx="12" fill="#ffe5e5" stroke="#a5b6ce"/>
+<text x="548" y="517" font-size="17" font-weight="600" fill="#24364c">08 · 异常现场的两个状态</text>
+<text x="548" y="550" font-size="16" fill="#24364c">线程键为00；DAO2持有db1DS</text>
+<rect x="30" y="632" width="940" height="64" rx="12" fill="#fff" stroke="#d6deea"/>
+<text x="48" y="670" font-size="15" fill="#657892">选出db1DS → 重置线程键00 → 返回db1DS并注入。重置不改变已选对象。</text>
+</g></svg></div><figcaption>图3：非单例DAO2读取残留01，重置后仍返回db1DS</figcaption></figure>
+<h3 id="threadlocal-case-34-把两个状态放在同一张表里">3.4 把两个状态放在同一张表里</h3>
+<table>
+<thead>
+<tr>
+<th>时点</th>
+<th>正在操作的DAO</th>
+<th>线程T中的regionCode</th>
+<th>DAO持有的DataSource</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第一次请求完成</td>
+<td>单例DAO1，首次创建</td>
+<td>00，工厂已重置</td>
+<td>DAO1持有db1DS，查询db1正常</td>
+</tr>
+<tr>
+<td>第二次设置选库键后</td>
+<td>单例DAO1，已有实例</td>
+<td>01</td>
+<td>DAO1仍持有db1DS</td>
+</tr>
+<tr>
+<td>第二次请求完成</td>
+<td>单例DAO1，复用结束</td>
+<td>01，未重置</td>
+<td>DAO1仍持有db1DS，查询db1正常</td>
+</tr>
+<tr>
+<td>第三次工厂选出数据源时</td>
+<td>非单例DAO2，正在创建</td>
+<td>01</td>
+<td>工厂选出了db1DS，尚未注入</td>
+</tr>
+<tr>
+<td>第三次工厂退出时</td>
+<td>非单例DAO2，正在创建</td>
+<td>00，已重置</td>
+<td>工厂返回的对象仍是db1DS</td>
+</tr>
+<tr>
+<td>第三次SQL执行时</td>
+<td>非单例DAO2，注入完成</td>
+<td>00</td>
+<td>DAO2持有db1DS</td>
+</tr>
+</tbody>
+</table>
+<p>这条链的核心是：<strong>单例DAO1的获取路径留下线程状态，非单例DAO2的创建路径读取该状态。</strong>DAO2拿到的db1DS由工厂选择，并非DAO1直接传给它。</p>
+<h2 id="threadlocal-case-四为什么偶发也为什么难查">四、为什么偶发，也为什么难查</h2>
+<h3 id="threadlocal-case-41-少量单例路径留下状态后续调用多数会覆盖它">4.1 少量单例路径留下状态，后续调用多数会覆盖它</h3>
+<p>偶发性首先来自项目中两种路径的分布。大部分DAO为多例，获取前一般设置目标键，创建时又会经过工厂重置，因此正常调用不容易留下01。只有像DAO1这样保留选库设置、却复用已有实例的单例路径，才会绕过这次重置。</p>
+<p>即使01已经留在线程上，后续调用也不一定出错。若下一段业务按照惯例先设置自己的目标键，就会覆盖残留值。例如默认查询先调用<code>locateDataBase("00")</code>，多例DAO仍会正确绑定db0DS。</p>
+<p>本次故障需要两段路径恰好接在一起：<strong>前面是留下01的单例DAO调用，后面是依赖默认00、没有显式设置选库键的多例DAO调用。</strong>还要由同一工作线程处理，中间没有清理或覆盖状态。</p>
+<table>
+<thead>
+<tr>
+<th>后续默认查询的调用条件</th>
+<th>DAO2选择的数据源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>获取前显式设置00，覆盖之前的线程值</td>
+<td>db0DS，按预期查询</td>
+</tr>
+<tr>
+<td>不显式设置，但所在工作线程为空或为00</td>
+<td>db0DS，按预期查询</td>
+</tr>
+<tr>
+<td>不显式设置，且同一工作线程仍保留DAO1留下的01</td>
+<td>db1DS，目标库不符</td>
+</tr>
+</tbody>
+</table>
+<p>线程池调度又让这两段业务不总是落到同一个线程。因此，不是每次DAO1查询后都报错，也不是每次DAO2默认查询都报错，而是这组条件相遇时才会触发。固定同一线程与上述调用顺序后，就可以针对这条路径重现。</p>
+<p>DAO1自身第一次已正确绑定db1DS，后续查询目标仍是db1，所以查询可以始终正常；最终异常暴露在后面的DAO2上。这使“前面的业务正常、后面的默认查询偶发失败”更难通过单次请求堆栈解释。</p>
+<h3 id="threadlocal-case-42-异常位置看不到前面的状态设置">4.2 异常位置看不到前面的状态设置</h3>
+<p>错误日志指向的是DAO2执行的SQL：</p>
+<pre><code class="hljs language-text">--- Check the biz.query.fetchSummary-InlineParameterMap.
+--- Cause: java.sql.SQLSyntaxErrorException: ORA-00942: 表或视图不存在
+</code></pre>
+<p>目标表在预期库db0中存在，DAO2是非单例，当前业务没有调用切库方法。只检查这一段代码，容易认为它应该使用默认00。</p>
+<p>真正设置01的却是前面的另一段业务。两段业务可能不在同一个异常堆栈里，甚至不属于同一个用户请求。排查需要把同一工作线程前后的操作关联起来。</p>
+<h3 id="threadlocal-case-43-报错时threadlocal可能看起来正常">4.3 报错时，ThreadLocal可能看起来正常</h3>
+<p>第三次工厂调用已将<code>regionCode</code>恢复00，随后SQL才报错。如果只在异常处查看线程值，会看到00；如果同时查看DAO2绑定的DataSource，才会发现它持有db1DS。</p>
+<p>因此，关键证据要记录在<strong>工厂读取选库键、选出DataSource，以及DAO完成注入</strong>的时刻。仅观察SQL报错后的ThreadLocal，可能漏掉已经发生的错误绑定。</p>
+<h3 id="threadlocal-case-44-请求结束不会自动清空threadlocal">4.4 请求结束不会自动清空ThreadLocal</h3>
+<p>ThreadLocal保存的是线程自己的变量副本。线程池中的线程在请求结束后继续存活，下一次处理任务时仍可能读取尚未清理的值。<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/ThreadLocal.html">Java 8 ThreadLocal API</a></p>
+<p>所以，前后两个请求不必来自同一用户。这里的关联条件是同一工作线程，以及中间没有覆盖或清理状态。</p>
+<h2 id="threadlocal-case-五怎么修复让设置与重置配对">五、怎么修复：让设置与重置配对</h2>
+<h3 id="threadlocal-case-51-将动态选库的dao1改为非单例">5.1 将动态选库的DAO1改为非单例</h3>
+<p>对这套创建时选库的实现，将DAO1配置为非单例，让切库后获取DAO的操作重新走数据源注入路径：</p>
+<pre><code class="hljs language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">bean</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;biz.staffDAO&quot;</span>
+      <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;com.example.persistence.StaffDAOImpl&quot;</span>
+      <span class="hljs-attr">singleton</span>=<span class="hljs-string">&quot;false&quot;</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">property</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;dataSource&quot;</span> <span class="hljs-attr">ref</span>=<span class="hljs-string">&quot;dsFactory&quot;</span> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">property</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;sqlMapClient&quot;</span> <span class="hljs-attr">ref</span>=<span class="hljs-string">&quot;sqlMapClient&quot;</span> /&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">bean</span>&gt;</span>
+</code></pre>
+<p>DAO2本来就是非单例，无须改变作用域。工厂与db0DS、db1DS连接池也继续共享。变化的是：DAO1每次通过容器获取时创建新实例，读取当前选库键，并执行工厂中的重置逻辑。</p>
+<p>这里的“按次创建”与每次业务调用的获取方式配套。如果将一个非单例DAO在单例Service初始化时直接注入，后续只使用那个已经注入的实例，便没有发生新的DAO获取。</p>
+<h3 id="threadlocal-case-52-再看同样的三次请求">5.2 再看同样的三次请求</h3>
+<p>第一次请求仍然先设置01，再获取DAO1的新实例。工厂读取01、选择db1DS，并在退出时把选库键恢复00：</p>
+<figure class="threadlocal-case-diagram"><button class="expand" type="button" aria-label="放大图4：调整后第一次请求，设置01并创建DAO1，绑定db1DS后重置00">放大图解 ↗</button><div class="diagram-body"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 730" role="img" aria-labelledby="threadlocal-case-figure-4-title threadlocal-case-figure-4-desc">
+<title id="threadlocal-case-figure-4-title">图4 · 调整后首次获取DAO1：设置01并按次创建</title>
+<desc id="threadlocal-case-figure-4-desc">线程T首次查询db1，DAO1已调整为非单例；locateDataBase(&quot;01&quot;)，regionCode设为01；获取非单例DAO1，创建实例，触发数据源注入；工厂读取01，选出的返回对象为db1DS；工厂执行finally，regionCode重置为00；返回并注入db1DS，本次DAO1正确绑定db1DS；DAO1正常查询db1，选库与本次业务预期一致；第一次请求完成，线程键为00；本次DAO1持有db1DS</desc>
+<defs><marker id="threadlocal-case-figure-4-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs>
+<rect width="1000" height="730" rx="16" fill="#f7f9fc"/>
+<g font-family="PingFang SC,Microsoft YaHei,Noto Sans CJK SC,sans-serif">
+<text x="30" y="42" font-size="22" font-weight="600" fill="#24364c">图4 · 调整后首次获取DAO1：设置01并按次创建</text>
+<text x="30" y="76" font-size="15" fill="#657892">先读左列01—04，再沿箭头读右列05—08 · 跟踪线程键与DAO数据源</text>
+<rect x="30" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="48" y="142" font-size="17" font-weight="600" fill="#24364c">01 · 线程T首次查询db1</text>
+<text x="48" y="175" font-size="16" fill="#24364c">DAO1已调整为非单例</text>
+<path d="M250 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-4-arrow)"/>
+<rect x="30" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="48" y="267" font-size="17" font-weight="600" fill="#24364c">02 · locateDataBase(&quot;01&quot;)</text>
+<text x="48" y="300" font-size="16" fill="#24364c">regionCode设为01</text>
+<path d="M250 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-4-arrow)"/>
+<rect x="30" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="48" y="392" font-size="17" font-weight="600" fill="#24364c">03 · 获取非单例DAO1</text>
+<text x="48" y="425" font-size="16" fill="#24364c">创建实例，触发数据源注入</text>
+<path d="M250 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-4-arrow)"/>
+<rect x="30" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="48" y="517" font-size="17" font-weight="600" fill="#24364c">04 · 工厂读取01</text>
+<text x="48" y="550" font-size="16" fill="#24364c">选出的返回对象为db1DS</text>
+<path d="M470 531 H500 V94 H750 V102" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-4-arrow)"/>
+<rect x="530" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="548" y="142" font-size="17" font-weight="600" fill="#24364c">05 · 工厂执行finally</text>
+<text x="548" y="175" font-size="16" fill="#24364c">regionCode重置为00</text>
+<path d="M750 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-4-arrow)"/>
+<rect x="530" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="548" y="267" font-size="17" font-weight="600" fill="#24364c">06 · 返回并注入db1DS</text>
+<text x="548" y="300" font-size="16" fill="#24364c">本次DAO1正确绑定db1DS</text>
+<path d="M750 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-4-arrow)"/>
+<rect x="530" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="548" y="392" font-size="17" font-weight="600" fill="#24364c">07 · DAO1正常查询db1</text>
+<text x="548" y="425" font-size="16" fill="#24364c">选库与本次业务预期一致</text>
+<path d="M750 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-4-arrow)"/>
+<rect x="530" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="548" y="517" font-size="17" font-weight="600" fill="#24364c">08 · 第一次请求完成</text>
+<text x="548" y="550" font-size="16" fill="#24364c">线程键为00；本次DAO1持有db1DS</text>
+<rect x="30" y="632" width="940" height="64" rx="12" fill="#fff" stroke="#d6deea"/>
+<text x="48" y="670" font-size="15" fill="#657892">DAO1每次获取前仍设置01；改为非单例后，每次创建都经过工厂重置。</text>
+</g></svg></div><figcaption>图4：调整后第一次请求，设置01并创建DAO1，绑定db1DS后重置00</figcaption></figure>
+<p>第二次请求设置01，再获取DAO1的新实例。这次进入工厂，选择db1DS，工厂退出时把线程值恢复00，再将db1DS注入本次DAO1实例。它可以按预期查询db1，同时不会留下01给后面的业务：</p>
+<figure class="threadlocal-case-diagram"><button class="expand" type="button" aria-label="放大图5：调整后第二次请求，01被读取并在工厂退出时重置">放大图解 ↗</button><div class="diagram-body"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 730" role="img" aria-labelledby="threadlocal-case-figure-5-title threadlocal-case-figure-5-desc">
+<title id="threadlocal-case-figure-5-title">图5 · 调整后第二次请求：读取01，再重置为00</title>
+<desc id="threadlocal-case-figure-5-desc">线程T处理第二次请求，本次预期查询db1；locateDataBase(&quot;01&quot;)，regionCode设为01；获取非单例DAO1，创建新实例，触发数据源注入；工厂读取01，选出的返回对象为db1DS；工厂执行finally，regionCode重置为00；返回并注入db1DS，本次DAO1持有db1DS；DAO1查询db1，实际数据源与业务预期一致；本次完成，线程键为00；本次DAO1持有db1DS</desc>
+<defs><marker id="threadlocal-case-figure-5-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs>
+<rect width="1000" height="730" rx="16" fill="#f7f9fc"/>
+<g font-family="PingFang SC,Microsoft YaHei,Noto Sans CJK SC,sans-serif">
+<text x="30" y="42" font-size="22" font-weight="600" fill="#24364c">图5 · 调整后第二次请求：读取01，再重置为00</text>
+<text x="30" y="76" font-size="15" fill="#657892">先读左列01—04，再沿箭头读右列05—08 · 跟踪线程键与DAO数据源</text>
+<rect x="30" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="48" y="142" font-size="17" font-weight="600" fill="#24364c">01 · 线程T处理第二次请求</text>
+<text x="48" y="175" font-size="16" fill="#24364c">本次预期查询db1</text>
+<path d="M250 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-5-arrow)"/>
+<rect x="30" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="48" y="267" font-size="17" font-weight="600" fill="#24364c">02 · locateDataBase(&quot;01&quot;)</text>
+<text x="48" y="300" font-size="16" fill="#24364c">regionCode设为01</text>
+<path d="M250 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-5-arrow)"/>
+<rect x="30" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="48" y="392" font-size="17" font-weight="600" fill="#24364c">03 · 获取非单例DAO1</text>
+<text x="48" y="425" font-size="16" fill="#24364c">创建新实例，触发数据源注入</text>
+<path d="M250 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-5-arrow)"/>
+<rect x="30" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="48" y="517" font-size="17" font-weight="600" fill="#24364c">04 · 工厂读取01</text>
+<text x="48" y="550" font-size="16" fill="#24364c">选出的返回对象为db1DS</text>
+<path d="M470 531 H500 V94 H750 V102" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-5-arrow)"/>
+<rect x="530" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="548" y="142" font-size="17" font-weight="600" fill="#24364c">05 · 工厂执行finally</text>
+<text x="548" y="175" font-size="16" fill="#24364c">regionCode重置为00</text>
+<path d="M750 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-5-arrow)"/>
+<rect x="530" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="548" y="267" font-size="17" font-weight="600" fill="#24364c">06 · 返回并注入db1DS</text>
+<text x="548" y="300" font-size="16" fill="#24364c">本次DAO1持有db1DS</text>
+<path d="M750 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-5-arrow)"/>
+<rect x="530" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="548" y="392" font-size="17" font-weight="600" fill="#24364c">07 · DAO1查询db1</text>
+<text x="548" y="425" font-size="16" fill="#24364c">实际数据源与业务预期一致</text>
+<path d="M750 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-5-arrow)"/>
+<rect x="530" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="548" y="517" font-size="17" font-weight="600" fill="#24364c">08 · 本次完成</text>
+<text x="548" y="550" font-size="16" fill="#24364c">线程键为00；本次DAO1持有db1DS</text>
+<rect x="30" y="632" width="940" height="64" rx="12" fill="#fff" stroke="#d6deea"/>
+<text x="48" y="670" font-size="15" fill="#657892">选库键被本次工厂调用读取并重置，01没有继续留给后面的默认查询。</text>
+</g></svg></div><figcaption>图5：调整后第二次请求，01被读取并在工厂退出时重置</figcaption></figure>
+<p>第三次请求仍然不显式切库，创建DAO2时读取到00，返回db0DS并完成注入。默认库查询因此按预期执行：</p>
+<figure class="threadlocal-case-diagram"><button class="expand" type="button" aria-label="放大图6：调整后第三次请求，DAO2读取00并绑定db0DS">放大图解 ↗</button><div class="diagram-body"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 730" role="img" aria-labelledby="threadlocal-case-figure-6-title threadlocal-case-figure-6-desc">
+<title id="threadlocal-case-figure-6-title">图6 · 调整后第三次请求：DAO2按默认00选库</title>
+<desc id="threadlocal-case-figure-6-desc">线程T处理第三次请求，预期查询db0，本次没有设置选库键；获取非单例DAO2，创建新的DAO2实例；工厂读取选库键00，选出的返回对象为db0DS；工厂执行finally，regionCode保持00；返回并注入db0DS，本次DAO2持有db0DS；DAO2查询db0，实际数据源与业务预期一致；正常路径查询成功，前一段业务没有污染这次选库；本次完成，线程键为00；DAO2持有db0DS</desc>
+<defs><marker id="threadlocal-case-figure-6-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs>
+<rect width="1000" height="730" rx="16" fill="#f7f9fc"/>
+<g font-family="PingFang SC,Microsoft YaHei,Noto Sans CJK SC,sans-serif">
+<text x="30" y="42" font-size="22" font-weight="600" fill="#24364c">图6 · 调整后第三次请求：DAO2按默认00选库</text>
+<text x="30" y="76" font-size="15" fill="#657892">先读左列01—04，再沿箭头读右列05—08 · 跟踪线程键与DAO数据源</text>
+<rect x="30" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="48" y="142" font-size="17" font-weight="600" fill="#24364c">01 · 线程T处理第三次请求</text>
+<text x="48" y="175" font-size="16" fill="#24364c">预期查询db0，本次没有设置选库键</text>
+<path d="M250 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-6-arrow)"/>
+<rect x="30" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="48" y="267" font-size="17" font-weight="600" fill="#24364c">02 · 获取非单例DAO2</text>
+<text x="48" y="300" font-size="16" fill="#24364c">创建新的DAO2实例</text>
+<path d="M250 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-6-arrow)"/>
+<rect x="30" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="48" y="392" font-size="17" font-weight="600" fill="#24364c">03 · 工厂读取选库键00</text>
+<text x="48" y="425" font-size="16" fill="#24364c">选出的返回对象为db0DS</text>
+<path d="M250 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-6-arrow)"/>
+<rect x="30" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="48" y="517" font-size="17" font-weight="600" fill="#24364c">04 · 工厂执行finally</text>
+<text x="48" y="550" font-size="16" fill="#24364c">regionCode保持00</text>
+<path d="M470 531 H500 V94 H750 V102" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-6-arrow)"/>
+<rect x="530" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="548" y="142" font-size="17" font-weight="600" fill="#24364c">05 · 返回并注入db0DS</text>
+<text x="548" y="175" font-size="16" fill="#24364c">本次DAO2持有db0DS</text>
+<path d="M750 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-6-arrow)"/>
+<rect x="530" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="548" y="267" font-size="17" font-weight="600" fill="#24364c">06 · DAO2查询db0</text>
+<text x="548" y="300" font-size="16" fill="#24364c">实际数据源与业务预期一致</text>
+<path d="M750 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-6-arrow)"/>
+<rect x="530" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="548" y="392" font-size="17" font-weight="600" fill="#24364c">07 · 正常路径查询成功</text>
+<text x="548" y="425" font-size="16" fill="#24364c">前一段业务没有污染这次选库</text>
+<path d="M750 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#threadlocal-case-figure-6-arrow)"/>
+<rect x="530" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="548" y="517" font-size="17" font-weight="600" fill="#24364c">08 · 本次完成</text>
+<text x="548" y="550" font-size="16" fill="#24364c">线程键为00；DAO2持有db0DS</text>
+<rect x="30" y="632" width="940" height="64" rx="12" fill="#fff" stroke="#d6deea"/>
+<text x="48" y="670" font-size="15" fill="#657892">业务出口清理可以进一步覆盖切库后提前返回或抛异常的路径。</text>
+</g></svg></div><figcaption>图6：调整后第三次请求，DAO2读取00并绑定db0DS</figcaption></figure>
+<h3 id="threadlocal-case-53-在业务出口清理覆盖提前返回与异常">5.3 在业务出口清理，覆盖提前返回与异常</h3>
+<p>按次创建DAO让正常查询路径中的设置与重置配对。对于“设置01后，没有走到DAO获取就提前返回或抛异常”的路径，还可以在业务出口明确释放选库状态：</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">clearDataSourceContext</span><span class="hljs-params">()</span> {
+    regionCode.remove();
+}
+</code></pre>
+<pre><code class="hljs language-java"><span class="hljs-type">DataSourceFactoryBean</span> <span class="hljs-variable">factory</span> <span class="hljs-operator">=</span>
+        (DataSourceFactoryBean) context.getBean(<span class="hljs-string">&quot;&amp;dsFactory&quot;</span>);
+<span class="hljs-keyword">try</span> {
+    locateDataBase(<span class="hljs-string">&quot;01&quot;</span>);
+    <span class="hljs-type">StaffDAO</span> <span class="hljs-variable">dao1</span> <span class="hljs-operator">=</span> (StaffDAO) context.getBean(<span class="hljs-string">&quot;biz.staffDAO&quot;</span>);
+    <span class="hljs-keyword">return</span> dao1.findByNo(staffNo);
+} <span class="hljs-keyword">finally</span> {
+    factory.clearDataSourceContext();
+}
+</code></pre>
+<p>清理解决的是状态进入后续业务的问题；DAO按次创建解决的是本次选择能否用于数据源注入的问题。两者分别对应故障链的不同环节。</p>
+<p>如果存在嵌套切库，内层退出时恢复外层上下文，最外层退出时再统一清理。也可以在请求边界通过Filter或拦截器统一管理生命周期。</p>
+<h3 id="threadlocal-case-54-固定数据源也是一种设计选择">5.4 固定数据源也是一种设计选择</h3>
+<p>若一个DAO的职责固定属于某个数据库，可以直接绑定对应DataSource，分别定义访问db0与db1的DAO。这样数据源由依赖配置确定，调用过程无需借助ThreadLocal选库。</p>
+<p>若业务需要统一动态路由，则可以将选库放在获取连接的阶段，并与事务边界协调。那属于另一种数据访问设计，本文的处理针对的是创建DAO时选库的实现。</p>
+<h2 id="threadlocal-case-六排查与验证沿同一线程还原时间线">六、排查与验证：沿同一线程还原时间线</h2>
+<p>定位这类问题，可以按下面的顺序收集信息：</p>
+<ol>
+<li>从失败SQL确认业务预期库，以及实际连接的数据库、用户和Schema。ORA-00942还可能与对象可见性、权限及同义词有关，结合实际连接区分。<a href="https://docs.oracle.com/en/error-help/db/ora-00942/">Oracle错误说明</a></li>
+<li>检查报错DAO的作用域和实际获取方式，定位DataSource注入过程。</li>
+<li>在工厂入口记录线程标识、读取到的选库键及选出的数据源键。</li>
+<li>沿同一线程向前查找最近一次<code>locateDataBase("01")</code>，观察它后面获取的是新DAO还是已有单例DAO。</li>
+<li>对照工厂重置和业务出口清理，找到设置与重置没有配对的路径。</li>
+</ol>
+<p>重现时，可以用同一线程固定执行以下顺序，作为验证步骤：</p>
+<pre><code class="hljs language-java"><span class="hljs-comment">// 1. DAO1尚未创建；首次获取前设置01。</span>
+locateDataBase(<span class="hljs-string">&quot;01&quot;</span>);
+context.getBean(<span class="hljs-string">&quot;biz.staffDAO&quot;</span>);        <span class="hljs-comment">// 创建单例DAO1，绑定db1DS，键恢复00。</span>
+
+<span class="hljs-comment">// 2. 设置01，随后复用已有单例DAO1。</span>
+locateDataBase(<span class="hljs-string">&quot;01&quot;</span>);
+context.getBean(<span class="hljs-string">&quot;biz.staffDAO&quot;</span>);        <span class="hljs-comment">// 不进入工厂，01留在线程中。</span>
+
+<span class="hljs-comment">// 3. 不设置选库键，创建非单例DAO2。</span>
+context.getBean(<span class="hljs-string">&quot;biz.pagedQueryDAO&quot;</span>);   <span class="hljs-comment">// 工厂读取01，返回db1DS，键恢复00。</span>
+</code></pre>
+<p>重点核对最后一个DAO的实际DataSource，而不是只查看最后的<code>regionCode</code>。对照实验可在第二、三步之间清理状态，或将DAO1改为非单例后重新执行该顺序，再观察DAO2是否绑定db0DS。</p>
+<p>以上是复现与回归步骤；实际验证应结合项目依赖、SQL执行器和运行日志进行。</p>
+<h2 id="threadlocal-case-七复盘结论">七、复盘结论</h2>
+<p><strong>DAO1始终查询db1，每次获取前都设置01。第一次创建会进入工厂并重置00，后续命中单例缓存则绕过重置，查询虽然正常，01却留在线程中。默认访问db0的DAO2随后在同一线程上创建，读到这个01，才绑定了错误的数据源。</strong></p>
+<p>项目中多数多例DAO沿着“设置目标键→创建实例→工厂重置”的路径正常工作；固定访问db1的单例DAO保留了设置步骤，却跳过了重置步骤。后续多数显式选库调用又会覆盖残留值，使问题只在依赖默认库的特定调用顺序下暴露。</p>
+<p>两个DAO通过同一线程中的ThreadLocal状态发生了关联，错误最终出现在后面的默认查询上。</p>
+<p>这次排查需要跨过三个时间点：01被设置、DataSource被选出、SQL最终报错。它们可能出现在不同业务中，而工厂在返回数据源前已经重置线程值，更让异常现场看起来正常。</p>
+<p>把线程状态与DAO绑定分别记录，再沿同一线程还原前后调用顺序，才能解释“为什么默认查询偶尔落到另一套数据库”，并让修复覆盖本次选库与后续状态清理。</p>
+</section>
+<!-- JDK-THREADLOCAL-APPENDIX:END -->
 </article><footer>公开OpenJDK源码导读 · 无外部依赖 · <a href="../jvm/">上一期JVM图解</a> · <a href="./handbook.md">Markdown正文</a></footer></main></div><button id="up" aria-label="回到顶部">↑</button><dialog id="viewer"><div class="viewer-bar"><strong>图解详情</strong><div><button id="zoom-out">−</button><button id="zoom-reset">100%</button><button id="zoom-in">＋</button><button id="close-viewer">关闭 ✕</button></div></div><div id="viewer-body"></div></dialog><script>const $=s=>document.querySelector(s);
 $('#menu').onclick=()=>document.body.classList.toggle('nav-open');
 $('#theme').onclick=()=>{document.body.classList.toggle('dark');try{localStorage.setItem('jdk-source-reader-dark',document.body.classList.contains('dark')?'1':'0');}catch(e){}};
@@ -11693,7 +12378,7 @@ try{if(localStorage.getItem('jdk-source-reader-dark')==='1')document.body.classL
 $('#print').onclick=()=>window.print();
 $('#up').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
 document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>document.body.classList.remove('nav-open'));
-const anchors=[...document.querySelectorAll('article a[id^="chapter-"]')];
+const anchors=[...document.querySelectorAll('article a[id^="chapter-"], article a[id="appendix-threadlocal-datasource"]')];
 const observer=new IntersectionObserver(entries=>{for(const e of entries)if(e.isIntersecting){document.querySelectorAll('nav a.active').forEach(a=>a.classList.remove('active'));const a=document.querySelector('nav a[href="#'+e.target.id+'"]');if(a)a.classList.add('active');}},{rootMargin:'-75px 0px -75% 0px'});
 anchors.forEach(a=>observer.observe(a));
 let scale=1,originalWidth=0,svg;

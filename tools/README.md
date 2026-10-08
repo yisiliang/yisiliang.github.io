@@ -96,3 +96,14 @@ python3 tools/build_homepage.py
 ```
 
 `docs/jvm/xstream-lab.zip`作为归档保留最小JDK8实验工程、历史主对照、矩阵采样、复测与SHA256SUMS，不在页面提供下载入口。历史GC数字来自原实验配置，不能改写成CMS实测结果。修改实验结论时同步更新证据包与检查记录；不要把采样最大值当作真实峰值，也不要把未重跑场景写成新实测。
+
+## JDK实战附录
+
+ThreadLocal与多数据源切换复盘位于`docs/jdk-source/analysis-threadlocal-datasource.md`，配图位于`docs/jdk-source/diagrams/appendix-threadlocal/`。更新后运行：
+
+```sh
+python3 tools/build_jdk_appendix.py
+python3 tools/build_homepage.py
+```
+
+渲染依赖沿用`requirements-jvm-appendix.txt`中的Markdown与本目录的highlight.js。生成器仅替换附录标记区，同步完整Markdown手册、内嵌SVG、目录入口和离线ZIP，保留已有JDK源码章节。

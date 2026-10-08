@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 730" role="img" aria-labelledby="title desc">
+<title id="title">图2 · 再次获取单例DAO1：查询正常，01却残留</title>
+<desc id="desc">线程T再次查询db1，本次仍然获取单例DAO1；locateDataBase(&quot;01&quot;)，再次将regionCode设为01；命中DAO1单例缓存，返回已有实例，不重新创建；不重新注入DataSource，DAO1继续持有正确的db1DS；未调用工厂getObject()，工厂finally也没有执行；DAO1正常查询db1，本次查询未暴露线程状态残留；业务退出且未清理，线程T的regionCode仍为01；第二次请求完成，线程键为01；DAO1持有db1DS</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs>
+<rect width="1000" height="730" rx="16" fill="#f7f9fc"/>
+<g font-family="PingFang SC,Microsoft YaHei,Noto Sans CJK SC,sans-serif">
+<text x="30" y="42" font-size="22" font-weight="600" fill="#24364c">图2 · 再次获取单例DAO1：查询正常，01却残留</text>
+<text x="30" y="76" font-size="15" fill="#657892">先读左列01—04，再沿箭头读右列05—08 · 跟踪线程键与DAO数据源</text>
+<rect x="30" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="48" y="142" font-size="17" font-weight="600" fill="#24364c">01 · 线程T再次查询db1</text>
+<text x="48" y="175" font-size="16" fill="#24364c">本次仍然获取单例DAO1</text>
+<path d="M250 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="30" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="48" y="267" font-size="17" font-weight="600" fill="#24364c">02 · locateDataBase(&quot;01&quot;)</text>
+<text x="48" y="300" font-size="16" fill="#24364c">再次将regionCode设为01</text>
+<path d="M250 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="30" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="48" y="392" font-size="17" font-weight="600" fill="#24364c">03 · 命中DAO1单例缓存</text>
+<text x="48" y="425" font-size="16" fill="#24364c">返回已有实例，不重新创建</text>
+<path d="M250 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="30" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="48" y="517" font-size="17" font-weight="600" fill="#24364c">04 · 不重新注入DataSource</text>
+<text x="48" y="550" font-size="16" fill="#24364c">DAO1继续持有正确的db1DS</text>
+<path d="M470 531 H500 V94 H750 V102" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="548" y="142" font-size="17" font-weight="600" fill="#24364c">05 · 未调用工厂getObject()</text>
+<text x="548" y="175" font-size="16" fill="#24364c">工厂finally也没有执行</text>
+<path d="M750 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="548" y="267" font-size="17" font-weight="600" fill="#24364c">06 · DAO1正常查询db1</text>
+<text x="548" y="300" font-size="16" fill="#24364c">本次查询未暴露线程状态残留</text>
+<path d="M750 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="360" width="440" height="92" rx="12" fill="#ffe5e5" stroke="#a5b6ce"/>
+<text x="548" y="392" font-size="17" font-weight="600" fill="#24364c">07 · 业务退出且未清理</text>
+<text x="548" y="425" font-size="16" fill="#24364c">线程T的regionCode仍为01</text>
+<path d="M750 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="485" width="440" height="92" rx="12" fill="#ffe5e5" stroke="#a5b6ce"/>
+<text x="548" y="517" font-size="17" font-weight="600" fill="#24364c">08 · 第二次请求完成</text>
+<text x="548" y="550" font-size="16" fill="#24364c">线程键为01；DAO1持有db1DS</text>
+<rect x="30" y="632" width="940" height="64" rx="12" fill="#fff" stroke="#d6deea"/>
+<text x="48" y="670" font-size="15" fill="#657892">DAO1因固定访问db1被配置为单例；仍按惯例设置01，再次获取却绕过重置。</text>
+</g></svg>

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 730" role="img" aria-labelledby="title desc">
+<title id="title">图5 · 调整后第二次请求：读取01，再重置为00</title>
+<desc id="desc">线程T处理第二次请求，本次预期查询db1；locateDataBase(&quot;01&quot;)，regionCode设为01；获取非单例DAO1，创建新实例，触发数据源注入；工厂读取01，选出的返回对象为db1DS；工厂执行finally，regionCode重置为00；返回并注入db1DS，本次DAO1持有db1DS；DAO1查询db1，实际数据源与业务预期一致；本次完成，线程键为00；本次DAO1持有db1DS</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs>
+<rect width="1000" height="730" rx="16" fill="#f7f9fc"/>
+<g font-family="PingFang SC,Microsoft YaHei,Noto Sans CJK SC,sans-serif">
+<text x="30" y="42" font-size="22" font-weight="600" fill="#24364c">图5 · 调整后第二次请求：读取01，再重置为00</text>
+<text x="30" y="76" font-size="15" fill="#657892">先读左列01—04，再沿箭头读右列05—08 · 跟踪线程键与DAO数据源</text>
+<rect x="30" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="48" y="142" font-size="17" font-weight="600" fill="#24364c">01 · 线程T处理第二次请求</text>
+<text x="48" y="175" font-size="16" fill="#24364c">本次预期查询db1</text>
+<path d="M250 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="30" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="48" y="267" font-size="17" font-weight="600" fill="#24364c">02 · locateDataBase(&quot;01&quot;)</text>
+<text x="48" y="300" font-size="16" fill="#24364c">regionCode设为01</text>
+<path d="M250 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="30" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="48" y="392" font-size="17" font-weight="600" fill="#24364c">03 · 获取非单例DAO1</text>
+<text x="48" y="425" font-size="16" fill="#24364c">创建新实例，触发数据源注入</text>
+<path d="M250 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="30" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="48" y="517" font-size="17" font-weight="600" fill="#24364c">04 · 工厂读取01</text>
+<text x="48" y="550" font-size="16" fill="#24364c">选出的返回对象为db1DS</text>
+<path d="M470 531 H500 V94 H750 V102" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="548" y="142" font-size="17" font-weight="600" fill="#24364c">05 · 工厂执行finally</text>
+<text x="548" y="175" font-size="16" fill="#24364c">regionCode重置为00</text>
+<path d="M750 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="548" y="267" font-size="17" font-weight="600" fill="#24364c">06 · 返回并注入db1DS</text>
+<text x="548" y="300" font-size="16" fill="#24364c">本次DAO1持有db1DS</text>
+<path d="M750 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="548" y="392" font-size="17" font-weight="600" fill="#24364c">07 · DAO1查询db1</text>
+<text x="548" y="425" font-size="16" fill="#24364c">实际数据源与业务预期一致</text>
+<path d="M750 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="548" y="517" font-size="17" font-weight="600" fill="#24364c">08 · 本次完成</text>
+<text x="548" y="550" font-size="16" fill="#24364c">线程键为00；本次DAO1持有db1DS</text>
+<rect x="30" y="632" width="940" height="64" rx="12" fill="#fff" stroke="#d6deea"/>
+<text x="48" y="670" font-size="15" fill="#657892">选库键被本次工厂调用读取并重置，01没有继续留给后面的默认查询。</text>
+</g></svg>

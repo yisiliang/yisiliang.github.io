@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 730" role="img" aria-labelledby="title desc">
+<title id="title">图6 · 调整后第三次请求：DAO2按默认00选库</title>
+<desc id="desc">线程T处理第三次请求，预期查询db0，本次没有设置选库键；获取非单例DAO2，创建新的DAO2实例；工厂读取选库键00，选出的返回对象为db0DS；工厂执行finally，regionCode保持00；返回并注入db0DS，本次DAO2持有db0DS；DAO2查询db0，实际数据源与业务预期一致；正常路径查询成功，前一段业务没有污染这次选库；本次完成，线程键为00；DAO2持有db0DS</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#6e819a"/></marker></defs>
+<rect width="1000" height="730" rx="16" fill="#f7f9fc"/>
+<g font-family="PingFang SC,Microsoft YaHei,Noto Sans CJK SC,sans-serif">
+<text x="30" y="42" font-size="22" font-weight="600" fill="#24364c">图6 · 调整后第三次请求：DAO2按默认00选库</text>
+<text x="30" y="76" font-size="15" fill="#657892">先读左列01—04，再沿箭头读右列05—08 · 跟踪线程键与DAO数据源</text>
+<rect x="30" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="48" y="142" font-size="17" font-weight="600" fill="#24364c">01 · 线程T处理第三次请求</text>
+<text x="48" y="175" font-size="16" fill="#24364c">预期查询db0，本次没有设置选库键</text>
+<path d="M250 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="30" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="48" y="267" font-size="17" font-weight="600" fill="#24364c">02 · 获取非单例DAO2</text>
+<text x="48" y="300" font-size="16" fill="#24364c">创建新的DAO2实例</text>
+<path d="M250 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="30" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="48" y="392" font-size="17" font-weight="600" fill="#24364c">03 · 工厂读取选库键00</text>
+<text x="48" y="425" font-size="16" fill="#24364c">选出的返回对象为db0DS</text>
+<path d="M250 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="30" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="48" y="517" font-size="17" font-weight="600" fill="#24364c">04 · 工厂执行finally</text>
+<text x="48" y="550" font-size="16" fill="#24364c">regionCode保持00</text>
+<path d="M470 531 H500 V94 H750 V102" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="110" width="440" height="92" rx="12" fill="#dfefff" stroke="#a5b6ce"/>
+<text x="548" y="142" font-size="17" font-weight="600" fill="#24364c">05 · 返回并注入db0DS</text>
+<text x="548" y="175" font-size="16" fill="#24364c">本次DAO2持有db0DS</text>
+<path d="M750 202 V227" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="235" width="440" height="92" rx="12" fill="#e7e7ff" stroke="#a5b6ce"/>
+<text x="548" y="267" font-size="17" font-weight="600" fill="#24364c">06 · DAO2查询db0</text>
+<text x="548" y="300" font-size="16" fill="#24364c">实际数据源与业务预期一致</text>
+<path d="M750 327 V352" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="360" width="440" height="92" rx="12" fill="#dcf5ee" stroke="#a5b6ce"/>
+<text x="548" y="392" font-size="17" font-weight="600" fill="#24364c">07 · 正常路径查询成功</text>
+<text x="548" y="425" font-size="16" fill="#24364c">前一段业务没有污染这次选库</text>
+<path d="M750 452 V477" fill="none" stroke="#6e819a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="530" y="485" width="440" height="92" rx="12" fill="#fff0d8" stroke="#a5b6ce"/>
+<text x="548" y="517" font-size="17" font-weight="600" fill="#24364c">08 · 本次完成</text>
+<text x="548" y="550" font-size="16" fill="#24364c">线程键为00；DAO2持有db0DS</text>
+<rect x="30" y="632" width="940" height="64" rx="12" fill="#fff" stroke="#d6deea"/>
+<text x="48" y="670" font-size="15" fill="#657892">业务出口清理可以进一步覆盖切库后提前返回或抛异常的路径。</text>
+</g></svg>

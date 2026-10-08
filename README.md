@@ -19,6 +19,8 @@ Transformer文章固定arXiv:1706.03762v5，通过16节深入解读、4张图解
 
 JVM附录[XStream1.4.4与CMS回收压力](https://yisiliang.github.io/jvm/#appendix-xstream)按Oracle JDK8与CMS展开，解释实例级构造器缓存、反射类生成、元空间高水位，以及复用实例和升级版本的作用。
 
+JDK附录[ThreadLocal状态残留与偶发SQL异常](https://yisiliang.github.io/jdk-source/#appendix-threadlocal-datasource)通过六张流程图还原单例DAO留下选库状态、后续非单例DAO读取残留值的过程，解释线程复用、调用顺序和报错后状态恢复带来的排查难点。
+
 源码教程固定上游标签与完整提交，提供真实节选、机制图、正文推导、验证记录和离线包。实验记录区分已执行与仅提供步骤/预期；学习基线不等于最新生产版本。
 
 首页目录维护与发布检查见[tools/README.md](tools/README.md)。Support、Privacy Policy和历史技术文章保留原地址，不在首页展示。
