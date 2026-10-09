@@ -30,13 +30,13 @@ npm ci --prefix tools
 
 ## 源码学习库首页
 
-六大分类与已发布教程记录在`homepage/catalog.json`，样式源文件是`homepage/style.css`。新增教程时填写真实版本与统计，并运行：
+六大技术领域与第七类“10大技术专题”记录在`homepage/catalog.json`，样式源文件是`homepage/style.css`。专题分类使用`layout: topics`横跨整行，`topics`数组维护各章节标题与锚点；手册的`kind: topics`让共享源码阅读器样式工具跳过这个独立阅读页面。新增教程时填写真实版本与统计，并运行：
 
 ```sh
 python3 tools/build_homepage.py
 ```
 
-脚本生成`docs/index.html`与首页CSS，并拒绝指向尚不存在的教程页面。首页是独立静态页面，不依赖Jekyll主题或客户端框架。
+脚本生成`docs/index.html`与首页CSS，并拒绝指向尚不存在的教程页面或专题锚点。分类、手册及专题数量从目录计算；CSS链接使用内容摘要作为版本参数，避免新增分类时浏览器沿用旧样式。首页是独立静态页面，不依赖Jekyll主题或客户端框架。
 
 四本新教程的发布结构检查：
 

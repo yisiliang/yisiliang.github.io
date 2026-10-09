@@ -1,6 +1,6 @@
 # 构建与验收范围
 
-本目录独立于首页目录、导航、已有 CSS/JavaScript 和文章，不更新 sitemap/RSS。仓库 GitHub Pages 从 master:/docs 构建（legacy Jekyll），本目录不使用 Front Matter，index.html 是直接复制的静态 HTML。页面显式载入现有 Umami 网站记录脚本；没有访问权限控制。
+本目录采用独立的CSS/JavaScript与阅读布局。2026年10月9日接入首页第七类“10大技术专题”，首页提供完整手册与十章直达链接；不更新sitemap/RSS。仓库GitHub Pages从master:/docs构建（legacy Jekyll），本目录不使用Front Matter，index.html是直接复制的静态HTML。页面显式载入现有Umami网站记录脚本；没有访问权限控制。
 
 十个专题、60 道三层问答、15 张 Mermaid 图、源码连续节选和模拟故障。官方源码下载记录见 sources.json，补充联网记录见 research-checks.json。所有事故均为教学模拟，未实际运行 Java、数据库、Redis、RocketMQ 故障实验，不声称有真实生产测量。
 

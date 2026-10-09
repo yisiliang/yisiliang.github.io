@@ -4,3 +4,23 @@
 [hidden]{display:none!important}.skip-link{position:absolute;left:20px;top:-70px;padding:12px;background:#111c2b;color:#fff;z-index:10}.skip-link:focus{top:8px}
 
 .books.single{grid-template-columns:1fr}.books.single .book-title strong{font-size:30px}.books.single .book{padding-bottom:14px}
+
+/* Cross-domain topics occupy a full row after the six subject categories. */
+.category-topics{grid-column:1/-1;border-top-color:#70668f;padding-top:24px}
+.category-topics>.description{min-height:0;margin-bottom:24px}
+.topics-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:36px}
+.topics-overview{border-right:1px solid var(--line);padding-right:32px}
+.topics-overview .books.single .book-title strong{font-family:'Songti SC','STSong',serif;font-size:27px;line-height:1.5}
+.topics-overview .version{margin-top:14px}
+.topics-overview .detail{font-size:12px}
+.topic-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;list-style:none;padding:0;margin:0}
+.topic-links li{min-width:0;border-bottom:1px solid var(--line)}
+.topic-links a{display:flex;align-items:center;gap:12px;padding:13px 0;font-size:13px;line-height:1.7}
+.topic-links a>span:nth-child(2){min-width:0;overflow-wrap:anywhere}
+.topic-number{font:12px Georgia,serif;color:var(--accent);flex-shrink:0}
+.topic-links .arrow{margin-left:auto;font-size:15px}
+.topic-links a:hover .arrow{transform:translate(2px,-2px)}
+@media(max-width:1000px){.topics-layout{grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:24px}.topics-overview{padding-right:20px}.topic-links{gap:0 18px}}
+@media(max-width:760px){.topics-layout{grid-template-columns:1fr;gap:12px}.topics-overview{border-right:0;padding-right:0}.topics-overview .books.single .book-title strong{font-size:25px}}
+@media(max-width:600px){.nav{height:auto;min-height:92px;flex-wrap:wrap;gap:4px;padding-top:16px}nav{width:100%;justify-content:space-between;gap:12px}nav a{padding:15px 0}nav a:nth-child(2){display:block}.topic-links{grid-template-columns:1fr}.topic-links a{font-size:14px;padding:14px 0}.category-topics>.description{margin-bottom:20px}}
+@media(max-width:360px){.books{grid-template-columns:1fr}}
