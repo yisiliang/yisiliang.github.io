@@ -42,7 +42,7 @@ def build():
         content=f'<div class="books {"single" if len(books)==1 else ""}">{"".join(books)}</div>{future}'
         featured=g.get('layout')=='topics'
         if featured:
-            content=f'<div class="topics-layout"><div class="topics-overview">{content}</div><ol class="topic-links" aria-label="专题直达">{"".join(topics)}</ol></div>'
+            content=f'<ol class="topic-links" aria-label="专题直达">{"".join(topics)}</ol>'
         articles.append(f'<article id="{esc(g["id"])}" class="category{" category-topics" if featured else ""}" data-published="{str(bool(books)).lower()}"><div class="category-top"><span class="index">{i:02d}</span><span class="category-en">{esc(g["en"])}</span></div><h3>{esc(g["title"])}</h3><p class="description">{esc(g["description"])}</p>{content}</article>')
     github='https://github.com/yisiliang/yisiliang.github.io'
     page=f'''<!doctype html>

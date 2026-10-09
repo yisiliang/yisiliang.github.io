@@ -14,7 +14,7 @@
 |AI与大模型基础|[Transformer：《Attention Is All You Need》通俗解读](https://yisiliang.github.io/transformer/)|
 |10大技术专题|[Java高级开发与架构师面试](https://yisiliang.github.io/java-architect-interview/)|
 
-10大技术专题覆盖Java并发、集合、JVM内存与故障排查、Spring事务、数据库、RocketMQ、Redis、分布式事务与系统稳定性，包含60道三层问答、15张图解、面试速查和90分钟复习路线。首页提供完整手册入口与各专题直达链接。
+10大技术专题覆盖Java并发、集合、JVM内存与故障排查、Spring事务、数据库、RocketMQ、Redis、分布式事务与系统稳定性，包含60道三层问答、15张图解、面试速查和90分钟复习路线。首页在专题标题与说明下直接列出十个专题入口。
 
 CAP与BASE文章从网络分区推导理论边界，并通过订单与积分案例解释可靠消息、幂等、重试、补偿与对账，提供离线阅读包，并附Gilbert与Lynch原论文精读：定理1的执行构造、推论1.1、定理2及Delayed-t恢复约束，均标注PDF页码。
 
