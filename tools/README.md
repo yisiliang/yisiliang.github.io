@@ -61,7 +61,7 @@ python3 tools/build_homepage.py
 
 ## 资料页统一阅读样式
 
-首页目录中的11个技术阅读页面均采用技术专题的排版：固定顶栏、左侧章节目录、中央正文、右侧篇内目录与阅读进度。按章显示完整内容，提供全文搜索、源码复制、SVG图解放大、手机目录抽屉与系统／浅色／深色主题。共享源文件是`reader/style.css`、`reader/controls.js`，在线与现有离线页面均内嵌这些资源；技术专题还保留“要点速览”。
+首页目录中的12个技术阅读页面均采用技术专题的排版：固定顶栏、左侧章节目录、中央正文、右侧篇内目录与阅读进度。按章显示完整内容，提供全文搜索、源码复制、SVG图解放大、手机目录抽屉与系统／浅色／深色主题。共享源文件是`reader/style.css`、`reader/controls.js`，在线与现有离线页面均内嵌这些资源；技术专题还保留“要点速览”。
 
 首页与全部技术文章的颜色变量统一维护在`reader/theme.css`，偏好与切换逻辑统一维护在`reader/theme.js`。共用`learning-reader-theme`存储键，切页沿用偏好，已经打开的同源页面通过`storage`事件同步；系统模式随操作系统变化。首页生成器输出带内容摘要的CSS与主题JS，阅读器直接内嵌同一份源码，离线包不需要外部主题资源。修改这两个文件后同时运行`python3 tools/style_readers.py`与`python3 tools/build_homepage.py`。
 
@@ -113,3 +113,5 @@ python3 tools/build_homepage.py
 ```
 
 渲染依赖沿用`requirements-jvm-appendix.txt`中的Markdown与本目录的highlight.js。生成器仅替换附录标记区，同步完整Markdown手册、内嵌SVG、目录入口和离线ZIP，保留已有JDK源码章节。
+
+Nginx限流专题由`docs/nginx-rate-limiting/article.md`与固定模块源码生成。运行该目录的`build.py`同步HTML、完整Markdown、源码清单和离线ZIP，再运行`verify.py`。专题提供五组本地双Worker代理实验记录；阅读控件使用与共享工具兼容的内嵌资源标识。
