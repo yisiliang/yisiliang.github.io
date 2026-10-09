@@ -34,7 +34,7 @@ def build():
             if b.get('topics'):
                 page_anchors=Anchors()
                 page_anchors.feed((ROOT/'docs'/b['path']/'index.html').read_text())
-                for n,topic in enumerate(b['topics'],1):
+                for n,topic in enumerate(b['topics'],len(topics)+1):
                     if topic['anchor'] not in page_anchors.ids:
                         raise ValueError('Topic anchor missing: '+b['path']+'#'+topic['anchor'])
                     topics.append(f'<li><a href="./{esc(b["path"])}/#{esc(topic["anchor"])}"><span class="topic-number" aria-hidden="true">{n:02d}</span><span>{esc(topic["title"])}</span><span class="arrow" aria-hidden="true">↗</span></a></li>')
@@ -48,7 +48,7 @@ def build():
         articles.append(f'<article id="{esc(g["id"])}" class="category{" category-topics" if featured else ""}" data-published="{str(bool(books)).lower()}"><div class="category-top"><span class="index">{i:02d}</span><span class="category-en">{esc(g["en"])}</span></div><h3>{esc(g["title"])}</h3><p class="description">{esc(g["description"])}</p>{content}</article>')
     github='https://github.com/yisiliang/yisiliang.github.io'
     page=f'''<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="description" content="从源码出发，理解系统。{domains}大技术领域的源码手册与AI论文解读，以及Java核心技术与架构实践的{topic_count}个技术专题。"><title>源码之下，系统之上 | YiSiliang</title><link rel="stylesheet" href="./assets/homepage/style.css?v={style_version}"><script src="./assets/homepage/theme.js?v={theme_version}"></script><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script></head><body>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="description" content="从源码出发，理解系统。{domains}大技术领域的源码手册与AI论文解读，以及Java核心技术、Nginx流量治理与架构实践的{topic_count}个技术专题。"><title>源码之下，系统之上 | YiSiliang</title><link rel="stylesheet" href="./assets/homepage/style.css?v={style_version}"><script src="./assets/homepage/theme.js?v={theme_version}"></script><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script></head><body>
 <a class="skip-link" href="#library">跳至学习手册</a>
 <header class="header"><div class="wrap nav"><a class="brand" href="./">YiSiliang<span> / SOURCE NOTES</span></a><nav aria-label="主导航"><a class="nav-active" href="#library">学习手册</a><a href="#categories">技术分类</a><a href="#topics">技术专题</a><a class="github" href="{github}" target="_blank" rel="noreferrer"><img src="./assets/homepage/github.svg" alt="">GitHub</a></nav><button id="theme" class="header-theme" type="button" aria-label="切换主题">主题：系统</button></div></header>
 <main class="wrap"><section class="hero"><div><p class="eyebrow">READ THE SOURCE. UNDERSTAND THE SYSTEM.</p><h1>源码之下，<br><span>系统之上。</span></h1></div><div class="hero-note"><p class="eyebrow">从实现，走向原理</p><p>循着真实源码，理解框架与中间件。<br>把字段、流程与边界，串成系统的全貌。</p><a href="#library">开始阅读<span aria-hidden="true"> ↗</span></a></div></section>

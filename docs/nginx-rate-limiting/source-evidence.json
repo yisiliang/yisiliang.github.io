@@ -1,0 +1,79 @@
+{
+  "version": "1.28.0",
+  "tag": "release-1.28.0",
+  "commit": "481d28cb4e04c8096b9b6134856891dc52ecc68f",
+  "file": "source/ngx_http_limit_req_module.c",
+  "sha256": "6ad684e4eb748456b3ba26b9fa09a6f6bc4463027832c8a02a1d5f8875030ba1",
+  "windows": [
+    {
+      "id": "lookup",
+      "title": "ngx_http_limit_req_lookup：已有Key的计算、拒绝与提交",
+      "start": 445,
+      "end": 480,
+      "sha256": "64f7fab3ef3279d1bf612898e90ddef19a2a86cf67ccd45164b9aec30fa66fe3"
+    },
+    {
+      "id": "new-node",
+      "title": "ngx_http_limit_req_lookup：新节点的首个请求",
+      "start": 508,
+      "end": 526,
+      "sha256": "9eb72ac566ebbfa268aad361b1f538e147d1dde97afb2deac8ec25aeafa3d4cf"
+    },
+    {
+      "id": "delay-formula",
+      "title": "ngx_http_limit_req_account：最后一项的初始延迟",
+      "start": 544,
+      "end": 553,
+      "sha256": "3c85247f57eeb40f4aa4d0024992efe685b477322e2f212f93fcdfce9c15548d"
+    },
+    {
+      "id": "nodelay",
+      "title": "ngx_http_limit_req：nodelay的阈值解析",
+      "start": 1020,
+      "end": 1023,
+      "sha256": "68cce1fadb46c4148dcfec4de143607554deefcb69f859a1293af3c540f14763"
+    },
+    {
+      "id": "phase",
+      "title": "ngx_http_limit_req_init：PREACCESS处理函数注册",
+      "start": 1086,
+      "end": 1102,
+      "sha256": "2851c32295a8488b761b31388d6bdf4eead9852697f5b9d9c81c4de500044f34"
+    },
+    {
+      "id": "timer",
+      "title": "ngx_http_limit_req_handler：挂起请求并注册定时器",
+      "start": 322,
+      "end": 328,
+      "sha256": "a14c7b1d902f0d3aecf4f52d0450a1585c2578b924ab3791561ba6af4fe267ae"
+    },
+    {
+      "id": "resume",
+      "title": "ngx_http_limit_req_delay：恢复HTTP阶段",
+      "start": 350,
+      "end": 360,
+      "sha256": "3ab051f0c03410afbebce13835ce19db3c6448e2b9edc58df35ccc9f21478479"
+    },
+    {
+      "id": "lock",
+      "title": "ngx_http_limit_req_handler：带共享锁的查找",
+      "start": 244,
+      "end": 250,
+      "sha256": "79795887b21b2137572bd19d0f4824a6661865dfe920f5b65f22275bceca29f7"
+    },
+    {
+      "id": "expire",
+      "title": "ngx_http_limit_req_expire：淘汰条件",
+      "start": 651,
+      "end": 694,
+      "sha256": "af12560a8c8c347fb47ac9375cdfb6a135fa589576aa2f07abbee9d5f7f1e051"
+    },
+    {
+      "id": "account",
+      "title": "ngx_http_limit_req_account：暂存节点的最终记账",
+      "start": 563,
+      "end": 605,
+      "sha256": "1d8da02389261fbf3cff68a506b29aca4c678eb9a1a85509436e8f9f776b85fe"
+    }
+  ]
+}

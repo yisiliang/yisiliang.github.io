@@ -185,6 +185,16 @@
             "anchor": "c11"
           }
         ]
+      },
+      {
+        "name": "Nginx限流原理与工程实践",
+        "version": "NGINX1.28.0 · 漏桶与流量治理",
+        "path": "nginx-rate-limiting",
+        "kind": "topics",
+        "detail": "11节机制分析 · 2张图解 · 10段固定源码 · 本地实验",
+        "topics": [
+          {"title": "Nginx限流原理与工程实践", "anchor": "principle"}
+        ]
       }
     ],
     "future": []

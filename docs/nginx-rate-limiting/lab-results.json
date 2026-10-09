@@ -1,0 +1,630 @@
+{
+  "nginx": "nginx version: nginx/1.28.0",
+  "executed_at_utc": "2026-10-09T02:44:06.836912+00:00",
+  "workers": 2,
+  "scenarios": [
+    {
+      "name": "smooth",
+      "counts": {
+        "200": 6,
+        "429": 1
+      },
+      "send_span_ms": 0.81,
+      "upstream_relative_ms": [
+        0.0,
+        100.948,
+        201.232,
+        300.733,
+        401.923,
+        500.537
+      ],
+      "clients": [
+        {
+          "id": 0,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80790",
+          "sent_ms": 0.605,
+          "elapsed_ms": 1.432
+        },
+        {
+          "id": 1,
+          "code": 200,
+          "limit": "DELAYED",
+          "worker": "80789",
+          "sent_ms": 0.534,
+          "elapsed_ms": 202.647
+        },
+        {
+          "id": 2,
+          "code": 200,
+          "limit": "DELAYED",
+          "worker": "80790",
+          "sent_ms": 0.96,
+          "elapsed_ms": 301.718
+        },
+        {
+          "id": 3,
+          "code": 200,
+          "limit": "DELAYED",
+          "worker": "80790",
+          "sent_ms": 0.744,
+          "elapsed_ms": 403.328
+        },
+        {
+          "id": 4,
+          "code": 200,
+          "limit": "DELAYED",
+          "worker": "80790",
+          "sent_ms": 0.891,
+          "elapsed_ms": 102.045
+        },
+        {
+          "id": 5,
+          "code": 429,
+          "limit": "REJECTED",
+          "worker": "80790",
+          "sent_ms": 1.222,
+          "elapsed_ms": 0.853
+        },
+        {
+          "id": 6,
+          "code": 200,
+          "limit": "DELAYED",
+          "worker": "80790",
+          "sent_ms": 0.412,
+          "elapsed_ms": 502.214
+        }
+      ]
+    },
+    {
+      "name": "immediate",
+      "counts": {
+        "200": 6,
+        "429": 1
+      },
+      "send_span_ms": 0.553,
+      "upstream_relative_ms": [
+        0.0,
+        0.505,
+        0.848,
+        1.153,
+        1.563,
+        1.759
+      ],
+      "clients": [
+        {
+          "id": 0,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80790",
+          "sent_ms": 0.711,
+          "elapsed_ms": 2.555
+        },
+        {
+          "id": 1,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80790",
+          "sent_ms": 0.961,
+          "elapsed_ms": 1.781
+        },
+        {
+          "id": 2,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80790",
+          "sent_ms": 0.801,
+          "elapsed_ms": 3.076
+        },
+        {
+          "id": 3,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80790",
+          "sent_ms": 1.035,
+          "elapsed_ms": 2.925
+        },
+        {
+          "id": 4,
+          "code": 429,
+          "limit": "REJECTED",
+          "worker": "80789",
+          "sent_ms": 0.884,
+          "elapsed_ms": 1.828
+        },
+        {
+          "id": 5,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80789",
+          "sent_ms": 1.107,
+          "elapsed_ms": 1.847
+        },
+        {
+          "id": 6,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80789",
+          "sent_ms": 0.554,
+          "elapsed_ms": 2.838
+        }
+      ]
+    },
+    {
+      "name": "threshold",
+      "counts": {
+        "200": 6,
+        "429": 1
+      },
+      "send_span_ms": 0.405,
+      "upstream_relative_ms": [
+        0.0,
+        0.453,
+        0.697,
+        102.08,
+        202.204,
+        302.36
+      ],
+      "clients": [
+        {
+          "id": 0,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80790",
+          "sent_ms": 0.646,
+          "elapsed_ms": 1.853
+        },
+        {
+          "id": 1,
+          "code": 200,
+          "limit": "DELAYED",
+          "worker": "80789",
+          "sent_ms": 0.716,
+          "elapsed_ms": 303.667
+        },
+        {
+          "id": 2,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80789",
+          "sent_ms": 0.862,
+          "elapsed_ms": 1.762
+        },
+        {
+          "id": 3,
+          "code": 200,
+          "limit": "DELAYED",
+          "worker": "80789",
+          "sent_ms": 0.923,
+          "elapsed_ms": 103.176
+        },
+        {
+          "id": 4,
+          "code": 200,
+          "limit": "DELAYED",
+          "worker": "80789",
+          "sent_ms": 0.764,
+          "elapsed_ms": 203.319
+        },
+        {
+          "id": 5,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80790",
+          "sent_ms": 0.812,
+          "elapsed_ms": 1.887
+        },
+        {
+          "id": 6,
+          "code": 429,
+          "limit": "REJECTED",
+          "worker": "80789",
+          "sent_ms": 0.518,
+          "elapsed_ms": 1.858
+        }
+      ]
+    },
+    {
+      "name": "observe",
+      "counts": {
+        "200": 7
+      },
+      "send_span_ms": 0.491,
+      "upstream_relative_ms": [
+        0.0,
+        0.173,
+        0.949,
+        1.9,
+        2.37,
+        2.5,
+        2.66
+      ],
+      "clients": [
+        {
+          "id": 0,
+          "code": 200,
+          "limit": "DELAYED_DRY_RUN",
+          "worker": "80789",
+          "sent_ms": 4.286,
+          "elapsed_ms": 3.571
+        },
+        {
+          "id": 1,
+          "code": 200,
+          "limit": "DELAYED_DRY_RUN",
+          "worker": "80790",
+          "sent_ms": 4.334,
+          "elapsed_ms": 4.063
+        },
+        {
+          "id": 2,
+          "code": 200,
+          "limit": "REJECTED_DRY_RUN",
+          "worker": "80790",
+          "sent_ms": 4.385,
+          "elapsed_ms": 4.069
+        },
+        {
+          "id": 3,
+          "code": 200,
+          "limit": "DELAYED_DRY_RUN",
+          "worker": "80790",
+          "sent_ms": 4.632,
+          "elapsed_ms": 2.024
+        },
+        {
+          "id": 4,
+          "code": 200,
+          "limit": "DELAYED_DRY_RUN",
+          "worker": "80789",
+          "sent_ms": 4.489,
+          "elapsed_ms": 3.732
+        },
+        {
+          "id": 5,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80790",
+          "sent_ms": 4.441,
+          "elapsed_ms": 3.326
+        },
+        {
+          "id": 6,
+          "code": 200,
+          "limit": "DELAYED_DRY_RUN",
+          "worker": "80790",
+          "sent_ms": 4.141,
+          "elapsed_ms": 3.788
+        }
+      ]
+    },
+    {
+      "name": "multi",
+      "counts": {
+        "200": 4,
+        "429": 3
+      },
+      "send_span_ms": 0.305,
+      "upstream_relative_ms": [
+        0.0,
+        200.619,
+        401.824,
+        601.309
+      ],
+      "clients": [
+        {
+          "id": 0,
+          "code": 200,
+          "limit": "PASSED",
+          "worker": "80790",
+          "sent_ms": 0.315,
+          "elapsed_ms": 1.165
+        },
+        {
+          "id": 1,
+          "code": 200,
+          "limit": "DELAYED",
+          "worker": "80789",
+          "sent_ms": 0.484,
+          "elapsed_ms": 602.361
+        },
+        {
+          "id": 2,
+          "code": 429,
+          "limit": "REJECTED",
+          "worker": "80790",
+          "sent_ms": 0.559,
+          "elapsed_ms": 0.863
+        },
+        {
+          "id": 3,
+          "code": 200,
+          "limit": "DELAYED",
+          "worker": "80790",
+          "sent_ms": 0.358,
+          "elapsed_ms": 403.161
+        },
+        {
+          "id": 4,
+          "code": 429,
+          "limit": "REJECTED",
+          "worker": "80790",
+          "sent_ms": 0.434,
+          "elapsed_ms": 0.974
+        },
+        {
+          "id": 5,
+          "code": 429,
+          "limit": "REJECTED",
+          "worker": "80789",
+          "sent_ms": 0.516,
+          "elapsed_ms": 0.979
+        },
+        {
+          "id": 6,
+          "code": 200,
+          "limit": "DELAYED",
+          "worker": "80790",
+          "sent_ms": 0.254,
+          "elapsed_ms": 201.667
+        }
+      ]
+    }
+  ],
+  "scope": "local HTTP/1.1; no cluster, HTTP/2 or memory exhaustion test",
+  "access_log": [
+    {
+      "key": "",
+      "pid": 80790,
+      "status": 200,
+      "limit": "",
+      "request_time": 0.001
+    },
+    {
+      "key": "d7722666e23a4b66a1ea8cdf3fe7082b",
+      "pid": 80790,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.001
+    },
+    {
+      "key": "d7722666e23a4b66a1ea8cdf3fe7082b",
+      "pid": 80790,
+      "status": 429,
+      "limit": "REJECTED",
+      "request_time": 0.0
+    },
+    {
+      "key": "d7722666e23a4b66a1ea8cdf3fe7082b",
+      "pid": 80790,
+      "status": 200,
+      "limit": "DELAYED",
+      "request_time": 0.102
+    },
+    {
+      "key": "d7722666e23a4b66a1ea8cdf3fe7082b",
+      "pid": 80789,
+      "status": 200,
+      "limit": "DELAYED",
+      "request_time": 0.202
+    },
+    {
+      "key": "d7722666e23a4b66a1ea8cdf3fe7082b",
+      "pid": 80790,
+      "status": 200,
+      "limit": "DELAYED",
+      "request_time": 0.302
+    },
+    {
+      "key": "d7722666e23a4b66a1ea8cdf3fe7082b",
+      "pid": 80790,
+      "status": 200,
+      "limit": "DELAYED",
+      "request_time": 0.403
+    },
+    {
+      "key": "d7722666e23a4b66a1ea8cdf3fe7082b",
+      "pid": 80790,
+      "status": 200,
+      "limit": "DELAYED",
+      "request_time": 0.501
+    },
+    {
+      "key": "772043df344c434bb519e166343928f9",
+      "pid": 80789,
+      "status": 429,
+      "limit": "REJECTED",
+      "request_time": 0.0
+    },
+    {
+      "key": "772043df344c434bb519e166343928f9",
+      "pid": 80790,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.0
+    },
+    {
+      "key": "772043df344c434bb519e166343928f9",
+      "pid": 80789,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.001
+    },
+    {
+      "key": "772043df344c434bb519e166343928f9",
+      "pid": 80790,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.001
+    },
+    {
+      "key": "772043df344c434bb519e166343928f9",
+      "pid": 80789,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.001
+    },
+    {
+      "key": "772043df344c434bb519e166343928f9",
+      "pid": 80790,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.002
+    },
+    {
+      "key": "772043df344c434bb519e166343928f9",
+      "pid": 80790,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.002
+    },
+    {
+      "key": "03833e1b26f346afbe69f13421fe7e4a",
+      "pid": 80789,
+      "status": 429,
+      "limit": "REJECTED",
+      "request_time": 0.0
+    },
+    {
+      "key": "03833e1b26f346afbe69f13421fe7e4a",
+      "pid": 80790,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.0
+    },
+    {
+      "key": "03833e1b26f346afbe69f13421fe7e4a",
+      "pid": 80790,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.001
+    },
+    {
+      "key": "03833e1b26f346afbe69f13421fe7e4a",
+      "pid": 80789,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.001
+    },
+    {
+      "key": "03833e1b26f346afbe69f13421fe7e4a",
+      "pid": 80789,
+      "status": 200,
+      "limit": "DELAYED",
+      "request_time": 0.102
+    },
+    {
+      "key": "03833e1b26f346afbe69f13421fe7e4a",
+      "pid": 80789,
+      "status": 200,
+      "limit": "DELAYED",
+      "request_time": 0.202
+    },
+    {
+      "key": "03833e1b26f346afbe69f13421fe7e4a",
+      "pid": 80789,
+      "status": 200,
+      "limit": "DELAYED",
+      "request_time": 0.303
+    },
+    {
+      "key": "0e7f2c1d30564f23b32ec676a362f10b",
+      "pid": 80790,
+      "status": 200,
+      "limit": "DELAYED_DRY_RUN",
+      "request_time": 0.001
+    },
+    {
+      "key": "0e7f2c1d30564f23b32ec676a362f10b",
+      "pid": 80789,
+      "status": 200,
+      "limit": "DELAYED_DRY_RUN",
+      "request_time": 0.002
+    },
+    {
+      "key": "0e7f2c1d30564f23b32ec676a362f10b",
+      "pid": 80790,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.002
+    },
+    {
+      "key": "0e7f2c1d30564f23b32ec676a362f10b",
+      "pid": 80790,
+      "status": 200,
+      "limit": "DELAYED_DRY_RUN",
+      "request_time": 0.003
+    },
+    {
+      "key": "0e7f2c1d30564f23b32ec676a362f10b",
+      "pid": 80789,
+      "status": 200,
+      "limit": "DELAYED_DRY_RUN",
+      "request_time": 0.003
+    },
+    {
+      "key": "0e7f2c1d30564f23b32ec676a362f10b",
+      "pid": 80790,
+      "status": 200,
+      "limit": "DELAYED_DRY_RUN",
+      "request_time": 0.003
+    },
+    {
+      "key": "0e7f2c1d30564f23b32ec676a362f10b",
+      "pid": 80790,
+      "status": 200,
+      "limit": "REJECTED_DRY_RUN",
+      "request_time": 0.003
+    },
+    {
+      "key": "68b1350d99fd47e4a224cd5d592d7733",
+      "pid": 80790,
+      "status": 429,
+      "limit": "REJECTED",
+      "request_time": 0.0
+    },
+    {
+      "key": "68b1350d99fd47e4a224cd5d592d7733",
+      "pid": 80789,
+      "status": 429,
+      "limit": "REJECTED",
+      "request_time": 0.0
+    },
+    {
+      "key": "68b1350d99fd47e4a224cd5d592d7733",
+      "pid": 80790,
+      "status": 429,
+      "limit": "REJECTED",
+      "request_time": 0.0
+    },
+    {
+      "key": "68b1350d99fd47e4a224cd5d592d7733",
+      "pid": 80790,
+      "status": 200,
+      "limit": "PASSED",
+      "request_time": 0.001
+    },
+    {
+      "key": "68b1350d99fd47e4a224cd5d592d7733",
+      "pid": 80790,
+      "status": 200,
+      "limit": "DELAYED",
+      "request_time": 0.202
+    },
+    {
+      "key": "68b1350d99fd47e4a224cd5d592d7733",
+      "pid": 80790,
+      "status": 200,
+      "limit": "DELAYED",
+      "request_time": 0.402
+    },
+    {
+      "key": "68b1350d99fd47e4a224cd5d592d7733",
+      "pid": 80789,
+      "status": 200,
+      "limit": "DELAYED",
+      "request_time": 0.601
+    }
+  ]
+}

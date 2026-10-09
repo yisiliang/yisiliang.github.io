@@ -1,0 +1,53 @@
+{
+  "title": "Nginx限流原理与工程实践",
+  "version": "1.28.0",
+  "commit": "481d28cb4e04c8096b9b6134856891dc52ecc68f",
+  "sections": [
+    {
+      "id": "principle",
+      "title": "从请求速率到请求负债"
+    },
+    {
+      "id": "excess",
+      "title": "excess的整数运算与状态提交"
+    },
+    {
+      "id": "parameters",
+      "title": "rate、burst、nodelay与delay的组合"
+    },
+    {
+      "id": "scheduler",
+      "title": "延迟通过事件定时器恢复"
+    },
+    {
+      "id": "shared-state",
+      "title": "多Worker共享内存、锁与淘汰"
+    },
+    {
+      "id": "multi-zone",
+      "title": "多个zone的判定与记账"
+    },
+    {
+      "id": "configuration",
+      "title": "单IP与实例总量的完整配置"
+    },
+    {
+      "id": "observation",
+      "title": "dry-run、日志与逐步启用"
+    },
+    {
+      "id": "boundaries",
+      "title": "速率、并发与跨实例边界"
+    },
+    {
+      "id": "experiments",
+      "title": "可复现的本地实验"
+    },
+    {
+      "id": "references",
+      "title": "源码阅读路线与参考依据"
+    }
+  ],
+  "diagrams": 2,
+  "excerpts": 10
+}

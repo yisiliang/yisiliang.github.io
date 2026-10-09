@@ -1,0 +1,553 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>Nginx限流原理与工程实践 | YiSiliang</title><meta name="description" content="从固定NGINX源码解释excess、rate、burst、nodelay与delay，分析共享内存、多zone记账、异步延迟和全局限流边界，附本地实验。"><link rel="stylesheet" href="./style.css"><script src="./theme.js"></script><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script></head><body class="learning-reader" data-layout="learning-v2" data-reader="nginx-rate-limiting"><a class="skip" href="#main">跳到正文</a><header class="topbar"><button id="menu" class="mobile" aria-label="打开章节导航" aria-expanded="false" aria-controls="left-nav">目录</button><div class="brand"><a class="library-home" href="../">← 学习库</a>Nginx限流专题<span>NGINX1.28.0 / 漏桶与流量治理</span></div><div class="tools"><button id="search-open" aria-label="打开全文搜索">搜索 <kbd>/</kbd></button><button id="print" type="button">打印</button><button id="theme" aria-label="切换主题">主题：系统</button></div></header><div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div><div id="drawer-backdrop" hidden></div><div class="layout"><nav id="left-nav" aria-label="章节目录"><p class="nav-label">学习目录 / 11节</p><details class="chapter-nav" data-chapter="principle"><summary><a href="#principle"><span>01</span>从请求速率到请求负债</a></summary><div><a href="#principle-section-1">漏桶控制的对象</a><a href="#principle-section-2">最小代理配置</a></div></details><details class="chapter-nav" data-chapter="excess"><summary><a href="#excess"><span>02</span>excess的整数运算与状态提交</a></summary><div><a href="#excess-section-1">候选超额量与内部单位</a><a href="#excess-section-2">新Key、拒绝与时间回退</a></div></details><details class="chapter-nav" data-chapter="parameters"><summary><a href="#parameters"><span>03</span>rate、burst、nodelay与delay的组合</a></summary><div><a href="#parameters-section-1">三种延迟策略</a><a href="#parameters-section-2">突发仍需记账</a></div></details><details class="chapter-nav" data-chapter="scheduler"><summary><a href="#scheduler"><span>04</span>延迟通过事件定时器恢复</a></summary><div><a href="#scheduler-section-1">限流发生的HTTP阶段</a><a href="#scheduler-section-2">挂起与恢复</a></div></details><details class="chapter-nav" data-chapter="shared-state"><summary><a href="#shared-state"><span>05</span>多Worker共享内存、锁与淘汰</a></summary><div><a href="#shared-state-section-1">状态结构与互斥</a><a href="#shared-state-section-2">内存容量与节点淘汰</a></div></details><details class="chapter-nav" data-chapter="multi-zone"><summary><a href="#multi-zone"><span>06</span>多个zone的判定与记账</a></summary><div><a href="#multi-zone-section-1">lookup与account的分工</a><a href="#multi-zone-section-2">释放引用与并发边界</a></div></details><details class="chapter-nav" data-chapter="configuration"><summary><a href="#configuration"><span>07</span>单IP与实例总量的完整配置</a></summary><div><a href="#configuration-section-1">完整示例与配置继承</a><a href="#configuration-section-2">可信身份与Key选择</a></div></details><details class="chapter-nav" data-chapter="observation"><summary><a href="#observation"><span>08</span>dry-run、日志与逐步启用</a></summary><div><a href="#observation-section-1">观察状态</a><a href="#observation-section-2">指标与参数选择</a></div></details><details class="chapter-nav" data-chapter="boundaries"><summary><a href="#boundaries"><span>09</span>速率、并发与跨实例边界</a></summary><div><a href="#boundaries-section-1">请求速率与在途请求</a><a href="#boundaries-section-2">多实例与全局预算</a></div></details><details class="chapter-nav" data-chapter="experiments"><summary><a href="#experiments"><span>10</span>可复现的本地实验</a></summary><div><a href="#experiments-section-1">运行方式</a><a href="#experiments-section-2">理论预期与实验范围</a></div></details><details class="chapter-nav" data-chapter="references"><summary><a href="#references"><span>11</span>源码阅读路线与参考依据</a></summary><div><a href="#references-section-1">固定版本与调用链</a><a href="#references-section-2">继续阅读</a></div></details></nav><main id="main" tabindex="-1"><section class="intro"><p class="eyebrow">TECHNICAL DEEP DIVE</p><h1>Nginx限流原理与工程实践</h1>
+<p>从漏桶的时间记账，到共享内存、异步延迟与多实例边界。本文以开源NGINX1.28.0为固定阅读基线，对照官方文档；固定版本用于解释机制，不代表当前生产选型建议。</p>
+<div class="meta"><span>NGINX1.28.0</span><span>11节机制分析</span><span>10段固定源码</span><span>2张图解</span></div><div class="reader-downloads"><a href="./handbook.md" download>Markdown原文</a><a href="./nginx-rate-limiting-offline.zip" download>离线阅读包</a><a href="./VERIFICATION.md">核验与实验记录</a></div></section><article class="chapter" id="principle" data-title="从请求速率到请求负债"><div class="chapter-title"><p class="eyebrow">第01节 / 完整阅读</p><h1>从请求速率到请求负债</h1></div><div class="study">
+<h3 id="principle-section-1">漏桶控制的对象</h3>
+<p><code>limit_req</code>通过控制请求的接纳与继续处理节奏，保护入口和上游服务。官方将其归类为漏桶算法，但理解实现时，最有用的模型是<strong>随时间消化的超额请求量excess</strong>。它不统计自然秒内的请求总数，也不统计业务正在执行的任务数。</p>
+<p>固定窗口的反例：前一个窗口在0.99秒接纳10个请求，下一个窗口在1.01秒接纳10个请求，每个窗口都满足10次，却在20ms内接纳了20次。按时间差记账可以避免这种窗口切换，但配置允许突发时，仍会出现集中放行。</p>
+<h3 id="principle-section-2">最小代理配置</h3>
+<pre><code class="language-nginx">http {
+    limit_req_zone $binary_remote_addr zone=perip:10m rate=10r/s;
+    server {
+        listen 8080;
+        location /api/ {
+            limit_req zone=perip burst=5;
+            limit_req_status 429;
+            proxy_pass http://127.0.0.1:9000;
+        }
+    }
+}
+</code></pre>
+<p>这里按IP分别限流，10r/s意味着约100ms消化一个请求单位；burst=5允许最多5个超额单位。新Key的首个请求立即通过，其后的超额请求在容量内延迟，超出容量则返回配置的429。<strong>默认拒绝码是503</strong>，429来自显式配置。</p>
+<p>zone的10MB保存Key的状态，不是HTTP请求缓存。100个不同IP各自拥有额度，这个规则不能单独约束服务总流量。<a href="https://nginx.org/en/docs/http/ngx_http_limit_req_module.html">官方limit_req文档</a></p>
+<figure class="diagram"><img alt="单zone的正常流程；多zone暂存与最终记账见第6节。" height="450" src="./diagrams/flow.svg" width="820"/><figcaption>单zone的正常流程；多zone暂存与最终记账见第6节。</figcaption></figure>
+</div></article><article class="chapter" id="excess" data-title="excess的整数运算与状态提交"><div class="chapter-title"><p class="eyebrow">第02节 / 完整阅读</p><h1>excess的整数运算与状态提交</h1></div><div class="study">
+<h3 id="excess-section-1">候选超额量与内部单位</h3>
+<p>源码没有为每个IP安排一个定时扣减任务。请求到达时读取当前毫秒时间，用上次记账时间last计算衰减。对于已经存在的Key，单zone计算可写成：</p>
+<pre><code class="language-text">候选excess = max(0, 旧excess - rate × 经过毫秒 / 1000 + 1000)
+候选excess &gt; burst → 拒绝，不提交该候选值
+候选excess ≤ burst → 记账，再计算是否需要等待
+</code></pre>
+<div class="source-card" data-source="lookup"><p class="source-caption"><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L445-L480">ngx_http_limit_req_lookup：已有Key的计算、拒绝与提交 · 原文件L445—L480</a></p><pre><code class="language-c">            ms = (ngx_msec_int_t) (now - lr-&gt;last);
+
+            if (ms &lt; -60000) {
+                ms = 1;
+
+            } else if (ms &lt; 0) {
+                ms = 0;
+            }
+
+            excess = lr-&gt;excess - ctx-&gt;rate * ms / 1000 + 1000;
+
+            if (excess &lt; 0) {
+                excess = 0;
+            }
+
+            *ep = excess;
+
+            if ((ngx_uint_t) excess &gt; limit-&gt;burst) {
+                return NGX_BUSY;
+            }
+
+            if (account) {
+                lr-&gt;excess = excess;
+
+                if (ms) {
+                    lr-&gt;last = now;
+                }
+
+                return NGX_OK;
+            }
+
+            lr-&gt;count++;
+
+            ctx-&gt;node = lr;
+
+            return NGX_AGAIN;
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>量</th>
+<th>配置或数学值</th>
+<th>内部值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一个请求单位</td>
+<td>1</td>
+<td>1000</td>
+</tr>
+<tr>
+<td>速率</td>
+<td>10r/s</td>
+<td>10000</td>
+</tr>
+<tr>
+<td>burst阈值</td>
+<td>5</td>
+<td>5000</td>
+</tr>
+<tr>
+<td>delay阈值</td>
+<td>2</td>
+<td>2000</td>
+</tr>
+<tr>
+<td>时间差</td>
+<td>200ms</td>
+<td>200</td>
+</tr>
+</tbody>
+</table>
+<p>把整数舍入暂时省略，已存在Key的公式是<code>E新=max(0,E旧+1−R×Δt)</code>，Δt以秒计。E旧=4，经过200ms，R=10，则E新=4+1−2=3。源码采用整数除法；<code>rate=Nr/m</code>还会先换算并截断为内部速率，因此纸面公式不是任意参数下的逐位精确结果。</p>
+<h3 id="excess-section-2">新Key、拒绝与时间回退</h3>
+<p><strong>这个公式不用于新节点的首个请求。</strong>创建节点时源码直接将<code>lr-&gt;excess=0</code>。所以全新Key、同一毫秒、burst=5时，是首个请求加5个超额请求，共6个被接纳。长期空闲只会将负债消化到0，不会无限积累可以立即消费的额度。</p>
+<div class="source-card" data-source="new-node"><p class="source-caption"><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L508-L526">ngx_http_limit_req_lookup：新节点的首个请求 · 原文件L508—L526</a></p><pre><code class="language-c">
+    lr = (ngx_http_limit_req_node_t *) &amp;node-&gt;color;
+
+    lr-&gt;len = (u_short) key-&gt;len;
+    lr-&gt;excess = 0;
+
+    ngx_memcpy(lr-&gt;data, key-&gt;data, key-&gt;len);
+
+    ngx_rbtree_insert(&amp;ctx-&gt;sh-&gt;rbtree, node);
+
+    ngx_queue_insert_head(&amp;ctx-&gt;sh-&gt;queue, &amp;lr-&gt;queue);
+
+    if (account) {
+        lr-&gt;last = now;
+        lr-&gt;count = 0;
+        return NGX_OK;
+    }
+
+    lr-&gt;last = 0;
+</code></pre></div>
+<p>单zone拒绝在赋值<code>lr-&gt;excess</code>之前返回NGX_BUSY。假设已记账excess=5、last=t0，t0时第7次请求的候选值为6，被拒绝，但状态仍是5；t0+100ms再到一个请求，候选值为5+1−1=5，可以接纳。拒绝不会把负债永久推高。查找仍会更新节点在近期访问队列中的位置，因此不能把拒绝理解为完全不触及共享数据。</p>
+<p>时间回退也有专门分支：时间差小于−60000ms时按1ms处理，较小负差按0处理。解释正常请求序列时可以忽略这个防御分支，读取完整实现时应保留它。</p>
+</div></article><article class="chapter" id="parameters" data-title="rate、burst、nodelay与delay的组合"><div class="chapter-title"><p class="eyebrow">第03节 / 完整阅读</p><h1>rate、burst、nodelay与delay的组合</h1></div><div class="study">
+<h3 id="parameters-section-1">三种延迟策略</h3>
+<p><code>burst</code>决定候选超额量的拒绝阈值，<code>delay</code>决定其中有多少超额单位可以立即继续。不写delay时阈值为0；<code>delay=2</code>表示2个超额单位，而不是2秒。默认burst为0，配置时省略burst即可；不要写<code>burst=0</code>或<code>delay=0</code>，此版本解析器要求显式数值大于0。</p>
+<pre><code class="language-nginx"># 以下三行是三个独立场景，选择其中一个配置。
+limit_req zone=perip burst=5;
+limit_req zone=perip burst=5 nodelay;
+limit_req zone=perip burst=5 delay=2;
+</code></pre>
+<p>对于全新Key，同一毫秒到达7个请求，rate=10r/s、burst=5：</p>
+<table>
+<thead>
+<tr>
+<th>到达次序</th>
+<th>候选excess</th>
+<th>默认延迟</th>
+<th>nodelay</th>
+<th>delay=2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>0</td>
+<td>立即</td>
+<td>立即</td>
+<td>立即</td>
+</tr>
+<tr>
+<td>2</td>
+<td>1</td>
+<td>100ms</td>
+<td>立即</td>
+<td>立即</td>
+</tr>
+<tr>
+<td>3</td>
+<td>2</td>
+<td>200ms</td>
+<td>立即</td>
+<td>立即</td>
+</tr>
+<tr>
+<td>4</td>
+<td>3</td>
+<td>300ms</td>
+<td>立即</td>
+<td>100ms</td>
+</tr>
+<tr>
+<td>5</td>
+<td>4</td>
+<td>400ms</td>
+<td>立即</td>
+<td>200ms</td>
+</tr>
+<tr>
+<td>6</td>
+<td>5</td>
+<td>500ms</td>
+<td>立即</td>
+<td>300ms</td>
+</tr>
+<tr>
+<td>7</td>
+<td>6</td>
+<td>拒绝</td>
+<td>拒绝</td>
+<td>拒绝</td>
+</tr>
+</tbody>
+</table>
+<p>表中的延迟从各请求完成限流判断时算起，是相同到达时刻的理论值；真实事件调度、网络和后端处理会引入偏差，请求完成顺序也不保证等同于到达顺序。</p>
+<pre><code class="language-text">延迟毫秒 = max(0, 内部excess - 内部delay阈值) × 1000 / 内部rate
+普通单位：等待秒数 = max(0, E - D) / R
+</code></pre>
+<div class="source-card" data-source="delay-formula"><p class="source-caption"><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L544-L553">ngx_http_limit_req_account：最后一项的初始延迟 · 原文件L544—L553</a></p><pre><code class="language-c">
+    excess = *ep;
+
+    if ((ngx_uint_t) excess &lt;= (*limit)-&gt;delay) {
+        max_delay = 0;
+
+    } else {
+        ctx = (*limit)-&gt;shm_zone-&gt;data;
+        max_delay = (excess - (*limit)-&gt;delay) * 1000 / ctx-&gt;rate;
+    }
+</code></pre></div>
+<h3 id="parameters-section-2">突发仍需记账</h3>
+<p><code>nodelay</code>允许容量内的请求立即处理，但仍然记账。源码将delay设为一个极大阈值，随后同样使用burst判定。6个请求瞬时通过后，负债是5；再到请求仍需等待时间消化出接纳空间。<strong>后端提前执行完毕，不会归还limit_req额度。</strong></p>
+<div class="source-card" data-source="nodelay"><p class="source-caption"><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L1020-L1023">ngx_http_limit_req：nodelay的阈值解析 · 原文件L1020—L1023</a></p><pre><code class="language-c">        if (ngx_strcmp(value[i].data, "nodelay") == 0) {
+            delay = NGX_MAX_INT_T_VALUE / 1000;
+            continue;
+        }
+</code></pre></div>
+<figure class="diagram"><img alt="标号代表同一毫秒内到达的次序；真实调度存在误差。" height="350" src="./diagrams/timeline.svg" width="820"/><figcaption>标号代表同一毫秒内到达的次序；真实调度存在误差。</figcaption></figure>
+</div></article><article class="chapter" id="scheduler" data-title="延迟通过事件定时器恢复"><div class="chapter-title"><p class="eyebrow">第04节 / 完整阅读</p><h1>延迟通过事件定时器恢复</h1></div><div class="study">
+<h3 id="scheduler-section-1">限流发生的HTTP阶段</h3>
+<p>限流处理函数注册在HTTP的PREACCESS阶段。对普通proxy_pass路径，它在向上游发起业务请求前作出判断。这里不能使用<code>return 200</code>来验证限流：rewrite阶段可能提前结束请求，根本没有进入PREACCESS。实验应使用代理或确实继续到内容阶段的处理器。</p>
+<div class="source-card" data-source="phase"><p class="source-caption"><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L1086-L1102">ngx_http_limit_req_init：PREACCESS处理函数注册 · 原文件L1086—L1102</a></p><pre><code class="language-c">static ngx_int_t
+ngx_http_limit_req_init(ngx_conf_t *cf)
+{
+    ngx_http_handler_pt        *h;
+    ngx_http_core_main_conf_t  *cmcf;
+
+    cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
+
+    h = ngx_array_push(&amp;cmcf-&gt;phases[NGX_HTTP_PREACCESS_PHASE].handlers);
+    if (h == NULL) {
+        return NGX_ERROR;
+    }
+
+    *h = ngx_http_limit_req_handler;
+
+    return NGX_OK;
+}
+</code></pre></div>
+<h3 id="scheduler-section-2">挂起与恢复</h3>
+<p>需要等待时，模块设置请求回调，在连接写事件上标记delayed并调用<code>ngx_add_timer</code>，然后返回NGX_AGAIN，暂停此请求的阶段推进。Worker可以继续处理其他连接，没有为这个等待执行阻塞式sleep。</p>
+<div class="source-card" data-source="timer"><p class="source-caption"><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L322-L328">ngx_http_limit_req_handler：挂起请求并注册定时器 · 原文件L322—L328</a></p><pre><code class="language-c">    r-&gt;read_event_handler = ngx_http_test_reading;
+    r-&gt;write_event_handler = ngx_http_limit_req_delay;
+
+    r-&gt;connection-&gt;write-&gt;delayed = 1;
+    ngx_add_timer(r-&gt;connection-&gt;write, delay);
+
+    return NGX_AGAIN;
+</code></pre></div>
+<p>定时器到期清除事件的delayed标记后，<code>ngx_http_limit_req_delay</code>将写处理函数切换为<code>ngx_http_core_run_phases</code>，恢复HTTP阶段推进。<code>r-&gt;main-&gt;limit_req_status</code>已设置，重新进入处理函数时可避免重复限流记账。</p>
+<div class="source-card" data-source="resume"><p class="source-caption"><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L350-L360">ngx_http_limit_req_delay：恢复HTTP阶段 · 原文件L350—L360</a></p><pre><code class="language-c">
+    if (ngx_handle_read_event(r-&gt;connection-&gt;read, 0) != NGX_OK) {
+        ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        return;
+    }
+
+    r-&gt;read_event_handler = ngx_http_block_reading;
+    r-&gt;write_event_handler = ngx_http_core_run_phases;
+
+    ngx_http_core_run_phases(r);
+}
+</code></pre></div>
+<p>等待中的请求仍持有连接、请求结构、内存和文件描述符等资源。burst不是一个免费的FIFO缓存容量，模块也没有为每个IP构建保存请求对象的独立FIFO桶。对于默认延迟，满负债时最大理论等待约为<code>burst/rate</code>；例如1000/10=100秒，足以耗尽许多客户端的超时预算。</p>
+</div></article><article class="chapter" id="shared-state" data-title="多Worker共享内存、锁与淘汰"><div class="chapter-title"><p class="eyebrow">第05节 / 完整阅读</p><h1>多Worker共享内存、锁与淘汰</h1></div><div class="study">
+<h3 id="shared-state-section-1">状态结构与互斥</h3>
+<p>每个zone包含共享红黑树、近期访问双向队列和slab内存池。各Worker访问同一份状态；共享互斥锁保护查找、节点分配和记账，不会一直持有到上游请求执行结束。</p>
+<div class="source-card" data-source="lock"><p class="source-caption"><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L244-L250">ngx_http_limit_req_handler：带共享锁的查找 · 原文件L244—L250</a></p><pre><code class="language-c">        hash = ngx_crc32_short(key.data, key.len);
+
+        ngx_shmtx_lock(&amp;ctx-&gt;shpool-&gt;mutex);
+
+        rc = ngx_http_limit_req_lookup(limit, hash, &amp;key, &amp;excess,
+                                       (n == lrcf-&gt;limits.nelts - 1));
+
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>字段或结构</th>
+<th>作用</th>
+<th>不能混淆的概念</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>hash与原始Key</td>
+<td>先按CRC32定位，再比较原始字节和长度</td>
+<td>哈希碰撞不会直接合并两个Key</td>
+</tr>
+<tr>
+<td>last、excess</td>
+<td>时间记账和超额负债</td>
+<td>不表示业务执行耗时</td>
+</tr>
+<tr>
+<td>queue</td>
+<td>访问后移到队头，尾部用于淘汰</td>
+<td>不是等待请求的FIFO队列</td>
+</tr>
+<tr>
+<td>count</td>
+<td>保护多zone流程中暂存待记账的节点</td>
+<td>不是正在代理的请求数</td>
+</tr>
+<tr>
+<td>ctx-&gt;node</td>
+<td>进程内暂存当前zone待记账节点指针</td>
+<td>不是集群级请求状态</td>
+</tr>
+</tbody>
+</table>
+<p>例如单zone、同一时刻excess=4：WorkerA在锁内提交5，WorkerB随后读到5，计算6并拒绝。单zone的状态不会因为有8个Worker就得到8倍独立额度。zone级共享锁也意味着热点Key和高基数流量需要关注锁竞争与内存开销。</p>
+<h3 id="shared-state-section-2">内存容量与节点淘汰</h3>
+<p>新Key创建时先执行<code>expire(ctx,1)</code>，尝试清除尾部较旧、已无负债且count=0的节点。通常要求至少60秒未记账，一次最多清理两个。分配失败后再调用<code>expire(ctx,0)</code>，在count=0的条件下强制淘汰最旧节点，再尝试清理最多两个符合条件的旧节点。如果仍无法分配，返回NGX_ERROR，正常模式按limit_req_status拒绝。<strong>burst没有超过，也可能因状态内存不足而拒绝。</strong></p>
+<div class="source-card" data-source="expire"><p class="source-caption"><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L651-L694">ngx_http_limit_req_expire：淘汰条件 · 原文件L651—L694</a></p><pre><code class="language-c">
+        if (ngx_queue_empty(&amp;ctx-&gt;sh-&gt;queue)) {
+            return;
+        }
+
+        q = ngx_queue_last(&amp;ctx-&gt;sh-&gt;queue);
+
+        lr = ngx_queue_data(q, ngx_http_limit_req_node_t, queue);
+
+        if (lr-&gt;count) {
+
+            /*
+             * There is not much sense in looking further,
+             * because we bump nodes on the lookup stage.
+             */
+
+            return;
+        }
+
+        if (n++ != 0) {
+
+            ms = (ngx_msec_int_t) (now - lr-&gt;last);
+            ms = ngx_abs(ms);
+
+            if (ms &lt; 60000) {
+                return;
+            }
+
+            excess = lr-&gt;excess - ctx-&gt;rate * ms / 1000;
+
+            if (excess &gt; 0) {
+                return;
+            }
+        }
+
+        ngx_queue_remove(q);
+
+        node = (ngx_rbtree_node_t *)
+                   ((u_char *) lr - offsetof(ngx_rbtree_node_t, color));
+
+        ngx_rbtree_delete(&amp;ctx-&gt;sh-&gt;rbtree, node);
+
+        ngx_slab_free_locked(ctx-&gt;shpool, node);
+    }
+</code></pre></div>
+<p>官方以二进制IP为Key给出的典型状态占用是32位平台64字节、64位平台128字节，1MB约容纳8千个128字节状态；10MB约8万个是容量估算，实际取决于Key长度和分配开销。节点被淘汰后再次访问会重新创建状态，频繁高基数Key会改变限流连续性，不能把有限zone当作永久历史账本。</p>
+</div></article><article class="chapter" id="multi-zone" data-title="多个zone的判定与记账"><div class="chapter-title"><p class="eyebrow">第06节 / 完整阅读</p><h1>多个zone的判定与记账</h1></div><div class="study">
+<h3 id="multi-zone-section-1">lookup与account的分工</h3>
+<p>同时配置单IP和虚拟主机总量时，handler依次检查各zone。非最后一个zone通常返回NGX_AGAIN，递增count并暂存ctx-&gt;node；最后一个配置项检查成功时可以直接提交。全部通过后，account回头对暂存节点重新计算、记账、递减count，并取各zone要求的<strong>最大等待时间</strong>。</p>
+<pre><code class="language-text">zone A：lookup → 在锁内检查 → 暂存节点，count++
+zone B：lookup → 检查并提交最后一项
+account：回到A重新取时钟并记账，count--
+最终延迟：max(A的等待时间, B的等待时间)
+</code></pre>
+<h3 id="multi-zone-section-2">释放引用与并发边界</h3>
+<p>如果后续zone拒绝，<code>ngx_http_limit_req_unlock</code>减少之前暂存节点的count，清空进程内指针。这是释放节点引用，不是回滚一次后端调用，也不是对所有已经发生的访问行为做事务回滚。</p>
+<div class="source-card" data-source="account"><p class="source-caption"><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L563-L605">ngx_http_limit_req_account：暂存节点的最终记账 · 原文件L563—L605</a></p><pre><code class="language-c">        ngx_shmtx_lock(&amp;ctx-&gt;shpool-&gt;mutex);
+
+        now = ngx_current_msec;
+        ms = (ngx_msec_int_t) (now - lr-&gt;last);
+
+        if (ms &lt; -60000) {
+            ms = 1;
+
+        } else if (ms &lt; 0) {
+            ms = 0;
+        }
+
+        excess = lr-&gt;excess - ctx-&gt;rate * ms / 1000 + 1000;
+
+        if (excess &lt; 0) {
+            excess = 0;
+        }
+
+        if (ms) {
+            lr-&gt;last = now;
+        }
+
+        lr-&gt;excess = excess;
+        lr-&gt;count--;
+
+        ngx_shmtx_unlock(&amp;ctx-&gt;shpool-&gt;mutex);
+
+        ctx-&gt;node = NULL;
+
+        if ((ngx_uint_t) excess &lt;= limits[n].delay) {
+            continue;
+        }
+
+        delay = (excess - limits[n].delay) * 1000 / ctx-&gt;rate;
+
+        if (delay &gt; max_delay) {
+            max_delay = delay;
+            *ep = excess;
+            *limit = &amp;limits[n];
+        }
+    }
+
+    return max_delay;
+</code></pre></div>
+<p>每个zone有自己的互斥锁，检查与最终记账可能分开，整个多zone流程没有持有一把跨zone事务锁。此版本account重新计算后不再次比较burst，并发交错时不能把“多zone都满足规则”升级为任意瞬间严格原子预留的承诺。上线应测实际流量与拒绝比例，而不是把流程图当作强一致事务协议。</p>
+</div></article><article class="chapter" id="configuration" data-title="单IP与实例总量的完整配置"><div class="chapter-title"><p class="eyebrow">第07节 / 完整阅读</p><h1>单IP与实例总量的完整配置</h1></div><div class="study">
+<h3 id="configuration-section-1">完整示例与配置继承</h3>
+<p>下面是可替换地址后验证的示例，不是某个生产系统的已披露配置。两个zone只在本示例的submit路径被使用：单IP20r/s，当前虚拟主机的submit总量75r/s。若其他location复用相同zone与相同Key，它们也会共享这份额度。</p>
+<pre><code class="language-nginx">worker_processes 2;
+events { worker_connections 1024; }
+http {
+    limit_req_zone $binary_remote_addr zone=submit_ip:10m rate=20r/s;
+    limit_req_zone $server_name zone=submit_total:1m rate=75r/s;
+    log_format rate_log '$remote_addr pid=$pid "$request" '
+                        'status=$status limit=$limit_req_status '
+                        'rt=$request_time upstream=$upstream_response_time';
+    server {
+        listen 8080;
+        server_name api.example.test;
+        access_log logs/access.log rate_log;
+        location = /submit {
+            limit_req zone=submit_ip burst=10 nodelay;
+            limit_req zone=submit_total burst=15;
+            limit_req_status 429;
+            limit_req_log_level notice;
+            proxy_connect_timeout 2s;
+            proxy_read_timeout 5s;
+            proxy_pass http://127.0.0.1:9000;
+        }
+    }
+}
+</code></pre>
+<p>第一层允许少量同IP突发立即进入后续阶段，第二层仍可能要求延迟；nodelay只作用于配置它的规则。<code>$server_name</code>是虚拟主机的配置名称，同一个名称产生同一个Key。一个zone可以容纳多个虚拟主机Key，不能把它自动视为整台机器所有服务的统一总预算。</p>
+<p><strong>继承不是追加。</strong>当前server/location只要定义了自己的limit_req列表，就不会再继承父级limit_req列表。需要两层保护时，应在实际生效的location写全两条规则，并通过<code>nginx -T</code>核对最终配置。</p>
+<h3 id="configuration-section-2">可信身份与Key选择</h3>
+<p>有代理或ALB时，必须先恢复可信客户端地址。示例中的文档网段需替换成实际代理范围：</p>
+<pre><code class="language-nginx"># 放在http/server中；仅适用于已启用http_realip_module的构建。
+set_real_ip_from 192.0.2.0/24;
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+</code></pre>
+<p>只信任受控代理，确认代理如何清理和追加转发头；直接信任用户可伪造的头会让限流可绕过。恢复真实IP后，企业或家庭共享公网出口仍会共享IP预算。用户维度Key应来自认证后的受信任身份，不能直接取任意客户端自报ID。<a href="https://nginx.org/en/docs/http/ngx_http_realip_module.html">realip官方文档</a></p>
+<p>空Key不会记账，可以用map按明确策略豁免；但也要防止缺少身份意外变成空Key。超过65535字节的Key在此版本会记录错误并跳过该规则，不应让Key长度由不受控的长头部决定。</p>
+</div></article><article class="chapter" id="observation" data-title="dry-run、日志与逐步启用"><div class="chapter-title"><p class="eyebrow">第08节 / 完整阅读</p><h1>dry-run、日志与逐步启用</h1></div><div class="study">
+<h3 id="observation-section-1">观察状态</h3>
+<p>首次配置可以在目标location临时启用<code>limit_req_dry_run on;</code>，观察真实Key、状态与影响，再决定rate和burst。它不执行实际拒绝或延迟；单zone超额拒绝分支也不会额外提交被拒绝请求的候选excess。因此dry-run是按该模块逻辑运行的观察模式，并不是记录所有到达请求的完整吞吐计数器。</p>
+<table>
+<thead>
+<tr>
+<th>$limit_req_status</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PASSED</td>
+<td>通过，未要求限流延迟</td>
+</tr>
+<tr>
+<td>DELAYED</td>
+<td>接纳但通过定时器延迟</td>
+</tr>
+<tr>
+<td>REJECTED</td>
+<td>因超额或状态分配失败拒绝</td>
+</tr>
+<tr>
+<td>DELAYED_DRY_RUN</td>
+<td>判断需要延迟，观察模式下立即继续</td>
+</tr>
+<tr>
+<td>REJECTED_DRY_RUN</td>
+<td>判断应拒绝，观察模式下继续</td>
+</tr>
+</tbody>
+</table>
+<p>未命中生效规则、空Key或提前结束的路径可能没有上述状态。HTTP429/503也可能来自上游，必须结合limit状态与error_log判断来源；REJECTED本身也不能区分超额和内存分配失败。</p>
+<h3 id="observation-section-2">指标与参数选择</h3>
+<p>同时观察每个Key的流量分布、限流状态占比、上游错误率、连接占用和端到端延迟。被延迟的请求会把等待计入request_time，upstream_response_time只覆盖上游交互相关时间；二者不能简单当作同一个指标。多规则情况下状态代表最终请求结果，不提供每个zone独立的完整时间序列。</p>
+<p>配额根据后端持续处理能力制定，burst根据短时承载能力制定，delay根据客户端延迟预算制定。对于默认延迟，burst/rate给出满负债的等待估算；增大burst可能减少拒绝，也可能积累大量等待。配置nodelay后，又可能让这批请求同时冲击后端。</p>
+</div></article><article class="chapter" id="boundaries" data-title="速率、并发与跨实例边界"><div class="chapter-title"><p class="eyebrow">第09节 / 完整阅读</p><h1>速率、并发与跨实例边界</h1></div><div class="study">
+<h3 id="boundaries-section-1">请求速率与在途请求</h3>
+<p>limit_req按时间恢复额度，与请求何时完成无关。若稳态接纳速率λ=150r/s、平均耗时W=0.2秒，Little定律给出的平均在途量L≈λW=30；耗时变成2秒时估算为300。该关系适用于稳定系统的平均值，不是每一瞬间的并发上限，也不能直接用于无限积压中的系统。</p>
+<table>
+<thead>
+<tr>
+<th>机制</th>
+<th>控制维度</th>
+<th>边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>limit_req</td>
+<td>请求接纳速率与超额负债</td>
+<td>无法感知Java线程或数据库是否饱和</td>
+</tr>
+<tr>
+<td>limit_conn</td>
+<td>满足统计条件的连接/并发请求</td>
+<td>只统计已完整读入请求头并处理中的请求；HTTP/2、HTTP/3各并发请求分别计数</td>
+</tr>
+<tr>
+<td>应用线程池与隔离</td>
+<td>业务执行资源</td>
+<td>需处理队列容量与拒绝策略</td>
+</tr>
+<tr>
+<td>超时与熔断</td>
+<td>等待时间与故障传播</td>
+<td>需匹配重试与幂等策略</td>
+</tr>
+</tbody>
+</table>
+<p>例如在http定义<code>limit_conn_zone $binary_remote_addr zone=conn_ip:10m;</code>，再在目标location配置<code>limit_conn conn_ip 20;</code>。这是Nginx所定义的统计口径，不能称为20个Java工作线程或20条全部TCP连接。<a href="https://nginx.org/en/docs/http/ngx_http_limit_conn_module.html">limit_conn官方文档</a></p>
+<h3 id="boundaries-section-2">多实例与全局预算</h3>
+<p>开源标准limit_req的共享内存只在<strong>同一Nginx实例的Worker间</strong>共享。两台实例各75r/s、均衡分流且持续运行时，名义持续接纳能力相加为150r/s；单IP也可能在两台各自获得额度。路由偏斜、扩缩容、Key淘汰和burst会改变观察结果，不能由此保证任意一秒或整个集群严格不超过150次。</p>
+<p>如果需要全局预算，应明确作用范围和一致性要求，再选择统一入口、分片配额或集中式原子记账。集中机制还需处理网络延迟、故障时放行/拒绝策略、时钟与重复请求。商业版提供zone同步选项，但同步不应未经验证就被当作强一致全局限流。</p>
+</div></article><article class="chapter" id="experiments" data-title="可复现的本地实验"><div class="chapter-title"><p class="eyebrow">第10节 / 完整阅读</p><h1>可复现的本地实验</h1></div><div class="study">
+<h3 id="experiments-section-1">运行方式</h3>
+<p>随文提供<a href="./lab-nginx.conf">lab-nginx.conf</a>、<a href="./lab.py">lab.py</a>和<a href="./run-lab.py">run-lab.py</a>。实验只监听127.0.0.1，使用两个Worker和独立zone测试默认延迟、nodelay、delay=2、dry-run和双zone。后端是真实HTTP代理目标，不通过rewrite阶段的return模拟。</p>
+<pre><code class="language-bash"># 安装或构建固定版本的nginx后，将路径替换为实际可执行文件。
+python3 run-lab.py --nginx /path/to/nginx --output /tmp/nginx-rate-lab
+</code></pre>
+<p>脚本检查版本为1.28.0，创建独立临时前缀，运行nginx -t，启动本地后端并并发发出7个请求，写出客户端时间、后端接收时间、状态和Worker PID，最后停止实验进程。各场景使用不同Key；多次运行不会把上次负债误当作新Key。</p>
+<h3 id="experiments-section-2">理论预期与实验范围</h3>
+<p>对于前三个单zone场景，预期各6次成功、1次429；默认等待的成功请求后端接收时间大致分布在0、100、200、300、400、500ms，nodelay集中接收，delay=2大致在0、0、0、100、200、300ms。并发启动存在调度误差，源码表中的“同一毫秒”条件更严格，原始测量值和理论值应分开阅读。</p>
+<p>dry-run应让7次请求继续到后端，同时日志出现观察状态。双zone实验验证组合规则的可观察行为，不能凭一次实验证明任意并发交错的强一致性。实验结果及执行范围见<a href="./VERIFICATION.md">VERIFICATION.md</a>；这里不把步骤或预期写成生产实测。</p>
+</div></article><article class="chapter" id="references" data-title="源码阅读路线与参考依据"><div class="chapter-title"><p class="eyebrow">第11节 / 完整阅读</p><h1>源码阅读路线与参考依据</h1></div><div class="study">
+<h3 id="references-section-1">固定版本与调用链</h3>
+<p>固定标签release-1.28.0，提交<code>481d28cb4e04c8096b9b6134856891dc52ecc68f</code>。本文的源码窗口逐行保留原文，并标注原始行号；本地<a href="./source/ngx_http_limit_req_module.c">完整模块源码</a>与<a href="./source/LICENSE">许可证</a>随离线包提供。</p>
+<h3 id="references-section-2">继续阅读</h3>
+<p>建议按<code>init → handler → lookup → account → delay → expire</code>阅读：先确认执行阶段和返回码，再跟踪Key、候选excess、提交时机、事件恢复和状态淘汰。需要掌握的核心是：<strong>rate消化负债，burst约束接纳，delay控制等待，zone与锁控制状态共享范围。</strong></p>
+<ul>
+<li><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c">固定提交的limit_req模块</a></li>
+<li><a href="https://nginx.org/en/docs/http/ngx_http_limit_req_module.html">limit_req官方指令文档</a></li>
+<li><a href="https://nginx.org/en/docs/http/ngx_http_limit_conn_module.html">limit_conn官方指令文档</a></li>
+<li><a href="https://nginx.org/en/docs/http/ngx_http_realip_module.html">真实客户端地址配置</a></li>
+<li><a href="https://yisiliang.github.io/nginx/#chapter-15">现有NGINX源码手册</a>：继续阅读事件循环、HTTP阶段、连接限制、upstream与输出链。</li>
+</ul>
+<p>本文根据“Nginx限流原理”讨论的主题重新组织，经固定源码核对后补齐配置、状态分支和实验材料；所有数值示例均注明条件，公开内容采用技术学习与工程实践表述。</p></div></article></main><aside id="right-toc" aria-label="当前章节目录"><div class="reading"><span id="progress-text">阅读进度0%</span><span id="current-label"></span></div><p class="nav-label">本节目录</p><nav id="toc"></nav></aside></div><dialog id="search-dialog" aria-labelledby="search-title"><div class="search-head"><h2 id="search-title">全文搜索</h2><button id="search-close" aria-label="关闭搜索">关闭</button></div><label for="search-input">搜索关键词或源码方法</label><input id="search-input" type="search" placeholder="输入关键词，搜索完整正文" autocomplete="off"><p id="search-status" role="status" aria-live="polite">输入关键词，搜索完整正文。</p><div id="search-results"></div></dialog><div id="toast" role="status" aria-live="polite"></div><dialog id="diagram-dialog" aria-label="图解放大"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script src="./reader.js"></script></body></html>
