@@ -7,8 +7,23 @@ ROOT=Path(__file__).resolve().parent
 sources=json.loads((ROOT/'sources.json').read_text())
 notes=json.loads((ROOT/'source-notes.json').read_text())
 anchors=json.loads((ROOT/'anchors.json').read_text())
-refs={1:['aqs','lock','pool'],2:['hashmap','chm'],3:['cms','g1'],4:['bits','xstream'],5:['beans','tx','boot'],6:['mvcc','pg','oracle'],7:['commitlog','mqsend','mqtx'],8:['redis','redislock'],9:['tx','mqtx'],10:['netty','reactor','gateway']}
+refs={1:['aqs','lock','pool'],2:['hashmap','chm'],3:['cms','g1'],4:['bits','xstream'],5:['beans','tx','boot'],6:['mvcc','pg','oracle'],7:['commitlog', 'mqsend', 'mqtx', 'mqappend', 'mqqueueassign', 'mqreput', 'mqdispatch', 'mqcqposition', 'mqcqorder', 'mqread', 'mqindexput', 'mqkeyverify', 'mqhalf', 'mqrecover', 'mqcheckpoint', 'mqrecovertruncate', 'mqrestart', 'mqindexload'],8:['redis','redislock'],9:['tx','mqtx'],10:['netty','reactor','gateway']}
 meta={
+'mqappend':('RocketMQ 4.9.8', 'CommitLog.asyncPutMessage', 'java'),
+'mqqueueassign':('RocketMQ 4.9.8', 'CommitLog.DefaultAppendMessageCallback.doAppend', 'java'),
+'mqreput':('RocketMQ 4.9.8', 'DefaultMessageStore.ReputMessageService.doReput', 'java'),
+'mqdispatch':('RocketMQ 4.9.8', 'DefaultMessageStore.doDispatch', 'java'),
+'mqcqposition':('RocketMQ 4.9.8', 'ConsumeQueue.putMessagePositionInfo', 'java'),
+'mqcqorder':('RocketMQ 4.9.8', 'ConsumeQueue.putMessagePositionInfo', 'java'),
+'mqread':('RocketMQ 4.9.8', 'DefaultMessageStore.getMessage', 'java'),
+'mqindexput':('RocketMQ 4.9.8', 'IndexFile.putKey', 'java'),
+'mqkeyverify':('RocketMQ 4.9.8', 'MQAdminImpl.queryMessage', 'java'),
+'mqhalf':('RocketMQ 4.9.8', 'TransactionalMessageBridge.parseHalfMessageInner', 'java'),
+'mqrecover':('RocketMQ 4.9.8', 'DefaultMessageStore.recover', 'java'),
+'mqcheckpoint':('RocketMQ 4.9.8', 'StoreCheckpoint.flush', 'java'),
+'mqrecovertruncate':('RocketMQ 4.9.8', 'CommitLog.recoverAbnormally', 'java'),
+'mqrestart':('RocketMQ 4.9.8', 'DefaultMessageStore.start', 'java'),
+'mqindexload':('RocketMQ 4.9.8', 'IndexService.load', 'java'),
 'aqsqueue':('OpenJDK 8u462-b08','AbstractQueuedSynchronizer.acquireQueued','java'),
 'chmput':('OpenJDK 8u462-b08','ConcurrentHashMap.putVal','java'),
 'xstream':('XStream 1.4.4 / c4c7122','Sun14ReflectionProvider.getMungedConstructor','java'),

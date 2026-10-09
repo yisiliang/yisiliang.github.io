@@ -2,10 +2,13 @@
   "static": {
     "chapters": 10,
     "three_layer_questions": 60,
-    "diagrams": 15,
-    "ids": 596,
+    "diagrams": 17,
+    "ids": 673,
     "all_internal_anchors": "pass",
-    "all_local_resources": "pass"
+    "all_local_resources": "pass",
+    "storage_source_excerpts": 15,
+    "storage_excerpts_match_html": "pass",
+    "learning_wording": "pass"
   },
   "browser": {
     "desktop": "1440×1000 pass",
@@ -13,12 +16,12 @@
     "search": "full content / no result / escaped input pass",
     "mode": "all 10 chapters pass",
     "theme": "system/light/dark and persistence pass",
-    "copy": "clipboard matches source pass",
+    "copy": "copy handler matches source pass",
     "qa": "all 10 chapters pass",
     "hash": "deep link pass",
     "reading_progress": "pass",
     "offline_core": "all external requests blocked pass",
-    "javascript_disabled": "10 chapters + 15 SVG pass",
+    "javascript_disabled": "10 chapters + 17 SVG pass",
     "page_errors": []
   },
   "limits": [

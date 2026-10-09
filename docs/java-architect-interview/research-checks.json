@@ -50,5 +50,117 @@
     "url": "https://raw.githubusercontent.com/redis/redis-doc/master/docs/manual/patterns/distributed-locks.md",
     "status": 200,
     "bytes": 20515
+  },
+  {
+    "key": "mq-storage-StoreCheckpoint-4.9.8",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/StoreCheckpoint.java",
+    "status": 200,
+    "bytes": 4587,
+    "sha256": "f46115e7dac0bb311ac5cdce2e6587dd569bfe0ada2fdc0f2277c9554f868752",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-ConsumeQueue-4.9.8",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java",
+    "status": 200,
+    "bytes": 25863,
+    "sha256": "02126d4b2259da8e94d6339e7e546f0326f9dbb04ffd6786955b100d434767c8",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-CommitLog-4.9.8",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "status": 200,
+    "bytes": 78105,
+    "sha256": "3d6d6dd6c9e0ad947d6a1b8abe4a26bece63a74a07840f32641f476b329f9d96",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-DefaultMessageStore-4.9.8",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "status": 200,
+    "bytes": 88126,
+    "sha256": "b4b55079641bdd7b9449d09ea43202b580af6f3302d1cf840933ff280e681be4",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-MessageStoreConfig-4.9.8",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/config/MessageStoreConfig.java",
+    "status": 200,
+    "bytes": 26398,
+    "sha256": "15f9c834c1ae4301196043353bdc35a1762553e541a27e43886d98610e12d29d",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-IndexFile-4.9.8",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/index/IndexFile.java",
+    "status": 200,
+    "bytes": 9359,
+    "sha256": "648c4bd79afb7382e17a6dcac3a388adef54ab8b1fdaa201f62a32d61e0edec0",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-IndexService-4.9.8",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/index/IndexService.java",
+    "status": 200,
+    "bytes": 13515,
+    "sha256": "fdfc64e55d6091811e9eeeb2e73741c9e08440611a8f40ac64de52fa89417009",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-IndexHeader-4.9.8",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/index/IndexHeader.java",
+    "status": 200,
+    "bytes": 4420,
+    "sha256": "534fbe3e595bbdb70ddc9ffcf0811cd35f519114fc2eeee759236bc0b9bda218",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-DefaultMessageStore-5.3.4",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-5.3.4/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "status": 200,
+    "bytes": 125697,
+    "sha256": "5cb5f932ae20188e098e6478d7e6b18d1d3ee1242efc713641360f68c80ad2bc",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-ConsumeQueueStore-5.3.4",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-5.3.4/store/src/main/java/org/apache/rocketmq/store/queue/ConsumeQueueStore.java",
+    "status": 200,
+    "bytes": 36696,
+    "sha256": "035aed00d0717734a409d5e7bd912bd460390f051d5785795e5fb60b079017ba",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-RocksDBConsumeQueueStore-5.3.4",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-5.3.4/store/src/main/java/org/apache/rocketmq/store/queue/RocksDBConsumeQueueStore.java",
+    "status": 200,
+    "bytes": 27439,
+    "sha256": "a2776b8d2f9d08a4837c637bd6c965c5039be68cdc4c4a214ffa8c2f27572da0",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-MQAdminImpl-4.9.8",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/client/src/main/java/org/apache/rocketmq/client/impl/MQAdminImpl.java",
+    "status": 200,
+    "bytes": 21897,
+    "sha256": "e8209772e23b70c14afadb6d0b33af4cb499adabb02caf80bb54622cb2f2d692",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-ExpressionMessageFilter-4.9.8",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/filter/ExpressionMessageFilter.java",
+    "status": 200,
+    "bytes": 6231,
+    "sha256": "22b3d0c65e9308d2182f99e7a7550c87a94bb7d763cf7853837def4e674bce34",
+    "verified": "2026-10-09"
+  },
+  {
+    "key": "mq-storage-TransactionalMessageBridge-4.9.8",
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageBridge.java",
+    "status": 200,
+    "bytes": 16273,
+    "sha256": "fda409624fc607dc5915ff137630388c04e35bdce17b8367c387623d329e77ab",
+    "verified": "2026-10-09"
   }
 ]

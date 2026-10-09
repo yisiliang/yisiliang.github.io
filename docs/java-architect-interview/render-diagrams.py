@@ -1,12 +1,15 @@
 """本地构建时用 Mermaid 10.9.3 预渲染；读者无需执行 Mermaid 或访问 CDN。"""
 from pathlib import Path
-import json
+import json,os
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parent
 soup=BeautifulSoup((ROOT/'index.html').read_text(),'html.parser');report=[]
 with sync_playwright() as p:
- browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox']);page=browser.new_page()
+ executable=os.environ.get('CHROMIUM_EXECUTABLE')
+ if not executable and Path('/usr/bin/chromium').exists():executable='/usr/bin/chromium'
+ if not executable and Path('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome').exists():executable='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+ browser=p.chromium.launch(executable_path=executable,headless=True,args=['--no-sandbox']);page=browser.new_page()
  page.route('https://**/*', lambda route: route.abort())
  page.goto('http://127.0.0.1:8000/java-architect-interview/')
  page.add_script_tag(url='http://127.0.0.1:8000/java-architect-interview/vendor/mermaid.min.js')

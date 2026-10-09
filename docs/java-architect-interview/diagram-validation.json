@@ -52,25 +52,35 @@
   {
     "id": "jai-diagram-11",
     "rendered": true,
-    "type": "sequenceDiagram"
+    "type": "flowchart TB"
   },
   {
     "id": "jai-diagram-12",
     "rendered": true,
-    "type": "sequenceDiagram"
+    "type": "flowchart LR"
   },
   {
     "id": "jai-diagram-13",
     "rendered": true,
-    "type": "stateDiagram-v2"
+    "type": "sequenceDiagram"
   },
   {
     "id": "jai-diagram-14",
     "rendered": true,
-    "type": "flowchart LR"
+    "type": "sequenceDiagram"
   },
   {
     "id": "jai-diagram-15",
+    "rendered": true,
+    "type": "stateDiagram-v2"
+  },
+  {
+    "id": "jai-diagram-16",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "id": "jai-diagram-17",
     "rendered": true,
     "type": "flowchart TD"
   }

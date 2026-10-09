@@ -245,5 +245,155 @@
     "line": 91,
     "end_line": 101,
     "excerpt": "    private Constructor getMungedConstructor(Class type) throws NoSuchMethodException {\n        synchronized (constructorCache) {\n            Constructor ctor = (Constructor)constructorCache.get(type);\n            if (ctor == null) {\n                ctor = reflectionFactory.newConstructorForSerialization(type, Object.class.getDeclaredConstructor(new Class[0]));\n                constructorCache.put(type, ctor);\n            }\n            return ctor;\n        }\n    }\n"
+  },
+  "mqappend": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "sha256": "3d6d6dd6c9e0ad947d6a1b8abe4a26bece63a74a07840f32641f476b329f9d96",
+    "bytes": 78105,
+    "line": 676,
+    "end_line": 694,
+    "marker": "CommitLog.asyncPutMessage",
+    "excerpt": "        putMessageLock.lock(); //spin or ReentrantLock ,depending on store config\n        try {\n            MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();\n            long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();\n            this.beginTimeInLock = beginLockTimestamp;\n\n            // Here settings are stored timestamp, in order to ensure an orderly\n            // global\n            msg.setStoreTimestamp(beginLockTimestamp);\n\n            if (null == mappedFile || mappedFile.isFull()) {\n                mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise\n            }\n            if (null == mappedFile) {\n                log.error(\"create mapped file1 error, topic: \" + msg.getTopic() + \" clientAddr: \" + msg.getBornHostString());\n                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));\n            }\n\n            result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);\n",
+    "verified": "2026-10-09"
+  },
+  "mqqueueassign": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "sha256": "3d6d6dd6c9e0ad947d6a1b8abe4a26bece63a74a07840f32641f476b329f9d96",
+    "bytes": 78105,
+    "line": 1374,
+    "end_line": 1409,
+    "marker": "CommitLog.DefaultAppendMessageCallback.doAppend",
+    "excerpt": "            int pos = 4 + 4 + 4 + 4 + 4;\n            // 6 QUEUEOFFSET\n            preEncodeBuffer.putLong(pos, queueOffset);\n            pos += 8;\n            // 7 PHYSICALOFFSET\n            preEncodeBuffer.putLong(pos, fileFromOffset + byteBuffer.position());\n            int ipLen = (msgInner.getSysFlag() & MessageSysFlag.BORNHOST_V6_FLAG) == 0 ? 4 + 4 : 16 + 4;\n            // 8 SYSFLAG, 9 BORNTIMESTAMP, 10 BORNHOST, 11 STORETIMESTAMP\n            pos += 8 + 4 + 8 + ipLen;\n            // refresh store time stamp in lock\n            preEncodeBuffer.putLong(pos, msgInner.getStoreTimestamp());\n\n\n            final long beginTimeMills = CommitLog.this.defaultMessageStore.now();\n            // Write messages to the queue buffer\n            byteBuffer.put(preEncodeBuffer);\n            msgInner.setEncodedBuff(null);\n            AppendMessageResult result = new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, msgLen, msgIdSupplier,\n                msgInner.getStoreTimestamp(), queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);\n\n            switch (tranType) {\n                case MessageSysFlag.TRANSACTION_PREPARED_TYPE:\n                case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:\n                    break;\n                case MessageSysFlag.TRANSACTION_NOT_TYPE:\n                case MessageSysFlag.TRANSACTION_COMMIT_TYPE:\n                    // The next update ConsumeQueue information\n                    CommitLog.this.topicQueueTable.put(key, ++queueOffset);\n                    CommitLog.this.multiDispatch.updateMultiQueueOffset(msgInner);\n                    break;\n                default:\n                    break;\n            }\n            return result;\n        }\n\n",
+    "verified": "2026-10-09"
+  },
+  "mqreput": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "sha256": "b4b55079641bdd7b9449d09ea43202b580af6f3302d1cf840933ff280e681be4",
+    "bytes": 88126,
+    "line": 2028,
+    "end_line": 2047,
+    "marker": "DefaultMessageStore.ReputMessageService.doReput",
+    "excerpt": "                            DispatchRequest dispatchRequest =\n                                DefaultMessageStore.this.commitLog.checkMessageAndReturnSize(result.getByteBuffer(), false, false);\n                            int size = dispatchRequest.getBufferSize() == -1 ? dispatchRequest.getMsgSize() : dispatchRequest.getBufferSize();\n\n                            if (dispatchRequest.isSuccess()) {\n                                if (size > 0) {\n                                    DefaultMessageStore.this.doDispatch(dispatchRequest);\n\n                                    if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()\n                                            && DefaultMessageStore.this.brokerConfig.isLongPollingEnable()\n                                            && DefaultMessageStore.this.messageArrivingListener != null) {\n                                        DefaultMessageStore.this.messageArrivingListener.arriving(dispatchRequest.getTopic(),\n                                            dispatchRequest.getQueueId(), dispatchRequest.getConsumeQueueOffset() + 1,\n                                            dispatchRequest.getTagsCode(), dispatchRequest.getStoreTimestamp(),\n                                            dispatchRequest.getBitMap(), dispatchRequest.getPropertiesMap());\n                                        notifyMessageArrive4MultiQueue(dispatchRequest);\n                                    }\n\n                                    this.reputFromOffset += size;\n                                    readSize += size;\n",
+    "verified": "2026-10-09"
+  },
+  "mqdispatch": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "sha256": "b4b55079641bdd7b9449d09ea43202b580af6f3302d1cf840933ff280e681be4",
+    "bytes": 88126,
+    "line": 1519,
+    "end_line": 1523,
+    "marker": "DefaultMessageStore.doDispatch",
+    "excerpt": "    public void doDispatch(DispatchRequest req) {\n        for (CommitLogDispatcher dispatcher : this.dispatcherList) {\n            dispatcher.dispatch(req);\n        }\n    }\n",
+    "verified": "2026-10-09"
+  },
+  "mqcqposition": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java",
+    "sha256": "02126d4b2259da8e94d6339e7e546f0326f9dbb04ffd6786955b100d434767c8",
+    "bytes": 25863,
+    "line": 478,
+    "end_line": 493,
+    "marker": "ConsumeQueue.putMessagePositionInfo",
+    "excerpt": "    private boolean putMessagePositionInfo(final long offset, final int size, final long tagsCode,\n        final long cqOffset) {\n\n        if (offset + size <= this.maxPhysicOffset) {\n            log.warn(\"Maybe try to build consume queue repeatedly maxPhysicOffset={} phyOffset={}\", maxPhysicOffset, offset);\n            return true;\n        }\n\n        this.byteBufferIndex.flip();\n        this.byteBufferIndex.limit(CQ_STORE_UNIT_SIZE);\n        this.byteBufferIndex.putLong(offset);\n        this.byteBufferIndex.putInt(size);\n        this.byteBufferIndex.putLong(tagsCode);\n\n        final long expectLogicOffset = cqOffset * CQ_STORE_UNIT_SIZE;\n\n",
+    "verified": "2026-10-09"
+  },
+  "mqcqorder": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java",
+    "sha256": "02126d4b2259da8e94d6339e7e546f0326f9dbb04ffd6786955b100d434767c8",
+    "bytes": 25863,
+    "line": 506,
+    "end_line": 528,
+    "marker": "ConsumeQueue.putMessagePositionInfo",
+    "excerpt": "            if (cqOffset != 0) {\n                long currentLogicOffset = mappedFile.getWrotePosition() + mappedFile.getFileFromOffset();\n\n                if (expectLogicOffset < currentLogicOffset) {\n                    log.warn(\"Build  consume queue repeatedly, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}\",\n                        expectLogicOffset, currentLogicOffset, this.topic, this.queueId, expectLogicOffset - currentLogicOffset);\n                    return true;\n                }\n\n                if (expectLogicOffset != currentLogicOffset) {\n                    LOG_ERROR.warn(\n                        \"[BUG]logic queue order maybe wrong, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}\",\n                        expectLogicOffset,\n                        currentLogicOffset,\n                        this.topic,\n                        this.queueId,\n                        expectLogicOffset - currentLogicOffset\n                    );\n                }\n            }\n            this.maxPhysicOffset = offset + size;\n            return mappedFile.appendMessage(this.byteBufferIndex.array());\n        }\n",
+    "verified": "2026-10-09"
+  },
+  "mqread": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "sha256": "b4b55079641bdd7b9449d09ea43202b580af6f3302d1cf840933ff280e681be4",
+    "bytes": 88126,
+    "line": 655,
+    "end_line": 686,
+    "marker": "DefaultMessageStore.getMessage",
+    "excerpt": "                            if (messageFilter != null\n                                && !messageFilter.isMatchedByConsumeQueue(isTagsCodeLegal ? tagsCode : null, extRet ? cqExtUnit : null)) {\n                                if (getResult.getBufferTotalSize() == 0) {\n                                    status = GetMessageStatus.NO_MATCHED_MESSAGE;\n                                }\n\n                                continue;\n                            }\n\n                            SelectMappedBufferResult selectResult = this.commitLog.getMessage(offsetPy, sizePy);\n                            if (null == selectResult) {\n                                if (getResult.getBufferTotalSize() == 0) {\n                                    status = GetMessageStatus.MESSAGE_WAS_REMOVING;\n                                }\n\n                                nextPhyFileStartOffset = this.commitLog.rollNextFile(offsetPy);\n                                continue;\n                            }\n\n                            if (messageFilter != null\n                                && !messageFilter.isMatchedByCommitLog(selectResult.getByteBuffer().slice(), null)) {\n                                if (getResult.getBufferTotalSize() == 0) {\n                                    status = GetMessageStatus.NO_MATCHED_MESSAGE;\n                                }\n                                // release...\n                                selectResult.release();\n                                continue;\n                            }\n\n                            this.storeStatsService.getGetMessageTransferedMsgCount().add(1);\n                            getResult.addMessage(selectResult);\n                            status = GetMessageStatus.FOUND;\n",
+    "verified": "2026-10-09"
+  },
+  "mqindexput": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/index/IndexFile.java",
+    "sha256": "648c4bd79afb7382e17a6dcac3a388adef54ab8b1fdaa201f62a32d61e0edec0",
+    "bytes": 9359,
+    "line": 113,
+    "end_line": 134,
+    "marker": "IndexFile.putKey",
+    "excerpt": "                int absIndexPos =\n                    IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize\n                        + this.indexHeader.getIndexCount() * indexSize;\n\n                this.mappedByteBuffer.putInt(absIndexPos, keyHash);\n                this.mappedByteBuffer.putLong(absIndexPos + 4, phyOffset);\n                this.mappedByteBuffer.putInt(absIndexPos + 4 + 8, (int) timeDiff);\n                this.mappedByteBuffer.putInt(absIndexPos + 4 + 8 + 4, slotValue);\n\n                this.mappedByteBuffer.putInt(absSlotPos, this.indexHeader.getIndexCount());\n\n                if (this.indexHeader.getIndexCount() <= 1) {\n                    this.indexHeader.setBeginPhyOffset(phyOffset);\n                    this.indexHeader.setBeginTimestamp(storeTimestamp);\n                }\n\n                if (invalidIndex == slotValue) {\n                    this.indexHeader.incHashSlotCount();\n                }\n                this.indexHeader.incIndexCount();\n                this.indexHeader.setEndPhyOffset(phyOffset);\n                this.indexHeader.setEndTimestamp(storeTimestamp);\n",
+    "verified": "2026-10-09"
+  },
+  "mqkeyverify": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/client/src/main/java/org/apache/rocketmq/client/impl/MQAdminImpl.java",
+    "sha256": "e8209772e23b70c14afadb6d0b33af4cb499adabb02caf80bb54622cb2f2d692",
+    "bytes": 21897,
+    "line": 407,
+    "end_line": 429,
+    "marker": "MQAdminImpl.queryMessage",
+    "excerpt": "                        } else {\n                            String keys = msgExt.getKeys();\n                            String msgTopic = msgExt.getTopic();\n                            if (keys != null) {\n                                boolean matched = false;\n                                String[] keyArray = keys.split(MessageConst.KEY_SEPARATOR);\n                                if (keyArray != null) {\n                                    for (String k : keyArray) {\n                                        // both topic and key must be equal at the same time\n                                        if (Objects.equals(key, k) && Objects.equals(topic, msgTopic)) {\n                                            matched = true;\n                                            break;\n                                        }\n                                    }\n                                }\n\n                                if (matched) {\n                                    messageList.add(msgExt);\n                                } else {\n                                    log.warn(\"queryMessage, find message key not matched, maybe hash duplicate {}\", msgExt.toString());\n                                }\n                            }\n                        }\n",
+    "verified": "2026-10-09"
+  },
+  "mqhalf": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageBridge.java",
+    "sha256": "fda409624fc607dc5915ff137630388c04e35bdce17b8367c387623d329e77ab",
+    "bytes": 16273,
+    "line": 203,
+    "end_line": 213,
+    "marker": "TransactionalMessageBridge.parseHalfMessageInner",
+    "excerpt": "    private MessageExtBrokerInner parseHalfMessageInner(MessageExtBrokerInner msgInner) {\n        MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_REAL_TOPIC, msgInner.getTopic());\n        MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_REAL_QUEUE_ID,\n            String.valueOf(msgInner.getQueueId()));\n        msgInner.setSysFlag(\n            MessageSysFlag.resetTransactionValue(msgInner.getSysFlag(), MessageSysFlag.TRANSACTION_NOT_TYPE));\n        msgInner.setTopic(TransactionalMessageUtil.buildHalfTopic());\n        msgInner.setQueueId(0);\n        msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));\n        return msgInner;\n    }\n",
+    "verified": "2026-10-09"
+  },
+  "mqrecover": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "sha256": "b4b55079641bdd7b9449d09ea43202b580af6f3302d1cf840933ff280e681be4",
+    "bytes": 88126,
+    "line": 1424,
+    "end_line": 1434,
+    "marker": "DefaultMessageStore.recover",
+    "excerpt": "    private void recover(final boolean lastExitOK) {\n        long maxPhyOffsetOfConsumeQueue = this.recoverConsumeQueue();\n\n        if (lastExitOK) {\n            this.commitLog.recoverNormally(maxPhyOffsetOfConsumeQueue);\n        } else {\n            this.commitLog.recoverAbnormally(maxPhyOffsetOfConsumeQueue);\n        }\n\n        this.recoverTopicQueueTable();\n    }\n",
+    "verified": "2026-10-09"
+  },
+  "mqcheckpoint": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/StoreCheckpoint.java",
+    "sha256": "f46115e7dac0bb311ac5cdce2e6587dd569bfe0ada2fdc0f2277c9554f868752",
+    "bytes": 4587,
+    "line": 78,
+    "end_line": 83,
+    "marker": "StoreCheckpoint.flush",
+    "excerpt": "    public void flush() {\n        this.mappedByteBuffer.putLong(0, this.physicMsgTimestamp);\n        this.mappedByteBuffer.putLong(8, this.logicsMsgTimestamp);\n        this.mappedByteBuffer.putLong(16, this.indexMsgTimestamp);\n        this.mappedByteBuffer.force();\n    }\n",
+    "verified": "2026-10-09"
+  },
+  "mqrecovertruncate": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "sha256": "3d6d6dd6c9e0ad947d6a1b8abe4a26bece63a74a07840f32641f476b329f9d96",
+    "bytes": 78105,
+    "line": 531,
+    "end_line": 542,
+    "marker": "CommitLog.recoverAbnormally",
+    "excerpt": "\n            processOffset += mappedFileOffset;\n            this.mappedFileQueue.setFlushedWhere(processOffset);\n            this.mappedFileQueue.setCommittedWhere(processOffset);\n            this.mappedFileQueue.truncateDirtyFiles(processOffset);\n\n            // Clear ConsumeQueue redundant data\n            if (maxPhyOffsetOfConsumeQueue >= processOffset) {\n                log.warn(\"maxPhyOffsetOfConsumeQueue({}) >= processOffset({}), truncate dirty logic files\", maxPhyOffsetOfConsumeQueue, processOffset);\n                this.defaultMessageStore.truncateDirtyLogicFiles(processOffset);\n            }\n        }\n",
+    "verified": "2026-10-09"
+  },
+  "mqrestart": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "sha256": "b4b55079641bdd7b9449d09ea43202b580af6f3302d1cf840933ff280e681be4",
+    "bytes": 88126,
+    "line": 275,
+    "end_line": 292,
+    "marker": "DefaultMessageStore.start",
+    "excerpt": "            log.info(\"[SetReputOffset] maxPhysicalPosInLogicQueue={} clMinOffset={} clMaxOffset={} clConfirmedOffset={}\",\n                maxPhysicalPosInLogicQueue, this.commitLog.getMinOffset(), this.commitLog.getMaxOffset(), this.commitLog.getConfirmOffset());\n            this.reputMessageService.setReputFromOffset(maxPhysicalPosInLogicQueue);\n            this.reputMessageService.start();\n\n            /**\n             *  1. Finish dispatching the messages fall behind, then to start other services.\n             *  2. DLedger committedPos may be missing, so here just require dispatchBehindBytes <= 0\n             */\n            while (true) {\n                if (dispatchBehindBytes() <= 0) {\n                    break;\n                }\n                Thread.sleep(1000);\n                log.info(\"Try to finish doing reput the messages fall behind during the starting, reputOffset={} maxOffset={} behind={}\", this.reputMessageService.getReputFromOffset(), this.getMaxPhyOffset(), this.dispatchBehindBytes());\n            }\n            this.recoverTopicQueueTable();\n        }\n",
+    "verified": "2026-10-09"
+  },
+  "mqindexload": {
+    "url": "https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/index/IndexService.java",
+    "sha256": "fdfc64e55d6091811e9eeeb2e73741c9e08440611a8f40ac64de52fa89417009",
+    "bytes": 13515,
+    "line": 68,
+    "end_line": 75,
+    "marker": "IndexService.load",
+    "excerpt": "                    if (!lastExitOK) {\n                        if (f.getEndTimestamp() > this.defaultMessageStore.getStoreCheckpoint()\n                            .getIndexMsgTimestamp()) {\n                            f.destroy(0);\n                            continue;\n                        }\n                    }\n\n",
+    "verified": "2026-10-09"
   }
 }
