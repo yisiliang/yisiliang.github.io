@@ -1,3 +1,9 @@
+    /**
+     * Process service info.
+     *
+     * @param serviceInfo new service info
+     * @return service info
+     */
     public ServiceInfo processServiceInfo(ServiceInfo serviceInfo) {
         String serviceKey = serviceInfo.getKeyWithoutClusters();
         if (serviceKey == null) {

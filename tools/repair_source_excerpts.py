@@ -16,53 +16,10 @@ def walk(n):
     for child in n.children: yield from walk(child)
 def body(lines,a,b): return textwrap.dedent('\n'.join(lines[a-1:b]))
 def bounds(lines,tree,a,b):
-    nodes=list(walk(tree.root_node)); methods=[n for n in nodes if n.type in METHODS]
-    comments=[n for n in nodes if 'comment' in n.type]
-    old=(a,b); reasons=[]
-    # A function window ends at that function, including when it begins with
-    # the function's own documentation. Class/field windows stay as windows.
-    active=[n for n in methods if n.start_point.row+1<=a<=n.end_point.row+1]
-    first=min(active,key=lambda n:n.end_byte-n.start_byte) if active else None
-    if first is None:
-        following=sorted((n for n in methods if a<=n.start_point.row+1<=b),key=lambda n:n.start_byte)
-        if following:
-            candidate=following[0]
-            leading='\n'.join(lines[a-1:candidate.start_point.row])
-            leading=re.sub(r'/\*.*?\*/|//[^\n]*','',leading,flags=re.S)
-            if not leading.strip(): first=candidate
-    if first:
-        end=first.end_point.row+1
-        if end<b:
-            # This existing excerpt explicitly explains the rehash/resize/full
-            # stale sweep trio together, so keep its intended multi-method view.
-            name=first.child_by_field_name('name')
-            multi=name is not None and name.text==b'rehash' and any('expungeStaleEntries();' in x for x in lines[first.start_point.row:first.end_point.row+1])
-            if not multi:
-                b=end; reasons.append('trim following declaration/comment')
-        annotation_prefix='\n'.join(lines[first.start_point.row:a-1])
-        if a==first.start_point.row+1 or (annotation_prefix.lstrip().startswith('@') and not re.sub(r'@\w+(?:\([^\n]*\))?|/\*.*?\*/|//[^\n]*', '', annotation_prefix, flags=re.S).strip()):
-            if a!=first.start_point.row+1:
-                a=first.start_point.row+1; reasons.append('include function annotations')
-            p=a-2
-            while p>=0 and (not lines[p].strip() or lines[p].lstrip().startswith('@')): p-=1
-            cs=[n for n in comments if n.end_point.row==p]
-            if cs:
-                c=max(cs,key=lambda n:n.start_byte)
-                a=c.start_point.row+1
-                # Consecutive C/Java line comments form one documentation block.
-                while a>1 and lines[a-2].lstrip().startswith('//'): a-=1
-                reasons.append('include current documentation')
-    # Windows starting inside a comment must include its opening delimiter.
-    for c in comments:
-        ca,ce=c.start_point.row+1,c.end_point.row+1
-        if ca<a<=ce: a=ca; reasons.append('complete leading comment')
-        if ca<=b<ce:
-            # Internal explanatory comments remain with their function.
-            internal=any(n.start_byte<=c.start_byte and c.end_byte<=n.end_byte and n.start_point.row+1<=old[0] for n in methods)
-            if internal: b=ce; reasons.append('complete internal comment')
-            else: b=ca-1; reasons.append('remove dangling next comment')
-    while b>=a and not lines[b-1].strip(): b-=1
-    return a,b,reasons
+    # Keep the legacy three-book entry point consistent with the catalog audit.
+    from complete_source_excerpts import complete_bounds
+    na,nb=complete_bounds(lines,tree,a,b)
+    return na,nb,(['complete function/comment boundaries'] if (na,nb)!=(a,b) else [])
 
 def load_sources(d):
     z=zipfile.ZipFile(next(p for p in d.glob('*source.zip') if 'offline' not in p.name))
@@ -85,7 +42,7 @@ def main():
             u=links[-1];sha,f,a,b=u.groups();a,b=int(a),int(b)
             key=f if f in src else next((n for n in src if n.endswith('/'+f) and ((sha.startswith('ae6a') and n.startswith('7.2.6/')) or (sha.startswith('9186') and n.startswith('6.2.14/')) or (sha.startswith('63d2') and n.startswith('5.3.4/')) or (sha.startswith('2bdd') and n.startswith('4.9.8/')))),None)
             assert key,(book,f,sha)
-            lines,tree=src[key];raw=re.search(r'<code\b[^>]*>(.*?)</code>',m[0],re.S)[1];plain=html.unescape(re.sub(r'<[^>]+>','',raw));assert plain.rstrip()==body(lines,a,b).rstrip(),(book,f,a,b,'source mismatch')
+            lines,tree=src[key];raw=re.search(r'<code\b[^>]*>(.*?)</code>',m[0],re.S)[1];plain=html.unescape(re.sub(r'<[^>]+>','',raw));assert textwrap.dedent(plain).rstrip()==body(lines,a,b).rstrip(),(book,f,a,b,'source mismatch')
             na,nb,reasons=bounds(lines,tree,a,b);assert na<=nb,(f,a,b,na,nb)
             cards.append((m,u,raw,lines,a,b,na,nb))
             if (na,nb)!=(a,b):
@@ -115,7 +72,7 @@ def main():
             u=us[-1];sha,f,a,b=u.groups();a,b=int(a),int(b)
             if (f,a,b) not in changes:continue
             na,nb,lines=changes[(f,a,b)]
-            if m[1].rstrip()!=body(lines,a,b).rstrip(): continue
+            if textwrap.dedent(m[1]).rstrip()!=body(lines,a,b).rstrip(): continue
             prefix=md[u.start():m.start()].replace(f'#L{a}-L{b}',f'#L{na}-L{nb}')
             # Link labels occur before the URL.
             start=md.rfind('[',0,u.start());label=md[start:u.start()].replace(f'L{a}–L{b}',f'L{na}–L{nb}')

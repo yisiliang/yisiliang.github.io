@@ -3,3 +3,7 @@ docs/mysql/excerpts/*.cc whitespace=-blank-at-eof
 docs/nacos/excerpts/*.txt whitespace=-blank-at-eol,-blank-at-eof
 docs/nacos/handbook.md whitespace=-blank-at-eol
 docs/nacos/index.html whitespace=-blank-at-eol
+
+# These manuals also quote original upstream whitespace.
+docs/redis/handbook.md whitespace=-blank-at-eol
+docs/redis/index.html whitespace=-blank-at-eol

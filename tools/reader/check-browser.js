@@ -1,22 +1,26 @@
 async page => {
   const origin='http://127.0.0.1:8765/';
-  const names=['jdk-source','jvm','springboot','mysql','redis','rocketmq','nginx','distributed','nacos','transformer','java-architect-interview'];
+  const names=['jdk-source','jvm','springboot','mysql','redis','rocketmq','nginx','distributed','nacos','transformer','java-architect-interview','nginx-rate-limiting'];
   const oldAnchors={
     'jdk-source':'chapter-14','jvm':'appendix-xstream','springboot':'chapter-18','mysql':'chapter-12',
     'redis':'chapter-12','rocketmq':'chapter-15','nginx':'chapter-15','distributed':'cap-paper',
-    'nacos':'baseline','transformer':'calculate','java-architect-interview':'c7-s9'
+    'nacos':'baseline','transformer':'calculate','java-architect-interview':'c7-s9','nginx-rate-limiting':'excess'
   };
-  const words={'jdk-source':'ThreadLocal','jvm':'CMS','springboot':'SpringApplication','mysql':'ReadView','redis':'sentinel','rocketmq':'CommitLog','nginx':'ngx_http','distributed':'分区','nacos':'MD5','transformer':'softmax','java-architect-interview':'rollback-only'};
+  const words={'jdk-source':'ThreadLocal','jvm':'CMS','springboot':'SpringApplication','mysql':'ReadView','redis':'sentinel','rocketmq':'CommitLog','nginx':'ngx_http','distributed':'分区','nacos':'MD5','transformer':'softmax','java-architect-interview':'rollback-only','nginx-rate-limiting':'burst'};
   const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   const results=[];
   for(const name of names){
+    console.log('Checking '+name);
     await page.setViewportSize({width:1440,height:1000});
     await page.goto(origin+name+'/#'+oldAnchors[name]);
     await page.waitForFunction(()=>document.querySelectorAll('.chapter.active').length===1);
+    const chapterCount=await page.locator('.chapter').count();
+    if(await page.locator('.chapter:visible').count()!==chapterCount)throw Error(name+' hides chapters');
+    if(await page.locator('.study details:not([open])').count())throw Error(name+' collapsed full text');
     const target=page.locator('[id="'+oldAnchors[name]+'"]');
     if(await target.count()!==1)throw Error(name+' old anchor missing');
     const matchChapter=await target.evaluate(el=>el.closest('.chapter')?.id);
-    if(await page.locator('.chapter.active').getAttribute('id')!==matchChapter)throw Error(name+' old anchor opened wrong chapter');
+    await page.waitForFunction(id=>document.querySelector('.chapter.active')?.id===id,matchChapter);
     await page.locator('#search-open').click();await page.locator('#search-input').fill(words[name]);
     await page.waitForFunction(()=>document.querySelector('#search-results').children.length>0);
     await page.locator('#search-results a').first().click();
@@ -33,14 +37,14 @@ async page => {
       await page.evaluate(id=>location.hash=id,codeChapter);
       await page.waitForFunction(id=>document.querySelector('.chapter.active').id===id,codeChapter);
       await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>window.__readerCopied=text}}));
-      const pre=page.locator('.chapter.active pre:has(code)').first();const expected=await pre.locator('code').innerText();
+      const pre=page.locator('[id="'+codeChapter+'"] pre:has(code)').first();const expected=await pre.locator('code').innerText();
       await pre.locator('button.copy').click();
       if(await page.evaluate(()=>window.__readerCopied)!==expected)throw Error(name+' copy differs from code');
     }
     const diagramChapter=await page.evaluate(()=>[...document.querySelectorAll('.chapter')].find(c=>c.querySelector('figure svg,figure img'))?.id);
     if(diagramChapter&&await page.locator('#diagram-dialog').count()){
       await page.evaluate(id=>location.hash=id,diagramChapter);await page.waitForFunction(id=>document.querySelector('.chapter.active').id===id,diagramChapter);
-      await page.locator('.chapter.active figure button.expand').first().click();
+      await page.locator('[id="'+diagramChapter+'"] figure button.expand').first().click();
       if(!await page.locator('#diagram-dialog').isVisible()||await page.locator('#diagram-content svg,#diagram-content img').count()!==1)throw Error(name+' zoom');
       await page.locator('#zoom-in').click();if(await page.locator('#diagram-content').evaluate(el=>el.firstElementChild.style.width)!=='125%')throw Error(name+' diagram scaling');await page.locator('#zoom-reset').click();
       await page.locator('#diagram-close').click();
@@ -68,9 +72,12 @@ async page => {
     if(!await page.locator('#left-nav').isVisible())throw Error(name+' drawer');
     await page.locator('#left-nav .chapter-nav summary a').first().click();await page.waitForFunction(()=>!document.body.classList.contains('drawer-open'));
     await page.setViewportSize({width:1440,height:1000});
-    await page.evaluate(id=>location.hash=id,original);await page.waitForFunction(id=>document.querySelector('.chapter.active').id===id,original);
-    await page.evaluate(()=>document.querySelector('.chapter.active').scrollIntoView({block:'end',behavior:'instant'}));
+    await page.locator('.chapter-nav summary a[href="#'+original+'"]').click();await page.waitForFunction(id=>document.querySelector('.chapter.active').id===id,original);
+    await page.evaluate(()=>[...document.querySelectorAll('.chapter')].at(-1).scrollIntoView({block:'end',behavior:'instant'}));
     await page.waitForTimeout(100);
+    const lastId=await page.locator('.chapter').last().getAttribute('id');
+    if(await page.locator('.chapter.active').getAttribute('id')!==lastId)throw Error(name+' scroll chapter tracking');
+    if(await page.locator('.chapter:visible').count()!==chapterCount)throw Error(name+' navigation hides full text');
     if(Number((await page.locator('#progress-text').innerText()).match(/\d+/)[0])<95)throw Error(name+' progress');
     results.push({name,oldAnchor:'pass',search:'pass',copy:'pass',diagram:diagramChapter?'pass':'no SVG',theme:'pass',responsive:'pass',drawer:'pass',progress:'pass'});
   }

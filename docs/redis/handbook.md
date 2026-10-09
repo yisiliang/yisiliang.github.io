@@ -57,7 +57,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[server.c · 7.2.6 · L7042–L7082](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L7042-L7082)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[server.c · 7.2.6 · L7042–L7371](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L7042-L7371)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 int main(int argc, char **argv) {
@@ -101,6 +101,295 @@ int main(int argc, char **argv) {
             if (!proc) return -1; /* test not found */
             return proc(argc,argv,flags);
         }
+
+        return 0;
+    }
+#endif
+
+    /* We need to initialize our libraries, and the server configuration. */
+#ifdef INIT_SETPROCTITLE_REPLACEMENT
+    spt_init(argc, argv);
+#endif
+    tzset(); /* Populates 'timezone' global. */
+    zmalloc_set_oom_handler(redisOutOfMemoryHandler);
+
+    /* To achieve entropy, in case of containers, their time() and getpid() can
+     * be the same. But value of tv_usec is fast enough to make the difference */
+    gettimeofday(&tv,NULL);
+    srand(time(NULL)^getpid()^tv.tv_usec);
+    srandom(time(NULL)^getpid()^tv.tv_usec);
+    init_genrand64(((long long) tv.tv_sec * 1000000 + tv.tv_usec) ^ getpid());
+    crc64_init();
+
+    /* Store umask value. Because umask(2) only offers a set-and-get API we have
+     * to reset it and restore it back. We do this early to avoid a potential
+     * race condition with threads that could be creating files or directories.
+     */
+    umask(server.umask = umask(0777));
+
+    uint8_t hashseed[16];
+    getRandomBytes(hashseed,sizeof(hashseed));
+    dictSetHashFunctionSeed(hashseed);
+
+    char *exec_name = strrchr(argv[0], '/');
+    if (exec_name == NULL) exec_name = argv[0];
+    server.sentinel_mode = checkForSentinelMode(argc,argv, exec_name);
+    initServerConfig();
+    ACLInit(); /* The ACL subsystem must be initialized ASAP because the
+                  basic networking code and client creation depends on it. */
+    moduleInitModulesSystem();
+    connTypeInitialize();
+
+    /* Store the executable path and arguments in a safe place in order
+     * to be able to restart the server later. */
+    server.executable = getAbsolutePath(argv[0]);
+    server.exec_argv = zmalloc(sizeof(char*)*(argc+1));
+    server.exec_argv[argc] = NULL;
+    for (j = 0; j < argc; j++) server.exec_argv[j] = zstrdup(argv[j]);
+
+    /* We need to init sentinel right now as parsing the configuration file
+     * in sentinel mode will have the effect of populating the sentinel
+     * data structures with master nodes to monitor. */
+    if (server.sentinel_mode) {
+        initSentinelConfig();
+        initSentinel();
+    }
+
+    /* Check if we need to start in redis-check-rdb/aof mode. We just execute
+     * the program main. However the program is part of the Redis executable
+     * so that we can easily execute an RDB check on loading errors. */
+    if (strstr(exec_name,"redis-check-rdb") != NULL)
+        redis_check_rdb_main(argc,argv,NULL);
+    else if (strstr(exec_name,"redis-check-aof") != NULL)
+        redis_check_aof_main(argc,argv);
+
+    if (argc >= 2) {
+        j = 1; /* First option to parse in argv[] */
+        sds options = sdsempty();
+
+        /* Handle special options --help and --version */
+        if (strcmp(argv[1], "-v") == 0 ||
+            strcmp(argv[1], "--version") == 0) version();
+        if (strcmp(argv[1], "--help") == 0 ||
+            strcmp(argv[1], "-h") == 0) usage();
+        if (strcmp(argv[1], "--test-memory") == 0) {
+            if (argc == 3) {
+                memtest(atoi(argv[2]),50);
+                exit(0);
+            } else {
+                fprintf(stderr,"Please specify the amount of memory to test in megabytes.\n");
+                fprintf(stderr,"Example: ./redis-server --test-memory 4096\n\n");
+                exit(1);
+            }
+        } if (strcmp(argv[1], "--check-system") == 0) {
+            exit(syscheck() ? 0 : 1);
+        }
+        /* Parse command line options
+         * Precedence wise, File, stdin, explicit options -- last config is the one that matters.
+         *
+         * First argument is the config file name? */
+        if (argv[1][0] != '-') {
+            /* Replace the config file in server.exec_argv with its absolute path. */
+            server.configfile = getAbsolutePath(argv[1]);
+            zfree(server.exec_argv[1]);
+            server.exec_argv[1] = zstrdup(server.configfile);
+            j = 2; // Skip this arg when parsing options
+        }
+        sds *argv_tmp;
+        int argc_tmp;
+        int handled_last_config_arg = 1;
+        while(j < argc) {
+            /* Either first or last argument - Should we read config from stdin? */
+            if (argv[j][0] == '-' && argv[j][1] == '\0' && (j == 1 || j == argc-1)) {
+                config_from_stdin = 1;
+            }
+            /* All the other options are parsed and conceptually appended to the
+             * configuration file. For instance --port 6380 will generate the
+             * string "port 6380\n" to be parsed after the actual config file
+             * and stdin input are parsed (if they exist).
+             * Only consider that if the last config has at least one argument. */
+            else if (handled_last_config_arg && argv[j][0] == '-' && argv[j][1] == '-') {
+                /* Option name */
+                if (sdslen(options)) options = sdscat(options,"\n");
+                /* argv[j]+2 for removing the preceding `--` */
+                options = sdscat(options,argv[j]+2);
+                options = sdscat(options," ");
+
+                argv_tmp = sdssplitargs(argv[j], &argc_tmp);
+                if (argc_tmp == 1) {
+                    /* Means that we only have one option name, like --port or "--port " */
+                    handled_last_config_arg = 0;
+
+                    if ((j != argc-1) && argv[j+1][0] == '-' && argv[j+1][1] == '-' &&
+                        !strcasecmp(argv[j], "--save"))
+                    {
+                        /* Special case: handle some things like `--save --config value`.
+                         * In this case, if next argument starts with `--`, we will reset
+                         * handled_last_config_arg flag and append an empty "" config value
+                         * to the options, so it will become `--save "" --config value`.
+                         * We are doing it to be compatible with pre 7.0 behavior (which we
+                         * break it in #10660, 7.0.1), since there might be users who generate
+                         * a command line from an array and when it's empty that's what they produce. */
+                        options = sdscat(options, "\"\"");
+                        handled_last_config_arg = 1;
+                    }
+                    else if ((j == argc-1) && !strcasecmp(argv[j], "--save")) {
+                        /* Special case: when empty save is the last argument.
+                         * In this case, we append an empty "" config value to the options,
+                         * so it will become `--save ""` and will follow the same reset thing. */
+                        options = sdscat(options, "\"\"");
+                    }
+                    else if ((j != argc-1) && argv[j+1][0] == '-' && argv[j+1][1] == '-' &&
+                        !strcasecmp(argv[j], "--sentinel"))
+                    {
+                        /* Special case: handle some things like `--sentinel --config value`.
+                         * It is a pseudo config option with no value. In this case, if next
+                         * argument starts with `--`, we will reset handled_last_config_arg flag.
+                         * We are doing it to be compatible with pre 7.0 behavior (which we
+                         * break it in #10660, 7.0.1). */
+                        options = sdscat(options, "");
+                        handled_last_config_arg = 1;
+                    }
+                    else if ((j == argc-1) && !strcasecmp(argv[j], "--sentinel")) {
+                        /* Special case: when --sentinel is the last argument.
+                         * It is a pseudo config option with no value. In this case, do nothing.
+                         * We are doing it to be compatible with pre 7.0 behavior (which we
+                         * break it in #10660, 7.0.1). */
+                        options = sdscat(options, "");
+                    }
+                } else {
+                    /* Means that we are passing both config name and it's value in the same arg,
+                     * like "--port 6380", so we need to reset handled_last_config_arg flag. */
+                    handled_last_config_arg = 1;
+                }
+                sdsfreesplitres(argv_tmp, argc_tmp);
+            } else {
+                /* Option argument */
+                options = sdscatrepr(options,argv[j],strlen(argv[j]));
+                options = sdscat(options," ");
+                handled_last_config_arg = 1;
+            }
+            j++;
+        }
+
+        loadServerConfig(server.configfile, config_from_stdin, options);
+        if (server.sentinel_mode) loadSentinelConfigFromQueue();
+        sdsfree(options);
+    }
+    if (server.sentinel_mode) sentinelCheckConfigFile();
+
+    /* Do system checks */
+#ifdef __linux__
+    linuxMemoryWarnings();
+    sds err_msg = NULL;
+    if (checkXenClocksource(&err_msg) < 0) {
+        serverLog(LL_WARNING, "WARNING %s", err_msg);
+        sdsfree(err_msg);
+    }
+#if defined (__arm64__)
+    int ret;
+    if ((ret = checkLinuxMadvFreeForkBug(&err_msg)) <= 0) {
+        if (ret < 0) {
+            serverLog(LL_WARNING, "WARNING %s", err_msg);
+            sdsfree(err_msg);
+        } else
+            serverLog(LL_WARNING, "Failed to test the kernel for a bug that could lead to data corruption during background save. "
+                                  "Your system could be affected, please report this error.");
+        if (!checkIgnoreWarning("ARM64-COW-BUG")) {
+            serverLog(LL_WARNING,"Redis will now exit to prevent data corruption. "
+                                 "Note that it is possible to suppress this warning by setting the following config: ignore-warnings ARM64-COW-BUG");
+            exit(1);
+        }
+    }
+#endif /* __arm64__ */
+#endif /* __linux__ */
+
+    /* Daemonize if needed */
+    server.supervised = redisIsSupervised(server.supervised_mode);
+    int background = server.daemonize && !server.supervised;
+    if (background) daemonize();
+
+    serverLog(LL_NOTICE, "oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo");
+    serverLog(LL_NOTICE,
+        "Redis version=%s, bits=%d, commit=%s, modified=%d, pid=%d, just started",
+            REDIS_VERSION,
+            (sizeof(long) == 8) ? 64 : 32,
+            redisGitSHA1(),
+            strtol(redisGitDirty(),NULL,10) > 0,
+            (int)getpid());
+
+    if (argc == 1) {
+        serverLog(LL_WARNING, "Warning: no config file specified, using the default config. In order to specify a config file use %s /path/to/redis.conf", argv[0]);
+    } else {
+        serverLog(LL_NOTICE, "Configuration loaded");
+    }
+
+    initServer();
+    if (background || server.pidfile) createPidFile();
+    if (server.set_proc_title) redisSetProcTitle(NULL);
+    redisAsciiArt();
+    checkTcpBacklogSettings();
+    if (server.cluster_enabled) {
+        clusterInit();
+    }
+    if (!server.sentinel_mode) {
+        moduleInitModulesSystemLast();
+        moduleLoadFromQueue();
+    }
+    ACLLoadUsersAtStartup();
+    initListeners();
+    if (server.cluster_enabled) {
+        clusterInitListeners();
+    }
+    InitServerLast();
+
+    if (!server.sentinel_mode) {
+        /* Things not needed when running in Sentinel mode. */
+        serverLog(LL_NOTICE,"Server initialized");
+        aofLoadManifestFromDisk();
+        loadDataFromDisk();
+        aofOpenIfNeededOnServerStart();
+        aofDelHistoryFiles();
+        if (server.cluster_enabled) {
+            serverAssert(verifyClusterConfigWithData() == C_OK);
+        }
+
+        for (j = 0; j < CONN_TYPE_MAX; j++) {
+            connListener *listener = &server.listeners[j];
+            if (listener->ct == NULL)
+                continue;
+
+            serverLog(LL_NOTICE,"Ready to accept connections %s", listener->ct->get_type(NULL));
+        }
+
+        if (server.supervised_mode == SUPERVISED_SYSTEMD) {
+            if (!server.masterhost) {
+                redisCommunicateSystemd("STATUS=Ready to accept connections\n");
+            } else {
+                redisCommunicateSystemd("STATUS=Ready to accept connections in read-only mode. Waiting for MASTER <-> REPLICA sync\n");
+            }
+            redisCommunicateSystemd("READY=1\n");
+        }
+    } else {
+        sentinelIsRunning();
+        if (server.supervised_mode == SUPERVISED_SYSTEMD) {
+            redisCommunicateSystemd("STATUS=Ready to accept connections\n");
+            redisCommunicateSystemd("READY=1\n");
+        }
+    }
+
+    /* Warning the user about suspicious maxmemory setting. */
+    if (server.maxmemory > 0 && server.maxmemory < 1024*1024) {
+        serverLog(LL_WARNING,"WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?", server.maxmemory);
+    }
+
+    redisSetCpuAffinity(server.server_cpulist);
+    setOOMScoreAdj(-1);
+
+    aeMain(server.el);
+    aeDeleteEventLoop(server.el);
+    return 0;
+}
 ```
 
 **逐段阅读抓手：**main是生命周期入口；具体命令路径要进入networking.c、server.c和各t_*.c。
@@ -238,7 +527,7 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[networking.c · L3763–L3815](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/networking.c#L3763-L3815)，连续节选。
+**6.2.14源码：**[networking.c · L3763–L3838](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/networking.c#L3763-L3838)，连续节选。
 
 ```c
 /* When threaded I/O is also enabled for the reading + parsing side, the
@@ -294,9 +583,32 @@ int handleClientsWithPendingReadsUsingThreads(void) {
         client *c = listNodeValue(ln);
         c->flags &= ~CLIENT_PENDING_READ;
         listDelNode(server.clients_pending_read,ln);
+
+        serverAssert(!(c->flags & CLIENT_BLOCKED));
+        if (processPendingCommandsAndResetClient(c) == C_ERR) {
+            /* If the client is no longer valid, we avoid
+             * processing the client later. So we just go
+             * to the next. */
+            continue;
+        }
+
+        processInputBuffer(c);
+
+        /* We may have pending replies if a thread readQueryFromClient() produced
+         * replies and did not install a write handler (it can't).
+         */
+        if (!(c->flags & CLIENT_PENDING_WRITE) && clientHasPendingReplies(c))
+            clientInstallWriteHandler(c);
+    }
+
+    /* Update processed count on server */
+    server.stat_io_reads_processed += processed;
+
+    return processed;
+}
 ```
 
-**7.2.6源码：**[networking.c · L4431–L4493](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L4431-L4493)，连续节选。
+**7.2.6源码：**[networking.c · L4431–L4523](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L4431-L4523)，连续节选。
 
 ```c
 /* When threaded I/O is also enabled for the reading + parsing side, the
@@ -362,6 +674,36 @@ int handleClientsWithPendingReadsUsingThreads(void) {
         c->pending_read_list_node = NULL;
 
         serverAssert(!(c->flags & CLIENT_BLOCKED));
+
+        if (beforeNextClient(c) == C_ERR) {
+            /* If the client is no longer valid, we avoid
+             * processing the client later. So we just go
+             * to the next. */
+            continue;
+        }
+
+        /* Once io-threads are idle we can update the client in the mem usage */
+        updateClientMemUsageAndBucket(c);
+
+        if (processPendingCommandAndInputBuffer(c) == C_ERR) {
+            /* If the client is no longer valid, we avoid
+             * processing the client later. So we just go
+             * to the next. */
+            continue;
+        }
+
+        /* We may have pending replies if a thread readQueryFromClient() produced
+         * replies and did not put the client in pending write queue (it can't).
+         */
+        if (!(c->flags & CLIENT_PENDING_WRITE) && clientHasPendingReplies(c))
+            putClientInPendingWriteQueue(c);
+    }
+
+    /* Update processed count on server */
+    server.stat_io_reads_processed += processed;
+
+    return processed;
+}
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -396,7 +738,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[ae.c · 7.2.6 · L346–L434](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/ae.c#L346-L434)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[ae.c · 7.2.6 · L346–L469](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/ae.c#L346-L469)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Process every pending time event, then every pending file event
@@ -488,6 +830,41 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
              *
              * Fire the readable event if the call sequence is not
              * inverted. */
+            if (!invert && fe->mask & mask & AE_READABLE) {
+                fe->rfileProc(eventLoop,fd,fe->clientData,mask);
+                fired++;
+                fe = &eventLoop->events[fd]; /* Refresh in case of resize. */
+            }
+
+            /* Fire the writable event. */
+            if (fe->mask & mask & AE_WRITABLE) {
+                if (!fired || fe->wfileProc != fe->rfileProc) {
+                    fe->wfileProc(eventLoop,fd,fe->clientData,mask);
+                    fired++;
+                }
+            }
+
+            /* If we have to invert the call, fire the readable event now
+             * after the writable one. */
+            if (invert) {
+                fe = &eventLoop->events[fd]; /* Refresh in case of resize. */
+                if ((fe->mask & mask & AE_READABLE) &&
+                    (!fired || fe->wfileProc != fe->rfileProc))
+                {
+                    fe->rfileProc(eventLoop,fd,fe->clientData,mask);
+                    fired++;
+                }
+            }
+
+            processed++;
+        }
+    }
+    /* Check time events */
+    if (flags & AE_TIME_EVENTS)
+        processed += processTimeEvents(eventLoop);
+
+    return processed; /* return the number of processed file/time events */
+}
 ```
 
 **逐段阅读抓手：**看AE_DONT_WAIT、AE_CALL_BEFORE_SLEEP等标记；不要只画一个永久阻塞的epoll调用。
@@ -509,7 +886,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[server.c · 7.2.6 · L3825–L3913](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L3825-L3913)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[server.c · 7.2.6 · L3825–L4174](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L3825-L4174)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* If this function gets called we already read a whole
@@ -601,6 +978,267 @@ int processCommand(client *c) {
     int is_denyloading_command = !(cmd_flags & CMD_LOADING) ||
                                  (c->cmd->proc == execCommand && (c->mstate.cmd_inv_flags & CMD_LOADING));
     int is_may_replicate_command = (cmd_flags & (CMD_WRITE | CMD_MAY_REPLICATE)) ||
+                                   (c->cmd->proc == execCommand && (c->mstate.cmd_flags & (CMD_WRITE | CMD_MAY_REPLICATE)));
+    int is_deny_async_loading_command = (cmd_flags & CMD_NO_ASYNC_LOADING) ||
+                                        (c->cmd->proc == execCommand && (c->mstate.cmd_flags & CMD_NO_ASYNC_LOADING));
+    int obey_client = mustObeyClient(c);
+
+    if (authRequired(c)) {
+        /* AUTH and HELLO and no auth commands are valid even in
+         * non-authenticated state. */
+        if (!(c->cmd->flags & CMD_NO_AUTH)) {
+            rejectCommand(c,shared.noautherr);
+            return C_OK;
+        }
+    }
+
+    if (c->flags & CLIENT_MULTI && c->cmd->flags & CMD_NO_MULTI) {
+        rejectCommandFormat(c,"Command not allowed inside a transaction");
+        return C_OK;
+    }
+
+    /* Check if the user can run this command according to the current
+     * ACLs. */
+    int acl_errpos;
+    int acl_retval = ACLCheckAllPerm(c,&acl_errpos);
+    if (acl_retval != ACL_OK) {
+        addACLLogEntry(c,acl_retval,(c->flags & CLIENT_MULTI) ? ACL_LOG_CTX_MULTI : ACL_LOG_CTX_TOPLEVEL,acl_errpos,NULL,NULL);
+        sds msg = getAclErrorMessage(acl_retval, c->user, c->cmd, c->argv[acl_errpos]->ptr, 0);
+        rejectCommandFormat(c, "-NOPERM %s", msg);
+        sdsfree(msg);
+        return C_OK;
+    }
+
+    /* If cluster is enabled perform the cluster redirection here.
+     * However we don't perform the redirection if:
+     * 1) The sender of this command is our master.
+     * 2) The command has no key arguments. */
+    if (server.cluster_enabled &&
+        !mustObeyClient(c) &&
+        !(!(c->cmd->flags&CMD_MOVABLE_KEYS) && c->cmd->key_specs_num == 0 &&
+          c->cmd->proc != execCommand))
+    {
+        int error_code;
+        clusterNode *n = getNodeByQuery(c,c->cmd,c->argv,c->argc,
+                                        &c->slot,&error_code);
+        if (n == NULL || n != server.cluster->myself) {
+            if (c->cmd->proc == execCommand) {
+                discardTransaction(c);
+            } else {
+                flagTransaction(c);
+            }
+            clusterRedirectClient(c,n,c->slot,error_code);
+            c->cmd->rejected_calls++;
+            return C_OK;
+        }
+    }
+
+    /* Disconnect some clients if total clients memory is too high. We do this
+     * before key eviction, after the last command was executed and consumed
+     * some client output buffer memory. */
+    evictClients();
+    if (server.current_client == NULL) {
+        /* If we evicted ourself then abort processing the command */
+        return C_ERR;
+    }
+
+    /* Handle the maxmemory directive.
+     *
+     * Note that we do not want to reclaim memory if we are here re-entering
+     * the event loop since there is a busy Lua script running in timeout
+     * condition, to avoid mixing the propagation of scripts with the
+     * propagation of DELs due to eviction. */
+    if (server.maxmemory && !isInsideYieldingLongCommand()) {
+        int out_of_memory = (performEvictions() == EVICT_FAIL);
+
+        /* performEvictions may evict keys, so we need flush pending tracking
+         * invalidation keys. If we don't do this, we may get an invalidation
+         * message after we perform operation on the key, where in fact this
+         * message belongs to the old value of the key before it gets evicted.*/
+        trackingHandlePendingKeyInvalidations();
+
+        /* performEvictions may flush slave output buffers. This may result
+         * in a slave, that may be the active client, to be freed. */
+        if (server.current_client == NULL) return C_ERR;
+
+        int reject_cmd_on_oom = is_denyoom_command;
+        /* If client is in MULTI/EXEC context, queuing may consume an unlimited
+         * amount of memory, so we want to stop that.
+         * However, we never want to reject DISCARD, or even EXEC (unless it
+         * contains denied commands, in which case is_denyoom_command is already
+         * set. */
+        if (c->flags & CLIENT_MULTI &&
+            c->cmd->proc != execCommand &&
+            c->cmd->proc != discardCommand &&
+            c->cmd->proc != quitCommand &&
+            c->cmd->proc != resetCommand) {
+            reject_cmd_on_oom = 1;
+        }
+
+        if (out_of_memory && reject_cmd_on_oom) {
+            rejectCommand(c, shared.oomerr);
+            return C_OK;
+        }
+
+        /* Save out_of_memory result at command start, otherwise if we check OOM
+         * in the first write within script, memory used by lua stack and
+         * arguments might interfere. We need to save it for EXEC and module
+         * calls too, since these can call EVAL, but avoid saving it during an
+         * interrupted / yielding busy script / module. */
+        server.pre_command_oom_state = out_of_memory;
+    }
+
+    /* Make sure to use a reasonable amount of memory for client side
+     * caching metadata. */
+    if (server.tracking_clients) trackingLimitUsedSlots();
+
+    /* Don't accept write commands if there are problems persisting on disk
+     * unless coming from our master, in which case check the replica ignore
+     * disk write error config to either log or crash. */
+    int deny_write_type = writeCommandsDeniedByDiskError();
+    if (deny_write_type != DISK_ERROR_TYPE_NONE &&
+        (is_write_command || c->cmd->proc == pingCommand))
+    {
+        if (obey_client) {
+            if (!server.repl_ignore_disk_write_error && c->cmd->proc != pingCommand) {
+                serverPanic("Replica was unable to write command to disk.");
+            } else {
+                static mstime_t last_log_time_ms = 0;
+                const mstime_t log_interval_ms = 10000;
+                if (server.mstime > last_log_time_ms + log_interval_ms) {
+                    last_log_time_ms = server.mstime;
+                    serverLog(LL_WARNING, "Replica is applying a command even though "
+                                          "it is unable to write to disk.");
+                }
+            }
+        } else {
+            sds err = writeCommandsGetDiskErrorMessage(deny_write_type);
+            /* remove the newline since rejectCommandSds adds it. */
+            sdssubstr(err, 0, sdslen(err)-2);
+            rejectCommandSds(c, err);
+            return C_OK;
+        }
+    }
+
+    /* Don't accept write commands if there are not enough good slaves and
+     * user configured the min-slaves-to-write option. */
+    if (is_write_command && !checkGoodReplicasStatus()) {
+        rejectCommand(c, shared.noreplicaserr);
+        return C_OK;
+    }
+
+    /* Don't accept write commands if this is a read only slave. But
+     * accept write commands if this is our master. */
+    if (server.masterhost && server.repl_slave_ro &&
+        !obey_client &&
+        is_write_command)
+    {
+        rejectCommand(c, shared.roslaveerr);
+        return C_OK;
+    }
+
+    /* Only allow a subset of commands in the context of Pub/Sub if the
+     * connection is in RESP2 mode. With RESP3 there are no limits. */
+    if ((c->flags & CLIENT_PUBSUB && c->resp == 2) &&
+        c->cmd->proc != pingCommand &&
+        c->cmd->proc != subscribeCommand &&
+        c->cmd->proc != ssubscribeCommand &&
+        c->cmd->proc != unsubscribeCommand &&
+        c->cmd->proc != sunsubscribeCommand &&
+        c->cmd->proc != psubscribeCommand &&
+        c->cmd->proc != punsubscribeCommand &&
+        c->cmd->proc != quitCommand &&
+        c->cmd->proc != resetCommand) {
+        rejectCommandFormat(c,
+            "Can't execute '%s': only (P|S)SUBSCRIBE / "
+            "(P|S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context",
+            c->cmd->fullname);
+        return C_OK;
+    }
+
+    /* Only allow commands with flag "t", such as INFO, REPLICAOF and so on,
+     * when replica-serve-stale-data is no and we are a replica with a broken
+     * link with master. */
+    if (server.masterhost && server.repl_state != REPL_STATE_CONNECTED &&
+        server.repl_serve_stale_data == 0 &&
+        is_denystale_command)
+    {
+        rejectCommand(c, shared.masterdownerr);
+        return C_OK;
+    }
+
+    /* Loading DB? Return an error if the command has not the
+     * CMD_LOADING flag. */
+    if (server.loading && !server.async_loading && is_denyloading_command) {
+        rejectCommand(c, shared.loadingerr);
+        return C_OK;
+    }
+
+    /* During async-loading, block certain commands. */
+    if (server.async_loading && is_deny_async_loading_command) {
+        rejectCommand(c,shared.loadingerr);
+        return C_OK;
+    }
+
+    /* when a busy job is being done (script / module)
+     * Only allow a limited number of commands.
+     * Note that we need to allow the transactions commands, otherwise clients
+     * sending a transaction with pipelining without error checking, may have
+     * the MULTI plus a few initial commands refused, then the timeout
+     * condition resolves, and the bottom-half of the transaction gets
+     * executed, see Github PR #7022. */
+    if (isInsideYieldingLongCommand() && !(c->cmd->flags & CMD_ALLOW_BUSY)) {
+        if (server.busy_module_yield_flags && server.busy_module_yield_reply) {
+            rejectCommandFormat(c, "-BUSY %s", server.busy_module_yield_reply);
+        } else if (server.busy_module_yield_flags) {
+            rejectCommand(c, shared.slowmoduleerr);
+        } else if (scriptIsEval()) {
+            rejectCommand(c, shared.slowevalerr);
+        } else {
+            rejectCommand(c, shared.slowscripterr);
+        }
+        return C_OK;
+    }
+
+    /* Prevent a replica from sending commands that access the keyspace.
+     * The main objective here is to prevent abuse of client pause check
+     * from which replicas are exempt. */
+    if ((c->flags & CLIENT_SLAVE) && (is_may_replicate_command || is_write_command || is_read_command)) {
+        rejectCommandFormat(c, "Replica can't interact with the keyspace");
+        return C_OK;
+    }
+
+    /* If the server is paused, block the client until
+     * the pause has ended. Replicas are never paused. */
+    if (!(c->flags & CLIENT_SLAVE) && 
+        ((isPausedActions(PAUSE_ACTION_CLIENT_ALL)) ||
+        ((isPausedActions(PAUSE_ACTION_CLIENT_WRITE)) && is_may_replicate_command)))
+    {
+        blockPostponeClient(c);
+        return C_OK;       
+    }
+
+    /* Exec the command */
+    if (c->flags & CLIENT_MULTI &&
+        c->cmd->proc != execCommand &&
+        c->cmd->proc != discardCommand &&
+        c->cmd->proc != multiCommand &&
+        c->cmd->proc != watchCommand &&
+        c->cmd->proc != quitCommand &&
+        c->cmd->proc != resetCommand)
+    {
+        queueMultiCommand(c, cmd_flags);
+        addReply(c,shared.queued);
+    } else {
+        int flags = CMD_CALL_FULL;
+        if (client_reprocessing_command) flags |= CMD_CALL_REPROCESSING;
+        call(c,flags);
+        if (listLength(server.ready_keys) && !isInsideYieldingLongCommand())
+            handleClientsBlockedOnKeys();
+    }
+
+    return C_OK;
+}
 ```
 
 **逐段阅读抓手：**命令表中的flags与proc驱动分支；名称相同并不意味着所有部署都可在当前节点执行。
@@ -622,7 +1260,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[server.c · 7.2.6 · L3438–L3570](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L3438-L3570)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[server.c · 7.2.6 · L3438–L3700](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L3438-L3700)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Call() is the core of Redis execution of a command.
@@ -758,6 +1396,136 @@ void call(client *c, int flags) {
     /* Record the latency this command induced on the main thread.
      * unless instructed by the caller not to log. (happens when processing
      * a MULTI-EXEC from inside an AOF). */
+    if (update_command_stats) {
+        char *latency_event = (real_cmd->flags & CMD_FAST) ?
+                               "fast-command" : "command";
+        latencyAddSampleIfNeeded(latency_event,duration/1000);
+        if (server.execution_nesting == 0)
+            durationAddSample(EL_DURATION_TYPE_CMD, duration);
+    }
+
+    /* Log the command into the Slow log if needed.
+     * If the client is blocked we will handle slowlog when it is unblocked. */
+    if (update_command_stats && !(c->flags & CLIENT_BLOCKED))
+        slowlogPushCurrentCommand(c, real_cmd, c->duration);
+
+    /* Send the command to clients in MONITOR mode if applicable,
+     * since some administrative commands are considered too dangerous to be shown.
+     * Other exceptions is a client which is unblocked and retrying to process the command
+     * or we are currently in the process of loading AOF. */
+    if (update_command_stats && !reprocessing_command &&
+        !(c->cmd->flags & (CMD_SKIP_MONITOR|CMD_ADMIN))) {
+        robj **argv = c->original_argv ? c->original_argv : c->argv;
+        int argc = c->original_argv ? c->original_argc : c->argc;
+        replicationFeedMonitors(c,server.monitors,c->db->id,argv,argc);
+    }
+
+    /* Clear the original argv.
+     * If the client is blocked we will handle slowlog when it is unblocked. */
+    if (!(c->flags & CLIENT_BLOCKED))
+        freeClientOriginalArgv(c);
+
+    /* populate the per-command statistics that we show in INFO commandstats.
+     * If the client is blocked we will handle latency stats and duration when it is unblocked. */
+    if (update_command_stats && !(c->flags & CLIENT_BLOCKED)) {
+        real_cmd->calls++;
+        real_cmd->microseconds += c->duration;
+        if (server.latency_tracking_enabled && !(c->flags & CLIENT_BLOCKED))
+            updateCommandLatencyHistogram(&(real_cmd->latency_histogram), c->duration*1000);
+    }
+
+    /* The duration needs to be reset after each call except for a blocked command,
+     * which is expected to record and reset the duration after unblocking. */
+    if (!(c->flags & CLIENT_BLOCKED)) {
+        c->duration = 0;
+    }
+
+    /* Propagate the command into the AOF and replication link.
+     * We never propagate EXEC explicitly, it will be implicitly
+     * propagated if needed (see propagatePendingCommands).
+     * Also, module commands take care of themselves */
+    if (flags & CMD_CALL_PROPAGATE &&
+        (c->flags & CLIENT_PREVENT_PROP) != CLIENT_PREVENT_PROP &&
+        c->cmd->proc != execCommand &&
+        !(c->cmd->flags & CMD_MODULE))
+    {
+        int propagate_flags = PROPAGATE_NONE;
+
+        /* Check if the command operated changes in the data set. If so
+         * set for replication / AOF propagation. */
+        if (dirty) propagate_flags |= (PROPAGATE_AOF|PROPAGATE_REPL);
+
+        /* If the client forced AOF / replication of the command, set
+         * the flags regardless of the command effects on the data set. */
+        if (c->flags & CLIENT_FORCE_REPL) propagate_flags |= PROPAGATE_REPL;
+        if (c->flags & CLIENT_FORCE_AOF) propagate_flags |= PROPAGATE_AOF;
+
+        /* However prevent AOF / replication propagation if the command
+         * implementation called preventCommandPropagation() or similar,
+         * or if we don't have the call() flags to do so. */
+        if (c->flags & CLIENT_PREVENT_REPL_PROP        ||
+            c->flags & CLIENT_MODULE_PREVENT_REPL_PROP ||
+            !(flags & CMD_CALL_PROPAGATE_REPL))
+                propagate_flags &= ~PROPAGATE_REPL;
+        if (c->flags & CLIENT_PREVENT_AOF_PROP        ||
+            c->flags & CLIENT_MODULE_PREVENT_AOF_PROP ||
+            !(flags & CMD_CALL_PROPAGATE_AOF))
+                propagate_flags &= ~PROPAGATE_AOF;
+
+        /* Call alsoPropagate() only if at least one of AOF / replication
+         * propagation is needed. */
+        if (propagate_flags != PROPAGATE_NONE)
+            alsoPropagate(c->db->id,c->argv,c->argc,propagate_flags);
+    }
+
+    /* Restore the old replication flags, since call() can be executed
+     * recursively. */
+    c->flags &= ~(CLIENT_FORCE_AOF|CLIENT_FORCE_REPL|CLIENT_PREVENT_PROP);
+    c->flags |= client_old_flags &
+        (CLIENT_FORCE_AOF|CLIENT_FORCE_REPL|CLIENT_PREVENT_PROP);
+
+    /* If the client has keys tracking enabled for client side caching,
+     * make sure to remember the keys it fetched via this command. For read-only
+     * scripts, don't process the script, only the commands it executes. */
+    if ((c->cmd->flags & CMD_READONLY) && (c->cmd->proc != evalRoCommand)
+        && (c->cmd->proc != evalShaRoCommand) && (c->cmd->proc != fcallroCommand))
+    {
+        /* We use the tracking flag of the original external client that
+         * triggered the command, but we take the keys from the actual command
+         * being executed. */
+        if (server.current_client &&
+            (server.current_client->flags & CLIENT_TRACKING) &&
+            !(server.current_client->flags & CLIENT_TRACKING_BCAST))
+        {
+            trackingRememberKeys(server.current_client, c);
+        }
+    }
+
+    if (!(c->flags & CLIENT_BLOCKED))
+        server.stat_numcommands++;
+
+    /* Record peak memory after each command and before the eviction that runs
+     * before the next command. */
+    size_t zmalloc_used = zmalloc_used_memory();
+    if (zmalloc_used > server.stat_peak_memory)
+        server.stat_peak_memory = zmalloc_used;
+
+    /* Do some maintenance job and cleanup */
+    afterCommand(c);
+
+    /* Remember the replication offset of the client, right after its last
+     * command that resulted in propagation. */
+    if (old_master_repl_offset != server.master_repl_offset)
+        c->woff = server.master_repl_offset;
+
+    /* Client pause takes effect after a transaction has finished. This needs
+     * to be located after everything is propagated. */
+    if (!server.in_exec && server.client_pause_in_transaction) {
+        server.client_pause_in_transaction = 0;
+    }
+
+    server.executing_client = prev_client;
+}
 ```
 
 **逐段阅读抓手：**比较执行前后的server.dirty及传播标记；某些命令响应成功但没有发生实际修改。
@@ -814,7 +1582,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[networking.c · 7.2.6 · L2242–L2326](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L2242-L2326)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[networking.c · 7.2.6 · L2242–L2413](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L2242-L2413)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Process the query buffer for client 'c', setting up the client argument
@@ -902,6 +1670,93 @@ int processMultibulkBuffer(client *c) {
                     "Protocol error: expected '$', got '%c'",
                     c->querybuf[c->qb_pos]);
                 setProtocolError("expected $ but got something else",c);
+                return C_ERR;
+            }
+
+            ok = string2ll(c->querybuf+c->qb_pos+1,newline-(c->querybuf+c->qb_pos+1),&ll);
+            if (!ok || ll < 0 ||
+                (!(c->flags & CLIENT_MASTER) && ll > server.proto_max_bulk_len)) {
+                addReplyError(c,"Protocol error: invalid bulk length");
+                setProtocolError("invalid bulk length",c);
+                return C_ERR;
+            } else if (ll > 16384 && authRequired(c)) {
+                addReplyError(c, "Protocol error: unauthenticated bulk length");
+                setProtocolError("unauth bulk length", c);
+                return C_ERR;
+            }
+
+            c->qb_pos = newline-c->querybuf+2;
+            if (!(c->flags & CLIENT_MASTER) && ll >= PROTO_MBULK_BIG_ARG) {
+                /* When the client is not a master client (because master
+                 * client's querybuf can only be trimmed after data applied
+                 * and sent to replicas).
+                 *
+                 * If we are going to read a large object from network
+                 * try to make it likely that it will start at c->querybuf
+                 * boundary so that we can optimize object creation
+                 * avoiding a large copy of data.
+                 *
+                 * But only when the data we have not parsed is less than
+                 * or equal to ll+2. If the data length is greater than
+                 * ll+2, trimming querybuf is just a waste of time, because
+                 * at this time the querybuf contains not only our bulk. */
+                if (sdslen(c->querybuf)-c->qb_pos <= (size_t)ll+2) {
+                    sdsrange(c->querybuf,c->qb_pos,-1);
+                    c->qb_pos = 0;
+                    /* Hint the sds library about the amount of bytes this string is
+                     * going to contain. */
+                    c->querybuf = sdsMakeRoomForNonGreedy(c->querybuf,ll+2-sdslen(c->querybuf));
+                    /* We later set the peak to the used portion of the buffer, but here we over
+                     * allocated because we know what we need, make sure it'll not be shrunk before used. */
+                    if (c->querybuf_peak < (size_t)ll + 2) c->querybuf_peak = ll + 2;
+                }
+            }
+            c->bulklen = ll;
+        }
+
+        /* Read bulk argument */
+        if (sdslen(c->querybuf)-c->qb_pos < (size_t)(c->bulklen+2)) {
+            /* Not enough data (+2 == trailing \r\n) */
+            break;
+        } else {
+            /* Check if we have space in argv, grow if needed */
+            if (c->argc >= c->argv_len) {
+                c->argv_len = min(c->argv_len < INT_MAX/2 ? c->argv_len*2 : INT_MAX, c->argc+c->multibulklen);
+                c->argv = zrealloc(c->argv, sizeof(robj*)*c->argv_len);
+            }
+
+            /* Optimization: if a non-master client's buffer contains JUST our bulk element
+             * instead of creating a new object by *copying* the sds we
+             * just use the current sds string. */
+            if (!(c->flags & CLIENT_MASTER) &&
+                c->qb_pos == 0 &&
+                c->bulklen >= PROTO_MBULK_BIG_ARG &&
+                sdslen(c->querybuf) == (size_t)(c->bulklen+2))
+            {
+                c->argv[c->argc++] = createObject(OBJ_STRING,c->querybuf);
+                c->argv_len_sum += c->bulklen;
+                sdsIncrLen(c->querybuf,-2); /* remove CRLF */
+                /* Assume that if we saw a fat argument we'll see another one
+                 * likely... */
+                c->querybuf = sdsnewlen(SDS_NOINIT,c->bulklen+2);
+                sdsclear(c->querybuf);
+            } else {
+                c->argv[c->argc++] =
+                    createStringObject(c->querybuf+c->qb_pos,c->bulklen);
+                c->argv_len_sum += c->bulklen;
+                c->qb_pos += c->bulklen+2;
+            }
+            c->bulklen = -1;
+            c->multibulklen--;
+        }
+    }
+
+    /* We're done when c->multibulk == 0 */
+    if (c->multibulklen == 0) return C_OK;
+
+    /* Still not ready to process the command */
+    return C_ERR;
+}
 ```
 
 **逐段阅读抓手：**bulklen与参数内容长度相关；协议中CRLF也占字节，不能混算。
@@ -923,7 +1778,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[networking.c · 7.2.6 · L2515–L2595](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L2515-L2595)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[networking.c · 7.2.6 · L2515–L2614](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/networking.c#L2515-L2614)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* This function is called every time, in the client structure 'c', there is
@@ -1007,6 +1862,25 @@ int processInputBuffer(client *c) {
          * In these scenarios, qb_pos points to the part of the current command
          * or the beginning of next command, and the current command is not applied yet,
          * so the repl_applied is not equal to qb_pos. */
+        if (c->repl_applied) {
+            sdsrange(c->querybuf,c->repl_applied,-1);
+            c->qb_pos -= c->repl_applied;
+            c->repl_applied = 0;
+        }
+    } else if (c->qb_pos) {
+        /* Trim to pos */
+        sdsrange(c->querybuf,c->qb_pos,-1);
+        c->qb_pos = 0;
+    }
+
+    /* Update client memory usage after processing the query buffer, this is
+     * important in case the query buffer is big and wasn't drained during
+     * the above loop (because of partially sent big commands). */
+    if (io_threads_op == IO_THREADS_OP_IDLE)
+        updateClientMemUsageAndBucket(c);
+
+    return C_OK;
+}
 ```
 
 **逐段阅读抓手：**CLIENT_BLOCKED等状态会打断循环；并非无条件一次读完就执行完所有命令。
@@ -1235,7 +2109,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[object.c · 7.2.6 · L634–L704](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/object.c#L634-L704)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[object.c · 7.2.6 · L634–L705](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/object.c#L634-L705)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Try to encode a string object in order to save space */
@@ -1309,6 +2183,7 @@ robj *tryObjectEncodingEx(robj *o, int try_trim) {
 
     /* Return the original object. */
     return o;
+}
 ```
 
 **逐段阅读抓手：**可共享整数的条件与maxmemory策略相关；共享对象不能随意原地修改。
@@ -1335,7 +2210,7 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[object.c · L437–L497](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/object.c#L437-L497)，连续节选。
+**6.2.14源码：**[object.c · L437–L515](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/object.c#L437-L515)，连续节选。
 
 ```c
 /* Try to encode a string object in order to save space */
@@ -1399,9 +2274,27 @@ robj *tryObjectEncoding(robj *o) {
 
         if (o->encoding == OBJ_ENCODING_EMBSTR) return o;
         emb = createEmbeddedStringObject(s,sdslen(s));
+        decrRefCount(o);
+        return emb;
+    }
+
+    /* We can't encode the object...
+     *
+     * Do the last try, and at least optimize the SDS string inside
+     * the string object to require little space, in case there
+     * is more than 10% of free space at the end of the SDS string.
+     *
+     * We do that only for relatively large strings as this branch
+     * is only entered if the length of the string is greater than
+     * OBJ_ENCODING_EMBSTR_SIZE_LIMIT. */
+    trimStringObjectIfNeeded(o);
+
+    /* Return the original object. */
+    return o;
+}
 ```
 
-**7.2.6源码：**[object.c · L634–L694](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/object.c#L634-L694)，连续节选。
+**7.2.6源码：**[object.c · L634–L705](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/object.c#L634-L705)，连续节选。
 
 ```c
 /* Try to encode a string object in order to save space */
@@ -1465,6 +2358,17 @@ robj *tryObjectEncodingEx(robj *o, int try_trim) {
         if (o->encoding == OBJ_ENCODING_EMBSTR) return o;
         emb = createEmbeddedStringObject(s,sdslen(s));
         decrRefCount(o);
+        return emb;
+    }
+
+    /* We can't encode the object...
+     * Do the last try, and at least optimize the SDS string inside */
+    if (try_trim)
+        trimStringObjectIfNeeded(o, 0);
+
+    /* Return the original object. */
+    return o;
+}
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -1867,7 +2771,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[dict.c · 7.2.6 · L286–L374](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.c#L286-L374)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[dict.c · 7.2.6 · L286–L381](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/dict.c#L286-L381)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Performs N steps of incremental rehashing. Returns 1 if there are still
@@ -1959,6 +2863,13 @@ int dictRehash(dict *d, int n) {
         d->ht_used[0] = d->ht_used[1];
         d->ht_size_exp[0] = d->ht_size_exp[1];
         _dictReset(d, 1);
+        d->rehashidx = -1;
+        return 0;
+    }
+
+    /* More to rehash... */
+    return 1;
+}
 ```
 
 **逐段阅读抓手：**n计数的是迁移步骤/桶；跟踪rehashidx和两张表used。
@@ -2234,7 +3145,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[db.c · 7.2.6 · L944–L1031](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L944-L1031)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[db.c · 7.2.6 · L944–L1159](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L944-L1159)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* This command implements SCAN, HSCAN and SSCAN commands.
@@ -2325,6 +3236,134 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
         ht = o->ptr;
     } else if (o->type == OBJ_ZSET && o->encoding == OBJ_ENCODING_SKIPLIST) {
         zset *zs = o->ptr;
+        ht = zs->dict;
+    }
+
+    list *keys = listCreate();
+    /* Set a free callback for the contents of the collected keys list.
+     * For the main keyspace dict, and when we scan a key that's dict encoded
+     * (we have 'ht'), we don't need to define free method because the strings
+     * in the list are just a shallow copy from the pointer in the dictEntry.
+     * When scanning a key with other encodings (e.g. listpack), we need to
+     * free the temporary strings we add to that list.
+     * The exception to the above is ZSET, where we do allocate temporary
+     * strings even when scanning a dict. */
+    if (o && (!ht || o->type == OBJ_ZSET)) {
+        listSetFreeMethod(keys, (void (*)(void*))sdsfree);
+    }
+
+    if (ht) {
+        /* We set the max number of iterations to ten times the specified
+         * COUNT, so if the hash table is in a pathological state (very
+         * sparsely populated) we avoid to block too much time at the cost
+         * of returning no or very few elements. */
+        long maxiterations = count*10;
+
+        /* We pass scanData which have three pointers to the callback:
+         * 1. data.keys: the list to which it will add new elements;
+         * 2. data.o: the object containing the dictionary so that
+         * it is possible to fetch more data in a type-dependent way;
+         * 3. data.type: the specified type scan in the db, LLONG_MAX means
+         * type matching is no needed;
+         * 4. data.pattern: the pattern string
+         * 5. data.sampled: the maxiteration limit is there in case we're
+         * working on an empty dict, one with a lot of empty buckets, and
+         * for the buckets are not empty, we need to limit the spampled number
+         * to prevent a long hang time caused by filtering too many keys*/
+        scanData data = {
+            .keys = keys,
+            .o = o,
+            .type = type,
+            .pattern = use_pattern ? pat : NULL,
+            .sampled = 0,
+        };
+        do {
+            cursor = dictScan(ht, cursor, scanCallback, &data);
+        } while (cursor && maxiterations-- && data.sampled < count);
+    } else if (o->type == OBJ_SET) {
+        char *str;
+        char buf[LONG_STR_SIZE];
+        size_t len;
+        int64_t llele;
+        setTypeIterator *si = setTypeInitIterator(o);
+        while (setTypeNext(si, &str, &len, &llele) != -1) {
+            if (str == NULL) {
+                len = ll2string(buf, sizeof(buf), llele);
+            }
+            char *key = str ? str : buf;
+            if (use_pattern && !stringmatchlen(pat, sdslen(pat), key, len, 0)) {
+                continue;
+            }
+            listAddNodeTail(keys, sdsnewlen(key, len));
+        }
+        setTypeReleaseIterator(si);
+        cursor = 0;
+    } else if ((o->type == OBJ_HASH || o->type == OBJ_ZSET) &&
+               o->encoding == OBJ_ENCODING_LISTPACK)
+    {
+        unsigned char *p = lpFirst(o->ptr);
+        unsigned char *str;
+        int64_t len;
+        unsigned char intbuf[LP_INTBUF_SIZE];
+
+        while(p) {
+            str = lpGet(p, &len, intbuf);
+            /* point to the value */
+            p = lpNext(o->ptr, p);
+            if (use_pattern && !stringmatchlen(pat, sdslen(pat), (char *)str, len, 0)) {
+                /* jump to the next key/val pair */
+                p = lpNext(o->ptr, p);
+                continue;
+            }
+            /* add key object */
+            listAddNodeTail(keys, sdsnewlen(str, len));
+            /* add value object */
+            str = lpGet(p, &len, intbuf);
+            listAddNodeTail(keys, sdsnewlen(str, len));
+            p = lpNext(o->ptr, p);
+        }
+        cursor = 0;
+    } else {
+        serverPanic("Not handled encoding in SCAN.");
+    }
+
+    /* Step 3: Filter the expired keys */
+    if (o == NULL && listLength(keys)) {
+        robj kobj;
+        listIter li;
+        listNode *ln;
+        listRewind(keys, &li);
+        while ((ln = listNext(&li))) {
+            sds key = listNodeValue(ln);
+            initStaticStringObject(kobj, key);
+            /* Filter an element if it isn't the type we want. */
+            /* TODO: remove this in redis 8.0 */
+            if (typename) {
+                robj* typecheck = lookupKeyReadWithFlags(c->db, &kobj, LOOKUP_NOTOUCH|LOOKUP_NONOTIFY);
+                if (!typecheck || !objectTypeCompare(typecheck, type)) {
+                    listDelNode(keys, ln);
+                }
+                continue;
+            }
+            if (expireIfNeeded(c->db, &kobj, 0)) {
+                listDelNode(keys, ln);
+            }
+        }
+    }
+
+    /* Step 4: Reply to the client. */
+    addReplyArrayLen(c, 2);
+    addReplyBulkLongLong(c,cursor);
+
+    addReplyArrayLen(c, listLength(keys));
+    while ((node = listFirst(keys)) != NULL) {
+        sds key = listNodeValue(node);
+        addReplyBulkCBuffer(c, key, sdslen(key));
+        listDelNode(keys, node);
+    }
+
+    listRelease(keys);
+}
 ```
 
 **逐段阅读抓手：**区分迭代工作量与最终结果数；COUNT不等于数据库分页大小。
@@ -2498,7 +3537,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[listpack.c · 7.2.6 · L752–L866](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/listpack.c#L752-L866)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[listpack.c · 7.2.6 · L752–L927](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/listpack.c#L752-L927)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Insert, delete or replace the specified string element 'elestr' of length
@@ -2616,6 +3655,67 @@ unsigned char *lpInsert(unsigned char *lp, unsigned char *elestr, unsigned char 
         memmove(dst+enclen+backlen_size,
                 dst+replaced_len,
                 old_listpack_bytes-poff-replaced_len);
+    }
+
+    /* Realloc after: we need to free space. */
+    if (new_listpack_bytes < old_listpack_bytes) {
+        if ((lp = lp_realloc(lp,new_listpack_bytes)) == NULL) return NULL;
+        dst = lp + poff;
+    }
+
+    /* Store the entry. */
+    if (newp) {
+        *newp = dst;
+        /* In case of deletion, set 'newp' to NULL if the next element is
+         * the EOF element. */
+        if (delete && dst[0] == LP_EOF) *newp = NULL;
+    }
+    if (!delete) {
+        if (enctype == LP_ENCODING_INT) {
+            memcpy(dst,eleint,enclen);
+        } else if (elestr) {
+            lpEncodeString(dst,elestr,size);
+        } else {
+            redis_unreachable();
+        }
+        dst += enclen;
+        memcpy(dst,backlen,backlen_size);
+        dst += backlen_size;
+    }
+
+    /* Update header. */
+    if (where != LP_REPLACE || delete) {
+        uint32_t num_elements = lpGetNumElements(lp);
+        if (num_elements != LP_HDR_NUMELE_UNKNOWN) {
+            if (!delete)
+                lpSetNumElements(lp,num_elements+1);
+            else
+                lpSetNumElements(lp,num_elements-1);
+        }
+    }
+    lpSetTotalBytes(lp,new_listpack_bytes);
+
+#if 0
+    /* This code path is normally disabled: what it does is to force listpack
+     * to return *always* a new pointer after performing some modification to
+     * the listpack, even if the previous allocation was enough. This is useful
+     * in order to spot bugs in code using listpacks: by doing so we can find
+     * if the caller forgets to set the new pointer where the listpack reference
+     * is stored, after an update. */
+    unsigned char *oldlp = lp;
+    lp = lp_malloc(new_listpack_bytes);
+    memcpy(lp,oldlp,new_listpack_bytes);
+    if (newp) {
+        unsigned long offset = (*newp)-oldlp;
+        *newp = lp + offset;
+    }
+    /* Make sure the old allocation contains garbage. */
+    memset(oldlp,'A',new_listpack_bytes);
+    lp_free(oldlp);
+#endif
+
+    return lp;
+}
 ```
 
 **逐段阅读抓手：**关注replaced_len与backlen_size；删除和替换并非同一个长度公式。
@@ -2714,7 +3814,7 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[ziplist.c · L731–L833](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/ziplist.c#L731-L833)，连续节选。
+**6.2.14源码：**[ziplist.c · L731–L847](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/ziplist.c#L731-L847)，连续节选。
 
 ```c
 /* When an entry is inserted, we need to set the prevlen field of the next
@@ -2820,6 +3920,20 @@ unsigned char *__ziplistCascadeUpdate(unsigned char *zl, unsigned char *p) {
         memmove(p - (rawlen - cur.prevrawlensize), 
                 zl + prevoffset + cur.prevrawlensize, 
                 rawlen - cur.prevrawlensize);
+        p -= (rawlen + delta);
+        if (cur.prevrawlen == 0) {
+            /* "cur" is the previous head entry, update its prevlen with firstentrylen. */
+            zipStorePrevEntryLength(p, firstentrylen);
+        } else {
+            /* An entry's prevlen can only increment 4 bytes. */
+            zipStorePrevEntryLength(p, cur.prevrawlen+delta);
+        }
+        /* Foward to previous entry. */
+        prevoffset -= cur.prevrawlen;
+        cnt--;
+    }
+    return zl;
+}
 ```
 
 **7.2.6源码：**[listpack.c · L342–L382](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/listpack.c#L342-L382)，连续节选。
@@ -2921,9 +4035,19 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[quicklist.h · 7.2.6 · L46–L85](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/quicklist.h#L46-L85)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[quicklist.h · 7.2.6 · L36–L85](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/quicklist.h#L36-L85)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Node, quicklist, and Iterator are the only data structures used currently. */
+
+/* quicklistNode is a 32 byte struct describing a listpack for a quicklist.
+ * We use bit fields keep the quicklistNode at 32 bytes.
+ * count: 16 bits, max 65536 (max lp bytes is 65k, so max count actually < 32k).
+ * encoding: 2 bits, RAW=1, LZF=2.
+ * container: 2 bits, PLAIN=1 (a single item as char array), PACKED=2 (listpack with multiple items).
+ * recompress: 1 bit, bool, true if node is temporary decompressed for usage.
+ * attempted_compress: 1 bit, boolean, used for verifying during testing.
+ * extra: 10 bits, free for future use; pads out the remainder of 32 bits */
 typedef struct quicklistNode {
     struct quicklistNode *prev;
     struct quicklistNode *next;
@@ -3312,9 +4436,13 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_hash.c · 7.2.6 · L37–L68](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L37-L68)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_hash.c · 7.2.6 · L33–L68](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L33-L68)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/*-----------------------------------------------------------------------------
+ * Hash type API
+ *----------------------------------------------------------------------------*/
+
 /* Check the length of a number of objects to see if we need to convert a
  * listpack to a real hash. Note that we only check string encoded objects
  * as their string length can be queried in constant time. */
@@ -3436,7 +4564,7 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[t_hash.c · L207–L274](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/t_hash.c#L207-L274)，连续节选。
+**6.2.14源码：**[t_hash.c · L207–L277](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/t_hash.c#L207-L277)，连续节选。
 
 ```c
 int hashTypeSet(robj *o, sds field, sds value, int flags) {
@@ -3507,9 +4635,12 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
     /* Free SDS strings we did not referenced elsewhere if the flags
      * want this function to be responsible. */
     if (flags & HASH_SET_TAKE_FIELD && field) sdsfree(field);
+    if (flags & HASH_SET_TAKE_VALUE && value) sdsfree(value);
+    return update;
+}
 ```
 
-**7.2.6源码：**[t_hash.c · L200–L267](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L200-L267)，连续节选。
+**7.2.6源码：**[t_hash.c · L200–L271](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L200-L271)，连续节选。
 
 ```c
 int hashTypeSet(robj *o, sds field, sds value, int flags) {
@@ -3522,7 +4653,7 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
         if (sdslen(field) > server.hash_max_listpack_value || sdslen(value) > server.hash_max_listpack_value)
             hashTypeConvert(o, OBJ_ENCODING_HT);
     }
-
+    
     if (o->encoding == OBJ_ENCODING_LISTPACK) {
         unsigned char *zl, *fptr, *vptr;
 
@@ -3580,6 +4711,10 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
 
     /* Free SDS strings we did not referenced elsewhere if the flags
      * want this function to be responsible. */
+    if (flags & HASH_SET_TAKE_FIELD && field) sdsfree(field);
+    if (flags & HASH_SET_TAKE_VALUE && value) sdsfree(value);
+    return update;
+}
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -3875,7 +5010,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_zset.c · 7.2.6 · L1318–L1457](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_zset.c#L1318-L1457)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_zset.c · 7.2.6 · L1318–L1493](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_zset.c#L1318-L1493)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Add a new element or update the score of an existing element in a sorted
@@ -4018,6 +5153,42 @@ int zsetAdd(robj *zobj, double score, sds ele, int in_flags, int *out_flags, dou
                     *out_flags |= ZADD_OUT_NAN;
                     return 0;
                 }
+            }
+
+            /* GT/LT? Only update if score is greater/less than current. */
+            if ((lt && score >= curscore) || (gt && score <= curscore)) {
+                *out_flags |= ZADD_OUT_NOP;
+                return 1;
+            }
+
+            if (newscore) *newscore = score;
+
+            /* Remove and re-insert when score changes. */
+            if (score != curscore) {
+                znode = zslUpdateScore(zs->zsl,curscore,ele,score);
+                /* Note that we did not removed the original element from
+                 * the hash table representing the sorted set, so we just
+                 * update the score. */
+                dictSetVal(zs->dict, de, &znode->score); /* Update score ptr. */
+                *out_flags |= ZADD_OUT_UPDATED;
+            }
+            return 1;
+        } else if (!xx) {
+            ele = sdsdup(ele);
+            znode = zslInsert(zs->zsl,score,ele);
+            serverAssert(dictAdd(zs->dict,ele,&znode->score) == DICT_OK);
+            *out_flags |= ZADD_OUT_ADDED;
+            if (newscore) *newscore = score;
+            return 1;
+        } else {
+            *out_flags |= ZADD_OUT_NOP;
+            return 1;
+        }
+    } else {
+        serverPanic("Unknown sorted set encoding");
+    }
+    return 0; /* Never reached. */
+}
 ```
 
 **逐段阅读抓手：**看输入标记组合的检查；Zset不是只靠一张跳表完成所有查询。
@@ -4307,9 +5478,13 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[geo.c · 7.2.6 · L444–L503](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/geo.c#L444-L503)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[geo.c · 7.2.6 · L440–L503](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/geo.c#L440-L503)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* ====================================================================
+ * Commands
+ * ==================================================================== */
+
 /* GEOADD key [CH] [NX|XX] long lat name [long2 lat2 name2 ... longN latN nameN] */
 void geoaddCommand(client *c) {
     int xx = 0, nx = 0, longidx = 2;
@@ -4533,9 +5708,18 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[db.c · 7.2.6 · L601–L606](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L601-L606)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[db.c · 7.2.6 · L592–L606](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/db.c#L592-L606)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/*-----------------------------------------------------------------------------
+ * Hooks for key space changes.
+ *
+ * Every time a key in the database is modified the function
+ * signalModifiedKey() is called.
+ *
+ * Every time a DB is flushed the function signalFlushDb() is called.
+ *----------------------------------------------------------------------------*/
+
 /* Note that the 'c' argument may be NULL if the key was modified out of
  * a context of a client. */
 void signalModifiedKey(client *c, redisDb *db, robj *key) {
@@ -4715,7 +5899,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[expire.c · 7.2.6 · L142–L232](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/expire.c#L142-L232)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[expire.c · 7.2.6 · L142–L324](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/expire.c#L142-L324)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void activeExpireCycle(int type) {
@@ -4809,6 +5993,98 @@ void activeExpireCycle(int type) {
          * a big percentage of keys to expire, compared to the number of keys
          * we scanned. The percentage, stored in config_cycle_acceptable_stale
          * is not fixed, but depends on the Redis configured "expire effort". */
+        do {
+            unsigned long num, slots;
+            iteration++;
+
+            /* If there is nothing to expire try next DB ASAP. */
+            if ((num = dictSize(db->expires)) == 0) {
+                db->avg_ttl = 0;
+                break;
+            }
+            slots = dictSlots(db->expires);
+            data.now = mstime();
+
+            /* When there are less than 1% filled slots, sampling the key
+             * space is expensive, so stop here waiting for better times...
+             * The dictionary will be resized asap. */
+            if (slots > DICT_HT_INITIAL_SIZE &&
+                (num*100/slots < 1)) break;
+
+            /* The main collection cycle. Scan through keys among keys
+             * with an expire set, checking for expired ones. */
+            data.sampled = 0;
+            data.expired = 0;
+            data.ttl_sum = 0;
+            data.ttl_samples = 0;
+
+            if (num > config_keys_per_loop)
+                num = config_keys_per_loop;
+
+            /* Here we access the low level representation of the hash table
+             * for speed concerns: this makes this code coupled with dict.c,
+             * but it hardly changed in ten years.
+             *
+             * Note that certain places of the hash table may be empty,
+             * so we want also a stop condition about the number of
+             * buckets that we scanned. However scanning for free buckets
+             * is very fast: we are in the cache line scanning a sequential
+             * array of NULL pointers, so we can scan a lot more buckets
+             * than keys in the same time. */
+            long max_buckets = num*20;
+            long checked_buckets = 0;
+
+            while (data.sampled < num && checked_buckets < max_buckets) {
+                db->expires_cursor = dictScan(db->expires, db->expires_cursor,
+                                              expireScanCallback, &data);
+                checked_buckets++;
+            }
+            total_expired += data.expired;
+            total_sampled += data.sampled;
+
+            /* Update the average TTL stats for this database. */
+            if (data.ttl_samples) {
+                long long avg_ttl = data.ttl_sum / data.ttl_samples;
+
+                /* Do a simple running average with a few samples.
+                 * We just use the current estimate with a weight of 2%
+                 * and the previous estimate with a weight of 98%. */
+                if (db->avg_ttl == 0) db->avg_ttl = avg_ttl;
+                db->avg_ttl = (db->avg_ttl/50)*49 + (avg_ttl/50);
+            }
+
+            /* We can't block forever here even if there are many keys to
+             * expire. So after a given amount of milliseconds return to the
+             * caller waiting for the other active expire cycle. */
+            if ((iteration & 0xf) == 0) { /* check once every 16 iterations. */
+                elapsed = ustime()-start;
+                if (elapsed > timelimit) {
+                    timelimit_exit = 1;
+                    server.stat_expired_time_cap_reached_count++;
+                    break;
+                }
+            }
+            /* We don't repeat the cycle for the current database if there are
+             * an acceptable amount of stale keys (logically expired but yet
+             * not reclaimed). */
+        } while (data.sampled == 0 ||
+                 (data.expired * 100 / data.sampled) > config_cycle_acceptable_stale);
+    }
+
+    elapsed = ustime()-start;
+    server.stat_expire_cycle_time_used += elapsed;
+    latencyAddSampleIfNeeded("expire-cycle",elapsed/1000);
+
+    /* Update our estimate of keys existing but yet to be expired.
+     * Running average with this sample accounting for 5%. */
+    double current_perc;
+    if (total_sampled) {
+        current_perc = (double)total_expired/total_sampled;
+    } else
+        current_perc = 0;
+    server.stat_expired_stale_perc = (current_perc*0.05)+
+                                     (server.stat_expired_stale_perc*0.95);
+}
 ```
 
 **逐段阅读抓手：**type为快/慢周期；effort影响工作预算，不能简单说每秒固定删N条。
@@ -4844,7 +6120,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[evict.c · 7.2.6 · L514–L633](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/evict.c#L514-L633)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[evict.c · 7.2.6 · L514–L757](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/evict.c#L514-L757)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Check that memory usage is within the current "maxmemory" limit.  If over
@@ -4967,6 +6243,130 @@ int performEvictions(void) {
                 }
             }
         }
+
+        /* volatile-random and allkeys-random policy */
+        else if (server.maxmemory_policy == MAXMEMORY_ALLKEYS_RANDOM ||
+                 server.maxmemory_policy == MAXMEMORY_VOLATILE_RANDOM)
+        {
+            /* When evicting a random key, we try to evict a key for
+             * each DB, so we use the static 'next_db' variable to
+             * incrementally visit all DBs. */
+            for (i = 0; i < server.dbnum; i++) {
+                j = (++next_db) % server.dbnum;
+                db = server.db+j;
+                dict = (server.maxmemory_policy == MAXMEMORY_ALLKEYS_RANDOM) ?
+                        db->dict : db->expires;
+                if (dictSize(dict) != 0) {
+                    de = dictGetRandomKey(dict);
+                    bestkey = dictGetKey(de);
+                    bestdbid = j;
+                    break;
+                }
+            }
+        }
+
+        /* Finally remove the selected key. */
+        if (bestkey) {
+            db = server.db+bestdbid;
+            robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
+            /* We compute the amount of memory freed by db*Delete() alone.
+             * It is possible that actually the memory needed to propagate
+             * the DEL in AOF and replication link is greater than the one
+             * we are freeing removing the key, but we can't account for
+             * that otherwise we would never exit the loop.
+             *
+             * Same for CSC invalidation messages generated by signalModifiedKey.
+             *
+             * AOF and Output buffer memory will be freed eventually so
+             * we only care about memory used by the key space. */
+            enterExecutionUnit(1, 0);
+            delta = (long long) zmalloc_used_memory();
+            latencyStartMonitor(eviction_latency);
+            dbGenericDelete(db,keyobj,server.lazyfree_lazy_eviction,DB_FLAG_KEY_EVICTED);
+            latencyEndMonitor(eviction_latency);
+            latencyAddSampleIfNeeded("eviction-del",eviction_latency);
+            delta -= (long long) zmalloc_used_memory();
+            mem_freed += delta;
+            server.stat_evictedkeys++;
+            signalModifiedKey(NULL,db,keyobj);
+            notifyKeyspaceEvent(NOTIFY_EVICTED, "evicted",
+                keyobj, db->id);
+            propagateDeletion(db,keyobj,server.lazyfree_lazy_eviction);
+            exitExecutionUnit();
+            postExecutionUnitOperations();
+            decrRefCount(keyobj);
+            keys_freed++;
+
+            if (keys_freed % 16 == 0) {
+                /* When the memory to free starts to be big enough, we may
+                 * start spending so much time here that is impossible to
+                 * deliver data to the replicas fast enough, so we force the
+                 * transmission here inside the loop. */
+                if (slaves) flushSlavesOutputBuffers();
+
+                /* Normally our stop condition is the ability to release
+                 * a fixed, pre-computed amount of memory. However when we
+                 * are deleting objects in another thread, it's better to
+                 * check, from time to time, if we already reached our target
+                 * memory, since the "mem_freed" amount is computed only
+                 * across the dbAsyncDelete() call, while the thread can
+                 * release the memory all the time. */
+                if (server.lazyfree_lazy_eviction) {
+                    if (getMaxmemoryState(NULL,NULL,NULL,NULL) == C_OK) {
+                        break;
+                    }
+                }
+
+                /* After some time, exit the loop early - even if memory limit
+                 * hasn't been reached.  If we suddenly need to free a lot of
+                 * memory, don't want to spend too much time here.  */
+                if (elapsedUs(evictionTimer) > eviction_time_limit_us) {
+                    // We still need to free memory - start eviction timer proc
+                    startEvictionTimeProc();
+                    break;
+                }
+            }
+        } else {
+            goto cant_free; /* nothing to free... */
+        }
+    }
+    /* at this point, the memory is OK, or we have reached the time limit */
+    result = (isEvictionProcRunning) ? EVICT_RUNNING : EVICT_OK;
+
+cant_free:
+    if (result == EVICT_FAIL) {
+        /* At this point, we have run out of evictable items.  It's possible
+         * that some items are being freed in the lazyfree thread.  Perform a
+         * short wait here if such jobs exist, but don't wait long.  */
+        mstime_t lazyfree_latency;
+        latencyStartMonitor(lazyfree_latency);
+        while (bioPendingJobsOfType(BIO_LAZY_FREE) &&
+              elapsedUs(evictionTimer) < eviction_time_limit_us) {
+            if (getMaxmemoryState(NULL,NULL,NULL,NULL) == C_OK) {
+                result = EVICT_OK;
+                break;
+            }
+            usleep(eviction_time_limit_us < 1000 ? eviction_time_limit_us : 1000);
+        }
+        latencyEndMonitor(lazyfree_latency);
+        latencyAddSampleIfNeeded("eviction-lazyfree",lazyfree_latency);
+    }
+
+    latencyEndMonitor(latency);
+    latencyAddSampleIfNeeded("eviction-cycle",latency);
+
+update_metrics:
+    if (result == EVICT_RUNNING || result == EVICT_FAIL) {
+        if (server.stat_last_eviction_exceeded_time == 0)
+            elapsedStart(&server.stat_last_eviction_exceeded_time);
+    } else if (result == EVICT_OK) {
+        if (server.stat_last_eviction_exceeded_time != 0) {
+            server.stat_total_eviction_exceeded_time += elapsedUs(server.stat_last_eviction_exceeded_time);
+            server.stat_last_eviction_exceeded_time = 0;
+        }
+    }
+    return result;
+}
 ```
 
 **逐段阅读抓手：**返回EVICT_OK/RUNNING/FAIL各有语义；未立刻释放全部并非无条件成功。
@@ -4988,7 +6388,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[evict.c · 7.2.6 · L137–L230](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/evict.c#L137-L230)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[evict.c · 7.2.6 · L137–L241](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/evict.c#L137-L241)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* This is a helper function for performEvictions(), it is used in order
@@ -5085,6 +6485,17 @@ void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evic
          * (according to the profiler, not my fantasy. Remember:
          * premature optimization bla bla bla. */
         int klen = sdslen(key);
+        if (klen > EVPOOL_CACHED_SDS_SIZE) {
+            pool[k].key = sdsdup(key);
+        } else {
+            memcpy(pool[k].cached,key,klen+1);
+            sdssetlen(pool[k].cached,klen);
+            pool[k].key = pool[k].cached;
+        }
+        pool[k].idle = idle;
+        pool[k].dbid = dbid;
+    }
+}
 ```
 
 **逐段阅读抓手：**先区分候选范围再看评分；策略名不能只解释后缀LRU。
@@ -5374,7 +6785,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[multi.c · 7.2.6 · L148–L242](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/multi.c#L148-L242)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[multi.c · 7.2.6 · L148–L256](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/multi.c#L148-L256)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void execCommand(client *c) {
@@ -5472,6 +6883,20 @@ void execCommand(client *c) {
         c->mstate.commands[j].argv = c->argv;
         c->mstate.commands[j].argv_len = c->argv_len;
         c->mstate.commands[j].cmd = c->cmd;
+    }
+
+    // restore old DENY_BLOCKING value
+    if (!(old_flags & CLIENT_DENY_BLOCKING))
+        c->flags &= ~CLIENT_DENY_BLOCKING;
+
+    c->argv = orig_argv;
+    c->argv_len = orig_argv_len;
+    c->argc = orig_argc;
+    c->cmd = c->realcmd = orig_cmd;
+    discardTransaction(c);
+
+    server.in_exec = 0;
+}
 ```
 
 **逐段阅读抓手：**看CLIENT_DIRTY_CAS与CLIENT_DIRTY_EXEC；它们对应不同拒绝原因。
@@ -5857,7 +7282,7 @@ int luaRedisReplicateCommandsCommand(lua_State *lua) {
 }
 ```
 
-**7.2.6源码：**[script.c · L508–L562](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L508-L562)，连续节选。
+**7.2.6源码：**[script.c · L508–L573](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L508-L573)，连续节选。
 
 ```c
 /* Call a Redis command.
@@ -5915,6 +7340,17 @@ void scriptCall(scriptRunCtx *run_ctx, sds *err) {
     if (run_ctx->repl_flags & PROPAGATE_AOF) {
         call_flags |= CMD_CALL_PROPAGATE_AOF;
     }
+    if (run_ctx->repl_flags & PROPAGATE_REPL) {
+        call_flags |= CMD_CALL_PROPAGATE_REPL;
+    }
+    call(c, call_flags);
+    serverAssert((c->flags & CLIENT_BLOCKED) == 0);
+    return;
+
+error:
+    afterErrorReply(c, *err, sdslen(*err), 0);
+    incrCommandStatsOnError(cmd, ERROR_COMMAND_REJECTED);
+}
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -6271,9 +7707,27 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[aof.c · 7.2.6 · L1065–L1163](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L1065-L1163)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[aof.c · 7.2.6 · L1047–L1268](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L1047-L1268)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* Write the append only file buffer on disk.
+ *
+ * Since we are required to write the AOF before replying to the client,
+ * and the only way the client socket can get a write is entering when
+ * the event loop, we accumulate all the AOF writes in a memory
+ * buffer and write it on disk using this function just before entering
+ * the event loop again.
+ *
+ * About the 'force' argument:
+ *
+ * When the fsync policy is set to 'everysec' we may delay the flush if there
+ * is still an fsync() going on in the background thread, since for instance
+ * on Linux write(2) will be blocked by the background fsync anyway.
+ * When this happens we remember that there is some aof buffer to be
+ * flushed ASAP, and will try to do that in the serverCron() function.
+ *
+ * However if force is set to 1 we'll write regardless of the background
+ * fsync. */
 #define AOF_WRITE_LOG_ERROR_RATE 30 /* Seconds between errors logging. */
 void flushAppendOnlyFile(int force) {
     ssize_t nwritten;
@@ -6373,6 +7827,111 @@ void flushAppendOnlyFile(int force) {
         if (nwritten == -1) {
             if (can_log) {
                 serverLog(LL_WARNING,"Error writing to the AOF file: %s",
+                    strerror(errno));
+            }
+            server.aof_last_write_errno = errno;
+        } else {
+            if (can_log) {
+                serverLog(LL_WARNING,"Short write while writing to "
+                                       "the AOF file: (nwritten=%lld, "
+                                       "expected=%lld)",
+                                       (long long)nwritten,
+                                       (long long)sdslen(server.aof_buf));
+            }
+
+            if (ftruncate(server.aof_fd, server.aof_last_incr_size) == -1) {
+                if (can_log) {
+                    serverLog(LL_WARNING, "Could not remove short write "
+                             "from the append-only file.  Redis may refuse "
+                             "to load the AOF the next time it starts.  "
+                             "ftruncate: %s", strerror(errno));
+                }
+            } else {
+                /* If the ftruncate() succeeded we can set nwritten to
+                 * -1 since there is no longer partial data into the AOF. */
+                nwritten = -1;
+            }
+            server.aof_last_write_errno = ENOSPC;
+        }
+
+        /* Handle the AOF write error. */
+        if (server.aof_fsync == AOF_FSYNC_ALWAYS) {
+            /* We can't recover when the fsync policy is ALWAYS since the reply
+             * for the client is already in the output buffers (both writes and
+             * reads), and the changes to the db can't be rolled back. Since we
+             * have a contract with the user that on acknowledged or observed
+             * writes are is synced on disk, we must exit. */
+            serverLog(LL_WARNING,"Can't recover from AOF write error when the AOF fsync policy is 'always'. Exiting...");
+            exit(1);
+        } else {
+            /* Recover from failed write leaving data into the buffer. However
+             * set an error to stop accepting writes as long as the error
+             * condition is not cleared. */
+            server.aof_last_write_status = C_ERR;
+
+            /* Trim the sds buffer if there was a partial write, and there
+             * was no way to undo it with ftruncate(2). */
+            if (nwritten > 0) {
+                server.aof_current_size += nwritten;
+                server.aof_last_incr_size += nwritten;
+                sdsrange(server.aof_buf,nwritten,-1);
+            }
+            return; /* We'll try again on the next call... */
+        }
+    } else {
+        /* Successful write(2). If AOF was in error state, restore the
+         * OK state and log the event. */
+        if (server.aof_last_write_status == C_ERR) {
+            serverLog(LL_NOTICE,
+                "AOF write error looks solved, Redis can write again.");
+            server.aof_last_write_status = C_OK;
+        }
+    }
+    server.aof_current_size += nwritten;
+    server.aof_last_incr_size += nwritten;
+
+    /* Re-use AOF buffer when it is small enough. The maximum comes from the
+     * arena size of 4k minus some overhead (but is otherwise arbitrary). */
+    if ((sdslen(server.aof_buf)+sdsavail(server.aof_buf)) < 4000) {
+        sdsclear(server.aof_buf);
+    } else {
+        sdsfree(server.aof_buf);
+        server.aof_buf = sdsempty();
+    }
+
+try_fsync:
+    /* Don't fsync if no-appendfsync-on-rewrite is set to yes and there are
+     * children doing I/O in the background. */
+    if (server.aof_no_fsync_on_rewrite && hasActiveChildProcess())
+        return;
+
+    /* Perform the fsync if needed. */
+    if (server.aof_fsync == AOF_FSYNC_ALWAYS) {
+        /* redis_fsync is defined as fdatasync() for Linux in order to avoid
+         * flushing metadata. */
+        latencyStartMonitor(latency);
+        /* Let's try to get this data on the disk. To guarantee data safe when
+         * the AOF fsync policy is 'always', we should exit if failed to fsync
+         * AOF (see comment next to the exit(1) after write error above). */
+        if (redis_fsync(server.aof_fd) == -1) {
+            serverLog(LL_WARNING,"Can't persist AOF for fsync error when the "
+              "AOF fsync policy is 'always': %s. Exiting...", strerror(errno));
+            exit(1);
+        }
+        latencyEndMonitor(latency);
+        latencyAddSampleIfNeeded("aof-fsync-always",latency);
+        server.aof_last_incr_fsync_offset = server.aof_last_incr_size;
+        server.aof_last_fsync = server.unixtime;
+        atomicSet(server.fsynced_reploff_pending, server.master_repl_offset);
+    } else if (server.aof_fsync == AOF_FSYNC_EVERYSEC &&
+               server.unixtime > server.aof_last_fsync) {
+        if (!sync_in_progress) {
+            aof_background_fsync(server.aof_fd);
+            server.aof_last_incr_fsync_offset = server.aof_last_incr_size;
+        }
+        server.aof_last_fsync = server.unixtime;
+    }
+}
 ```
 
 **逐段阅读抓手：**关注AOF_FSYNC_EVERYSEC、BIO_PENDING与延后写；时延与持久化窗口会相互影响。
@@ -6394,7 +7953,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[bio.c · 7.2.6 · L205–L291](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/bio.c#L205-L291)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[bio.c · 7.2.6 · L205–L300](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/bio.c#L205-L300)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void *bioProcessBackgroundJobs(void *arg) {
@@ -6484,6 +8043,15 @@ void *bioProcessBackgroundJobs(void *arg) {
             serverPanic("Wrong job type in bioProcessBackgroundJobs().");
         }
         zfree(job);
+
+        /* Lock again before reiterating the loop, if there are no longer
+         * jobs to process we'll block again in pthread_cond_wait(). */
+        pthread_mutex_lock(&bio_mutex[worker]);
+        listDelNode(bio_jobs[worker], ln);
+        bio_jobs_counter[job_type]--;
+        pthread_cond_signal(&bio_newjob_cond[worker]);
+    }
+}
 ```
 
 **逐段阅读抓手：**BIO任务类型有独立职责；不能把所有后台工作都叫I/O线程。
@@ -6517,48 +8085,179 @@ flowchart TB
 
 ```
 
-**固定7.2.6源码：**[server.c · L1714–L1752](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L1714-L1752)。连续原文窗口，完整分支见链接。
+**固定7.2.6源码：**[server.c · L1611–L1780](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L1611-L1780)。连续原文窗口，完整分支见链接。
 
 ```c
-/* Record time consumption of AOF writing. */
-monotime aof_start_time = getMonotonicUs();
-/* Record cron time in beforeSleep. This does not include the time consumed by AOF writing and IO writing below. */
-monotime duration_before_aof = aof_start_time - cron_start_time_before_aof;
+/* This function gets called every time Redis is entering the
+ * main loop of the event driven library, that is, before to sleep
+ * for ready file descriptors.
+ *
+ * Note: This function is (currently) called from two functions:
+ * 1. aeMain - The main server loop
+ * 2. processEventsWhileBlocked - Process clients during RDB/AOF load
+ *
+ * If it was called from processEventsWhileBlocked we don't want
+ * to perform all actions (For example, we don't want to expire
+ * keys), but we do need to perform some actions.
+ *
+ * The most important is freeClientsInAsyncFreeQueue but we also
+ * call some other low-risk functions. */
+void beforeSleep(struct aeEventLoop *eventLoop) {
+    UNUSED(eventLoop);
 
-/* Write the AOF buffer on disk,
- * must be done before handleClientsWithPendingWritesUsingThreads,
- * in case of appendfsync=always. */
-if (server.aof_state == AOF_ON || server.aof_state == AOF_WAIT_REWRITE)
-    flushAppendOnlyFile(0);
+    size_t zmalloc_used = zmalloc_used_memory();
+    if (zmalloc_used > server.stat_peak_memory)
+        server.stat_peak_memory = zmalloc_used;
 
-/* Record time consumption of AOF writing. */
-durationAddSample(EL_DURATION_TYPE_AOF, getMonotonicUs() - aof_start_time);
+    /* Just call a subset of vital functions in case we are re-entering
+     * the event loop from processEventsWhileBlocked(). Note that in this
+     * case we keep track of the number of events we are processing, since
+     * processEventsWhileBlocked() wants to stop ASAP if there are no longer
+     * events to handle. */
+    if (ProcessingEventsWhileBlocked) {
+        uint64_t processed = 0;
+        processed += handleClientsWithPendingReadsUsingThreads();
+        processed += connTypeProcessPendingData();
+        if (server.aof_state == AOF_ON || server.aof_state == AOF_WAIT_REWRITE)
+            flushAppendOnlyFile(0);
+        processed += handleClientsWithPendingWrites();
+        processed += freeClientsInAsyncFreeQueue();
+        server.events_processed_while_blocked += processed;
+        return;
+    }
 
-/* Update the fsynced replica offset.
- * If an initial rewrite is in progress then not all data is guaranteed to have actually been
- * persisted to disk yet, so we cannot update the field. We will wait for the rewrite to complete. */
-if (server.aof_state == AOF_ON && server.fsynced_reploff != -1) {
-    long long fsynced_reploff_pending;
-    atomicGet(server.fsynced_reploff_pending, fsynced_reploff_pending);
-    server.fsynced_reploff = fsynced_reploff_pending;
+    /* We should handle pending reads clients ASAP after event loop. */
+    handleClientsWithPendingReadsUsingThreads();
+
+    /* Handle pending data(typical TLS). (must be done before flushAppendOnlyFile) */
+    connTypeProcessPendingData();
+
+    /* If any connection type(typical TLS) still has pending unread data don't sleep at all. */
+    aeSetDontWait(server.el, connTypeHasPendingData());
+
+    /* Call the Redis Cluster before sleep function. Note that this function
+     * may change the state of Redis Cluster (from ok to fail or vice versa),
+     * so it's a good idea to call it before serving the unblocked clients
+     * later in this function, must be done before blockedBeforeSleep. */
+    if (server.cluster_enabled) clusterBeforeSleep();
+
+    /* Handle blocked clients.
+     * must be done before flushAppendOnlyFile, in case of appendfsync=always,
+     * since the unblocked clients may write data. */
+    blockedBeforeSleep();
+
+    /* Record cron time in beforeSleep, which is the sum of active-expire, active-defrag and all other
+     * tasks done by cron and beforeSleep, but excluding read, write and AOF, that are counted by other
+     * sets of metrics. */
+    monotime cron_start_time_before_aof = getMonotonicUs();
+
+    /* Run a fast expire cycle (the called function will return
+     * ASAP if a fast cycle is not needed). */
+    if (server.active_expire_enabled && iAmMaster())
+        activeExpireCycle(ACTIVE_EXPIRE_CYCLE_FAST);
+
+    if (moduleCount()) {
+        moduleFireServerEvent(REDISMODULE_EVENT_EVENTLOOP,
+                              REDISMODULE_SUBEVENT_EVENTLOOP_BEFORE_SLEEP,
+                              NULL);
+    }
+
+    /* Send all the slaves an ACK request if at least one client blocked
+     * during the previous event loop iteration. Note that we do this after
+     * processUnblockedClients(), so if there are multiple pipelined WAITs
+     * and the just unblocked WAIT gets blocked again, we don't have to wait
+     * a server cron cycle in absence of other event loop events. See #6623.
+     * 
+     * We also don't send the ACKs while clients are paused, since it can
+     * increment the replication backlog, they'll be sent after the pause
+     * if we are still the master. */
+    if (server.get_ack_from_slaves && !isPausedActionsWithUpdate(PAUSE_ACTION_REPLICA)) {
+        sendGetackToReplicas();
+        server.get_ack_from_slaves = 0;
+    }
+
+    /* We may have received updates from clients about their current offset. NOTE:
+     * this can't be done where the ACK is received since failover will disconnect 
+     * our clients. */
+    updateFailoverStatus();
+
+    /* Since we rely on current_client to send scheduled invalidation messages
+     * we have to flush them after each command, so when we get here, the list
+     * must be empty. */
+    serverAssert(listLength(server.tracking_pending_keys) == 0);
+    serverAssert(listLength(server.pending_push_messages) == 0);
+
+    /* Send the invalidation messages to clients participating to the
+     * client side caching protocol in broadcasting (BCAST) mode. */
+    trackingBroadcastInvalidationMessages();
+
+    /* Record time consumption of AOF writing. */
+    monotime aof_start_time = getMonotonicUs();
+    /* Record cron time in beforeSleep. This does not include the time consumed by AOF writing and IO writing below. */
+    monotime duration_before_aof = aof_start_time - cron_start_time_before_aof;
+
+    /* Write the AOF buffer on disk,
+     * must be done before handleClientsWithPendingWritesUsingThreads,
+     * in case of appendfsync=always. */
+    if (server.aof_state == AOF_ON || server.aof_state == AOF_WAIT_REWRITE)
+        flushAppendOnlyFile(0);
+
+    /* Record time consumption of AOF writing. */
+    durationAddSample(EL_DURATION_TYPE_AOF, getMonotonicUs() - aof_start_time);
+
+    /* Update the fsynced replica offset.
+     * If an initial rewrite is in progress then not all data is guaranteed to have actually been
+     * persisted to disk yet, so we cannot update the field. We will wait for the rewrite to complete. */
+    if (server.aof_state == AOF_ON && server.fsynced_reploff != -1) {
+        long long fsynced_reploff_pending;
+        atomicGet(server.fsynced_reploff_pending, fsynced_reploff_pending);
+        server.fsynced_reploff = fsynced_reploff_pending;
+    }
+
+    /* Handle writes with pending output buffers. */
+    handleClientsWithPendingWritesUsingThreads();
+
+    /* Record cron time in beforeSleep. This does not include the time consumed by AOF writing and IO writing above. */
+    monotime cron_start_time_after_write = getMonotonicUs();
+
+    /* Close clients that need to be closed asynchronous */
+    freeClientsInAsyncFreeQueue();
+
+    /* Incrementally trim replication backlog, 10 times the normal speed is
+     * to free replication backlog as much as possible. */
+    if (server.repl_backlog)
+        incrementalTrimReplicationBacklog(10*REPL_BACKLOG_TRIM_BLOCKS_PER_CALL);
+
+    /* Disconnect some clients if they are consuming too much memory. */
+    evictClients();
+
+    /* Record cron time in beforeSleep. */
+    monotime duration_after_write = getMonotonicUs() - cron_start_time_after_write;
+
+    /* Record eventloop latency. */
+    if (server.el_start > 0) {
+        monotime el_duration = getMonotonicUs() - server.el_start;
+        durationAddSample(EL_DURATION_TYPE_EL, el_duration);
+    }
+    server.el_cron_duration += duration_before_aof + duration_after_write;
+    durationAddSample(EL_DURATION_TYPE_CRON, server.el_cron_duration);
+    server.el_cron_duration = 0;
+    /* Record max command count per cycle. */
+    if (server.stat_numcommands > server.el_cmd_cnt_start) {
+        long long el_command_cnt = server.stat_numcommands - server.el_cmd_cnt_start;
+        if (el_command_cnt > server.el_cmd_cnt_max) {
+            server.el_cmd_cnt_max = el_command_cnt;
+        }
+    }
+
+    /* Before we are going to sleep, let the threads access the dataset by
+     * releasing the GIL. Redis main thread will not touch anything at this
+     * time. */
+    if (moduleCount()) moduleReleaseGIL();
+    /********************* WARNING ********************
+     * Do NOT add anything below moduleReleaseGIL !!! *
+     ***************************** ********************/
 }
-
-/* Handle writes with pending output buffers. */
-handleClientsWithPendingWritesUsingThreads();
-
-/* Record cron time in beforeSleep. This does not include the time consumed by AOF writing and IO writing above. */
-monotime cron_start_time_after_write = getMonotonicUs();
-
-/* Close clients that need to be closed asynchronous */
-freeClientsInAsyncFreeQueue();
-
-/* Incrementally trim replication backlog, 10 times the normal speed is
- * to free replication backlog as much as possible. */
-if (server.repl_backlog)
-    incrementalTrimReplicationBacklog(10*REPL_BACKLOG_TRIM_BLOCKS_PER_CALL);
-
-/* Disconnect some clients if they are consuming too much memory. */
-evictClients();
 ```
 
 ## 本章纸面推演
@@ -6627,9 +8326,13 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[aof.c · 7.2.6 · L2413–L2495](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L2413-L2495)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[aof.c · 7.2.6 · L2409–L2495](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L2409-L2495)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* ----------------------------------------------------------------------------
+ * AOF background rewrite
+ * ------------------------------------------------------------------------- */
+
 /* This is how rewriting of the append only file in background works:
  *
  * 1) The user calls BGREWRITEAOF
@@ -6734,7 +8437,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[aof.c · 7.2.6 · L1650–L1737](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L1650-L1737)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[aof.c · 7.2.6 · L1650–L1774](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L1650-L1774)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Load the AOF files according the aofManifest pointed by am. */
@@ -6825,6 +8528,43 @@ int loadAppendOnlyFiles(aofManifest *am) {
             last_file = ++aof_num == total_num;
             start = ustime();
             ret = loadSingleAppendOnlyFile(aof_name);
+            if (ret == AOF_OK || (ret == AOF_TRUNCATED && last_file)) {
+                serverLog(LL_NOTICE, "DB loaded from incr file %s: %.3f seconds",
+                    aof_name, (float)(ustime()-start)/1000000);
+            }
+
+            /* We know that (at least) one of the AOF files has data (total_size > 0),
+             * so empty incr AOF file doesn't count as a AOF_EMPTY result */
+            if (ret == AOF_EMPTY) ret = AOF_OK;
+
+            /* If the truncated file is not the last file, we consider this to be a fatal error. */
+            if (ret == AOF_TRUNCATED && !last_file) {
+                ret = AOF_FAILED;
+                serverLog(LL_WARNING, "Fatal error: the truncated file is not the last file");
+            }
+
+            if (ret == AOF_OPEN_ERR || ret == AOF_FAILED) {
+                goto cleanup;
+            }
+        }
+    }
+
+    server.aof_current_size = total_size;
+    /* Ideally, the aof_rewrite_base_size variable should hold the size of the
+     * AOF when the last rewrite ended, this should include the size of the
+     * incremental file that was created during the rewrite since otherwise we
+     * risk the next automatic rewrite to happen too soon (or immediately if
+     * auto-aof-rewrite-percentage is low). However, since we do not persist
+     * aof_rewrite_base_size information anywhere, we initialize it on restart
+     * to the size of BASE AOF file. This might cause the first AOFRW to be
+     * executed early, but that shouldn't be a problem since everything will be
+     * fine after the first AOFRW. */
+    server.aof_rewrite_base_size = base_size;
+
+cleanup:
+    stopLoading(ret == AOF_OK || ret == AOF_TRUNCATED);
+    return ret;
+}
 ```
 
 **逐段阅读抓手：**loadAppendOnlyFile处理单文件，loadAppendOnlyFiles组织集合；不要混淆复数函数。
@@ -6851,7 +8591,7 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[aof.c · L1849–L1939](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/aof.c#L1849-L1939)，连续节选。
+**6.2.14源码：**[aof.c · L1849–L2010](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/aof.c#L1849-L2010)，连续节选。
 
 ```c
 /* A background append only file rewriting (BGREWRITEAOF) terminated its work.
@@ -6886,7 +8626,7 @@ void backgroundRewriteDoneHandler(int exitcode, int bysignal) {
         }
         latencyEndMonitor(latency);
         latencyAddSampleIfNeeded("aof-rewrite-diff-write",latency);
-
+  
         if (server.aof_fsync == AOF_FSYNC_EVERYSEC) {
             aof_background_fsync(newfd);
         } else if (server.aof_fsync == AOF_FSYNC_ALWAYS) {
@@ -6945,11 +8685,86 @@ void backgroundRewriteDoneHandler(int exitcode, int bysignal) {
 
         /* Rename the temporary file. This will not unlink the target file if
          * it exists, because we reference it with "oldfd". */
+        latencyStartMonitor(latency);
+        if (rename(tmpfile,server.aof_filename) == -1) {
+            serverLog(LL_WARNING,
+                "Error trying to rename the temporary AOF file %s into %s: %s",
+                tmpfile,
+                server.aof_filename,
+                strerror(errno));
+            close(newfd);
+            if (oldfd != -1) close(oldfd);
+            goto cleanup;
+        }
+        latencyEndMonitor(latency);
+        latencyAddSampleIfNeeded("aof-rename",latency);
+
+        if (server.aof_fd == -1) {
+            /* AOF disabled, we don't need to set the AOF file descriptor
+             * to this new file, so we can close it. */
+            close(newfd);
+        } else {
+            /* AOF enabled, replace the old fd with the new one. */
+            oldfd = server.aof_fd;
+            server.aof_fd = newfd;
+            server.aof_selected_db = -1; /* Make sure SELECT is re-issued */
+            aofUpdateCurrentSize();
+            server.aof_rewrite_base_size = server.aof_current_size;
+            server.aof_fsync_offset = server.aof_current_size;
+            server.aof_last_fsync = server.unixtime;
+
+            /* Clear regular AOF buffer since its contents was just written to
+             * the new AOF from the background rewrite buffer. */
+            sdsfree(server.aof_buf);
+            server.aof_buf = sdsempty();
+        }
+
+        server.aof_lastbgrewrite_status = C_OK;
+
+        serverLog(LL_NOTICE, "Background AOF rewrite finished successfully");
+        /* Change state from WAIT_REWRITE to ON if needed */
+        if (server.aof_state == AOF_WAIT_REWRITE)
+            server.aof_state = AOF_ON;
+
+        /* Asynchronously close the overwritten AOF. */
+        if (oldfd != -1) bioCreateCloseJob(oldfd);
+
+        serverLog(LL_VERBOSE,
+            "Background AOF rewrite signal handler took %lldus", ustime()-now);
+    } else if (!bysignal && exitcode != 0) {
+        server.aof_lastbgrewrite_status = C_ERR;
+
+        serverLog(LL_WARNING,
+            "Background AOF rewrite terminated with error");
+    } else {
+        /* SIGUSR1 is whitelisted, so we have a way to kill a child without
+         * triggering an error condition. */
+        if (bysignal != SIGUSR1)
+            server.aof_lastbgrewrite_status = C_ERR;
+
+        serverLog(LL_WARNING,
+            "Background AOF rewrite terminated by signal %d", bysignal);
+    }
+
+cleanup:
+    aofClosePipes();
+    aofRewriteBufferReset();
+    aofRemoveTempFile(server.child_pid);
+    server.aof_rewrite_time_last = time(NULL)-server.aof_rewrite_time_start;
+    server.aof_rewrite_time_start = -1;
+    /* Schedule a new rewrite if we are waiting for it to switch the AOF ON. */
+    if (server.aof_state == AOF_WAIT_REWRITE)
+        server.aof_rewrite_scheduled = 1;
+}
 ```
 
-**7.2.6源码：**[aof.c · L2413–L2495](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L2413-L2495)，连续节选。
+**7.2.6源码：**[aof.c · L2409–L2495](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/aof.c#L2409-L2495)，连续节选。
 
 ```c
+/* ----------------------------------------------------------------------------
+ * AOF background rewrite
+ * ------------------------------------------------------------------------- */
+
 /* This is how rewriting of the append only file in background works:
  *
  * 1) The user calls BGREWRITEAOF
@@ -7171,7 +8986,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L735–L825](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L735-L825)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L735–L836](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L735-L836)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* This function handles the PSYNC command from the point of view of a
@@ -7265,6 +9080,17 @@ int masterTryPartialResynchronization(client *c, long long psync_offset) {
     /* Fire the replica change modules event. */
     moduleFireServerEvent(REDISMODULE_EVENT_REPLICA_CHANGE,
                           REDISMODULE_SUBEVENT_REPLICA_CHANGE_ONLINE,
+                          NULL);
+
+    return C_OK; /* The caller can return, no full resync needed. */
+
+need_full_resync:
+    /* We need a full resync for some reason... Note that we can't
+     * reply to PSYNC right now if a full SYNC is needed. The reply
+     * must include the master offset at the time the RDB file we transfer
+     * is generated, so we need to delay the reply to that moment. */
+    return C_ERR;
+}
 ```
 
 **逐段阅读抓手：**看replid2与second_replid_offset；双ID不表示存在两个同时写的主节点。
@@ -7286,7 +9112,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L936–L1032](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L936-L1032)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L936–L1129](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L936-L1129)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* SYNC and PSYNC command implementation. */
@@ -7386,6 +9212,103 @@ void syncCommand(client *c) {
          * so that we don't expect to receive REPLCONF ACK feedbacks. */
         c->flags |= CLIENT_PRE_PSYNC;
     }
+
+    /* Full resynchronization. */
+    server.stat_sync_full++;
+
+    /* Setup the slave as one waiting for BGSAVE to start. The following code
+     * paths will change the state if we handle the slave differently. */
+    c->replstate = SLAVE_STATE_WAIT_BGSAVE_START;
+    if (server.repl_disable_tcp_nodelay)
+        connDisableTcpNoDelay(c->conn); /* Non critical if it fails. */
+    c->repldbfd = -1;
+    c->flags |= CLIENT_SLAVE;
+    listAddNodeTail(server.slaves,c);
+
+    /* Create the replication backlog if needed. */
+    if (listLength(server.slaves) == 1 && server.repl_backlog == NULL) {
+        /* When we create the backlog from scratch, we always use a new
+         * replication ID and clear the ID2, since there is no valid
+         * past history. */
+        changeReplicationId();
+        clearReplicationId2();
+        createReplicationBacklog();
+        serverLog(LL_NOTICE,"Replication backlog created, my new "
+                            "replication IDs are '%s' and '%s'",
+                            server.replid, server.replid2);
+    }
+
+    /* CASE 1: BGSAVE is in progress, with disk target. */
+    if (server.child_type == CHILD_TYPE_RDB &&
+        server.rdb_child_type == RDB_CHILD_TYPE_DISK)
+    {
+        /* Ok a background save is in progress. Let's check if it is a good
+         * one for replication, i.e. if there is another slave that is
+         * registering differences since the server forked to save. */
+        client *slave;
+        listNode *ln;
+        listIter li;
+
+        listRewind(server.slaves,&li);
+        while((ln = listNext(&li))) {
+            slave = ln->value;
+            /* If the client needs a buffer of commands, we can't use
+             * a replica without replication buffer. */
+            if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_END &&
+                (!(slave->flags & CLIENT_REPL_RDBONLY) ||
+                 (c->flags & CLIENT_REPL_RDBONLY)))
+                break;
+        }
+        /* To attach this slave, we check that it has at least all the
+         * capabilities of the slave that triggered the current BGSAVE
+         * and its exact requirements. */
+        if (ln && ((c->slave_capa & slave->slave_capa) == slave->slave_capa) &&
+            c->slave_req == slave->slave_req) {
+            /* Perfect, the server is already registering differences for
+             * another slave. Set the right state, and copy the buffer.
+             * We don't copy buffer if clients don't want. */
+            if (!(c->flags & CLIENT_REPL_RDBONLY))
+                copyReplicaOutputBuffer(c,slave);
+            replicationSetupSlaveForFullResync(c,slave->psync_initial_offset);
+            serverLog(LL_NOTICE,"Waiting for end of BGSAVE for SYNC");
+        } else {
+            /* No way, we need to wait for the next BGSAVE in order to
+             * register differences. */
+            serverLog(LL_NOTICE,"Can't attach the replica to the current BGSAVE. Waiting for next BGSAVE for SYNC");
+        }
+
+    /* CASE 2: BGSAVE is in progress, with socket target. */
+    } else if (server.child_type == CHILD_TYPE_RDB &&
+               server.rdb_child_type == RDB_CHILD_TYPE_SOCKET)
+    {
+        /* There is an RDB child process but it is writing directly to
+         * children sockets. We need to wait for the next BGSAVE
+         * in order to synchronize. */
+        serverLog(LL_NOTICE,"Current BGSAVE has socket target. Waiting for next BGSAVE for SYNC");
+
+    /* CASE 3: There is no BGSAVE is in progress. */
+    } else {
+        if (server.repl_diskless_sync && (c->slave_capa & SLAVE_CAPA_EOF) &&
+            server.repl_diskless_sync_delay)
+        {
+            /* Diskless replication RDB child is created inside
+             * replicationCron() since we want to delay its start a
+             * few seconds to wait for more slaves to arrive. */
+            serverLog(LL_NOTICE,"Delay next BGSAVE for diskless SYNC");
+        } else {
+            /* We don't have a BGSAVE in progress, let's start one. Diskless
+             * or disk-based mode is determined by replica's capacity. */
+            if (!hasActiveChildProcess()) {
+                startBgsaveForReplication(c->slave_capa, c->slave_req);
+            } else {
+                serverLog(LL_NOTICE,
+                    "No BGSAVE in progress, but another BG operation is active. "
+                    "BGSAVE for replication delayed");
+            }
+        }
+    }
+    return;
+}
 ```
 
 **逐段阅读抓手：**全量同步状态机跨多个函数；syncCommand只负责入口与安排。
@@ -7407,7 +9330,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L326–L420](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L326-L420)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L326–L429](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L326-L429)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Append bytes into the global replication buffer list, replication backlog and
@@ -7505,6 +9428,15 @@ void feedReplicationBuffer(char *s, size_t len) {
         }
         if (add_new_block) {
             createReplicationBacklogIndex(listLast(server.repl_buffer_blocks));
+
+            /* It is important to trim after adding replication data to keep the backlog size close to
+             * repl_backlog_size in the common case. We wait until we add a new block to avoid repeated
+             * unnecessary trimming attempts when small amounts of data are added. See comments in
+             * freeMemoryGetNotCountedMemory() for details on replication backlog memory tracking. */
+            incrementalTrimReplicationBacklog(REPL_BACKLOG_TRIM_BLOCKS_PER_CALL);
+        }
+    }
+}
 ```
 
 **逐段阅读抓手：**跟踪refcount、repl_buffer_blocks与backlog位置；与6.2环形backlog不同。
@@ -7564,7 +9496,7 @@ void feedReplicationBacklog(void *ptr, size_t len) {
 }
 ```
 
-**7.2.6源码：**[replication.c · L326–L412](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L326-L412)，连续节选。
+**7.2.6源码：**[replication.c · L326–L429](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L326-L429)，连续节选。
 
 ```c
 /* Append bytes into the global replication buffer list, replication backlog and
@@ -7654,6 +9586,23 @@ void feedReplicationBuffer(char *s, size_t len) {
         if (server.repl_backlog->ref_repl_buf_node == NULL) {
             server.repl_backlog->ref_repl_buf_node = start_node;
             /* Only increase the start block reference count. */
+            ((replBufBlock *)listNodeValue(start_node))->refcount++;
+
+            /* Replication buffer must be empty before adding replication stream
+             * into replication backlog. */
+            serverAssert(add_new_block == 1 && start_pos == 0);
+        }
+        if (add_new_block) {
+            createReplicationBacklogIndex(listLast(server.repl_buffer_blocks));
+
+            /* It is important to trim after adding replication data to keep the backlog size close to
+             * repl_backlog_size in the common case. We wait until we add a new block to avoid repeated
+             * unnecessary trimming attempts when small amounts of data are added. See comments in
+             * freeMemoryGetNotCountedMemory() for details on replication backlog memory tracking. */
+            incrementalTrimReplicationBacklog(REPL_BACKLOG_TRIM_BLOCKS_PER_CALL);
+        }
+    }
+}
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -7874,7 +9823,7 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[replication.c · L3187–L3218](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/replication.c#L3187-L3218)，连续节选。
+**6.2.14源码：**[replication.c · L3187–L3223](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/replication.c#L3187-L3223)，连续节选。
 
 ```c
 /* WAIT for N replicas to acknowledge the processing of our latest
@@ -7909,6 +9858,11 @@ void waitCommand(client *c) {
     c->bpop.numreplicas = numreplicas;
     listAddNodeHead(server.clients_waiting_acks,c);
     blockClient(c,BLOCKED_WAIT);
+
+    /* Make sure that the server will send an ACK request to all the slaves
+     * before returning to the event loop. */
+    replicationRequestAckFromSlaves();
+}
 ```
 
 **7.2.6源码：**[replication.c · L3561–L3601](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3561-L3601)，连续节选。
@@ -8474,9 +10428,13 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[cluster.c · 7.2.6 · L1346–L1371](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1346-L1371)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[cluster.c · 7.2.6 · L1342–L1371](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1342-L1371)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* -----------------------------------------------------------------------------
+ * Key space handling
+ * -------------------------------------------------------------------------- */
+
 /* We have 16384 hash slots. The hash slot of a given key is obtained
  * as the least significant 14 bits of the crc16 of the key.
  *
@@ -8524,7 +10482,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[cluster.c · 7.2.6 · L7207–L7333](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L7207-L7333)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[cluster.c · 7.2.6 · L7207–L7449](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L7207-L7449)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Return the pointer to the cluster node that is able to serve the command.
@@ -8654,6 +10612,122 @@ clusterNode *getNodeByQuery(client *c, struct redisCommand *cmd, robj **argv, in
                     importing_slot = 1;
                 }
             } else {
+                /* If it is not the first key/channel, make sure it is exactly
+                 * the same key/channel as the first we saw. */
+                if (slot != thisslot) {
+                    /* Error: multiple keys from different slots. */
+                    getKeysFreeResult(&result);
+                    if (error_code)
+                        *error_code = CLUSTER_REDIR_CROSS_SLOT;
+                    return NULL;                  
+                }
+                if (importing_slot && !multiple_keys && !equalStringObjects(firstkey,thiskey)) {
+                    /* Flag this request as one with multiple different
+                     * keys/channels when the slot is in importing state. */
+                    multiple_keys = 1;
+                }
+            }
+
+            /* Migrating / Importing slot? Count keys we don't have.
+             * If it is pubsubshard command, it isn't required to check
+             * the channel being present or not in the node during the
+             * slot migration, the channel will be served from the source
+             * node until the migration completes with CLUSTER SETSLOT <slot>
+             * NODE <node-id>. */
+            int flags = LOOKUP_NOTOUCH | LOOKUP_NOSTATS | LOOKUP_NONOTIFY | LOOKUP_NOEXPIRE;
+            if ((migrating_slot || importing_slot) && !is_pubsubshard)
+            {
+                if (lookupKeyReadWithFlags(&server.db[0], thiskey, flags) == NULL) missing_keys++;
+                else existing_keys++;
+            }
+        }
+        getKeysFreeResult(&result);
+    }
+
+    /* No key at all in command? then we can serve the request
+     * without redirections or errors in all the cases. */
+    if (n == NULL) return myself;
+
+    uint64_t cmd_flags = getCommandFlags(c);
+    /* Cluster is globally down but we got keys? We only serve the request
+     * if it is a read command and when allow_reads_when_down is enabled. */
+    if (server.cluster->state != CLUSTER_OK) {
+        if (is_pubsubshard) {
+            if (!server.cluster_allow_pubsubshard_when_down) {
+                if (error_code) *error_code = CLUSTER_REDIR_DOWN_STATE;
+                return NULL;
+            }
+        } else if (!server.cluster_allow_reads_when_down) {
+            /* The cluster is configured to block commands when the
+             * cluster is down. */
+            if (error_code) *error_code = CLUSTER_REDIR_DOWN_STATE;
+            return NULL;
+        } else if (cmd_flags & CMD_WRITE) {
+            /* The cluster is configured to allow read only commands */
+            if (error_code) *error_code = CLUSTER_REDIR_DOWN_RO_STATE;
+            return NULL;
+        } else {
+            /* Fall through and allow the command to be executed:
+             * this happens when server.cluster_allow_reads_when_down is
+             * true and the command is not a write command */
+        }
+    }
+
+    /* Return the hashslot by reference. */
+    if (hashslot) *hashslot = slot;
+
+    /* MIGRATE always works in the context of the local node if the slot
+     * is open (migrating or importing state). We need to be able to freely
+     * move keys among instances in this case. */
+    if ((migrating_slot || importing_slot) && cmd->proc == migrateCommand)
+        return myself;
+
+    /* If we don't have all the keys and we are migrating the slot, send
+     * an ASK redirection or TRYAGAIN. */
+    if (migrating_slot && missing_keys) {
+        /* If we have keys but we don't have all keys, we return TRYAGAIN */
+        if (existing_keys) {
+            if (error_code) *error_code = CLUSTER_REDIR_UNSTABLE;
+            return NULL;
+        } else {
+            if (error_code) *error_code = CLUSTER_REDIR_ASK;
+            return server.cluster->migrating_slots_to[slot];
+        }
+    }
+
+    /* If we are receiving the slot, and the client correctly flagged the
+     * request as "ASKING", we can serve the request. However if the request
+     * involves multiple keys and we don't have them all, the only option is
+     * to send a TRYAGAIN error. */
+    if (importing_slot &&
+        (c->flags & CLIENT_ASKING || cmd_flags & CMD_ASKING))
+    {
+        if (multiple_keys && missing_keys) {
+            if (error_code) *error_code = CLUSTER_REDIR_UNSTABLE;
+            return NULL;
+        } else {
+            return myself;
+        }
+    }
+
+    /* Handle the read-only client case reading from a slave: if this
+     * node is a slave and the request is about a hash slot our master
+     * is serving, we can reply without redirection. */
+    int is_write_command = (cmd_flags & CMD_WRITE) ||
+                           (c->cmd->proc == execCommand && (c->mstate.cmd_flags & CMD_WRITE));
+    if (((c->flags & CLIENT_READONLY) || is_pubsubshard) &&
+        !is_write_command &&
+        nodeIsSlave(myself) &&
+        myself->slaveof == n)
+    {
+        return myself;
+    }
+
+    /* Base case: just return the right node. However if this node is not
+     * myself, set error_code to MOVED since we need to issue a redirection. */
+    if (n != myself && error_code) *error_code = CLUSTER_REDIR_MOVED;
+    return n;
+}
 ```
 
 **逐段阅读抓手：**无Key命令与带多个Key命令路径不同；不能只取argv[1]计算路由。
@@ -8738,9 +10812,13 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[cluster.c · L746–L771](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/cluster.c#L746-L771)，连续节选。
+**6.2.14源码：**[cluster.c · L742–L771](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/cluster.c#L742-L771)，连续节选。
 
 ```c
+/* -----------------------------------------------------------------------------
+ * Key space handling
+ * -------------------------------------------------------------------------- */
+
 /* We have 16384 hash slots. The hash slot of a given key is obtained
  * as the least significant 14 bits of the crc16 of the key.
  *
@@ -8769,9 +10847,13 @@ unsigned int keyHashSlot(char *key, int keylen) {
 }
 ```
 
-**7.2.6源码：**[cluster.c · L1346–L1371](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1346-L1371)，连续节选。
+**7.2.6源码：**[cluster.c · L1342–L1371](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1342-L1371)，连续节选。
 
 ```c
+/* -----------------------------------------------------------------------------
+ * Key space handling
+ * -------------------------------------------------------------------------- */
+
 /* We have 16384 hash slots. The hash slot of a given key is obtained
  * as the least significant 14 bits of the crc16 of the key.
  *
@@ -8832,9 +10914,13 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[cluster.c · 7.2.6 · L1935–L1983](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1935-L1983)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[cluster.c · 7.2.6 · L1931–L1983](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L1931-L1983)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
+/* -----------------------------------------------------------------------------
+ * CLUSTER messages exchange - PING/PONG and gossip
+ * -------------------------------------------------------------------------- */
+
 /* This function checks if a given node should be marked as FAIL.
  * It happens if the following conditions are met:
  *
@@ -8905,7 +10991,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[cluster.c · 7.2.6 · L4175–L4281](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L4175-L4281)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[cluster.c · 7.2.6 · L4175–L4352](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L4175-L4352)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* This function is called if we are a slave node and our master serving
@@ -9015,6 +11101,77 @@ void clusterHandleSlaveFailover(void) {
         /* Now that we have a scheduled election, broadcast our offset
          * to all the other slaves so that they'll updated their offsets
          * if our offset is better. */
+        clusterBroadcastPong(CLUSTER_BROADCAST_LOCAL_SLAVES);
+        return;
+    }
+
+    /* It is possible that we received more updated offsets from other
+     * slaves for the same master since we computed our election delay.
+     * Update the delay if our rank changed.
+     *
+     * Not performed if this is a manual failover. */
+    if (server.cluster->failover_auth_sent == 0 &&
+        server.cluster->mf_end == 0)
+    {
+        int newrank = clusterGetSlaveRank();
+        if (newrank > server.cluster->failover_auth_rank) {
+            long long added_delay =
+                (newrank - server.cluster->failover_auth_rank) * 1000;
+            server.cluster->failover_auth_time += added_delay;
+            server.cluster->failover_auth_rank = newrank;
+            serverLog(LL_NOTICE,
+                "Replica rank updated to #%d, added %lld milliseconds of delay.",
+                newrank, added_delay);
+        }
+    }
+
+    /* Return ASAP if we can't still start the election. */
+    if (mstime() < server.cluster->failover_auth_time) {
+        clusterLogCantFailover(CLUSTER_CANT_FAILOVER_WAITING_DELAY);
+        return;
+    }
+
+    /* Return ASAP if the election is too old to be valid. */
+    if (auth_age > auth_timeout) {
+        clusterLogCantFailover(CLUSTER_CANT_FAILOVER_EXPIRED);
+        return;
+    }
+
+    /* Ask for votes if needed. */
+    if (server.cluster->failover_auth_sent == 0) {
+        server.cluster->currentEpoch++;
+        server.cluster->failover_auth_epoch = server.cluster->currentEpoch;
+        serverLog(LL_NOTICE,"Starting a failover election for epoch %llu.",
+            (unsigned long long) server.cluster->currentEpoch);
+        clusterRequestFailoverAuth();
+        server.cluster->failover_auth_sent = 1;
+        clusterDoBeforeSleep(CLUSTER_TODO_SAVE_CONFIG|
+                             CLUSTER_TODO_UPDATE_STATE|
+                             CLUSTER_TODO_FSYNC_CONFIG);
+        return; /* Wait for replies. */
+    }
+
+    /* Check if we reached the quorum. */
+    if (server.cluster->failover_auth_count >= needed_quorum) {
+        /* We have the quorum, we can finally failover the master. */
+
+        serverLog(LL_NOTICE,
+            "Failover election won: I'm the new master.");
+
+        /* Update my configEpoch to the epoch of the election. */
+        if (myself->configEpoch < server.cluster->failover_auth_epoch) {
+            myself->configEpoch = server.cluster->failover_auth_epoch;
+            serverLog(LL_NOTICE,
+                "configEpoch set to %llu after successful failover",
+                (unsigned long long) myself->configEpoch);
+        }
+
+        /* Take responsibility for the cluster slots. */
+        clusterFailoverReplaceYourMaster();
+    } else {
+        clusterLogCantFailover(CLUSTER_CANT_FAILOVER_WAITING_VOTES);
+    }
+}
 ```
 
 **逐段阅读抓手：**函数前面可能有声明，节选从真正定义开始；看failover_auth_*状态。
@@ -9036,7 +11193,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[cluster.c · 7.2.6 · L5887–L5952](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L5887-L5952)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[cluster.c · 7.2.6 · L5887–L6491](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/cluster.c#L5887-L6491)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void clusterCommand(client *c) {
@@ -9105,6 +11262,545 @@ void clusterCommand(client *c) {
 NULL
         };
         addReplyHelp(c, help);
+    } else if (!strcasecmp(c->argv[1]->ptr,"meet") && (c->argc == 4 || c->argc == 5)) {
+        /* CLUSTER MEET <ip> <port> [cport] */
+        long long port, cport;
+
+        if (getLongLongFromObject(c->argv[3], &port) != C_OK) {
+            addReplyErrorFormat(c,"Invalid base port specified: %s",
+                                (char*)c->argv[3]->ptr);
+            return;
+        }
+
+        if (c->argc == 5) {
+            if (getLongLongFromObject(c->argv[4], &cport) != C_OK) {
+                addReplyErrorFormat(c,"Invalid bus port specified: %s",
+                                    (char*)c->argv[4]->ptr);
+                return;
+            }
+        } else {
+            cport = port + CLUSTER_PORT_INCR;
+        }
+
+        if (clusterStartHandshake(c->argv[2]->ptr,port,cport) == 0 &&
+            errno == EINVAL)
+        {
+            addReplyErrorFormat(c,"Invalid node address specified: %s:%s",
+                            (char*)c->argv[2]->ptr, (char*)c->argv[3]->ptr);
+        } else {
+            addReply(c,shared.ok);
+        }
+    } else if (!strcasecmp(c->argv[1]->ptr,"nodes") && c->argc == 2) {
+        /* CLUSTER NODES */
+        /* Report TLS ports to TLS client, and report non-TLS port to non-TLS client. */
+        sds nodes = clusterGenNodesDescription(c, 0, shouldReturnTlsInfo());
+        addReplyVerbatim(c,nodes,sdslen(nodes),"txt");
+        sdsfree(nodes);
+    } else if (!strcasecmp(c->argv[1]->ptr,"myid") && c->argc == 2) {
+        /* CLUSTER MYID */
+        addReplyBulkCBuffer(c,myself->name, CLUSTER_NAMELEN);
+    } else if (!strcasecmp(c->argv[1]->ptr,"myshardid") && c->argc == 2) {
+        /* CLUSTER MYSHARDID */
+        addReplyBulkCBuffer(c,myself->shard_id, CLUSTER_NAMELEN);
+    } else if (!strcasecmp(c->argv[1]->ptr,"slots") && c->argc == 2) {
+        /* CLUSTER SLOTS */
+        clusterReplyMultiBulkSlots(c);
+    } else if (!strcasecmp(c->argv[1]->ptr,"shards") && c->argc == 2) {
+        /* CLUSTER SHARDS */
+        clusterReplyShards(c);
+    } else if (!strcasecmp(c->argv[1]->ptr,"flushslots") && c->argc == 2) {
+        /* CLUSTER FLUSHSLOTS */
+        if (dictSize(server.db[0].dict) != 0) {
+            addReplyError(c,"DB must be empty to perform CLUSTER FLUSHSLOTS.");
+            return;
+        }
+        clusterDelNodeSlots(myself);
+        clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG);
+        addReply(c,shared.ok);
+    } else if ((!strcasecmp(c->argv[1]->ptr,"addslots") ||
+               !strcasecmp(c->argv[1]->ptr,"delslots")) && c->argc >= 3)
+    {
+        /* CLUSTER ADDSLOTS <slot> [slot] ... */
+        /* CLUSTER DELSLOTS <slot> [slot] ... */
+        int j, slot;
+        unsigned char *slots = zmalloc(CLUSTER_SLOTS);
+        int del = !strcasecmp(c->argv[1]->ptr,"delslots");
+
+        memset(slots,0,CLUSTER_SLOTS);
+        /* Check that all the arguments are parseable.*/
+        for (j = 2; j < c->argc; j++) {
+            if ((slot = getSlotOrReply(c,c->argv[j])) == C_ERR) {
+                zfree(slots);
+                return;
+            }
+        }
+        /* Check that the slots are not already busy. */
+        for (j = 2; j < c->argc; j++) {
+            slot = getSlotOrReply(c,c->argv[j]);
+            if (checkSlotAssignmentsOrReply(c, slots, del, slot, slot) == C_ERR) {
+                zfree(slots);
+                return;
+            }
+        }
+        clusterUpdateSlots(c, slots, del);    
+        zfree(slots);
+        clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG);
+        addReply(c,shared.ok);
+    } else if ((!strcasecmp(c->argv[1]->ptr,"addslotsrange") ||
+               !strcasecmp(c->argv[1]->ptr,"delslotsrange")) && c->argc >= 4) {
+        if (c->argc % 2 == 1) {
+            addReplyErrorArity(c);
+            return;
+        }
+        /* CLUSTER ADDSLOTSRANGE <start slot> <end slot> [<start slot> <end slot> ...] */
+        /* CLUSTER DELSLOTSRANGE <start slot> <end slot> [<start slot> <end slot> ...] */
+        int j, startslot, endslot;
+        unsigned char *slots = zmalloc(CLUSTER_SLOTS);
+        int del = !strcasecmp(c->argv[1]->ptr,"delslotsrange");
+
+        memset(slots,0,CLUSTER_SLOTS);
+        /* Check that all the arguments are parseable and that all the
+         * slots are not already busy. */
+        for (j = 2; j < c->argc; j += 2) {
+            if ((startslot = getSlotOrReply(c,c->argv[j])) == C_ERR) {
+                zfree(slots);
+                return;
+            }
+            if ((endslot = getSlotOrReply(c,c->argv[j+1])) == C_ERR) {
+                zfree(slots);
+                return;
+            }
+            if (startslot > endslot) {
+                addReplyErrorFormat(c,"start slot number %d is greater than end slot number %d", startslot, endslot);
+                zfree(slots);
+                return;
+            }
+
+            if (checkSlotAssignmentsOrReply(c, slots, del, startslot, endslot) == C_ERR) {
+                zfree(slots);
+                return;
+            }
+        }
+        clusterUpdateSlots(c, slots, del);
+        zfree(slots);
+        clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG);
+        addReply(c,shared.ok);
+    } else if (!strcasecmp(c->argv[1]->ptr,"setslot") && c->argc >= 4) {
+        /* SETSLOT 10 MIGRATING <node ID> */
+        /* SETSLOT 10 IMPORTING <node ID> */
+        /* SETSLOT 10 STABLE */
+        /* SETSLOT 10 NODE <node ID> */
+        int slot;
+        clusterNode *n;
+
+        if (nodeIsSlave(myself)) {
+            addReplyError(c,"Please use SETSLOT only with masters.");
+            return;
+        }
+
+        if ((slot = getSlotOrReply(c,c->argv[2])) == -1) return;
+
+        if (!strcasecmp(c->argv[3]->ptr,"migrating") && c->argc == 5) {
+            if (server.cluster->slots[slot] != myself) {
+                addReplyErrorFormat(c,"I'm not the owner of hash slot %u",slot);
+                return;
+            }
+            n = clusterLookupNode(c->argv[4]->ptr, sdslen(c->argv[4]->ptr));
+            if (n == NULL) {
+                addReplyErrorFormat(c,"I don't know about node %s",
+                    (char*)c->argv[4]->ptr);
+                return;
+            }
+            if (nodeIsSlave(n)) {
+                addReplyError(c,"Target node is not a master");
+                return;
+            }
+            server.cluster->migrating_slots_to[slot] = n;
+        } else if (!strcasecmp(c->argv[3]->ptr,"importing") && c->argc == 5) {
+            if (server.cluster->slots[slot] == myself) {
+                addReplyErrorFormat(c,
+                    "I'm already the owner of hash slot %u",slot);
+                return;
+            }
+            n = clusterLookupNode(c->argv[4]->ptr, sdslen(c->argv[4]->ptr));
+            if (n == NULL) {
+                addReplyErrorFormat(c,"I don't know about node %s",
+                    (char*)c->argv[4]->ptr);
+                return;
+            }
+            if (nodeIsSlave(n)) {
+                addReplyError(c,"Target node is not a master");
+                return;
+            }
+            server.cluster->importing_slots_from[slot] = n;
+        } else if (!strcasecmp(c->argv[3]->ptr,"stable") && c->argc == 4) {
+            /* CLUSTER SETSLOT <SLOT> STABLE */
+            server.cluster->importing_slots_from[slot] = NULL;
+            server.cluster->migrating_slots_to[slot] = NULL;
+        } else if (!strcasecmp(c->argv[3]->ptr,"node") && c->argc == 5) {
+            /* CLUSTER SETSLOT <SLOT> NODE <NODE ID> */
+            n = clusterLookupNode(c->argv[4]->ptr, sdslen(c->argv[4]->ptr));
+            if (!n) {
+                addReplyErrorFormat(c,"Unknown node %s",
+                    (char*)c->argv[4]->ptr);
+                return;
+            }
+            if (nodeIsSlave(n)) {
+                addReplyError(c,"Target node is not a master");
+                return;
+            }
+            /* If this hash slot was served by 'myself' before to switch
+             * make sure there are no longer local keys for this hash slot. */
+            if (server.cluster->slots[slot] == myself && n != myself) {
+                if (countKeysInSlot(slot) != 0) {
+                    addReplyErrorFormat(c,
+                        "Can't assign hashslot %d to a different node "
+                        "while I still hold keys for this hash slot.", slot);
+                    return;
+                }
+            }
+            /* If this slot is in migrating status but we have no keys
+             * for it assigning the slot to another node will clear
+             * the migrating status. */
+            if (countKeysInSlot(slot) == 0 &&
+                server.cluster->migrating_slots_to[slot])
+                server.cluster->migrating_slots_to[slot] = NULL;
+
+            int slot_was_mine = server.cluster->slots[slot] == myself;
+            clusterDelSlot(slot);
+            clusterAddSlot(n,slot);
+
+            /* If we are a master left without slots, we should turn into a
+             * replica of the new master. */
+            if (slot_was_mine &&
+                n != myself &&
+                myself->numslots == 0 &&
+                server.cluster_allow_replica_migration)
+            {
+                serverLog(LL_NOTICE,
+                          "Configuration change detected. Reconfiguring myself "
+                          "as a replica of %.40s (%s)", n->name, n->human_nodename);
+                clusterSetMaster(n);
+                clusterDoBeforeSleep(CLUSTER_TODO_SAVE_CONFIG |
+                                     CLUSTER_TODO_UPDATE_STATE |
+                                     CLUSTER_TODO_FSYNC_CONFIG);
+            }
+
+            /* If this node was importing this slot, assigning the slot to
+             * itself also clears the importing status. */
+            if (n == myself &&
+                server.cluster->importing_slots_from[slot])
+            {
+                /* This slot was manually migrated, set this node configEpoch
+                 * to a new epoch so that the new version can be propagated
+                 * by the cluster.
+                 *
+                 * Note that if this ever results in a collision with another
+                 * node getting the same configEpoch, for example because a
+                 * failover happens at the same time we close the slot, the
+                 * configEpoch collision resolution will fix it assigning
+                 * a different epoch to each node. */
+                if (clusterBumpConfigEpochWithoutConsensus() == C_OK) {
+                    serverLog(LL_NOTICE,
+                        "configEpoch updated after importing slot %d", slot);
+                }
+                server.cluster->importing_slots_from[slot] = NULL;
+                /* After importing this slot, let the other nodes know as
+                 * soon as possible. */
+                clusterBroadcastPong(CLUSTER_BROADCAST_ALL);
+            }
+        } else {
+            addReplyError(c,
+                "Invalid CLUSTER SETSLOT action or number of arguments. Try CLUSTER HELP");
+            return;
+        }
+        clusterDoBeforeSleep(CLUSTER_TODO_SAVE_CONFIG|CLUSTER_TODO_UPDATE_STATE);
+        addReply(c,shared.ok);
+    } else if (!strcasecmp(c->argv[1]->ptr,"bumpepoch") && c->argc == 2) {
+        /* CLUSTER BUMPEPOCH */
+        int retval = clusterBumpConfigEpochWithoutConsensus();
+        sds reply = sdscatprintf(sdsempty(),"+%s %llu\r\n",
+                (retval == C_OK) ? "BUMPED" : "STILL",
+                (unsigned long long) myself->configEpoch);
+        addReplySds(c,reply);
+    } else if (!strcasecmp(c->argv[1]->ptr,"info") && c->argc == 2) {
+        /* CLUSTER INFO */
+       
+        sds info = genClusterInfoString();
+
+        /* Produce the reply protocol. */
+        addReplyVerbatim(c,info,sdslen(info),"txt");
+        sdsfree(info);
+    } else if (!strcasecmp(c->argv[1]->ptr,"saveconfig") && c->argc == 2) {
+        int retval = clusterSaveConfig(1);
+
+        if (retval == 0)
+            addReply(c,shared.ok);
+        else
+            addReplyErrorFormat(c,"error saving the cluster node config: %s",
+                strerror(errno));
+    } else if (!strcasecmp(c->argv[1]->ptr,"keyslot") && c->argc == 3) {
+        /* CLUSTER KEYSLOT <key> */
+        sds key = c->argv[2]->ptr;
+
+        addReplyLongLong(c,keyHashSlot(key,sdslen(key)));
+    } else if (!strcasecmp(c->argv[1]->ptr,"countkeysinslot") && c->argc == 3) {
+        /* CLUSTER COUNTKEYSINSLOT <slot> */
+        long long slot;
+
+        if (getLongLongFromObjectOrReply(c,c->argv[2],&slot,NULL) != C_OK)
+            return;
+        if (slot < 0 || slot >= CLUSTER_SLOTS) {
+            addReplyError(c,"Invalid slot");
+            return;
+        }
+        addReplyLongLong(c,countKeysInSlot(slot));
+    } else if (!strcasecmp(c->argv[1]->ptr,"getkeysinslot") && c->argc == 4) {
+        /* CLUSTER GETKEYSINSLOT <slot> <count> */
+        long long maxkeys, slot;
+
+        if (getLongLongFromObjectOrReply(c,c->argv[2],&slot,NULL) != C_OK)
+            return;
+        if (getLongLongFromObjectOrReply(c,c->argv[3],&maxkeys,NULL)
+            != C_OK)
+            return;
+        if (slot < 0 || slot >= CLUSTER_SLOTS || maxkeys < 0) {
+            addReplyError(c,"Invalid slot or number of keys");
+            return;
+        }
+
+        unsigned int keys_in_slot = countKeysInSlot(slot);
+        unsigned int numkeys = maxkeys > keys_in_slot ? keys_in_slot : maxkeys;
+        addReplyArrayLen(c,numkeys);
+        dictEntry *de = (*server.db->slots_to_keys).by_slot[slot].head;
+        for (unsigned int j = 0; j < numkeys; j++) {
+            serverAssert(de != NULL);
+            sds sdskey = dictGetKey(de);
+            addReplyBulkCBuffer(c, sdskey, sdslen(sdskey));
+            de = dictEntryNextInSlot(de);
+        }
+    } else if (!strcasecmp(c->argv[1]->ptr,"forget") && c->argc == 3) {
+        /* CLUSTER FORGET <NODE ID> */
+        clusterNode *n = clusterLookupNode(c->argv[2]->ptr, sdslen(c->argv[2]->ptr));
+        if (!n) {
+            if (clusterBlacklistExists((char*)c->argv[2]->ptr))
+                /* Already forgotten. The deletion may have been gossipped by
+                 * another node, so we pretend it succeeded. */
+                addReply(c,shared.ok);
+            else
+                addReplyErrorFormat(c,"Unknown node %s", (char*)c->argv[2]->ptr);
+            return;
+        } else if (n == myself) {
+            addReplyError(c,"I tried hard but I can't forget myself...");
+            return;
+        } else if (nodeIsSlave(myself) && myself->slaveof == n) {
+            addReplyError(c,"Can't forget my master!");
+            return;
+        }
+        clusterBlacklistAddNode(n);
+        clusterDelNode(n);
+        clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|
+                             CLUSTER_TODO_SAVE_CONFIG);
+        addReply(c,shared.ok);
+    } else if (!strcasecmp(c->argv[1]->ptr,"replicate") && c->argc == 3) {
+        /* CLUSTER REPLICATE <NODE ID> */
+        /* Lookup the specified node in our table. */
+        clusterNode *n = clusterLookupNode(c->argv[2]->ptr, sdslen(c->argv[2]->ptr));
+        if (!n) {
+            addReplyErrorFormat(c,"Unknown node %s", (char*)c->argv[2]->ptr);
+            return;
+        }
+
+        /* I can't replicate myself. */
+        if (n == myself) {
+            addReplyError(c,"Can't replicate myself");
+            return;
+        }
+
+        /* Can't replicate a slave. */
+        if (nodeIsSlave(n)) {
+            addReplyError(c,"I can only replicate a master, not a replica.");
+            return;
+        }
+
+        /* If the instance is currently a master, it should have no assigned
+         * slots nor keys to accept to replicate some other node.
+         * Slaves can switch to another master without issues. */
+        if (nodeIsMaster(myself) &&
+            (myself->numslots != 0 || dictSize(server.db[0].dict) != 0)) {
+            addReplyError(c,
+                "To set a master the node must be empty and "
+                "without assigned slots.");
+            return;
+        }
+
+        /* Set the master. */
+        clusterSetMaster(n);
+        clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG);
+        addReply(c,shared.ok);
+    } else if ((!strcasecmp(c->argv[1]->ptr,"slaves") ||
+                !strcasecmp(c->argv[1]->ptr,"replicas")) && c->argc == 3) {
+        /* CLUSTER SLAVES <NODE ID> */
+        /* CLUSTER REPLICAS <NODE ID> */
+        clusterNode *n = clusterLookupNode(c->argv[2]->ptr, sdslen(c->argv[2]->ptr));
+        int j;
+
+        /* Lookup the specified node in our table. */
+        if (!n) {
+            addReplyErrorFormat(c,"Unknown node %s", (char*)c->argv[2]->ptr);
+            return;
+        }
+
+        if (nodeIsSlave(n)) {
+            addReplyError(c,"The specified node is not a master");
+            return;
+        }
+
+        /* Report TLS ports to TLS client, and report non-TLS port to non-TLS client. */
+        addReplyArrayLen(c,n->numslaves);
+        for (j = 0; j < n->numslaves; j++) {
+            sds ni = clusterGenNodeDescription(c, n->slaves[j], shouldReturnTlsInfo());
+            addReplyBulkCString(c,ni);
+            sdsfree(ni);
+        }
+    } else if (!strcasecmp(c->argv[1]->ptr,"count-failure-reports") &&
+               c->argc == 3)
+    {
+        /* CLUSTER COUNT-FAILURE-REPORTS <NODE ID> */
+        clusterNode *n = clusterLookupNode(c->argv[2]->ptr, sdslen(c->argv[2]->ptr));
+
+        if (!n) {
+            addReplyErrorFormat(c,"Unknown node %s", (char*)c->argv[2]->ptr);
+            return;
+        } else {
+            addReplyLongLong(c,clusterNodeFailureReportsCount(n));
+        }
+    } else if (!strcasecmp(c->argv[1]->ptr,"failover") &&
+               (c->argc == 2 || c->argc == 3))
+    {
+        /* CLUSTER FAILOVER [FORCE|TAKEOVER] */
+        int force = 0, takeover = 0;
+
+        if (c->argc == 3) {
+            if (!strcasecmp(c->argv[2]->ptr,"force")) {
+                force = 1;
+            } else if (!strcasecmp(c->argv[2]->ptr,"takeover")) {
+                takeover = 1;
+                force = 1; /* Takeover also implies force. */
+            } else {
+                addReplyErrorObject(c,shared.syntaxerr);
+                return;
+            }
+        }
+
+        /* Check preconditions. */
+        if (nodeIsMaster(myself)) {
+            addReplyError(c,"You should send CLUSTER FAILOVER to a replica");
+            return;
+        } else if (myself->slaveof == NULL) {
+            addReplyError(c,"I'm a replica but my master is unknown to me");
+            return;
+        } else if (!force &&
+                   (nodeFailed(myself->slaveof) ||
+                    myself->slaveof->link == NULL))
+        {
+            addReplyError(c,"Master is down or failed, "
+                            "please use CLUSTER FAILOVER FORCE");
+            return;
+        }
+        resetManualFailover();
+        server.cluster->mf_end = mstime() + CLUSTER_MF_TIMEOUT;
+
+        if (takeover) {
+            /* A takeover does not perform any initial check. It just
+             * generates a new configuration epoch for this node without
+             * consensus, claims the master's slots, and broadcast the new
+             * configuration. */
+            serverLog(LL_NOTICE,"Taking over the master (user request).");
+            clusterBumpConfigEpochWithoutConsensus();
+            clusterFailoverReplaceYourMaster();
+        } else if (force) {
+            /* If this is a forced failover, we don't need to talk with our
+             * master to agree about the offset. We just failover taking over
+             * it without coordination. */
+            serverLog(LL_NOTICE,"Forced failover user request accepted.");
+            server.cluster->mf_can_start = 1;
+        } else {
+            serverLog(LL_NOTICE,"Manual failover user request accepted.");
+            clusterSendMFStart(myself->slaveof);
+        }
+        addReply(c,shared.ok);
+    } else if (!strcasecmp(c->argv[1]->ptr,"set-config-epoch") && c->argc == 3)
+    {
+        /* CLUSTER SET-CONFIG-EPOCH <epoch>
+         *
+         * The user is allowed to set the config epoch only when a node is
+         * totally fresh: no config epoch, no other known node, and so forth.
+         * This happens at cluster creation time to start with a cluster where
+         * every node has a different node ID, without to rely on the conflicts
+         * resolution system which is too slow when a big cluster is created. */
+        long long epoch;
+
+        if (getLongLongFromObjectOrReply(c,c->argv[2],&epoch,NULL) != C_OK)
+            return;
+
+        if (epoch < 0) {
+            addReplyErrorFormat(c,"Invalid config epoch specified: %lld",epoch);
+        } else if (dictSize(server.cluster->nodes) > 1) {
+            addReplyError(c,"The user can assign a config epoch only when the "
+                            "node does not know any other node.");
+        } else if (myself->configEpoch != 0) {
+            addReplyError(c,"Node config epoch is already non-zero");
+        } else {
+            myself->configEpoch = epoch;
+            serverLog(LL_NOTICE,
+                "configEpoch set to %llu via CLUSTER SET-CONFIG-EPOCH",
+                (unsigned long long) myself->configEpoch);
+
+            if (server.cluster->currentEpoch < (uint64_t)epoch)
+                server.cluster->currentEpoch = epoch;
+            /* No need to fsync the config here since in the unlucky event
+             * of a failure to persist the config, the conflict resolution code
+             * will assign a unique config to this node. */
+            clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|
+                                 CLUSTER_TODO_SAVE_CONFIG);
+            addReply(c,shared.ok);
+        }
+    } else if (!strcasecmp(c->argv[1]->ptr,"reset") &&
+               (c->argc == 2 || c->argc == 3))
+    {
+        /* CLUSTER RESET [SOFT|HARD] */
+        int hard = 0;
+
+        /* Parse soft/hard argument. Default is soft. */
+        if (c->argc == 3) {
+            if (!strcasecmp(c->argv[2]->ptr,"hard")) {
+                hard = 1;
+            } else if (!strcasecmp(c->argv[2]->ptr,"soft")) {
+                hard = 0;
+            } else {
+                addReplyErrorObject(c,shared.syntaxerr);
+                return;
+            }
+        }
+
+        /* Slaves can be reset while containing data, but not master nodes
+         * that must be empty. */
+        if (nodeIsMaster(myself) && dictSize(c->db->dict) != 0) {
+            addReplyError(c,"CLUSTER RESET can't be called with "
+                            "master nodes containing keys");
+            return;
+        }
+        clusterReset(hard);
+        addReply(c,shared.ok);
+    } else if (!strcasecmp(c->argv[1]->ptr,"links") && c->argc == 2) {
+        /* CLUSTER LINKS */
+        addReplyClusterLinksDescription(c);
+    } else {
+        addReplySubcommandSyntaxError(c);
+        return;
+    }
+}
 ```
 
 **逐段阅读抓手：**本节展示控制入口，不能把CLUSTER命令本身当作全部数据复制代码。
@@ -9426,7 +12122,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_stream.c · 7.2.6 · L408–L527](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L408-L527)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_stream.c · 7.2.6 · L408–L670](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L408-L670)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Adds a new item into the stream 's' having the specified number of
@@ -9549,6 +12245,149 @@ int streamAppendItem(stream *s, robj **argv, int64_t numfields, streamID *added_
      * The "0" entry at the end is the same as the 'lp-count' entry in the
      * regular stream entries (see below), and marks the fact that there are
      * no more entries, when we scan the stream from right to left. */
+
+    /* First of all, check if we can append to the current macro node or
+     * if we need to switch to the next one. 'lp' will be set to NULL if
+     * the current node is full. */
+    if (lp != NULL) {
+        int new_node = 0;
+        size_t node_max_bytes = server.stream_node_max_bytes;
+        if (node_max_bytes == 0 || node_max_bytes > STREAM_LISTPACK_MAX_SIZE)
+            node_max_bytes = STREAM_LISTPACK_MAX_SIZE;
+        if (lp_bytes + totelelen >= node_max_bytes) {
+            new_node = 1;
+        } else if (server.stream_node_max_entries) {
+            unsigned char *lp_ele = lpFirst(lp);
+            /* Count both live entries and deleted ones. */
+            int64_t count = lpGetInteger(lp_ele) + lpGetInteger(lpNext(lp,lp_ele));
+            if (count >= server.stream_node_max_entries) new_node = 1;
+        }
+
+        if (new_node) {
+            /* Shrink extra pre-allocated memory */
+            lp = lpShrinkToFit(lp);
+            if (ri.data != lp)
+                raxInsert(s->rax,ri.key,ri.key_len,lp,NULL);
+            lp = NULL;
+        }
+    }
+
+    int flags = STREAM_ITEM_FLAG_NONE;
+    if (lp == NULL) {
+        master_id = id;
+        streamEncodeID(rax_key,&id);
+        /* Create the listpack having the master entry ID and fields.
+         * Pre-allocate some bytes when creating listpack to avoid realloc on
+         * every XADD. Since listpack.c uses malloc_size, it'll grow in steps,
+         * and won't realloc on every XADD.
+         * When listpack reaches max number of entries, we'll shrink the
+         * allocation to fit the data. */
+        size_t prealloc = STREAM_LISTPACK_MAX_PRE_ALLOCATE;
+        if (server.stream_node_max_bytes > 0 && server.stream_node_max_bytes < prealloc) {
+            prealloc = server.stream_node_max_bytes;
+        }
+        lp = lpNew(prealloc);
+        lp = lpAppendInteger(lp,1); /* One item, the one we are adding. */
+        lp = lpAppendInteger(lp,0); /* Zero deleted so far. */
+        lp = lpAppendInteger(lp,numfields);
+        for (int64_t i = 0; i < numfields; i++) {
+            sds field = argv[i*2]->ptr;
+            lp = lpAppend(lp,(unsigned char*)field,sdslen(field));
+        }
+        lp = lpAppendInteger(lp,0); /* Master entry zero terminator. */
+        raxInsert(s->rax,(unsigned char*)&rax_key,sizeof(rax_key),lp,NULL);
+        /* The first entry we insert, has obviously the same fields of the
+         * master entry. */
+        flags |= STREAM_ITEM_FLAG_SAMEFIELDS;
+    } else {
+        serverAssert(ri.key_len == sizeof(rax_key));
+        memcpy(rax_key,ri.key,sizeof(rax_key));
+
+        /* Read the master ID from the radix tree key. */
+        streamDecodeID(rax_key,&master_id);
+        unsigned char *lp_ele = lpFirst(lp);
+
+        /* Update count and skip the deleted fields. */
+        int64_t count = lpGetInteger(lp_ele);
+        lp = lpReplaceInteger(lp,&lp_ele,count+1);
+        lp_ele = lpNext(lp,lp_ele); /* seek deleted. */
+        lp_ele = lpNext(lp,lp_ele); /* seek master entry num fields. */
+
+        /* Check if the entry we are adding, have the same fields
+         * as the master entry. */
+        int64_t master_fields_count = lpGetInteger(lp_ele);
+        lp_ele = lpNext(lp,lp_ele);
+        if (numfields == master_fields_count) {
+            int64_t i;
+            for (i = 0; i < master_fields_count; i++) {
+                sds field = argv[i*2]->ptr;
+                int64_t e_len;
+                unsigned char buf[LP_INTBUF_SIZE];
+                unsigned char *e = lpGet(lp_ele,&e_len,buf);
+                /* Stop if there is a mismatch. */
+                if (sdslen(field) != (size_t)e_len ||
+                    memcmp(e,field,e_len) != 0) break;
+                lp_ele = lpNext(lp,lp_ele);
+            }
+            /* All fields are the same! We can compress the field names
+             * setting a single bit in the flags. */
+            if (i == master_fields_count) flags |= STREAM_ITEM_FLAG_SAMEFIELDS;
+        }
+    }
+
+    /* Populate the listpack with the new entry. We use the following
+     * encoding:
+     *
+     * +-----+--------+----------+-------+-------+-/-+-------+-------+--------+
+     * |flags|entry-id|num-fields|field-1|value-1|...|field-N|value-N|lp-count|
+     * +-----+--------+----------+-------+-------+-/-+-------+-------+--------+
+     *
+     * However if the SAMEFIELD flag is set, we have just to populate
+     * the entry with the values, so it becomes:
+     *
+     * +-----+--------+-------+-/-+-------+--------+
+     * |flags|entry-id|value-1|...|value-N|lp-count|
+     * +-----+--------+-------+-/-+-------+--------+
+     *
+     * The entry-id field is actually two separated fields: the ms
+     * and seq difference compared to the master entry.
+     *
+     * The lp-count field is a number that states the number of listpack pieces
+     * that compose the entry, so that it's possible to travel the entry
+     * in reverse order: we can just start from the end of the listpack, read
+     * the entry, and jump back N times to seek the "flags" field to read
+     * the stream full entry. */
+    lp = lpAppendInteger(lp,flags);
+    lp = lpAppendInteger(lp,id.ms - master_id.ms);
+    lp = lpAppendInteger(lp,id.seq - master_id.seq);
+    if (!(flags & STREAM_ITEM_FLAG_SAMEFIELDS))
+        lp = lpAppendInteger(lp,numfields);
+    for (int64_t i = 0; i < numfields; i++) {
+        sds field = argv[i*2]->ptr, value = argv[i*2+1]->ptr;
+        if (!(flags & STREAM_ITEM_FLAG_SAMEFIELDS))
+            lp = lpAppend(lp,(unsigned char*)field,sdslen(field));
+        lp = lpAppend(lp,(unsigned char*)value,sdslen(value));
+    }
+    /* Compute and store the lp-count field. */
+    int64_t lp_count = numfields;
+    lp_count += 3; /* Add the 3 fixed fields flags + ms-diff + seq-diff. */
+    if (!(flags & STREAM_ITEM_FLAG_SAMEFIELDS)) {
+        /* If the item is not compressed, it also has the fields other than
+         * the values, and an additional num-fields field. */
+        lp_count += numfields+1;
+    }
+    lp = lpAppendInteger(lp,lp_count);
+
+    /* Insert back into the tree in order to update the listpack pointer. */
+    if (ri.data != lp)
+        raxInsert(s->rax,(unsigned char*)&rax_key,sizeof(rax_key),lp,NULL);
+    s->length++;
+    s->entries_added++;
+    s->last_id = id;
+    if (s->length == 1) s->first_id = id;
+    if (added_id) *added_id = id;
+    return C_OK;
+}
 ```
 
 **逐段阅读抓手：**auto_id、use_id与seq_given参数表达不同输入；不要只读命令层字符串解析。
@@ -9570,7 +12409,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_stream.c · 7.2.6 · L2173–L2263](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L2173-L2263)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_stream.c · 7.2.6 · L2173–L2444](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L2173-L2444)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void xreadCommand(client *c) {
@@ -9664,6 +12503,187 @@ void xreadCommand(client *c) {
          * served with just the messages that will arrive into the stream
          * starting from now. */
         int id_idx = i - streams_arg - streams_count;
+        robj *key = c->argv[i-streams_count];
+        robj *o = lookupKeyRead(c->db,key);
+        if (checkType(c,o,OBJ_STREAM)) goto cleanup;
+        streamCG *group = NULL;
+
+        /* If a group was specified, than we need to be sure that the
+         * key and group actually exist. */
+        if (groupname) {
+            if (o == NULL ||
+                (group = streamLookupCG(o->ptr,groupname->ptr)) == NULL)
+            {
+                addReplyErrorFormat(c, "-NOGROUP No such key '%s' or consumer "
+                                       "group '%s' in XREADGROUP with GROUP "
+                                       "option",
+                                    (char*)key->ptr,(char*)groupname->ptr);
+                goto cleanup;
+            }
+            groups[id_idx] = group;
+        }
+
+        if (strcmp(c->argv[i]->ptr,"$") == 0) {
+            if (xreadgroup) {
+                addReplyError(c,"The $ ID is meaningless in the context of "
+                                "XREADGROUP: you want to read the history of "
+                                "this consumer by specifying a proper ID, or "
+                                "use the > ID to get new messages. The $ ID would "
+                                "just return an empty result set.");
+                goto cleanup;
+            }
+            if (o) {
+                stream *s = o->ptr;
+                ids[id_idx] = s->last_id;
+            } else {
+                ids[id_idx].ms = 0;
+                ids[id_idx].seq = 0;
+            }
+            continue;
+        } else if (strcmp(c->argv[i]->ptr,">") == 0) {
+            if (!xreadgroup) {
+                addReplyError(c,"The > ID can be specified only when calling "
+                                "XREADGROUP using the GROUP <group> "
+                                "<consumer> option.");
+                goto cleanup;
+            }
+            /* We use just the maximum ID to signal this is a ">" ID, anyway
+             * the code handling the blocking clients will have to update the
+             * ID later in order to match the changing consumer group last ID. */
+            ids[id_idx].ms = UINT64_MAX;
+            ids[id_idx].seq = UINT64_MAX;
+            continue;
+        }
+        if (streamParseStrictIDOrReply(c,c->argv[i],ids+id_idx,0,NULL) != C_OK)
+            goto cleanup;
+    }
+
+    /* Try to serve the client synchronously. */
+    size_t arraylen = 0;
+    void *arraylen_ptr = NULL;
+    for (int i = 0; i < streams_count; i++) {
+        robj *o = lookupKeyRead(c->db,c->argv[streams_arg+i]);
+        if (o == NULL) continue;
+        stream *s = o->ptr;
+        streamID *gt = ids+i; /* ID must be greater than this. */
+        int serve_synchronously = 0;
+        int serve_history = 0; /* True for XREADGROUP with ID != ">". */
+        streamConsumer *consumer = NULL; /* Unused if XREAD */
+        streamPropInfo spi = {c->argv[streams_arg+i],groupname}; /* Unused if XREAD */
+
+        /* Check if there are the conditions to serve the client
+         * synchronously. */
+        if (groups) {
+            /* If the consumer is blocked on a group, we always serve it
+             * synchronously (serving its local history) if the ID specified
+             * was not the special ">" ID. */
+            if (gt->ms != UINT64_MAX ||
+                gt->seq != UINT64_MAX)
+            {
+                serve_synchronously = 1;
+                serve_history = 1;
+            } else if (s->length) {
+                /* We also want to serve a consumer in a consumer group
+                 * synchronously in case the group top item delivered is smaller
+                 * than what the stream has inside. */
+                streamID maxid, *last = &groups[i]->last_id;
+                streamLastValidID(s, &maxid);
+                if (streamCompareID(&maxid, last) > 0) {
+                    serve_synchronously = 1;
+                    *gt = *last;
+                }
+            }
+            consumer = streamLookupConsumer(groups[i],consumername->ptr);
+            if (consumer == NULL) {
+                consumer = streamCreateConsumer(groups[i],consumername->ptr,
+                                                c->argv[streams_arg+i],
+                                                c->db->id,SCC_DEFAULT);
+                if (noack)
+                    streamPropagateConsumerCreation(c,spi.keyname,
+                                                    spi.groupname,
+                                                    consumer->name);
+            }
+            consumer->seen_time = commandTimeSnapshot();
+        } else if (s->length) {
+            /* For consumers without a group, we serve synchronously if we can
+             * actually provide at least one item from the stream. */
+            streamID maxid;
+            streamLastValidID(s, &maxid);
+            if (streamCompareID(&maxid, gt) > 0) {
+                serve_synchronously = 1;
+            }
+        }
+
+        if (serve_synchronously) {
+            arraylen++;
+            if (arraylen == 1) arraylen_ptr = addReplyDeferredLen(c);
+            /* streamReplyWithRange() handles the 'start' ID as inclusive,
+             * so start from the next ID, since we want only messages with
+             * IDs greater than start. */
+            streamID start = *gt;
+            streamIncrID(&start);
+
+            /* Emit the two elements sub-array consisting of the name
+             * of the stream and the data we extracted from it. */
+            if (c->resp == 2) addReplyArrayLen(c,2);
+            addReplyBulk(c,c->argv[streams_arg+i]);
+            
+            int flags = 0;
+            if (noack) flags |= STREAM_RWR_NOACK;
+            if (serve_history) flags |= STREAM_RWR_HISTORY;
+            streamReplyWithRange(c,s,&start,NULL,count,0,
+                                 groups ? groups[i] : NULL,
+                                 consumer, flags, &spi);
+            if (groups) server.dirty++;
+        }
+    }
+
+     /* We replied synchronously! Set the top array len and return to caller. */
+    if (arraylen) {
+        if (c->resp == 2)
+            setDeferredArrayLen(c,arraylen_ptr,arraylen);
+        else
+            setDeferredMapLen(c,arraylen_ptr,arraylen);
+        goto cleanup;
+    }
+
+    /* Block if needed. */
+    if (timeout != -1) {
+        /* If we are not allowed to block the client, the only thing
+         * we can do is treating it as a timeout (even with timeout 0). */
+        if (c->flags & CLIENT_DENY_BLOCKING) {
+            addReplyNullArray(c);
+            goto cleanup;
+        }
+        /* We change the '$' to the current last ID for this stream. this is
+         * Since later on when we unblock on arriving data - we would like to
+         * re-process the command and in case '$' stays we will spin-block forever.
+         */
+        for (int id_idx = 0; id_idx < streams_count; id_idx++) {
+            int arg_idx = id_idx + streams_arg + streams_count;
+            if (strcmp(c->argv[arg_idx]->ptr,"$") == 0) {
+                robj *argv_streamid = createObjectFromStreamID(&ids[id_idx]);
+                rewriteClientCommandArgument(c, arg_idx, argv_streamid);
+                decrRefCount(argv_streamid);
+            }
+        }
+        blockForKeys(c, BLOCKED_STREAM, c->argv+streams_arg, streams_count, timeout, xreadgroup);
+        goto cleanup;
+    }
+
+    /* No BLOCK option, nor any stream we can serve. Reply as with a
+     * timeout happened. */
+    addReplyNullArray(c);
+    /* Continue to cleanup... */
+
+cleanup: /* Cleanup. */
+
+    /* The command is propagated (in the READGROUP form) as a side effect
+     * of calling lower level APIs. So stop any implicit propagation. */
+    preventCommandPropagation(c);
+    if (ids != static_ids) zfree(ids);
+    zfree(groups);
+}
 ```
 
 **逐段阅读抓手：**GROUP相关分支修改消费状态；普通XREAD没有自动创建消费组PEL。
@@ -9820,7 +12840,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_stream.c · 7.2.6 · L3322–L3436](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L3322-L3436)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_stream.c · 7.2.6 · L3322–L3510](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L3322-L3510)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* XAUTOCLAIM <key> <group> <consumer> <min-idle-time> <start> [COUNT <count>] [JUSTID]
@@ -9938,6 +12958,80 @@ void xautoclaimCommand(client *c) {
             /* Clear this entry from the PEL, it no longer exists */
             raxRemove(group->pel,ri.key,ri.key_len,NULL);
             raxRemove(nack->consumer->pel,ri.key,ri.key_len,NULL);
+            streamFreeNACK(nack);
+            /* Remember the ID for later */
+            deleted_ids[deleted_id_num++] = id;
+            raxSeek(&ri,">=",ri.key,ri.key_len);
+            count--; /* Count is a limit of the command response size. */
+            continue;
+        }
+
+        if (minidle) {
+            mstime_t this_idle = now - nack->delivery_time;
+            if (this_idle < minidle)
+                continue;
+        }
+
+        if (nack->consumer != consumer) {
+            /* Remove the entry from the old consumer.
+             * Note that nack->consumer is NULL if we created the
+             * NACK above because of the FORCE option. */
+            if (nack->consumer)
+                raxRemove(nack->consumer->pel,ri.key,ri.key_len,NULL);
+        }
+
+        /* Update the consumer and idle time. */
+        nack->delivery_time = now;
+        /* Increment the delivery attempts counter unless JUSTID option provided */
+        if (!justid)
+            nack->delivery_count++;
+
+        if (nack->consumer != consumer) {
+            /* Add the entry in the new consumer local PEL. */
+            raxInsert(consumer->pel,ri.key,ri.key_len,nack,NULL);
+            nack->consumer = consumer;
+        }
+
+        /* Send the reply for this entry. */
+        if (justid) {
+            addReplyStreamID(c,&id);
+        } else {
+            serverAssert(streamReplyWithRange(c,o->ptr,&id,&id,1,0,NULL,NULL,STREAM_RWR_RAWENTRIES,NULL) == 1);
+        }
+        arraylen++;
+        count--;
+
+        consumer->active_time = commandTimeSnapshot();
+
+        /* Propagate this change. */
+        robj *idstr = createObjectFromStreamID(&id);
+        streamPropagateXCLAIM(c,c->argv[1],group,c->argv[2],idstr,nack);
+        decrRefCount(idstr);
+        server.dirty++;
+    }
+
+    /* We need to return the next entry as a cursor for the next XAUTOCLAIM call */
+    raxNext(&ri);
+
+    streamID endid;
+    if (raxEOF(&ri)) {
+        endid.ms = endid.seq = 0;
+    } else {
+        streamDecodeID(ri.key, &endid);
+    }
+    raxStop(&ri);
+
+    setDeferredArrayLen(c,arraylenptr,arraylen);
+    setDeferredReplyStreamID(c,endidptr,&endid);
+
+    addReplyArrayLen(c, deleted_id_num); /* reply[2] */
+    for (int i = 0; i < deleted_id_num; i++) {
+        addReplyStreamID(c, &deleted_ids[i]);
+    }
+    zfree(deleted_ids);
+
+    preventCommandPropagation(c);
+}
 ```
 
 **逐段阅读抓手：**COUNT和游标约束扫描工作；认领次数与业务尝试次数未必完全相同。
@@ -9964,7 +13058,7 @@ end
 A -. "比较布局 / 状态归属 / 确认点" .-> B
 ```
 
-**6.2.14源码：**[t_stream.c · L3042–L3151](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/t_stream.c#L3042-L3151)，连续节选。
+**6.2.14源码：**[t_stream.c · L3042–L3196](https://github.com/redis/redis/blob/91863dd854feba7f75ae58976a920acb192a5b67/src/t_stream.c#L3042-L3196)，连续节选。
 
 ```c
 /* XAUTOCLAIM <key> <group> <consumer> <min-idle-time> <start> [COUNT <count>] [JUSTID]
@@ -10077,9 +13171,54 @@ void xautoclaimCommand(client *c) {
         /* Update the consumer and idle time. */
         nack->delivery_time = now;
         /* Increment the delivery attempts counter unless JUSTID option provided */
+        if (!justid)
+            nack->delivery_count++;
+
+        if (nack->consumer != consumer) {
+            /* Add the entry in the new consumer local PEL. */
+            raxInsert(consumer->pel,ri.key,ri.key_len,nack,NULL);
+            nack->consumer = consumer;
+        }
+
+        /* Send the reply for this entry. */
+        if (justid) {
+            addReplyStreamID(c,&id);
+        } else {
+            size_t emitted =
+                streamReplyWithRange(c,o->ptr,&id,&id,1,0,NULL,NULL,
+                                     STREAM_RWR_RAWENTRIES,NULL);
+            if (!emitted)
+                addReplyNull(c);
+        }
+        arraylen++;
+        count--;
+
+        /* Propagate this change. */
+        robj *idstr = createObjectFromStreamID(&id);
+        streamPropagateXCLAIM(c,c->argv[1],group,c->argv[2],idstr,nack);
+        decrRefCount(idstr);
+        server.dirty++;
+    }
+
+    /* We need to return the next entry as a cursor for the next XAUTOCLAIM call */
+    raxNext(&ri);
+
+    streamID endid;
+    if (raxEOF(&ri)) {
+        endid.ms = endid.seq = 0;
+    } else {
+        streamDecodeID(ri.key, &endid);
+    }
+    raxStop(&ri);
+
+    setDeferredArrayLen(c,arraylenptr,arraylen);
+    setDeferredReplyStreamID(c,endidptr,&endid);
+
+    preventCommandPropagation(c);
+}
 ```
 
-**7.2.6源码：**[t_stream.c · L3322–L3436](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L3322-L3436)，连续节选。
+**7.2.6源码：**[t_stream.c · L3322–L3510](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L3322-L3510)，连续节选。
 
 ```c
 /* XAUTOCLAIM <key> <group> <consumer> <min-idle-time> <start> [COUNT <count>] [JUSTID]
@@ -10197,6 +13336,80 @@ void xautoclaimCommand(client *c) {
             /* Clear this entry from the PEL, it no longer exists */
             raxRemove(group->pel,ri.key,ri.key_len,NULL);
             raxRemove(nack->consumer->pel,ri.key,ri.key_len,NULL);
+            streamFreeNACK(nack);
+            /* Remember the ID for later */
+            deleted_ids[deleted_id_num++] = id;
+            raxSeek(&ri,">=",ri.key,ri.key_len);
+            count--; /* Count is a limit of the command response size. */
+            continue;
+        }
+
+        if (minidle) {
+            mstime_t this_idle = now - nack->delivery_time;
+            if (this_idle < minidle)
+                continue;
+        }
+
+        if (nack->consumer != consumer) {
+            /* Remove the entry from the old consumer.
+             * Note that nack->consumer is NULL if we created the
+             * NACK above because of the FORCE option. */
+            if (nack->consumer)
+                raxRemove(nack->consumer->pel,ri.key,ri.key_len,NULL);
+        }
+
+        /* Update the consumer and idle time. */
+        nack->delivery_time = now;
+        /* Increment the delivery attempts counter unless JUSTID option provided */
+        if (!justid)
+            nack->delivery_count++;
+
+        if (nack->consumer != consumer) {
+            /* Add the entry in the new consumer local PEL. */
+            raxInsert(consumer->pel,ri.key,ri.key_len,nack,NULL);
+            nack->consumer = consumer;
+        }
+
+        /* Send the reply for this entry. */
+        if (justid) {
+            addReplyStreamID(c,&id);
+        } else {
+            serverAssert(streamReplyWithRange(c,o->ptr,&id,&id,1,0,NULL,NULL,STREAM_RWR_RAWENTRIES,NULL) == 1);
+        }
+        arraylen++;
+        count--;
+
+        consumer->active_time = commandTimeSnapshot();
+
+        /* Propagate this change. */
+        robj *idstr = createObjectFromStreamID(&id);
+        streamPropagateXCLAIM(c,c->argv[1],group,c->argv[2],idstr,nack);
+        decrRefCount(idstr);
+        server.dirty++;
+    }
+
+    /* We need to return the next entry as a cursor for the next XAUTOCLAIM call */
+    raxNext(&ri);
+
+    streamID endid;
+    if (raxEOF(&ri)) {
+        endid.ms = endid.seq = 0;
+    } else {
+        streamDecodeID(ri.key, &endid);
+    }
+    raxStop(&ri);
+
+    setDeferredArrayLen(c,arraylenptr,arraylen);
+    setDeferredReplyStreamID(c,endidptr,&endid);
+
+    addReplyArrayLen(c, deleted_id_num); /* reply[2] */
+    for (int i = 0; i < deleted_id_num; i++) {
+        addReplyStreamID(c, &deleted_ids[i]);
+    }
+    zfree(deleted_ids);
+
+    preventCommandPropagation(c);
+}
 ```
 
 **对照抓手：**如果只是字段重排或函数拆分，说明语义延续；如果新增后端、确认点或协议，则明确它何时启用、状态存在哪里、失败怎样收尾。
@@ -10227,9 +13440,10 @@ stateDiagram-v2
 
 ```
 
-**固定7.2.6源码：**[stream.h · L92–L104](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/stream.h#L92-L104)。连续原文窗口，完整分支见链接。
+**固定7.2.6源码：**[stream.h · L91–L104](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/stream.h#L91-L104)。连续原文窗口，完整分支见链接。
 
 ```c
+/* Pending (yet not acknowledged) message in a consumer group. */
 typedef struct streamNACK {
     mstime_t delivery_time;     /* Last time this message was delivered. */
     uint64_t delivery_count;    /* Number of times this message was delivered.*/
@@ -10302,7 +13516,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_string.c · 7.2.6 · L84–L141](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_string.c#L84-L141)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_string.c · 7.2.6 · L84–L150](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_string.c#L84-L150)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire, int unit, robj *ok_reply, robj *abort_reply) {
@@ -10363,6 +13577,15 @@ void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire,
             /* Skip GET which may be repeated multiple times. */
             if (j >= 3 &&
                 (a[0] == 'g' || a[0] == 'G') &&
+                (a[1] == 'e' || a[1] == 'E') &&
+                (a[2] == 't' || a[2] == 'T') && a[3] == '\0')
+                continue;
+            argv[argc++] = c->argv[j];
+            incrRefCount(c->argv[j]);
+        }
+        replaceClientCommandVector(c, argc, argv);
+    }
+}
 ```
 
 **逐段阅读抓手：**SET条件只检查Redis内状态；外部事实必须由应用协议维护。
@@ -10384,7 +13607,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_hash.c · 7.2.6 · L200–L234](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L200-L234)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_hash.c · 7.2.6 · L200–L271](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_hash.c#L200-L271)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 int hashTypeSet(robj *o, sds field, sds value, int flags) {
@@ -10397,7 +13620,7 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
         if (sdslen(field) > server.hash_max_listpack_value || sdslen(value) > server.hash_max_listpack_value)
             hashTypeConvert(o, OBJ_ENCODING_HT);
     }
-
+    
     if (o->encoding == OBJ_ENCODING_LISTPACK) {
         unsigned char *zl, *fptr, *vptr;
 
@@ -10422,6 +13645,43 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
             zl = lpAppend(zl, (unsigned char*)value, sdslen(value));
         }
         o->ptr = zl;
+
+        /* Check if the listpack needs to be converted to a hash table */
+        if (hashTypeLength(o) > server.hash_max_listpack_entries)
+            hashTypeConvert(o, OBJ_ENCODING_HT);
+    } else if (o->encoding == OBJ_ENCODING_HT) {
+        dict *ht = o->ptr;
+        dictEntry *de, *existing;
+        sds v;
+        if (flags & HASH_SET_TAKE_VALUE) {
+            v = value;
+            value = NULL;
+        } else {
+            v = sdsdup(value);
+        }
+        de = dictAddRaw(ht, field, &existing);
+        if (de) {
+            dictSetVal(ht, de, v);
+            if (flags & HASH_SET_TAKE_FIELD) {
+                field = NULL;
+            } else {
+                dictSetKey(ht, de, sdsdup(field));
+            }
+        } else {
+            sdsfree(dictGetVal(existing));
+            dictSetVal(ht, existing, v);
+            update = 1;
+        }
+    } else {
+        serverPanic("Unknown hash encoding");
+    }
+
+    /* Free SDS strings we did not referenced elsewhere if the flags
+     * want this function to be responsible. */
+    if (flags & HASH_SET_TAKE_FIELD && field) sdsfree(field);
+    if (flags & HASH_SET_TAKE_VALUE && value) sdsfree(value);
+    return update;
+}
 ```
 
 **逐段阅读抓手：**HGETALL等大回复不是仅一次平均O(1)字典查找；关注总返回量。
@@ -10478,7 +13738,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[t_string.c · 7.2.6 · L84–L133](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_string.c#L84-L133)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_string.c · 7.2.6 · L84–L150](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_string.c#L84-L150)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire, int unit, robj *ok_reply, robj *abort_reply) {
@@ -10531,6 +13791,23 @@ void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire,
 
     /* Propagate without the GET argument (Isn't needed if we had expire since in that case we completely re-written the command argv) */
     if ((flags & OBJ_SET_GET) && !expire) {
+        int argc = 0;
+        int j;
+        robj **argv = zmalloc((c->argc-1)*sizeof(robj*));
+        for (j=0; j < c->argc; j++) {
+            char *a = c->argv[j]->ptr;
+            /* Skip GET which may be repeated multiple times. */
+            if (j >= 3 &&
+                (a[0] == 'g' || a[0] == 'G') &&
+                (a[1] == 'e' || a[1] == 'E') &&
+                (a[2] == 't' || a[2] == 'T') && a[3] == '\0')
+                continue;
+            argv[argc++] = c->argv[j];
+            incrRefCount(c->argv[j]);
+        }
+        replaceClientCommandVector(c, argc, argv);
+    }
+}
 ```
 
 **逐段阅读抓手：**重试GET或SET响应丢失时，要定义确认与恢复策略；不能只看本地变量。
@@ -10552,7 +13829,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[script.c · 7.2.6 · L508–L544](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L508-L544)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[script.c · 7.2.6 · L508–L573](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/script.c#L508-L573)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* Call a Redis command.
@@ -10592,6 +13869,35 @@ void scriptCall(scriptRunCtx *run_ctx, sds *err) {
     if (scriptVerifyWriteCommandAllow(run_ctx, err) != C_OK) {
         goto error;
     }
+
+    if (scriptVerifyOOM(run_ctx, err) != C_OK) {
+        goto error;
+    }
+
+    if (cmd->flags & CMD_WRITE) {
+        /* signify that we already change the data in this execution */
+        run_ctx->flags |= SCRIPT_WRITE_DIRTY;
+    }
+
+    if (scriptVerifyClusterState(run_ctx, c, run_ctx->original_client, err) != C_OK) {
+        goto error;
+    }
+
+    int call_flags = CMD_CALL_NONE;
+    if (run_ctx->repl_flags & PROPAGATE_AOF) {
+        call_flags |= CMD_CALL_PROPAGATE_AOF;
+    }
+    if (run_ctx->repl_flags & PROPAGATE_REPL) {
+        call_flags |= CMD_CALL_PROPAGATE_REPL;
+    }
+    call(c, call_flags);
+    serverAssert((c->flags & CLIENT_BLOCKED) == 0);
+    return;
+
+error:
+    afterErrorReply(c, *err, sdslen(*err), 0);
+    incrCommandStatsOnError(cmd, ERROR_COMMAND_REJECTED);
+}
 ```
 
 **逐段阅读抓手：**这里引用脚本命令公共执行路径，而非虚构一段上游不存在的锁脚本。
@@ -10613,7 +13919,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[replication.c · 7.2.6 · L3527–L3550](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3527-L3550)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[replication.c · 7.2.6 · L3527–L3559](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/replication.c#L3527-L3559)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* WAIT for N replicas to acknowledge the processing of our latest
@@ -10640,6 +13946,15 @@ void waitCommand(client *c) {
         addReplyLongLong(c,ackreplicas);
         return;
     }
+
+    /* Otherwise block the client and put it into our list of clients
+     * waiting for ack from slaves. */
+    blockForReplication(c,timeout,offset,numreplicas);
+
+    /* Make sure that the server will send an ACK request to all the slaves
+     * before returning to the event loop. */
+    replicationRequestAckFromSlaves();
+}
 ```
 
 **逐段阅读抓手：**WAIT不是锁线性一致证明；正确性必须跨到资源端验证。
@@ -10735,7 +14050,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-**源码对照：**[server.c · 7.2.6 · L1241–L1343](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L1241-L1343)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[server.c · 7.2.6 · L1241–L1527](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/server.c#L1241-L1527)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* This is our timer interrupt, called server.hz times per second.
@@ -10841,6 +14156,190 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
             if (finishShutdown() == C_OK) exit(0);
             /* Shutdown failed. Continue running. An error has been logged. */
         }
+    }
+
+    /* Show some info about non-empty databases */
+    if (server.verbosity <= LL_VERBOSE) {
+        run_with_period(5000) {
+            for (j = 0; j < server.dbnum; j++) {
+                long long size, used, vkeys;
+
+                size = dictSlots(server.db[j].dict);
+                used = dictSize(server.db[j].dict);
+                vkeys = dictSize(server.db[j].expires);
+                if (used || vkeys) {
+                    serverLog(LL_VERBOSE,"DB %d: %lld keys (%lld volatile) in %lld slots HT.",j,used,vkeys,size);
+                }
+            }
+        }
+    }
+
+    /* Show information about connected clients */
+    if (!server.sentinel_mode) {
+        run_with_period(5000) {
+            serverLog(LL_DEBUG,
+                "%lu clients connected (%lu replicas), %zu bytes in use",
+                listLength(server.clients)-listLength(server.slaves),
+                listLength(server.slaves),
+                zmalloc_used_memory());
+        }
+    }
+
+    /* We need to do a few operations on clients asynchronously. */
+    clientsCron();
+
+    /* Handle background operations on Redis databases. */
+    databasesCron();
+
+    /* Start a scheduled AOF rewrite if this was requested by the user while
+     * a BGSAVE was in progress. */
+    if (!hasActiveChildProcess() &&
+        server.aof_rewrite_scheduled &&
+        !aofRewriteLimited())
+    {
+        rewriteAppendOnlyFileBackground();
+    }
+
+    /* Check if a background saving or AOF rewrite in progress terminated. */
+    if (hasActiveChildProcess() || ldbPendingChildren())
+    {
+        run_with_period(1000) receiveChildInfo();
+        checkChildrenDone();
+    } else {
+        /* If there is not a background saving/rewrite in progress check if
+         * we have to save/rewrite now. */
+        for (j = 0; j < server.saveparamslen; j++) {
+            struct saveparam *sp = server.saveparams+j;
+
+            /* Save if we reached the given amount of changes,
+             * the given amount of seconds, and if the latest bgsave was
+             * successful or if, in case of an error, at least
+             * CONFIG_BGSAVE_RETRY_DELAY seconds already elapsed. */
+            if (server.dirty >= sp->changes &&
+                server.unixtime-server.lastsave > sp->seconds &&
+                (server.unixtime-server.lastbgsave_try >
+                 CONFIG_BGSAVE_RETRY_DELAY ||
+                 server.lastbgsave_status == C_OK))
+            {
+                serverLog(LL_NOTICE,"%d changes in %d seconds. Saving...",
+                    sp->changes, (int)sp->seconds);
+                rdbSaveInfo rsi, *rsiptr;
+                rsiptr = rdbPopulateSaveInfo(&rsi);
+                rdbSaveBackground(SLAVE_REQ_NONE,server.rdb_filename,rsiptr,RDBFLAGS_NONE);
+                break;
+            }
+        }
+
+        /* Trigger an AOF rewrite if needed. */
+        if (server.aof_state == AOF_ON &&
+            !hasActiveChildProcess() &&
+            server.aof_rewrite_perc &&
+            server.aof_current_size > server.aof_rewrite_min_size)
+        {
+            long long base = server.aof_rewrite_base_size ?
+                server.aof_rewrite_base_size : 1;
+            long long growth = (server.aof_current_size*100/base) - 100;
+            if (growth >= server.aof_rewrite_perc && !aofRewriteLimited()) {
+                serverLog(LL_NOTICE,"Starting automatic rewriting of AOF on %lld%% growth",growth);
+                rewriteAppendOnlyFileBackground();
+            }
+        }
+    }
+    /* Just for the sake of defensive programming, to avoid forgetting to
+     * call this function when needed. */
+    updateDictResizePolicy();
+
+
+    /* AOF postponed flush: Try at every cron cycle if the slow fsync
+     * completed. */
+    if ((server.aof_state == AOF_ON || server.aof_state == AOF_WAIT_REWRITE) &&
+        server.aof_flush_postponed_start)
+    {
+        flushAppendOnlyFile(0);
+    }
+
+    /* AOF write errors: in this case we have a buffer to flush as well and
+     * clear the AOF error in case of success to make the DB writable again,
+     * however to try every second is enough in case of 'hz' is set to
+     * a higher frequency. */
+    run_with_period(1000) {
+        if ((server.aof_state == AOF_ON || server.aof_state == AOF_WAIT_REWRITE) &&
+            server.aof_last_write_status == C_ERR) 
+            {
+                flushAppendOnlyFile(0);
+            }
+    }
+
+    /* Clear the paused actions state if needed. */
+    updatePausedActions();
+
+    /* Replication cron function -- used to reconnect to master,
+     * detect transfer failures, start background RDB transfers and so forth. 
+     * 
+     * If Redis is trying to failover then run the replication cron faster so
+     * progress on the handshake happens more quickly. */
+    if (server.failover_state != NO_FAILOVER) {
+        run_with_period(100) replicationCron();
+    } else {
+        run_with_period(1000) replicationCron();
+    }
+
+    /* Run the Redis Cluster cron. */
+    run_with_period(100) {
+        if (server.cluster_enabled) clusterCron();
+    }
+
+    /* Run the Sentinel timer if we are in sentinel mode. */
+    if (server.sentinel_mode) sentinelTimer();
+
+    /* Cleanup expired MIGRATE cached sockets. */
+    run_with_period(1000) {
+        migrateCloseTimedoutSockets();
+    }
+
+    /* Stop the I/O threads if we don't have enough pending work. */
+    stopThreadedIOIfNeeded();
+
+    /* Resize tracking keys table if needed. This is also done at every
+     * command execution, but we want to be sure that if the last command
+     * executed changes the value via CONFIG SET, the server will perform
+     * the operation even if completely idle. */
+    if (server.tracking_clients) trackingLimitUsedSlots();
+
+    /* Start a scheduled BGSAVE if the corresponding flag is set. This is
+     * useful when we are forced to postpone a BGSAVE because an AOF
+     * rewrite is in progress.
+     *
+     * Note: this code must be after the replicationCron() call above so
+     * make sure when refactoring this file to keep this order. This is useful
+     * because we want to give priority to RDB savings for replication. */
+    if (!hasActiveChildProcess() &&
+        server.rdb_bgsave_scheduled &&
+        (server.unixtime-server.lastbgsave_try > CONFIG_BGSAVE_RETRY_DELAY ||
+         server.lastbgsave_status == C_OK))
+    {
+        rdbSaveInfo rsi, *rsiptr;
+        rsiptr = rdbPopulateSaveInfo(&rsi);
+        if (rdbSaveBackground(SLAVE_REQ_NONE,server.rdb_filename,rsiptr,RDBFLAGS_NONE) == C_OK)
+            server.rdb_bgsave_scheduled = 0;
+    }
+
+    run_with_period(100) {
+        if (moduleCount()) modulesCron();
+    }
+
+    /* Fire the cron loop modules event. */
+    RedisModuleCronLoopV1 ei = {REDISMODULE_CRON_LOOP_VERSION,server.hz};
+    moduleFireServerEvent(REDISMODULE_EVENT_CRON_LOOP,
+                          0,
+                          &ei);
+
+    server.cronloops++;
+
+    server.el_cron_duration = getMonotonicUs() - cron_start;
+
+    return 1000/server.hz;
+}
 ```
 
 **逐段阅读抓手：**不要把全部维护都当后台线程；有些工作发生在主线程周期回调。
@@ -11024,7 +14523,7 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-**源码对照：**[t_stream.c · 7.2.6 · L2812–L2854](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L2812-L2854)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
+**源码对照：**[t_stream.c · 7.2.6 · L2812–L2867](https://github.com/redis/redis/blob/ae6a2aa95cd094b032e7a69b8b59f64dd1ed085f/src/t_stream.c#L2812-L2867)。连续节选，窗口可能结束于函数中间；完整函数及调用方见链接。
 
 ```c
 /* XACK <key> <group> <id> <id> ... <id>
@@ -11070,6 +14569,19 @@ void xackCommand(client *c) {
         /* Lookup the ID in the group PEL: it will have a reference to the
          * NACK structure that will have a reference to the consumer, so that
          * we are able to remove the entry from both PELs. */
+        streamNACK *nack = raxFind(group->pel,buf,sizeof(buf));
+        if (nack != raxNotFound) {
+            raxRemove(group->pel,buf,sizeof(buf),NULL);
+            raxRemove(nack->consumer->pel,buf,sizeof(buf),NULL);
+            streamFreeNACK(nack);
+            acknowledged++;
+            server.dirty++;
+        }
+    }
+    addReplyLongLong(c,acknowledged);
+cleanup:
+    if (ids != static_ids) zfree(ids);
+}
 ```
 
 **逐段阅读抓手：**XACK只管理PEL；外部业务事实来自应用数据库。

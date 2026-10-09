@@ -48,9 +48,50 @@ zone的10MB保存Key的状态，不是HTTP请求缓存。100个不同IP各自拥
 
 <!-- source-window:lookup -->
 
-[ngx_http_limit_req_lookup：已有Key的计算、拒绝与提交 · 原文件L445—L480](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L445-L480)
+[ngx_http_limit_req_lookup：已有Key的计算、拒绝与提交 · 原文件L404—L532](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L404-L532)
 
 ```c
+static ngx_int_t
+ngx_http_limit_req_lookup(ngx_http_limit_req_limit_t *limit, ngx_uint_t hash,
+    ngx_str_t *key, ngx_uint_t *ep, ngx_uint_t account)
+{
+    size_t                      size;
+    ngx_int_t                   rc, excess;
+    ngx_msec_t                  now;
+    ngx_msec_int_t              ms;
+    ngx_rbtree_node_t          *node, *sentinel;
+    ngx_http_limit_req_ctx_t   *ctx;
+    ngx_http_limit_req_node_t  *lr;
+
+    now = ngx_current_msec;
+
+    ctx = limit->shm_zone->data;
+
+    node = ctx->sh->rbtree.root;
+    sentinel = ctx->sh->rbtree.sentinel;
+
+    while (node != sentinel) {
+
+        if (hash < node->key) {
+            node = node->left;
+            continue;
+        }
+
+        if (hash > node->key) {
+            node = node->right;
+            continue;
+        }
+
+        /* hash == node->key */
+
+        lr = (ngx_http_limit_req_node_t *) &node->color;
+
+        rc = ngx_memn2cmp(key->data, lr->data, key->len, (size_t) lr->len);
+
+        if (rc == 0) {
+            ngx_queue_remove(&lr->queue);
+            ngx_queue_insert_head(&ctx->sh->queue, &lr->queue);
+
             ms = (ngx_msec_int_t) (now - lr->last);
 
             if (ms < -60000) {
@@ -87,27 +128,33 @@ zone的10MB保存Key的状态，不是HTTP请求缓存。100个不同IP各自拥
             ctx->node = lr;
 
             return NGX_AGAIN;
-```
+        }
 
-|量|配置或数学值|内部值|
-|---|---|---|
-|一个请求单位|1|1000|
-|速率|10r/s|10000|
-|burst阈值|5|5000|
-|delay阈值|2|2000|
-|时间差|200ms|200|
+        node = (rc < 0) ? node->left : node->right;
+    }
 
-把整数舍入暂时省略，已存在Key的公式是`E新=max(0,E旧+1−R×Δt)`，Δt以秒计。E旧=4，经过200ms，R=10，则E新=4+1−2=3。源码采用整数除法；`rate=Nr/m`还会先换算并截断为内部速率，因此纸面公式不是任意参数下的逐位精确结果。
+    *ep = 0;
 
-### 新Key、拒绝与时间回退
+    size = offsetof(ngx_rbtree_node_t, color)
+           + offsetof(ngx_http_limit_req_node_t, data)
+           + key->len;
 
-**这个公式不用于新节点的首个请求。**创建节点时源码直接将`lr->excess=0`。所以全新Key、同一毫秒、burst=5时，是首个请求加5个超额请求，共6个被接纳。长期空闲只会将负债消化到0，不会无限积累可以立即消费的额度。
+    ngx_http_limit_req_expire(ctx, 1);
 
-<!-- source-window:new-node -->
+    node = ngx_slab_alloc_locked(ctx->shpool, size);
 
-[ngx_http_limit_req_lookup：新节点的首个请求 · 原文件L508—L526](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L508-L526)
+    if (node == NULL) {
+        ngx_http_limit_req_expire(ctx, 0);
 
-```c
+        node = ngx_slab_alloc_locked(ctx->shpool, size);
+        if (node == NULL) {
+            ngx_log_error(NGX_LOG_ALERT, ngx_cycle->log, 0,
+                          "could not allocate node%s", ctx->shpool->log_ctx);
+            return NGX_ERROR;
+        }
+    }
+
+    node->key = hash;
 
     lr = (ngx_http_limit_req_node_t *) &node->color;
 
@@ -127,6 +174,162 @@ zone的10MB保存Key的状态，不是HTTP请求缓存。100个不同IP各自拥
     }
 
     lr->last = 0;
+    lr->count = 1;
+
+    ctx->node = lr;
+
+    return NGX_AGAIN;
+}
+```
+
+|量|配置或数学值|内部值|
+|---|---|---|
+|一个请求单位|1|1000|
+|速率|10r/s|10000|
+|burst阈值|5|5000|
+|delay阈值|2|2000|
+|时间差|200ms|200|
+
+把整数舍入暂时省略，已存在Key的公式是`E新=max(0,E旧+1−R×Δt)`，Δt以秒计。E旧=4，经过200ms，R=10，则E新=4+1−2=3。源码采用整数除法；`rate=Nr/m`还会先换算并截断为内部速率，因此纸面公式不是任意参数下的逐位精确结果。
+
+### 新Key、拒绝与时间回退
+
+**这个公式不用于新节点的首个请求。**创建节点时源码直接将`lr->excess=0`。所以全新Key、同一毫秒、burst=5时，是首个请求加5个超额请求，共6个被接纳。长期空闲只会将负债消化到0，不会无限积累可以立即消费的额度。
+
+<!-- source-window:new-node -->
+
+[ngx_http_limit_req_lookup：新节点的首个请求 · 原文件L404—L532](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L404-L532)
+
+```c
+static ngx_int_t
+ngx_http_limit_req_lookup(ngx_http_limit_req_limit_t *limit, ngx_uint_t hash,
+    ngx_str_t *key, ngx_uint_t *ep, ngx_uint_t account)
+{
+    size_t                      size;
+    ngx_int_t                   rc, excess;
+    ngx_msec_t                  now;
+    ngx_msec_int_t              ms;
+    ngx_rbtree_node_t          *node, *sentinel;
+    ngx_http_limit_req_ctx_t   *ctx;
+    ngx_http_limit_req_node_t  *lr;
+
+    now = ngx_current_msec;
+
+    ctx = limit->shm_zone->data;
+
+    node = ctx->sh->rbtree.root;
+    sentinel = ctx->sh->rbtree.sentinel;
+
+    while (node != sentinel) {
+
+        if (hash < node->key) {
+            node = node->left;
+            continue;
+        }
+
+        if (hash > node->key) {
+            node = node->right;
+            continue;
+        }
+
+        /* hash == node->key */
+
+        lr = (ngx_http_limit_req_node_t *) &node->color;
+
+        rc = ngx_memn2cmp(key->data, lr->data, key->len, (size_t) lr->len);
+
+        if (rc == 0) {
+            ngx_queue_remove(&lr->queue);
+            ngx_queue_insert_head(&ctx->sh->queue, &lr->queue);
+
+            ms = (ngx_msec_int_t) (now - lr->last);
+
+            if (ms < -60000) {
+                ms = 1;
+
+            } else if (ms < 0) {
+                ms = 0;
+            }
+
+            excess = lr->excess - ctx->rate * ms / 1000 + 1000;
+
+            if (excess < 0) {
+                excess = 0;
+            }
+
+            *ep = excess;
+
+            if ((ngx_uint_t) excess > limit->burst) {
+                return NGX_BUSY;
+            }
+
+            if (account) {
+                lr->excess = excess;
+
+                if (ms) {
+                    lr->last = now;
+                }
+
+                return NGX_OK;
+            }
+
+            lr->count++;
+
+            ctx->node = lr;
+
+            return NGX_AGAIN;
+        }
+
+        node = (rc < 0) ? node->left : node->right;
+    }
+
+    *ep = 0;
+
+    size = offsetof(ngx_rbtree_node_t, color)
+           + offsetof(ngx_http_limit_req_node_t, data)
+           + key->len;
+
+    ngx_http_limit_req_expire(ctx, 1);
+
+    node = ngx_slab_alloc_locked(ctx->shpool, size);
+
+    if (node == NULL) {
+        ngx_http_limit_req_expire(ctx, 0);
+
+        node = ngx_slab_alloc_locked(ctx->shpool, size);
+        if (node == NULL) {
+            ngx_log_error(NGX_LOG_ALERT, ngx_cycle->log, 0,
+                          "could not allocate node%s", ctx->shpool->log_ctx);
+            return NGX_ERROR;
+        }
+    }
+
+    node->key = hash;
+
+    lr = (ngx_http_limit_req_node_t *) &node->color;
+
+    lr->len = (u_short) key->len;
+    lr->excess = 0;
+
+    ngx_memcpy(lr->data, key->data, key->len);
+
+    ngx_rbtree_insert(&ctx->sh->rbtree, node);
+
+    ngx_queue_insert_head(&ctx->sh->queue, &lr->queue);
+
+    if (account) {
+        lr->last = now;
+        lr->count = 0;
+        return NGX_OK;
+    }
+
+    lr->last = 0;
+    lr->count = 1;
+
+    ctx->node = lr;
+
+    return NGX_AGAIN;
+}
 ```
 
 单zone拒绝在赋值`lr->excess`之前返回NGX_BUSY。假设已记账excess=5、last=t0，t0时第7次请求的候选值为6，被拒绝，但状态仍是5；t0+100ms再到一个请求，候选值为5+1−1=5，可以接纳。拒绝不会把负债永久推高。查找仍会更新节点在近期访问队列中的位置，因此不能把拒绝理解为完全不触及共享数据。
@@ -167,9 +370,18 @@ limit_req zone=perip burst=5 delay=2;
 
 <!-- source-window:delay-formula -->
 
-[ngx_http_limit_req_account：最后一项的初始延迟 · 原文件L544—L553](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L544-L553)
+[ngx_http_limit_req_account：最后一项的初始延迟 · 原文件L535—L606](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L535-L606)
 
 ```c
+static ngx_msec_t
+ngx_http_limit_req_account(ngx_http_limit_req_limit_t *limits, ngx_uint_t n,
+    ngx_uint_t *ep, ngx_http_limit_req_limit_t **limit)
+{
+    ngx_int_t                   excess;
+    ngx_msec_t                  now, delay, max_delay;
+    ngx_msec_int_t              ms;
+    ngx_http_limit_req_ctx_t   *ctx;
+    ngx_http_limit_req_node_t  *lr;
 
     excess = *ep;
 
@@ -180,6 +392,59 @@ limit_req zone=perip burst=5 delay=2;
         ctx = (*limit)->shm_zone->data;
         max_delay = (excess - (*limit)->delay) * 1000 / ctx->rate;
     }
+
+    while (n--) {
+        ctx = limits[n].shm_zone->data;
+        lr = ctx->node;
+
+        if (lr == NULL) {
+            continue;
+        }
+
+        ngx_shmtx_lock(&ctx->shpool->mutex);
+
+        now = ngx_current_msec;
+        ms = (ngx_msec_int_t) (now - lr->last);
+
+        if (ms < -60000) {
+            ms = 1;
+
+        } else if (ms < 0) {
+            ms = 0;
+        }
+
+        excess = lr->excess - ctx->rate * ms / 1000 + 1000;
+
+        if (excess < 0) {
+            excess = 0;
+        }
+
+        if (ms) {
+            lr->last = now;
+        }
+
+        lr->excess = excess;
+        lr->count--;
+
+        ngx_shmtx_unlock(&ctx->shpool->mutex);
+
+        ctx->node = NULL;
+
+        if ((ngx_uint_t) excess <= limits[n].delay) {
+            continue;
+        }
+
+        delay = (excess - limits[n].delay) * 1000 / ctx->rate;
+
+        if (delay > max_delay) {
+            max_delay = delay;
+            *ep = excess;
+            *limit = &limits[n];
+        }
+    }
+
+    return max_delay;
+}
 ```
 
 ### 突发仍需记账
@@ -188,13 +453,111 @@ limit_req zone=perip burst=5 delay=2;
 
 <!-- source-window:nodelay -->
 
-[ngx_http_limit_req：nodelay的阈值解析 · 原文件L1020—L1023](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L1020-L1023)
+[ngx_http_limit_req：nodelay的阈值解析 · 原文件L963—L1064](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L963-L1064)
 
 ```c
+static char *
+ngx_http_limit_req(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_http_limit_req_conf_t  *lrcf = conf;
+
+    ngx_int_t                    burst, delay;
+    ngx_str_t                   *value, s;
+    ngx_uint_t                   i;
+    ngx_shm_zone_t              *shm_zone;
+    ngx_http_limit_req_limit_t  *limit, *limits;
+
+    value = cf->args->elts;
+
+    shm_zone = NULL;
+    burst = 0;
+    delay = 0;
+
+    for (i = 1; i < cf->args->nelts; i++) {
+
+        if (ngx_strncmp(value[i].data, "zone=", 5) == 0) {
+
+            s.len = value[i].len - 5;
+            s.data = value[i].data + 5;
+
+            shm_zone = ngx_shared_memory_add(cf, &s, 0,
+                                             &ngx_http_limit_req_module);
+            if (shm_zone == NULL) {
+                return NGX_CONF_ERROR;
+            }
+
+            continue;
+        }
+
+        if (ngx_strncmp(value[i].data, "burst=", 6) == 0) {
+
+            burst = ngx_atoi(value[i].data + 6, value[i].len - 6);
+            if (burst <= 0) {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                   "invalid burst value \"%V\"", &value[i]);
+                return NGX_CONF_ERROR;
+            }
+
+            continue;
+        }
+
+        if (ngx_strncmp(value[i].data, "delay=", 6) == 0) {
+
+            delay = ngx_atoi(value[i].data + 6, value[i].len - 6);
+            if (delay <= 0) {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                   "invalid delay value \"%V\"", &value[i]);
+                return NGX_CONF_ERROR;
+            }
+
+            continue;
+        }
+
         if (ngx_strcmp(value[i].data, "nodelay") == 0) {
             delay = NGX_MAX_INT_T_VALUE / 1000;
             continue;
         }
+
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "invalid parameter \"%V\"", &value[i]);
+        return NGX_CONF_ERROR;
+    }
+
+    if (shm_zone == NULL) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "\"%V\" must have \"zone\" parameter",
+                           &cmd->name);
+        return NGX_CONF_ERROR;
+    }
+
+    limits = lrcf->limits.elts;
+
+    if (limits == NULL) {
+        if (ngx_array_init(&lrcf->limits, cf->pool, 1,
+                           sizeof(ngx_http_limit_req_limit_t))
+            != NGX_OK)
+        {
+            return NGX_CONF_ERROR;
+        }
+    }
+
+    for (i = 0; i < lrcf->limits.nelts; i++) {
+        if (shm_zone == limits[i].shm_zone) {
+            return "is duplicate";
+        }
+    }
+
+    limit = ngx_array_push(&lrcf->limits);
+    if (limit == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    limit->shm_zone = shm_zone;
+    limit->burst = burst * 1000;
+    limit->delay = delay * 1000;
+
+    return NGX_CONF_OK;
+}
 ```
 
 ![标号代表同一毫秒内到达的次序；真实调度存在误差。](./diagrams/timeline.svg)
@@ -237,9 +600,137 @@ ngx_http_limit_req_init(ngx_conf_t *cf)
 
 <!-- source-window:timer -->
 
-[ngx_http_limit_req_handler：挂起请求并注册定时器 · 原文件L322—L328](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L322-L328)
+[ngx_http_limit_req_handler：挂起请求并注册定时器 · 原文件L194—L329](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L194-L329)
 
 ```c
+static ngx_int_t
+ngx_http_limit_req_handler(ngx_http_request_t *r)
+{
+    uint32_t                     hash;
+    ngx_str_t                    key;
+    ngx_int_t                    rc;
+    ngx_uint_t                   n, excess;
+    ngx_msec_t                   delay;
+    ngx_http_limit_req_ctx_t    *ctx;
+    ngx_http_limit_req_conf_t   *lrcf;
+    ngx_http_limit_req_limit_t  *limit, *limits;
+
+    if (r->main->limit_req_status) {
+        return NGX_DECLINED;
+    }
+
+    lrcf = ngx_http_get_module_loc_conf(r, ngx_http_limit_req_module);
+    limits = lrcf->limits.elts;
+
+    excess = 0;
+
+    rc = NGX_DECLINED;
+
+#if (NGX_SUPPRESS_WARN)
+    limit = NULL;
+#endif
+
+    for (n = 0; n < lrcf->limits.nelts; n++) {
+
+        limit = &limits[n];
+
+        ctx = limit->shm_zone->data;
+
+        if (ngx_http_complex_value(r, &ctx->key, &key) != NGX_OK) {
+            ngx_http_limit_req_unlock(limits, n);
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
+        if (key.len == 0) {
+            continue;
+        }
+
+        if (key.len > 65535) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "the value of the \"%V\" key "
+                          "is more than 65535 bytes: \"%V\"",
+                          &ctx->key.value, &key);
+            continue;
+        }
+
+        hash = ngx_crc32_short(key.data, key.len);
+
+        ngx_shmtx_lock(&ctx->shpool->mutex);
+
+        rc = ngx_http_limit_req_lookup(limit, hash, &key, &excess,
+                                       (n == lrcf->limits.nelts - 1));
+
+        ngx_shmtx_unlock(&ctx->shpool->mutex);
+
+        ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "limit_req[%ui]: %i %ui.%03ui",
+                       n, rc, excess / 1000, excess % 1000);
+
+        if (rc != NGX_AGAIN) {
+            break;
+        }
+    }
+
+    if (rc == NGX_DECLINED) {
+        return NGX_DECLINED;
+    }
+
+    if (rc == NGX_BUSY || rc == NGX_ERROR) {
+
+        if (rc == NGX_BUSY) {
+            ngx_log_error(lrcf->limit_log_level, r->connection->log, 0,
+                        "limiting requests%s, excess: %ui.%03ui by zone \"%V\"",
+                        lrcf->dry_run ? ", dry run" : "",
+                        excess / 1000, excess % 1000,
+                        &limit->shm_zone->shm.name);
+        }
+
+        ngx_http_limit_req_unlock(limits, n);
+
+        if (lrcf->dry_run) {
+            r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_REJECTED_DRY_RUN;
+            return NGX_DECLINED;
+        }
+
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_REJECTED;
+
+        return lrcf->status_code;
+    }
+
+    /* rc == NGX_AGAIN || rc == NGX_OK */
+
+    if (rc == NGX_AGAIN) {
+        excess = 0;
+    }
+
+    delay = ngx_http_limit_req_account(limits, n, &excess, &limit);
+
+    if (!delay) {
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_PASSED;
+        return NGX_DECLINED;
+    }
+
+    ngx_log_error(lrcf->delay_log_level, r->connection->log, 0,
+                  "delaying request%s, excess: %ui.%03ui, by zone \"%V\"",
+                  lrcf->dry_run ? ", dry run" : "",
+                  excess / 1000, excess % 1000, &limit->shm_zone->shm.name);
+
+    if (lrcf->dry_run) {
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_DELAYED_DRY_RUN;
+        return NGX_DECLINED;
+    }
+
+    r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_DELAYED;
+
+    if (r->connection->read->ready) {
+        ngx_post_event(r->connection->read, &ngx_posted_events);
+
+    } else {
+        if (ngx_handle_read_event(r->connection->read, 0) != NGX_OK) {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+    }
+
     r->read_event_handler = ngx_http_test_reading;
     r->write_event_handler = ngx_http_limit_req_delay;
 
@@ -247,15 +738,34 @@ ngx_http_limit_req_init(ngx_conf_t *cf)
     ngx_add_timer(r->connection->write, delay);
 
     return NGX_AGAIN;
+}
 ```
 
 定时器到期清除事件的delayed标记后，`ngx_http_limit_req_delay`将写处理函数切换为`ngx_http_core_run_phases`，恢复HTTP阶段推进。`r->main->limit_req_status`已设置，重新进入处理函数时可避免重复限流记账。
 
 <!-- source-window:resume -->
 
-[ngx_http_limit_req_delay：恢复HTTP阶段 · 原文件L350—L360](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L350-L360)
+[ngx_http_limit_req_delay：恢复HTTP阶段 · 原文件L332—L360](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L332-L360)
 
 ```c
+static void
+ngx_http_limit_req_delay(ngx_http_request_t *r)
+{
+    ngx_event_t  *wev;
+
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "limit_req delay");
+
+    wev = r->connection->write;
+
+    if (wev->delayed) {
+
+        if (ngx_handle_write_event(wev, 0) != NGX_OK) {
+            ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return;
+    }
 
     if (ngx_handle_read_event(r->connection->read, 0) != NGX_OK) {
         ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
@@ -279,9 +789,59 @@ ngx_http_limit_req_init(ngx_conf_t *cf)
 
 <!-- source-window:lock -->
 
-[ngx_http_limit_req_handler：带共享锁的查找 · 原文件L244—L250](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L244-L250)
+[ngx_http_limit_req_handler：带共享锁的查找 · 原文件L194—L329](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L194-L329)
 
 ```c
+static ngx_int_t
+ngx_http_limit_req_handler(ngx_http_request_t *r)
+{
+    uint32_t                     hash;
+    ngx_str_t                    key;
+    ngx_int_t                    rc;
+    ngx_uint_t                   n, excess;
+    ngx_msec_t                   delay;
+    ngx_http_limit_req_ctx_t    *ctx;
+    ngx_http_limit_req_conf_t   *lrcf;
+    ngx_http_limit_req_limit_t  *limit, *limits;
+
+    if (r->main->limit_req_status) {
+        return NGX_DECLINED;
+    }
+
+    lrcf = ngx_http_get_module_loc_conf(r, ngx_http_limit_req_module);
+    limits = lrcf->limits.elts;
+
+    excess = 0;
+
+    rc = NGX_DECLINED;
+
+#if (NGX_SUPPRESS_WARN)
+    limit = NULL;
+#endif
+
+    for (n = 0; n < lrcf->limits.nelts; n++) {
+
+        limit = &limits[n];
+
+        ctx = limit->shm_zone->data;
+
+        if (ngx_http_complex_value(r, &ctx->key, &key) != NGX_OK) {
+            ngx_http_limit_req_unlock(limits, n);
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
+        if (key.len == 0) {
+            continue;
+        }
+
+        if (key.len > 65535) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "the value of the \"%V\" key "
+                          "is more than 65535 bytes: \"%V\"",
+                          &ctx->key.value, &key);
+            continue;
+        }
+
         hash = ngx_crc32_short(key.data, key.len);
 
         ngx_shmtx_lock(&ctx->shpool->mutex);
@@ -289,6 +849,85 @@ ngx_http_limit_req_init(ngx_conf_t *cf)
         rc = ngx_http_limit_req_lookup(limit, hash, &key, &excess,
                                        (n == lrcf->limits.nelts - 1));
 
+        ngx_shmtx_unlock(&ctx->shpool->mutex);
+
+        ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "limit_req[%ui]: %i %ui.%03ui",
+                       n, rc, excess / 1000, excess % 1000);
+
+        if (rc != NGX_AGAIN) {
+            break;
+        }
+    }
+
+    if (rc == NGX_DECLINED) {
+        return NGX_DECLINED;
+    }
+
+    if (rc == NGX_BUSY || rc == NGX_ERROR) {
+
+        if (rc == NGX_BUSY) {
+            ngx_log_error(lrcf->limit_log_level, r->connection->log, 0,
+                        "limiting requests%s, excess: %ui.%03ui by zone \"%V\"",
+                        lrcf->dry_run ? ", dry run" : "",
+                        excess / 1000, excess % 1000,
+                        &limit->shm_zone->shm.name);
+        }
+
+        ngx_http_limit_req_unlock(limits, n);
+
+        if (lrcf->dry_run) {
+            r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_REJECTED_DRY_RUN;
+            return NGX_DECLINED;
+        }
+
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_REJECTED;
+
+        return lrcf->status_code;
+    }
+
+    /* rc == NGX_AGAIN || rc == NGX_OK */
+
+    if (rc == NGX_AGAIN) {
+        excess = 0;
+    }
+
+    delay = ngx_http_limit_req_account(limits, n, &excess, &limit);
+
+    if (!delay) {
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_PASSED;
+        return NGX_DECLINED;
+    }
+
+    ngx_log_error(lrcf->delay_log_level, r->connection->log, 0,
+                  "delaying request%s, excess: %ui.%03ui, by zone \"%V\"",
+                  lrcf->dry_run ? ", dry run" : "",
+                  excess / 1000, excess % 1000, &limit->shm_zone->shm.name);
+
+    if (lrcf->dry_run) {
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_DELAYED_DRY_RUN;
+        return NGX_DECLINED;
+    }
+
+    r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_DELAYED;
+
+    if (r->connection->read->ready) {
+        ngx_post_event(r->connection->read, &ngx_posted_events);
+
+    } else {
+        if (ngx_handle_read_event(r->connection->read, 0) != NGX_OK) {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+    }
+
+    r->read_event_handler = ngx_http_test_reading;
+    r->write_event_handler = ngx_http_limit_req_delay;
+
+    r->connection->write->delayed = 1;
+    ngx_add_timer(r->connection->write, delay);
+
+    return NGX_AGAIN;
+}
 ```
 
 |字段或结构|作用|不能混淆的概念|
@@ -307,9 +946,28 @@ ngx_http_limit_req_init(ngx_conf_t *cf)
 
 <!-- source-window:expire -->
 
-[ngx_http_limit_req_expire：淘汰条件 · 原文件L651—L694](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L651-L694)
+[ngx_http_limit_req_expire：淘汰条件 · 原文件L632—L695](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L632-L695)
 
 ```c
+static void
+ngx_http_limit_req_expire(ngx_http_limit_req_ctx_t *ctx, ngx_uint_t n)
+{
+    ngx_int_t                   excess;
+    ngx_msec_t                  now;
+    ngx_queue_t                *q;
+    ngx_msec_int_t              ms;
+    ngx_rbtree_node_t          *node;
+    ngx_http_limit_req_node_t  *lr;
+
+    now = ngx_current_msec;
+
+    /*
+     * n == 1 deletes one or two zero rate entries
+     * n == 0 deletes oldest entry by force
+     *        and one or two zero rate entries
+     */
+
+    while (n < 3) {
 
         if (ngx_queue_empty(&ctx->sh->queue)) {
             return;
@@ -354,6 +1012,7 @@ ngx_http_limit_req_init(ngx_conf_t *cf)
 
         ngx_slab_free_locked(ctx->shpool, node);
     }
+}
 ```
 
 官方以二进制IP为Key给出的典型状态占用是32位平台64字节、64位平台128字节，1MB约容纳8千个128字节状态；10MB约8万个是容量估算，实际取决于Key长度和分配开销。节点被淘汰后再次访问会重新创建状态，频繁高基数Key会改变限流连续性，不能把有限zone当作永久历史账本。
@@ -377,9 +1036,37 @@ account：回到A重新取时钟并记账，count--
 
 <!-- source-window:account -->
 
-[ngx_http_limit_req_account：暂存节点的最终记账 · 原文件L563—L605](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L563-L605)
+[ngx_http_limit_req_account：暂存节点的最终记账 · 原文件L535—L606](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L535-L606)
 
 ```c
+static ngx_msec_t
+ngx_http_limit_req_account(ngx_http_limit_req_limit_t *limits, ngx_uint_t n,
+    ngx_uint_t *ep, ngx_http_limit_req_limit_t **limit)
+{
+    ngx_int_t                   excess;
+    ngx_msec_t                  now, delay, max_delay;
+    ngx_msec_int_t              ms;
+    ngx_http_limit_req_ctx_t   *ctx;
+    ngx_http_limit_req_node_t  *lr;
+
+    excess = *ep;
+
+    if ((ngx_uint_t) excess <= (*limit)->delay) {
+        max_delay = 0;
+
+    } else {
+        ctx = (*limit)->shm_zone->data;
+        max_delay = (excess - (*limit)->delay) * 1000 / ctx->rate;
+    }
+
+    while (n--) {
+        ctx = limits[n].shm_zone->data;
+        lr = ctx->node;
+
+        if (lr == NULL) {
+            continue;
+        }
+
         ngx_shmtx_lock(&ctx->shpool->mutex);
 
         now = ngx_current_msec;
@@ -423,6 +1110,7 @@ account：回到A重新取时钟并记账，count--
     }
 
     return max_delay;
+}
 ```
 
 每个zone有自己的互斥锁，检查与最终记账可能分开，整个多zone流程没有持有一把跨zone事务锁。此版本account重新计算后不再次比较burst，并发交错时不能把“多zone都满足规则”升级为任意瞬间严格原子预留的承诺。上线应测实际流量与拒绝比例，而不是把流程图当作强一致事务协议。

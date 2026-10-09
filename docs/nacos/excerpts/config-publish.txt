@@ -1,3 +1,8 @@
+    /**
+     * Adds or updates non-aggregated data.
+     *
+     * @throws NacosException NacosException.
+     */
     public Boolean publishConfig(ConfigForm configForm, ConfigRequestInfo configRequestInfo,
         String encryptedDataKey) throws NacosException {
         configForm

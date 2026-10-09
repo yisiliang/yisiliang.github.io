@@ -1,3 +1,8 @@
+    /**
+     * Query a skill for client consumption. Resolves the target version via explicit version, label, or manifest,
+     * loads the skill content from the index manifest's file list, and publishes a download event.
+     */
+    @Override
     public Skill querySkill(String namespaceId, String name, String version, String label)
         throws NacosException {
         // Step 1: Verify meta exists and is readable

@@ -1,3 +1,8 @@
+/**
+Opens a read view where exactly the transactions serialized before this
+point in time are seen in the view.
+@param id               Creator transaction id */
+
 void ReadView::prepare(trx_id_t id) {
   ut_ad(trx_sys_mutex_own());
 

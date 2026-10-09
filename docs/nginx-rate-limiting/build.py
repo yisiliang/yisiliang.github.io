@@ -15,16 +15,16 @@ SHA = '481d28cb4e04c8096b9b6134856891dc52ecc68f'
 SOURCE = 'source/ngx_http_limit_req_module.c'
 URL = f'https://github.com/nginx/nginx/blob/{SHA}/src/http/modules/ngx_http_limit_req_module.c'
 WINDOWS = {
-    'lookup': ('ngx_http_limit_req_lookup：已有Key的计算、拒绝与提交', 445, 480),
-    'new-node': ('ngx_http_limit_req_lookup：新节点的首个请求', 508, 526),
-    'delay-formula': ('ngx_http_limit_req_account：最后一项的初始延迟', 544, 553),
-    'nodelay': ('ngx_http_limit_req：nodelay的阈值解析', 1020, 1023),
+    'lookup': ('ngx_http_limit_req_lookup：已有Key的计算、拒绝与提交', 404, 532),
+    'new-node': ('ngx_http_limit_req_lookup：新节点的首个请求', 404, 532),
+    'delay-formula': ('ngx_http_limit_req_account：最后一项的初始延迟', 535, 606),
+    'nodelay': ('ngx_http_limit_req：nodelay的阈值解析', 963, 1064),
     'phase': ('ngx_http_limit_req_init：PREACCESS处理函数注册', 1086, 1102),
-    'timer': ('ngx_http_limit_req_handler：挂起请求并注册定时器', 322, 328),
-    'resume': ('ngx_http_limit_req_delay：恢复HTTP阶段', 350, 360),
-    'lock': ('ngx_http_limit_req_handler：带共享锁的查找', 244, 250),
-    'expire': ('ngx_http_limit_req_expire：淘汰条件', 651, 694),
-    'account': ('ngx_http_limit_req_account：暂存节点的最终记账', 563, 605),
+    'timer': ('ngx_http_limit_req_handler：挂起请求并注册定时器', 194, 329),
+    'resume': ('ngx_http_limit_req_delay：恢复HTTP阶段', 332, 360),
+    'lock': ('ngx_http_limit_req_handler：带共享锁的查找', 194, 329),
+    'expire': ('ngx_http_limit_req_expire：淘汰条件', 632, 695),
+    'account': ('ngx_http_limit_req_account：暂存节点的最终记账', 535, 606),
 }
 ESC = html.escape
 

@@ -268,9 +268,15 @@ equals与hashCode真正决定服务单例身份，比较的是namespace、group�
 
 ### 固定源码正文
 
-[core/src/main/java/com/alibaba/nacos/core/remote/ConnectionManager.java，L104–L131](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/remote/ConnectionManager.java#L104-L131)
+[core/src/main/java/com/alibaba/nacos/core/remote/ConnectionManager.java，L98–L131](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/remote/ConnectionManager.java#L98-L131)
 
 ```java
+    /**
+     * register a new connect.
+     *
+     * @param connectionId connectionId
+     * @param connection   connection
+     */
     public synchronized boolean register(String connectionId, Connection connection) {
         
         if (connection.isConnected()) {
@@ -329,9 +335,12 @@ IP共享或连接风暴可能触发连接限制；注册请求随即因找不到
 
 ### 固定源码正文
 
-[common/src/main/java/com/alibaba/nacos/common/remote/client/RpcClient.java，L488–L607](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/common/src/main/java/com/alibaba/nacos/common/remote/client/RpcClient.java#L488-L607)
+[common/src/main/java/com/alibaba/nacos/common/remote/client/RpcClient.java，L485–L607](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/common/src/main/java/com/alibaba/nacos/common/remote/client/RpcClient.java#L485-L607)
 
 ```java
+    /**
+     * switch server .
+     */
     protected void reconnect(final ServerInfo recommendServerInfo, boolean onRequestFail) {
         
         try {
@@ -528,9 +537,10 @@ revision用于标识客户端数据版本，lastUpdatedTime记录活跃/更新�
 
 ### 固定源码正文
 
-[naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/EphemeralClientOperationServiceImpl.java，L56–L78](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/EphemeralClientOperationServiceImpl.java#L56-L78)
+[naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/EphemeralClientOperationServiceImpl.java，L55–L78](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/EphemeralClientOperationServiceImpl.java#L55-L78)
 
 ```java
+    @Override
     public void registerInstance(Service service, Instance instance, String clientId)
         throws NacosException {
         NamingUtils.checkInstanceIsLegal(instance);
@@ -627,9 +637,10 @@ ACK边界位于SDK协议处理，不包含业务请求成功。
 
 ### 固定源码正文
 
-[client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/NamingPushRequestHandler.java，L41–L48](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/NamingPushRequestHandler.java#L41-L48)
+[client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/NamingPushRequestHandler.java，L40–L48](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/NamingPushRequestHandler.java#L40-L48)
 
 ```java
+    @Override
     public Response requestReply(Request request, Connection connection) {
         if (request instanceof NotifySubscriberRequest) {
             NotifySubscriberRequest notifyRequest = (NotifySubscriberRequest) request;
@@ -665,9 +676,15 @@ processServiceInfo先计算serviceKey，取旧缓存，再检查isEmptyOrErrorPu
 
 ### 固定源码正文
 
-[client/src/main/java/com/alibaba/nacos/client/naming/cache/ServiceInfoHolder.java，L129–L173](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/cache/ServiceInfoHolder.java#L129-L173)
+[client/src/main/java/com/alibaba/nacos/client/naming/cache/ServiceInfoHolder.java，L123–L173](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/cache/ServiceInfoHolder.java#L123-L173)
 
 ```java
+    /**
+     * Process service info.
+     *
+     * @param serviceInfo new service info
+     * @return service info
+     */
     public ServiceInfo processServiceInfo(ServiceInfo serviceInfo) {
         String serviceKey = serviceInfo.getKeyWithoutClusters();
         if (serviceKey == null) {
@@ -743,9 +760,10 @@ processServiceInfo先计算serviceKey，取旧缓存，再检查isEmptyOrErrorPu
 
 ### 固定源码正文
 
-[naming/src/main/java/com/alibaba/nacos/naming/core/v2/client/manager/impl/ConnectionBasedClientManager.java，L105–L118](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/client/manager/impl/ConnectionBasedClientManager.java#L105-L118)
+[naming/src/main/java/com/alibaba/nacos/naming/core/v2/client/manager/impl/ConnectionBasedClientManager.java，L104–L118](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/client/manager/impl/ConnectionBasedClientManager.java#L104-L118)
 
 ```java
+    @Override
     public boolean clientDisconnected(String clientId) {
         Loggers.SRV_LOG.info("Client connection {} disconnect, remove instances and subscribers",
             clientId);
@@ -787,9 +805,10 @@ redo保存的是期望状态，不是所有历史操作的日志。显式注销�
 
 ### 固定源码正文
 
-[client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/redo/NamingGrpcRedoService.java，L105–L120](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/redo/NamingGrpcRedoService.java#L105-L120)
+[client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/redo/NamingGrpcRedoService.java，L104–L120](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/redo/NamingGrpcRedoService.java#L104-L120)
 
 ```java
+    @Override
     public void onDisConnect(Connection connection) {
         connected = false;
         LogUtils.NAMING_LOGGER.warn("Grpc connection disconnect, mark to redo");
@@ -879,9 +898,17 @@ DistroProtocol.sync向目标成员分发同步任务；syncToTarget用resourceKe
 
 ### 固定源码正文
 
-[core/src/main/java/com/alibaba/nacos/core/distributed/distro/DistroProtocol.java，L132–L143](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/distributed/distro/DistroProtocol.java#L132-L143)
+[core/src/main/java/com/alibaba/nacos/core/distributed/distro/DistroProtocol.java，L124–L143](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/distributed/distro/DistroProtocol.java#L124-L143)
 
 ```java
+    /**
+     * Start to sync to target server.
+     *
+     * @param distroKey    distro key of sync data
+     * @param action       the action of data operation
+     * @param targetServer target server
+     * @param delay        delay time for sync
+     */
     public void syncToTarget(DistroKey distroKey, DataOperation action, String targetServer,
         long delay) {
         DistroKey distroKeyWithTarget =
@@ -1062,9 +1089,10 @@ group把不同状态机业务隔开，data是可复制命令，operation描述�
 
 ### 固定源码正文
 
-[naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java，L107–L131](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java#L107-L131)
+[naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java，L106–L131](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java#L106-L131)
 
 ```java
+    @Override
     public void registerInstance(Service service, Instance instance, String clientId) {
         Service singleton = ServiceManager.getInstance().getSingleton(service);
         if (singleton.isEphemeral()) {
@@ -1117,9 +1145,10 @@ onApply接收已经进入CP应用链的WriteRequest，反序列化InstanceStoreR
 
 ### 固定源码正文
 
-[naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java，L201–L235](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java#L201-L235)
+[naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java，L200–L235](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java#L200-L235)
 
 ```java
+    @Override
     public Response onApply(WriteRequest request) {
         final Lock lock = readLock;
         lock.lock();
@@ -1185,9 +1214,14 @@ onApply接收已经进入CP应用链的WriteRequest，反序列化InstanceStoreR
 
 ### 固定源码正文
 
-[config/src/main/java/com/alibaba/nacos/config/server/service/ConfigOperationService.java，L88–L191](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/ConfigOperationService.java#L88-L191)
+[config/src/main/java/com/alibaba/nacos/config/server/service/ConfigOperationService.java，L83–L191](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/ConfigOperationService.java#L83-L191)
 
 ```java
+    /**
+     * Adds or updates non-aggregated data.
+     *
+     * @throws NacosException NacosException.
+     */
     public Boolean publishConfig(ConfigForm configForm, ConfigRequestInfo configRequestInfo,
         String encryptedDataKey) throws NacosException {
         configForm
@@ -1319,9 +1353,10 @@ ConfigOperationService依赖ConfigInfoPersistService接口，实际一致性必�
 
 ### 固定源码正文
 
-[config/src/main/java/com/alibaba/nacos/config/server/service/repository/extrnal/ExternalConfigInfoPersistServiceImpl.java，L595–L644](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/repository/extrnal/ExternalConfigInfoPersistServiceImpl.java#L595-L644)
+[config/src/main/java/com/alibaba/nacos/config/server/service/repository/extrnal/ExternalConfigInfoPersistServiceImpl.java，L594–L644](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/repository/extrnal/ExternalConfigInfoPersistServiceImpl.java#L594-L644)
 
 ```java
+    @Override
     public ConfigOperateResult updateConfigInfo(final ConfigInfo configInfo, final String srcIp,
         final String srcUser,
         final Map<String, Object> configAdvanceInfo) {
@@ -1402,9 +1437,10 @@ MySQL故障可使写入失败，已有缓存查询可能仍可用；不可将缓
 
 ### 固定源码正文
 
-[core/src/main/java/com/alibaba/nacos/core/persistence/DistributedDatabaseOperateImpl.java，L455–L498](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/persistence/DistributedDatabaseOperateImpl.java#L455-L498)
+[core/src/main/java/com/alibaba/nacos/core/persistence/DistributedDatabaseOperateImpl.java，L454–L498](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/persistence/DistributedDatabaseOperateImpl.java#L454-L498)
 
 ```java
+    @Override
     public Boolean update(List<ModifyRequest> sqlContext, BiConsumer<Boolean, Throwable> consumer) {
         try {
             
@@ -1476,9 +1512,21 @@ MD5用于判断内容相同或不同，lastModified用于拒绝过时的刷新�
 
 ### 固定源码正文
 
-[config/src/main/java/com/alibaba/nacos/config/server/service/ConfigCacheService.java，L84–L164](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/ConfigCacheService.java#L84-L164)
+[config/src/main/java/com/alibaba/nacos/config/server/service/ConfigCacheService.java，L72–L164](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/ConfigCacheService.java#L72-L164)
 
 ```java
+    /**
+     * Save config file and update md5 value in cache.
+     *
+     * @param dataId         dataId string value.
+     * @param group          group string value.
+     * @param tenant         tenant string value.
+     * @param content        content string value.
+     * @param md5            md5 of persist.
+     * @param lastModifiedTs lastModifiedTs.
+     * @param type           file type.
+     * @return dumpChange success or not.
+     */
     public static boolean dumpWithMd5(String dataId, String group, String tenant, String content,
         String md5,
         long lastModifiedTs, String type, String encryptedDataKey) {
@@ -1590,9 +1638,14 @@ DB成功而dump失败会导致该节点缓存落后；通知成功不能代替�
 
 ### 固定源码正文
 
-[config/src/main/java/com/alibaba/nacos/config/server/remote/ConfigChangeBatchListenRequestHandler.java，L60–L97](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/remote/ConfigChangeBatchListenRequestHandler.java#L60-L97)
+[config/src/main/java/com/alibaba/nacos/config/server/remote/ConfigChangeBatchListenRequestHandler.java，L55–L97](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/remote/ConfigChangeBatchListenRequestHandler.java#L55-L97)
 
 ```java
+    @Override
+    @NamespaceValidation
+    @TpsControl(pointName = "ConfigListen")
+    @Secured(action = ActionTypes.READ, signType = SignType.CONFIG)
+    @ExtractorManager.Extractor(rpcExtractor = ConfigBatchListenRequestParamExtractor.class)
     public ConfigChangeBatchListenResponse handle(
         ConfigBatchListenRequest configChangeListenRequest, RequestMeta meta)
         throws NacosException {
@@ -1810,9 +1863,15 @@ gRPC业务入口通过RemoteRequestAuthFilter读取@Secured，再区分INNER_API
 
 ### 固定源码正文
 
-[core/src/main/java/com/alibaba/nacos/core/distributed/raft/auth/JRaftAuthUpgradeCoordinator.java，L115–L134](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/distributed/raft/auth/JRaftAuthUpgradeCoordinator.java#L115-L134)
+[core/src/main/java/com/alibaba/nacos/core/distributed/raft/auth/JRaftAuthUpgradeCoordinator.java，L109–L134](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/distributed/raft/auth/JRaftAuthUpgradeCoordinator.java#L109-L134)
 
 ```java
+    /**
+     * Checks the complete member view and irreversibly enables JRaft authentication when every
+     * member reports support. In-memory enforcement is enabled immediately, while state-file
+     * persistence is retried independently until it succeeds.
+     */
+    @Scheduled(fixedRate = 3000)
     public synchronized void doCheck() {
         if (enforced.get()) {
             persistStateIfNecessary();
@@ -1863,9 +1922,20 @@ A2aServerOperationService.registerAgent具有相近结构：AgentCardVersionInfo
 
 ### 固定源码正文
 
-[ai/src/main/java/com/alibaba/nacos/ai/service/McpServerOperationService.java，L372–L448](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/McpServerOperationService.java#L372-L448)
+[ai/src/main/java/com/alibaba/nacos/ai/service/McpServerOperationService.java，L361–L448](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/McpServerOperationService.java#L361-L448)
 
 ```java
+    /**
+     * Create new mcp server with resource specification.
+     *
+     * @param namespaceId namespace id of mcp server
+     * @param serverSpecification mcp server specification
+     * @param toolSpecification mcp server tool specification
+     * @param resourceSpecification mcp server resource specification
+     * @param endpointSpecification mcp server endpoint specification
+     * @return mcp server id
+     * @throws NacosException any exception during handling
+     */
     public String createMcpServer(String namespaceId, McpServerBasicInfo serverSpecification,
         McpToolSpecification toolSpecification, McpResourceSpecification resourceSpecification,
         McpEndpointSpec endpointSpecification) throws NacosException {
@@ -1973,9 +2043,12 @@ SkillOperationServiceImpl.querySkill先检查资源meta可读性，再查SkillIn
 
 ### 固定源码正文
 
-[ai/src/main/java/com/alibaba/nacos/ai/service/prompt/PromptOperationServiceImpl.java，L812–L836](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/prompt/PromptOperationServiceImpl.java#L812-L836)
+[ai/src/main/java/com/alibaba/nacos/ai/service/prompt/PromptOperationServiceImpl.java，L809–L836](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/prompt/PromptOperationServiceImpl.java#L809-L836)
 
 ```java
+    // ========== Client APIs ==========
+    
+    @Override
     public PromptVersionInfo queryPrompt(String namespaceId, String promptKey, String version,
         String label)
         throws NacosException {
@@ -2016,9 +2089,10 @@ SkillOperationServiceImpl.querySkill先检查资源meta可读性，再查SkillIn
 
 ### 身份比较：ephemeral不在equals中
 
-[naming/src/main/java/com/alibaba/nacos/naming/core/v2/pojo/Service.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/pojo/Service.java#L107-L117)
+[naming/src/main/java/com/alibaba/nacos/naming/core/v2/pojo/Service.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/pojo/Service.java#L106-L117)
 
 ```java
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -2046,9 +2120,15 @@ SkillOperationServiceImpl.querySkill先检查资源meta可读性，再查SkillIn
 
 ### A2A分别发布索引与正文
 
-[ai/src/main/java/com/alibaba/nacos/ai/service/a2a/A2aServerOperationService.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/a2a/A2aServerOperationService.java#L97-L129)
+[ai/src/main/java/com/alibaba/nacos/ai/service/a2a/A2aServerOperationService.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/a2a/A2aServerOperationService.java#L91-L129)
 
 ```java
+    /**
+     * Register agent.
+     *
+     * @param agentCard agent card
+     * @throws NacosException nacos exception
+     */
     public void registerAgent(AgentCard agentCard, String namespaceId, String registrationType)
         throws NacosException {
         try {
@@ -2086,9 +2166,14 @@ SkillOperationServiceImpl.querySkill先检查资源meta可读性，再查SkillIn
 
 ### Skill从manifest定位版本与文件
 
-[ai/src/main/java/com/alibaba/nacos/ai/service/skills/SkillOperationServiceImpl.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/skills/SkillOperationServiceImpl.java#L1108-L1144)
+[ai/src/main/java/com/alibaba/nacos/ai/service/skills/SkillOperationServiceImpl.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/skills/SkillOperationServiceImpl.java#L1103-L1144)
 
 ```java
+    /**
+     * Query a skill for client consumption. Resolves the target version via explicit version, label, or manifest,
+     * loads the skill content from the index manifest's file list, and publishes a download event.
+     */
+    @Override
     public Skill querySkill(String namespaceId, String name, String version, String label)
         throws NacosException {
         // Step 1: Verify meta exists and is readable
@@ -2130,9 +2215,10 @@ SkillOperationServiceImpl.querySkill先检查资源meta可读性，再查SkillIn
 
 ### gRPC业务鉴权与节点身份分支
 
-[core/src/main/java/com/alibaba/nacos/core/auth/RemoteRequestAuthFilter.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/auth/RemoteRequestAuthFilter.java#L68-L142)
+[core/src/main/java/com/alibaba/nacos/core/auth/RemoteRequestAuthFilter.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/auth/RemoteRequestAuthFilter.java#L67-L142)
 
 ```java
+    @Override
     public Response filter(Request request, RequestMeta meta, Class handlerClazz)
         throws NacosException {
         
@@ -2212,9 +2298,14 @@ SkillOperationServiceImpl.querySkill先检查资源meta可读性，再查SkillIn
 
 ### 配置事件转连接推送
 
-[config/src/main/java/com/alibaba/nacos/config/server/remote/RpcConfigChangeNotifier.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/remote/RpcConfigChangeNotifier.java#L87-L117)
+[config/src/main/java/com/alibaba/nacos/config/server/remote/RpcConfigChangeNotifier.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/remote/RpcConfigChangeNotifier.java#L82-L117)
 
 ```java
+    /**
+     * adaptor to config module ,when server side config change ,invoke this method.
+     *
+     * @param groupKey groupKey
+     */
     public void configDataChanged(String groupKey, String dataId, String group, String tenant) {
         
         Set<String> listeners = configChangeListenContext.getListeners(groupKey);
@@ -2250,9 +2341,10 @@ SkillOperationServiceImpl.querySkill先检查资源meta可读性，再查SkillIn
 
 ### 配置断连标脏与重连唤醒
 
-[client/src/main/java/com/alibaba/nacos/client/config/impl/ClientWorker.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/config/impl/ClientWorker.java#L825-L833)
+[client/src/main/java/com/alibaba/nacos/client/config/impl/ClientWorker.java](https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/config/impl/ClientWorker.java#L824-L833)
 
 ```java
+                @Override
                 public void onConnected(Connection connection) {
                     LOGGER.info("[{}] Connected,notify listen context...",
                         rpcClientInner.getName());

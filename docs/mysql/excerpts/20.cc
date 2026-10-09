@@ -1,3 +1,9 @@
+/** Given an array with information about all waiting transactions and indexes
+in it which form a deadlock cycle, picks the transaction to rollback.
+@param[in]    cycle_ids   indexes in `infos` array, of transactions forming the
+                          deadlock cycle
+@param[in]    infos       information about all waiting transactions
+@return the transaction chosen as a victim */
 static trx_t *lock_wait_choose_victim(
     const ut::vector<uint> &cycle_ids,
     const ut::vector<waiting_trx_info_t> &infos) {
@@ -35,3 +41,8 @@ static trx_t *lock_wait_choose_victim(
       choose it as the victim and roll it back. */
       chosen_victim = trx;
     }
+  }
+
+  ut_a(chosen_victim);
+  return chosen_victim;
+}

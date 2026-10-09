@@ -168,39 +168,252 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[BrokerController.java · L241–L270](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L241-L270)，连续节选。
+<strong>4.9.8源码：</strong>[BrokerController.java · L241–L483](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L241-L483)，连续节选。
 
 ```java
-public boolean initialize() throws CloneNotSupportedException {
-    boolean result = this.topicConfigManager.load();
+    public boolean initialize() throws CloneNotSupportedException {
+        boolean result = this.topicConfigManager.load();
 
-    result = result && this.consumerOffsetManager.load();
-    result = result && this.subscriptionGroupManager.load();
-    result = result && this.consumerFilterManager.load();
+        result = result && this.consumerOffsetManager.load();
+        result = result && this.subscriptionGroupManager.load();
+        result = result && this.consumerFilterManager.load();
 
-    if (result) {
-        try {
-            this.messageStore =
-                new DefaultMessageStore(this.messageStoreConfig, this.brokerStatsManager, this.messageArrivingListener,
-                    this.brokerConfig);
-            if (messageStoreConfig.isEnableDLegerCommitLog()) {
-                DLedgerRoleChangeHandler roleChangeHandler = new DLedgerRoleChangeHandler(this, (DefaultMessageStore) messageStore);
-                ((DLedgerCommitLog)((DefaultMessageStore) messageStore).getCommitLog()).getdLedgerServer().getdLedgerLeaderElector().addRoleChangeHandler(roleChangeHandler);
+        if (result) {
+            try {
+                this.messageStore =
+                    new DefaultMessageStore(this.messageStoreConfig, this.brokerStatsManager, this.messageArrivingListener,
+                        this.brokerConfig);
+                if (messageStoreConfig.isEnableDLegerCommitLog()) {
+                    DLedgerRoleChangeHandler roleChangeHandler = new DLedgerRoleChangeHandler(this, (DefaultMessageStore) messageStore);
+                    ((DLedgerCommitLog)((DefaultMessageStore) messageStore).getCommitLog()).getdLedgerServer().getdLedgerLeaderElector().addRoleChangeHandler(roleChangeHandler);
+                }
+                this.brokerStats = new BrokerStats((DefaultMessageStore) this.messageStore);
+                //load plugin
+                MessageStorePluginContext context = new MessageStorePluginContext(messageStoreConfig, brokerStatsManager, messageArrivingListener, brokerConfig);
+                this.messageStore = MessageStoreFactory.build(context, this.messageStore);
+                this.messageStore.getDispatcherList().addFirst(new CommitLogDispatcherCalcBitMap(this.brokerConfig, this.consumerFilterManager));
+            } catch (IOException e) {
+                result = false;
+                log.error("Failed to initialize", e);
             }
-            this.brokerStats = new BrokerStats((DefaultMessageStore) this.messageStore);
-            //load plugin
-            MessageStorePluginContext context = new MessageStorePluginContext(messageStoreConfig, brokerStatsManager, messageArrivingListener, brokerConfig);
-            this.messageStore = MessageStoreFactory.build(context, this.messageStore);
-            this.messageStore.getDispatcherList().addFirst(new CommitLogDispatcherCalcBitMap(this.brokerConfig, this.consumerFilterManager));
-        } catch (IOException e) {
-            result = false;
-            log.error("Failed to initialize", e);
         }
+
+        result = result && this.messageStore.load();
+
+        if (result) {
+            this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.clientHousekeepingService);
+            NettyServerConfig fastConfig = (NettyServerConfig) this.nettyServerConfig.clone();
+            fastConfig.setListenPort(nettyServerConfig.getListenPort() - 2);
+            this.fastRemotingServer = new NettyRemotingServer(fastConfig, this.clientHousekeepingService);
+            this.sendMessageExecutor = new BrokerFixedThreadPoolExecutor(
+                this.brokerConfig.getSendMessageThreadPoolNums(),
+                this.brokerConfig.getSendMessageThreadPoolNums(),
+                1000 * 60,
+                TimeUnit.MILLISECONDS,
+                this.sendThreadPoolQueue,
+                new ThreadFactoryImpl("SendMessageThread_"));
+
+            this.putMessageFutureExecutor = new BrokerFixedThreadPoolExecutor(
+                this.brokerConfig.getPutMessageFutureThreadPoolNums(),
+                this.brokerConfig.getPutMessageFutureThreadPoolNums(),
+                1000 * 60,
+                TimeUnit.MILLISECONDS,
+                this.putThreadPoolQueue,
+                new ThreadFactoryImpl("PutMessageThread_"));
+
+            this.pullMessageExecutor = new BrokerFixedThreadPoolExecutor(
+                this.brokerConfig.getPullMessageThreadPoolNums(),
+                this.brokerConfig.getPullMessageThreadPoolNums(),
+                1000 * 60,
+                TimeUnit.MILLISECONDS,
+                this.pullThreadPoolQueue,
+                new ThreadFactoryImpl("PullMessageThread_"));
+
+            this.replyMessageExecutor = new BrokerFixedThreadPoolExecutor(
+                this.brokerConfig.getProcessReplyMessageThreadPoolNums(),
+                this.brokerConfig.getProcessReplyMessageThreadPoolNums(),
+                1000 * 60,
+                TimeUnit.MILLISECONDS,
+                this.replyThreadPoolQueue,
+                new ThreadFactoryImpl("ProcessReplyMessageThread_"));
+
+            this.queryMessageExecutor = new BrokerFixedThreadPoolExecutor(
+                this.brokerConfig.getQueryMessageThreadPoolNums(),
+                this.brokerConfig.getQueryMessageThreadPoolNums(),
+                1000 * 60,
+                TimeUnit.MILLISECONDS,
+                this.queryThreadPoolQueue,
+                new ThreadFactoryImpl("QueryMessageThread_"));
+
+            this.adminBrokerExecutor =
+                Executors.newFixedThreadPool(this.brokerConfig.getAdminBrokerThreadPoolNums(), new ThreadFactoryImpl(
+                    "AdminBrokerThread_"));
+
+            this.clientManageExecutor = new ThreadPoolExecutor(
+                this.brokerConfig.getClientManageThreadPoolNums(),
+                this.brokerConfig.getClientManageThreadPoolNums(),
+                1000 * 60,
+                TimeUnit.MILLISECONDS,
+                this.clientManagerThreadPoolQueue,
+                new ThreadFactoryImpl("ClientManageThread_"));
+
+            this.heartbeatExecutor = new BrokerFixedThreadPoolExecutor(
+                this.brokerConfig.getHeartbeatThreadPoolNums(),
+                this.brokerConfig.getHeartbeatThreadPoolNums(),
+                1000 * 60,
+                TimeUnit.MILLISECONDS,
+                this.heartbeatThreadPoolQueue,
+                new ThreadFactoryImpl("HeartbeatThread_", true));
+
+            this.endTransactionExecutor = new BrokerFixedThreadPoolExecutor(
+                this.brokerConfig.getEndTransactionThreadPoolNums(),
+                this.brokerConfig.getEndTransactionThreadPoolNums(),
+                1000 * 60,
+                TimeUnit.MILLISECONDS,
+                this.endTransactionThreadPoolQueue,
+                new ThreadFactoryImpl("EndTransactionThread_"));
+
+            this.consumerManageExecutor =
+                Executors.newFixedThreadPool(this.brokerConfig.getConsumerManageThreadPoolNums(), new ThreadFactoryImpl(
+                    "ConsumerManageThread_"));
+
+            this.registerProcessor();
+
+            final long initialDelay = UtilAll.computeNextMorningTimeMillis() - System.currentTimeMillis();
+            final long period = 1000 * 60 * 60 * 24;
+            this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                try {
+                    BrokerController.this.getBrokerStats().record();
+                } catch (Throwable e) {
+                    log.error("schedule record error.", e);
+                }
+            }, initialDelay, period, TimeUnit.MILLISECONDS);
+
+            this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                try {
+                    BrokerController.this.consumerOffsetManager.persist();
+                } catch (Throwable e) {
+                    log.error("schedule persist consumerOffset error.", e);
+                }
+            }, 1000 * 10, this.brokerConfig.getFlushConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
+
+            this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                try {
+                    BrokerController.this.consumerFilterManager.persist();
+                } catch (Throwable e) {
+                    log.error("schedule persist consumer filter error.", e);
+                }
+            }, 1000 * 10, 1000 * 10, TimeUnit.MILLISECONDS);
+
+            this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                try {
+                    BrokerController.this.protectBroker();
+                } catch (Throwable e) {
+                    log.error("protectBroker error.", e);
+                }
+            }, 3, 3, TimeUnit.MINUTES);
+
+            this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                try {
+                    BrokerController.this.printWaterMark();
+                } catch (Throwable e) {
+                    log.error("printWaterMark error.", e);
+                }
+            }, 10, 1, TimeUnit.SECONDS);
+
+            this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                try {
+                    log.info("dispatch behind commit log {} bytes", BrokerController.this.getMessageStore().dispatchBehindBytes());
+                } catch (Throwable e) {
+                    log.error("schedule dispatchBehindBytes error.", e);
+                }
+            }, 1000 * 10, 1000 * 60, TimeUnit.MILLISECONDS);
+
+            if (this.brokerConfig.getNamesrvAddr() != null) {
+                this.brokerOuterAPI.updateNameServerAddressList(this.brokerConfig.getNamesrvAddr());
+                log.info("Set user specified name server address: {}", this.brokerConfig.getNamesrvAddr());
+                this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                    try {
+                        BrokerController.this.brokerOuterAPI.updateNameServerAddressList(BrokerController.this.brokerConfig.getNamesrvAddr());
+                    } catch (Throwable e) {
+                        log.error("ScheduledTask updateNameServerAddr exception", e);
+                    }
+                }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
+            } else if (this.brokerConfig.isFetchNamesrvAddrByAddressServer()) {
+                this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                    try {
+                        BrokerController.this.brokerOuterAPI.fetchNameServerAddr();
+                    } catch (Throwable e) {
+                        log.error("ScheduledTask fetchNameServerAddr exception", e);
+                    }
+                }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
+            }
+
+            if (!messageStoreConfig.isEnableDLegerCommitLog()) {
+                if (BrokerRole.SLAVE == this.messageStoreConfig.getBrokerRole()) {
+                    if (this.messageStoreConfig.getHaMasterAddress() != null && this.messageStoreConfig.getHaMasterAddress().length() >= 6) {
+                        this.messageStore.updateHaMasterAddress(this.messageStoreConfig.getHaMasterAddress());
+                        this.updateMasterHAServerAddrPeriodically = false;
+                    } else {
+                        this.updateMasterHAServerAddrPeriodically = true;
+                    }
+                } else {
+                    this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                        try {
+                            BrokerController.this.printMasterAndSlaveDiff();
+                        } catch (Throwable e) {
+                            log.error("schedule printMasterAndSlaveDiff error.", e);
+                        }
+                    }, 1000 * 10, 1000 * 60, TimeUnit.MILLISECONDS);
+                }
+            }
+
+            if (TlsSystemConfig.tlsMode != TlsMode.DISABLED) {
+                // Register a listener to reload SslContext
+                try {
+                    fileWatchService = new FileWatchService(
+                        new String[] {
+                            TlsSystemConfig.tlsServerCertPath,
+                            TlsSystemConfig.tlsServerKeyPath,
+                            TlsSystemConfig.tlsServerTrustCertPath
+                        },
+                        new FileWatchService.Listener() {
+                            boolean certChanged, keyChanged = false;
+
+                            @Override
+                            public void onChanged(String path) {
+                                if (path.equals(TlsSystemConfig.tlsServerTrustCertPath)) {
+                                    log.info("The trust certificate changed, reload the ssl context");
+                                    reloadServerSslContext();
+                                }
+                                if (path.equals(TlsSystemConfig.tlsServerCertPath)) {
+                                    certChanged = true;
+                                }
+                                if (path.equals(TlsSystemConfig.tlsServerKeyPath)) {
+                                    keyChanged = true;
+                                }
+                                if (certChanged && keyChanged) {
+                                    log.info("The certificate and private key changed, reload the ssl context");
+                                    certChanged = keyChanged = false;
+                                    reloadServerSslContext();
+                                }
+                            }
+
+                            private void reloadServerSslContext() {
+                                ((NettyRemotingServer) remotingServer).loadSslContext();
+                                ((NettyRemotingServer) fastRemotingServer).loadSslContext();
+                            }
+                        });
+                } catch (Exception e) {
+                    log.warn("FileWatchService created error, can't load the certificate dynamically");
+                }
+            }
+            initialTransaction();
+            initialAcl();
+            initialRpcHooks();
+        }
+        return result;
     }
-
-    result = result && this.messageStore.load();
-
-    if (result) {
 ```
 
 <strong>5.3.4源码：</strong>[BrokerController.java · L877–L890](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L877-L890)，连续节选。
@@ -497,53 +710,73 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-<strong>源码对照：</strong>[ConsumeQueue.java · L797–L840](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java#L797-L840)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeQueue.java · L797–L860](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java#L797-L860)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-private boolean putMessagePositionInfo(final long offset, final int size, final long tagsCode,
-    final long cqOffset) {
+    private boolean putMessagePositionInfo(final long offset, final int size, final long tagsCode,
+        final long cqOffset) {
 
-    if (offset + size <= this.getMaxPhysicOffset()) {
-        // During the recovery process after broker crashes, this logs will cause the scrolling of valid logs.
-        if (messageStore.getStateMachine().getCurrentState().isAfter(MessageStoreStateMachine.MessageStoreState.RECOVER_COMMITLOG_OK) ||
-            messageStore.getMessageStoreConfig().isEnableLogConsumeQueueRepeatedlyBuildWhenRecover()) {
-            log.warn("Maybe try to build consume queue repeatedly maxPhysicOffset={} phyOffset={}",
-                this.getMaxPhysicOffset(), offset);
-        }
-        return true;
-    }
-
-    this.byteBufferIndex.flip();
-    this.byteBufferIndex.limit(CQ_STORE_UNIT_SIZE);
-    this.byteBufferIndex.putLong(offset);
-    this.byteBufferIndex.putInt(size);
-    this.byteBufferIndex.putLong(tagsCode);
-
-    final long expectLogicOffset = cqOffset * CQ_STORE_UNIT_SIZE;
-
-    MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile(expectLogicOffset);
-    if (mappedFile != null) {
-
-        if (mappedFile.isFirstCreateInQueue() && cqOffset != 0 && mappedFile.getWrotePosition() == 0) {
-            this.minLogicOffset = expectLogicOffset;
-            this.mappedFileQueue.setFlushedWhere(expectLogicOffset);
-            this.mappedFileQueue.setCommittedWhere(expectLogicOffset);
-            this.fillPreBlank(mappedFile, expectLogicOffset);
-            log.info("fill pre blank space " + mappedFile.getFileName() + " " + expectLogicOffset + " "
-                + mappedFile.getWrotePosition());
+        if (offset + size <= this.getMaxPhysicOffset()) {
+            // During the recovery process after broker crashes, this logs will cause the scrolling of valid logs.
+            if (messageStore.getStateMachine().getCurrentState().isAfter(MessageStoreStateMachine.MessageStoreState.RECOVER_COMMITLOG_OK) ||
+                messageStore.getMessageStoreConfig().isEnableLogConsumeQueueRepeatedlyBuildWhenRecover()) {
+                log.warn("Maybe try to build consume queue repeatedly maxPhysicOffset={} phyOffset={}",
+                    this.getMaxPhysicOffset(), offset);
+            }
+            return true;
         }
 
-        if (cqOffset != 0) {
-            long currentLogicOffset = mappedFile.getWrotePosition() + mappedFile.getFileFromOffset();
+        this.byteBufferIndex.flip();
+        this.byteBufferIndex.limit(CQ_STORE_UNIT_SIZE);
+        this.byteBufferIndex.putLong(offset);
+        this.byteBufferIndex.putInt(size);
+        this.byteBufferIndex.putLong(tagsCode);
 
-            if (expectLogicOffset < currentLogicOffset) {
-                log.warn("Build consume queue repeatedly, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}",
-                    expectLogicOffset, currentLogicOffset, this.topic, this.queueId, expectLogicOffset - currentLogicOffset);
-                return true;
+        final long expectLogicOffset = cqOffset * CQ_STORE_UNIT_SIZE;
+
+        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile(expectLogicOffset);
+        if (mappedFile != null) {
+
+            if (mappedFile.isFirstCreateInQueue() && cqOffset != 0 && mappedFile.getWrotePosition() == 0) {
+                this.minLogicOffset = expectLogicOffset;
+                this.mappedFileQueue.setFlushedWhere(expectLogicOffset);
+                this.mappedFileQueue.setCommittedWhere(expectLogicOffset);
+                this.fillPreBlank(mappedFile, expectLogicOffset);
+                log.info("fill pre blank space " + mappedFile.getFileName() + " " + expectLogicOffset + " "
+                    + mappedFile.getWrotePosition());
             }
 
-            if (expectLogicOffset != currentLogicOffset) {
-                LOG_ERROR.warn(
+            if (cqOffset != 0) {
+                long currentLogicOffset = mappedFile.getWrotePosition() + mappedFile.getFileFromOffset();
+
+                if (expectLogicOffset < currentLogicOffset) {
+                    log.warn("Build consume queue repeatedly, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}",
+                        expectLogicOffset, currentLogicOffset, this.topic, this.queueId, expectLogicOffset - currentLogicOffset);
+                    return true;
+                }
+
+                if (expectLogicOffset != currentLogicOffset) {
+                    LOG_ERROR.warn(
+                        "[BUG]logic queue order maybe wrong, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}",
+                        expectLogicOffset,
+                        currentLogicOffset,
+                        this.topic,
+                        this.queueId,
+                        expectLogicOffset - currentLogicOffset
+                    );
+                }
+            }
+            this.setMaxPhysicOffset(offset + size);
+            boolean appendResult;
+            if (messageStore.getMessageStoreConfig().isPutConsumeQueueDataByFileChannel()) {
+                appendResult = mappedFile.appendMessageUsingFileChannel(this.byteBufferIndex.array());
+            } else {
+                appendResult = mappedFile.appendMessage(this.byteBufferIndex.array());
+            }
+            return appendResult;
+        }
+        return false;
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>看expectLogicOffset如何由cqOffset计算；参数offset是物理位置，cqOffset是逻辑位置，别被同一个单词误导。
@@ -596,7 +829,7 @@ E -- 否 --> G["入口报告类型错误"]
 ```
 
 
-<strong>4.9.8源码对照：</strong>[TopicConfig.java · L21–L51](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/common/src/main/java/org/apache/rocketmq/common/TopicConfig.java#L21-L51)，连续节选。
+<strong>4.9.8源码对照：</strong>[TopicConfig.java · L21–L60](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/common/src/main/java/org/apache/rocketmq/common/TopicConfig.java#L21-L60)，连续节选。
 
 ```java
 public class TopicConfig {
@@ -630,45 +863,78 @@ public class TopicConfig {
         sb.append(this.topicName);
         sb.append(SEPARATOR);
         sb.append(this.readQueueNums);
+        sb.append(SEPARATOR);
+        sb.append(this.writeQueueNums);
+        sb.append(SEPARATOR);
+        sb.append(this.perm);
+        sb.append(SEPARATOR);
+        sb.append(this.topicFilterType);
+
+        return sb.toString();
+    }
 ```
 
-<strong>5.3.4源码对照：</strong>[ProducerProcessor.java · L69–L102](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/ProducerProcessor.java#L69-L102)，连续节选。
+<strong>5.3.4源码对照：</strong>[ProducerProcessor.java · L69–L126](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/ProducerProcessor.java#L69-L126)，连续节选。
 
 ```java
-public CompletableFuture<List<SendResult>> sendMessage(ProxyContext ctx, QueueSelector queueSelector,
-    String producerGroup, int sysFlag, List<Message> messageList, long timeoutMillis) {
-    CompletableFuture<List<SendResult>> future = new CompletableFuture<>();
-    long beginTimestampFirst = System.currentTimeMillis();
-    AddressableMessageQueue messageQueue = null;
-    try {
-        Message message = messageList.get(0);
-        String topic = message.getTopic();
-        if (isNeedCheckTopicMessageType(message)) {
-            if (topicMessageTypeValidator != null) {
-                // Do not check retry or dlq topic
-                if (!NamespaceUtil.isRetryTopic(topic) && !NamespaceUtil.isDLQTopic(topic)) {
-                    TopicMessageType topicMessageType = serviceManager.getMetadataService().getTopicMessageType(ctx, topic);
-                    TopicMessageType messageType = TopicMessageType.parseFromMessageProperty(message.getProperties());
-                    topicMessageTypeValidator.validate(topicMessageType, messageType);
+    public CompletableFuture<List<SendResult>> sendMessage(ProxyContext ctx, QueueSelector queueSelector,
+        String producerGroup, int sysFlag, List<Message> messageList, long timeoutMillis) {
+        CompletableFuture<List<SendResult>> future = new CompletableFuture<>();
+        long beginTimestampFirst = System.currentTimeMillis();
+        AddressableMessageQueue messageQueue = null;
+        try {
+            Message message = messageList.get(0);
+            String topic = message.getTopic();
+            if (isNeedCheckTopicMessageType(message)) {
+                if (topicMessageTypeValidator != null) {
+                    // Do not check retry or dlq topic
+                    if (!NamespaceUtil.isRetryTopic(topic) && !NamespaceUtil.isDLQTopic(topic)) {
+                        TopicMessageType topicMessageType = serviceManager.getMetadataService().getTopicMessageType(ctx, topic);
+                        TopicMessageType messageType = TopicMessageType.parseFromMessageProperty(message.getProperties());
+                        topicMessageTypeValidator.validate(topicMessageType, messageType);
+                    }
                 }
             }
-        }
-        messageQueue = queueSelector.select(ctx,
-            this.serviceManager.getTopicRouteService().getCurrentMessageQueueView(ctx, topic));
-        if (messageQueue == null) {
-            throw new ProxyException(ProxyExceptionCode.FORBIDDEN, "no writable queue");
-        }
+            messageQueue = queueSelector.select(ctx,
+                this.serviceManager.getTopicRouteService().getCurrentMessageQueueView(ctx, topic));
+            if (messageQueue == null) {
+                throw new ProxyException(ProxyExceptionCode.FORBIDDEN, "no writable queue");
+            }
 
-        for (Message msg : messageList) {
-            MessageClientIDSetter.setUniqID(msg);
-        }
-        SendMessageRequestHeader requestHeader = buildSendMessageRequestHeader(messageList, producerGroup, sysFlag, messageQueue.getQueueId());
+            for (Message msg : messageList) {
+                MessageClientIDSetter.setUniqID(msg);
+            }
+            SendMessageRequestHeader requestHeader = buildSendMessageRequestHeader(messageList, producerGroup, sysFlag, messageQueue.getQueueId());
 
-        AddressableMessageQueue finalMessageQueue = messageQueue;
-        future = this.serviceManager.getMessageService().sendMessage(
-            ctx,
-            messageQueue,
-            messageList,
+            AddressableMessageQueue finalMessageQueue = messageQueue;
+            future = this.serviceManager.getMessageService().sendMessage(
+                ctx,
+                messageQueue,
+                messageList,
+                requestHeader,
+                timeoutMillis)
+                .whenCompleteAsync((sendResultList, throwable) -> {
+                    long endTimestamp = System.currentTimeMillis();
+                    if (throwable == null) {
+                        for (SendResult sendResult : sendResultList) {
+                            int tranType = MessageSysFlag.getTransactionValue(requestHeader.getSysFlag());
+                            if (SendStatus.SEND_OK.equals(sendResult.getSendStatus()) &&
+                                tranType == MessageSysFlag.TRANSACTION_PREPARED_TYPE &&
+                                StringUtils.isNotBlank(sendResult.getTransactionId())) {
+                                fillTransactionData(ctx, producerGroup, finalMessageQueue, sendResult, messageList);
+                            }
+                        }
+                        this.serviceManager.getTopicRouteService().updateFaultItem(finalMessageQueue.getBrokerName(), endTimestamp - beginTimestampFirst, false, true);
+                    } else {
+                        this.serviceManager.getTopicRouteService().updateFaultItem(finalMessageQueue.getBrokerName(), endTimestamp - beginTimestampFirst, true, false);
+                    }
+                }, this.executor);
+        } catch (Throwable t) {
+            future.completeExceptionally(t);
+            FutureUtils.addExecutor(future, this.executor);
+        }
+        return future;
+    }
 ```
 
 ## 本章纸面推演
@@ -741,55 +1007,111 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-<strong>源码对照：</strong>[RouteInfoManager.java · L700–L745](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L745)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RouteInfoManager.java · L700–L801](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L801)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public TopicRouteData pickupTopicRouteData(final String topic) {
-    TopicRouteData topicRouteData = new TopicRouteData();
-    boolean foundQueueData = false;
-    boolean foundBrokerData = false;
-    List<BrokerData> brokerDataList = new LinkedList<>();
-    topicRouteData.setBrokerDatas(brokerDataList);
+    public TopicRouteData pickupTopicRouteData(final String topic) {
+        TopicRouteData topicRouteData = new TopicRouteData();
+        boolean foundQueueData = false;
+        boolean foundBrokerData = false;
+        List<BrokerData> brokerDataList = new LinkedList<>();
+        topicRouteData.setBrokerDatas(brokerDataList);
 
-    HashMap<String, List<String>> filterServerMap = new HashMap<>();
-    topicRouteData.setFilterServerTable(filterServerMap);
+        HashMap<String, List<String>> filterServerMap = new HashMap<>();
+        topicRouteData.setFilterServerTable(filterServerMap);
 
-    try {
-        this.lock.readLock().lockInterruptibly();
-        Map<String, QueueData> queueDataMap = this.topicQueueTable.get(topic);
-        if (queueDataMap != null) {
-            topicRouteData.setQueueDatas(new ArrayList<>(queueDataMap.values()));
-            foundQueueData = true;
+        try {
+            this.lock.readLock().lockInterruptibly();
+            Map<String, QueueData> queueDataMap = this.topicQueueTable.get(topic);
+            if (queueDataMap != null) {
+                topicRouteData.setQueueDatas(new ArrayList<>(queueDataMap.values()));
+                foundQueueData = true;
 
-            Set<String> brokerNameSet = new HashSet<>(queueDataMap.keySet());
+                Set<String> brokerNameSet = new HashSet<>(queueDataMap.keySet());
 
-            for (String brokerName : brokerNameSet) {
-                BrokerData brokerData = this.brokerAddrTable.get(brokerName);
-                if (null == brokerData) {
+                for (String brokerName : brokerNameSet) {
+                    BrokerData brokerData = this.brokerAddrTable.get(brokerName);
+                    if (null == brokerData) {
+                        continue;
+                    }
+                    BrokerData brokerDataClone = new BrokerData(brokerData);
+
+                    brokerDataList.add(brokerDataClone);
+                    foundBrokerData = true;
+                    if (filterServerTable.isEmpty()) {
+                        continue;
+                    }
+                    for (final String brokerAddr : brokerDataClone.getBrokerAddrs().values()) {
+                        BrokerAddrInfo brokerAddrInfo = new BrokerAddrInfo(brokerDataClone.getCluster(), brokerAddr);
+                        List<String> filterServerList = this.filterServerTable.get(brokerAddrInfo);
+                        filterServerMap.put(brokerAddr, filterServerList);
+                    }
+
+                }
+            }
+        } catch (Exception e) {
+            log.error("pickupTopicRouteData Exception", e);
+        } finally {
+            this.lock.readLock().unlock();
+        }
+
+        log.debug("pickupTopicRouteData {} {}", topic, topicRouteData);
+
+        if (foundBrokerData && foundQueueData) {
+
+            topicRouteData.setTopicQueueMappingByBroker(this.topicQueueMappingInfoTable.get(topic));
+
+            if (!namesrvConfig.isSupportActingMaster()) {
+                return topicRouteData;
+            }
+
+            if (topic.startsWith(TopicValidator.SYNC_BROKER_MEMBER_GROUP_PREFIX)) {
+                return topicRouteData;
+            }
+
+            if (topicRouteData.getBrokerDatas().size() == 0 || topicRouteData.getQueueDatas().size() == 0) {
+                return topicRouteData;
+            }
+
+            boolean needActingMaster = false;
+
+            for (final BrokerData brokerData : topicRouteData.getBrokerDatas()) {
+                if (brokerData.getBrokerAddrs().size() != 0
+                    && !brokerData.getBrokerAddrs().containsKey(MixAll.MASTER_ID)) {
+                    needActingMaster = true;
+                    break;
+                }
+            }
+
+            if (!needActingMaster) {
+                return topicRouteData;
+            }
+
+            for (final BrokerData brokerData : topicRouteData.getBrokerDatas()) {
+                final HashMap<Long, String> brokerAddrs = brokerData.getBrokerAddrs();
+                if (brokerAddrs.size() == 0 || brokerAddrs.containsKey(MixAll.MASTER_ID) || !brokerData.isEnableActingMaster()) {
                     continue;
                 }
-                BrokerData brokerDataClone = new BrokerData(brokerData);
 
-                brokerDataList.add(brokerDataClone);
-                foundBrokerData = true;
-                if (filterServerTable.isEmpty()) {
-                    continue;
-                }
-                for (final String brokerAddr : brokerDataClone.getBrokerAddrs().values()) {
-                    BrokerAddrInfo brokerAddrInfo = new BrokerAddrInfo(brokerDataClone.getCluster(), brokerAddr);
-                    List<String> filterServerList = this.filterServerTable.get(brokerAddrInfo);
-                    filterServerMap.put(brokerAddr, filterServerList);
+                // No master
+                for (final QueueData queueData : topicRouteData.getQueueDatas()) {
+                    if (queueData.getBrokerName().equals(brokerData.getBrokerName())) {
+                        if (!PermName.isWriteable(queueData.getPerm())) {
+                            final Long minBrokerId = Collections.min(brokerAddrs.keySet());
+                            final String actingMasterAddr = brokerAddrs.remove(minBrokerId);
+                            brokerAddrs.put(MixAll.MASTER_ID, actingMasterAddr);
+                        }
+                        break;
+                    }
                 }
 
             }
-        }
-    } catch (Exception e) {
-        log.error("pickupTopicRouteData Exception", e);
-    } finally {
-        this.lock.readLock().unlock();
-    }
 
-    log.debug("pickupTopicRouteData {} {}", topic, topicRouteData);
+            return topicRouteData;
+        }
+
+        return null;
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>关注读锁、返回对象的复制以及Topic是否存在；查不到路由和消息发送失败是不同阶段。
@@ -857,21 +1179,82 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[RouteInfoManager.java · L409–L446](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L409-L446)，连续节选。
+<strong>4.9.8源码：</strong>[RouteInfoManager.java · L409–L466](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L409-L466)，连续节选。
 
 ```java
-public TopicRouteData pickupTopicRouteData(final String topic) {
-    TopicRouteData topicRouteData = new TopicRouteData();
-    boolean foundQueueData = false;
-    boolean foundBrokerData = false;
-    Set<String> brokerNameSet = new HashSet<>();
-    List<BrokerData> brokerDataList = new LinkedList<>();
-    topicRouteData.setBrokerDatas(brokerDataList);
+    public TopicRouteData pickupTopicRouteData(final String topic) {
+        TopicRouteData topicRouteData = new TopicRouteData();
+        boolean foundQueueData = false;
+        boolean foundBrokerData = false;
+        Set<String> brokerNameSet = new HashSet<>();
+        List<BrokerData> brokerDataList = new LinkedList<>();
+        topicRouteData.setBrokerDatas(brokerDataList);
 
-    HashMap<String, List<String>> filterServerMap = new HashMap<>();
-    topicRouteData.setFilterServerTable(filterServerMap);
+        HashMap<String, List<String>> filterServerMap = new HashMap<>();
+        topicRouteData.setFilterServerTable(filterServerMap);
 
-    try {
+        try {
+            try {
+                this.lock.readLock().lockInterruptibly();
+                Map<String, QueueData> queueDataMap = this.topicQueueTable.get(topic);
+                if (queueDataMap != null) {
+                    topicRouteData.setQueueDatas(new ArrayList<>(queueDataMap.values()));
+                    foundQueueData = true;
+
+                    brokerNameSet.addAll(queueDataMap.keySet());
+
+                    for (String brokerName : brokerNameSet) {
+                        BrokerData brokerData = this.brokerAddrTable.get(brokerName);
+                        if (null != brokerData) {
+                            BrokerData brokerDataClone = new BrokerData(brokerData.getCluster(), brokerData.getBrokerName(), (HashMap<Long, String>) brokerData
+                                    .getBrokerAddrs().clone());
+                            brokerDataList.add(brokerDataClone);
+                            foundBrokerData = true;
+
+                            // skip if filter server table is empty
+                            if (!filterServerTable.isEmpty()) {
+                                for (final String brokerAddr : brokerDataClone.getBrokerAddrs().values()) {
+                                    List<String> filterServerList = this.filterServerTable.get(brokerAddr);
+
+                                    // only add filter server list when not null
+                                    if (filterServerList != null) {
+                                        filterServerMap.put(brokerAddr, filterServerList);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } finally {
+                this.lock.readLock().unlock();
+            }
+        } catch (Exception e) {
+            log.error("pickupTopicRouteData Exception", e);
+        }
+
+        log.debug("pickupTopicRouteData {} {}", topic, topicRouteData);
+
+        if (foundBrokerData && foundQueueData) {
+            return topicRouteData;
+        }
+
+        return null;
+    }
+```
+
+<strong>5.3.4源码：</strong>[RouteInfoManager.java · L700–L801](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L801)，连续节选。
+
+```java
+    public TopicRouteData pickupTopicRouteData(final String topic) {
+        TopicRouteData topicRouteData = new TopicRouteData();
+        boolean foundQueueData = false;
+        boolean foundBrokerData = false;
+        List<BrokerData> brokerDataList = new LinkedList<>();
+        topicRouteData.setBrokerDatas(brokerDataList);
+
+        HashMap<String, List<String>> filterServerMap = new HashMap<>();
+        topicRouteData.setFilterServerTable(filterServerMap);
+
         try {
             this.lock.readLock().lockInterruptibly();
             Map<String, QueueData> queueDataMap = this.topicQueueTable.get(topic);
@@ -879,68 +1262,91 @@ public TopicRouteData pickupTopicRouteData(final String topic) {
                 topicRouteData.setQueueDatas(new ArrayList<>(queueDataMap.values()));
                 foundQueueData = true;
 
-                brokerNameSet.addAll(queueDataMap.keySet());
+                Set<String> brokerNameSet = new HashSet<>(queueDataMap.keySet());
 
                 for (String brokerName : brokerNameSet) {
                     BrokerData brokerData = this.brokerAddrTable.get(brokerName);
-                    if (null != brokerData) {
-                        BrokerData brokerDataClone = new BrokerData(brokerData.getCluster(), brokerData.getBrokerName(), (HashMap<Long, String>) brokerData
-                                .getBrokerAddrs().clone());
-                        brokerDataList.add(brokerDataClone);
-                        foundBrokerData = true;
+                    if (null == brokerData) {
+                        continue;
+                    }
+                    BrokerData brokerDataClone = new BrokerData(brokerData);
 
-                        // skip if filter server table is empty
-                        if (!filterServerTable.isEmpty()) {
-                            for (final String brokerAddr : brokerDataClone.getBrokerAddrs().values()) {
-                                List<String> filterServerList = this.filterServerTable.get(brokerAddr);
+                    brokerDataList.add(brokerDataClone);
+                    foundBrokerData = true;
+                    if (filterServerTable.isEmpty()) {
+                        continue;
+                    }
+                    for (final String brokerAddr : brokerDataClone.getBrokerAddrs().values()) {
+                        BrokerAddrInfo brokerAddrInfo = new BrokerAddrInfo(brokerDataClone.getCluster(), brokerAddr);
+                        List<String> filterServerList = this.filterServerTable.get(brokerAddrInfo);
+                        filterServerMap.put(brokerAddr, filterServerList);
+                    }
 
-                                // only add filter server list when not null
-                                if (filterServerList != null) {
-                                    filterServerMap.put(brokerAddr, filterServerList);
-                                }
-```
+                }
+            }
+        } catch (Exception e) {
+            log.error("pickupTopicRouteData Exception", e);
+        } finally {
+            this.lock.readLock().unlock();
+        }
 
-<strong>5.3.4源码：</strong>[RouteInfoManager.java · L700–L737](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L737)，连续节选。
+        log.debug("pickupTopicRouteData {} {}", topic, topicRouteData);
 
-```java
-public TopicRouteData pickupTopicRouteData(final String topic) {
-    TopicRouteData topicRouteData = new TopicRouteData();
-    boolean foundQueueData = false;
-    boolean foundBrokerData = false;
-    List<BrokerData> brokerDataList = new LinkedList<>();
-    topicRouteData.setBrokerDatas(brokerDataList);
+        if (foundBrokerData && foundQueueData) {
 
-    HashMap<String, List<String>> filterServerMap = new HashMap<>();
-    topicRouteData.setFilterServerTable(filterServerMap);
+            topicRouteData.setTopicQueueMappingByBroker(this.topicQueueMappingInfoTable.get(topic));
 
-    try {
-        this.lock.readLock().lockInterruptibly();
-        Map<String, QueueData> queueDataMap = this.topicQueueTable.get(topic);
-        if (queueDataMap != null) {
-            topicRouteData.setQueueDatas(new ArrayList<>(queueDataMap.values()));
-            foundQueueData = true;
+            if (!namesrvConfig.isSupportActingMaster()) {
+                return topicRouteData;
+            }
 
-            Set<String> brokerNameSet = new HashSet<>(queueDataMap.keySet());
+            if (topic.startsWith(TopicValidator.SYNC_BROKER_MEMBER_GROUP_PREFIX)) {
+                return topicRouteData;
+            }
 
-            for (String brokerName : brokerNameSet) {
-                BrokerData brokerData = this.brokerAddrTable.get(brokerName);
-                if (null == brokerData) {
+            if (topicRouteData.getBrokerDatas().size() == 0 || topicRouteData.getQueueDatas().size() == 0) {
+                return topicRouteData;
+            }
+
+            boolean needActingMaster = false;
+
+            for (final BrokerData brokerData : topicRouteData.getBrokerDatas()) {
+                if (brokerData.getBrokerAddrs().size() != 0
+                    && !brokerData.getBrokerAddrs().containsKey(MixAll.MASTER_ID)) {
+                    needActingMaster = true;
+                    break;
+                }
+            }
+
+            if (!needActingMaster) {
+                return topicRouteData;
+            }
+
+            for (final BrokerData brokerData : topicRouteData.getBrokerDatas()) {
+                final HashMap<Long, String> brokerAddrs = brokerData.getBrokerAddrs();
+                if (brokerAddrs.size() == 0 || brokerAddrs.containsKey(MixAll.MASTER_ID) || !brokerData.isEnableActingMaster()) {
                     continue;
                 }
-                BrokerData brokerDataClone = new BrokerData(brokerData);
 
-                brokerDataList.add(brokerDataClone);
-                foundBrokerData = true;
-                if (filterServerTable.isEmpty()) {
-                    continue;
-                }
-                for (final String brokerAddr : brokerDataClone.getBrokerAddrs().values()) {
-                    BrokerAddrInfo brokerAddrInfo = new BrokerAddrInfo(brokerDataClone.getCluster(), brokerAddr);
-                    List<String> filterServerList = this.filterServerTable.get(brokerAddrInfo);
-                    filterServerMap.put(brokerAddr, filterServerList);
+                // No master
+                for (final QueueData queueData : topicRouteData.getQueueDatas()) {
+                    if (queueData.getBrokerName().equals(brokerData.getBrokerName())) {
+                        if (!PermName.isWriteable(queueData.getPerm())) {
+                            final Long minBrokerId = Collections.min(brokerAddrs.keySet());
+                            final String actingMasterAddr = brokerAddrs.remove(minBrokerId);
+                            brokerAddrs.put(MixAll.MASTER_ID, actingMasterAddr);
+                        }
+                        break;
+                    }
                 }
 
             }
+
+            return topicRouteData;
+        }
+
+        return null;
+    }
 ```
 
 <strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
@@ -979,53 +1385,103 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[BrokerController.java · L892–L935](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L892-L935)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[BrokerController.java · L892–L985](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L892-L985)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public boolean recoverAndInitService() throws CloneNotSupportedException {
+    public boolean recoverAndInitService() throws CloneNotSupportedException {
 
-    boolean result = true;
+        boolean result = true;
 
-    if (this.brokerConfig.isEnableControllerMode()) {
-        this.replicasManager = new ReplicasManager(this);
-        this.replicasManager.setFenced(true);
-    }
-
-    if (messageStore != null) {
-        registerMessageStoreHook();
-        result = this.messageStore.load();
-    }
-
-    if (messageStoreConfig.isTimerWheelEnable()) {
-        result = result && this.timerMessageStore.load();
-    }
-
-    //scheduleMessageService load after messageStore load success
-    result = result && this.scheduleMessageService.load();
-
-    for (BrokerAttachedPlugin brokerAttachedPlugin : brokerAttachedPlugins) {
-        if (brokerAttachedPlugin != null) {
-            result = result && brokerAttachedPlugin.load();
+        if (this.brokerConfig.isEnableControllerMode()) {
+            this.replicasManager = new ReplicasManager(this);
+            this.replicasManager.setFenced(true);
         }
+
+        if (messageStore != null) {
+            registerMessageStoreHook();
+            result = this.messageStore.load();
+        }
+
+        if (messageStoreConfig.isTimerWheelEnable()) {
+            result = result && this.timerMessageStore.load();
+        }
+
+        //scheduleMessageService load after messageStore load success
+        result = result && this.scheduleMessageService.load();
+
+        for (BrokerAttachedPlugin brokerAttachedPlugin : brokerAttachedPlugins) {
+            if (brokerAttachedPlugin != null) {
+                result = result && brokerAttachedPlugin.load();
+            }
+        }
+
+        this.brokerMetricsManager = new BrokerMetricsManager(this);
+
+        if (result) {
+
+            initializeRemotingServer();
+
+            initializeResources();
+
+            registerProcessor();
+
+            initializeScheduledTasks();
+
+            initialTransaction();
+
+            initialRpcHooks();
+
+            initialRequestPipeline();
+
+            if (TlsSystemConfig.tlsMode != TlsMode.DISABLED) {
+                // Register a listener to reload SslContext
+                try {
+                    fileWatchService = new FileWatchService(
+                        new String[] {
+                            TlsSystemConfig.tlsServerCertPath,
+                            TlsSystemConfig.tlsServerKeyPath,
+                            TlsSystemConfig.tlsServerTrustCertPath
+                        },
+                        new FileWatchService.Listener() {
+                            boolean certChanged, keyChanged = false;
+
+                            @Override
+                            public void onChanged(String path) {
+                                if (path.equals(TlsSystemConfig.tlsServerTrustCertPath)) {
+                                    LOG.info("The trust certificate changed, reload the ssl context");
+                                    reloadServerSslContext();
+                                }
+                                if (path.equals(TlsSystemConfig.tlsServerCertPath)) {
+                                    certChanged = true;
+                                }
+                                if (path.equals(TlsSystemConfig.tlsServerKeyPath)) {
+                                    keyChanged = true;
+                                }
+                                if (certChanged && keyChanged) {
+                                    LOG.info("The certificate and private key changed, reload the ssl context");
+                                    certChanged = keyChanged = false;
+                                    reloadServerSslContext();
+                                }
+                            }
+
+                            private void reloadServerSslContext() {
+                                for (Map.Entry<String, RemotingServer> entry : remotingServerMap.entrySet()) {
+                                    RemotingServer remotingServer = entry.getValue();
+                                    if (remotingServer instanceof NettyRemotingServer) {
+                                        ((NettyRemotingServer) remotingServer).loadSslContext();
+                                    }
+                                }
+                            }
+                        });
+                } catch (Exception e) {
+                    result = false;
+                    LOG.warn("FileWatchService created error, can't load the certificate dynamically");
+                }
+            }
+        }
+
+        return result;
     }
-
-    this.brokerMetricsManager = new BrokerMetricsManager(this);
-
-    if (result) {
-
-        initializeRemotingServer();
-
-        initializeResources();
-
-        registerProcessor();
-
-        initializeScheduledTasks();
-
-        initialTransaction();
-
-        initialRpcHooks();
-
-        initialRequestPipeline();
 ```
 
 <strong>逐段阅读抓手：</strong>将recoverAndInitService与startBasicService、start串起来读；不要只看一个方法。
@@ -1047,61 +1503,137 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[BrokerController.java · L1094–L1145](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L1094-L1145)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[BrokerController.java · L1094–L1221](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L1094-L1221)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public void registerProcessor() {
-    RemotingServer remotingServer = remotingServerMap.get(TCP_REMOTING_SERVER);
-    RemotingServer fastRemotingServer = remotingServerMap.get(FAST_REMOTING_SERVER);
+    public void registerProcessor() {
+        RemotingServer remotingServer = remotingServerMap.get(TCP_REMOTING_SERVER);
+        RemotingServer fastRemotingServer = remotingServerMap.get(FAST_REMOTING_SERVER);
 
-    /*
-     * SendMessageProcessor
-     */
-    sendMessageProcessor.registerSendMessageHook(sendMessageHookList);
-    sendMessageProcessor.registerConsumeMessageHook(consumeMessageHookList);
+        /*
+         * SendMessageProcessor
+         */
+        sendMessageProcessor.registerSendMessageHook(sendMessageHookList);
+        sendMessageProcessor.registerConsumeMessageHook(consumeMessageHookList);
 
-    remotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendMessageProcessor, this.sendMessageExecutor);
-    remotingServer.registerProcessor(RequestCode.SEND_MESSAGE_V2, sendMessageProcessor, this.sendMessageExecutor);
-    remotingServer.registerProcessor(RequestCode.SEND_BATCH_MESSAGE, sendMessageProcessor, this.sendMessageExecutor);
-    remotingServer.registerProcessor(RequestCode.CONSUMER_SEND_MSG_BACK, sendMessageProcessor, this.sendMessageExecutor);
-    remotingServer.registerProcessor(RequestCode.RECALL_MESSAGE, recallMessageProcessor, this.sendMessageExecutor);
-    fastRemotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendMessageProcessor, this.sendMessageExecutor);
-    fastRemotingServer.registerProcessor(RequestCode.SEND_MESSAGE_V2, sendMessageProcessor, this.sendMessageExecutor);
-    fastRemotingServer.registerProcessor(RequestCode.SEND_BATCH_MESSAGE, sendMessageProcessor, this.sendMessageExecutor);
-    fastRemotingServer.registerProcessor(RequestCode.CONSUMER_SEND_MSG_BACK, sendMessageProcessor, this.sendMessageExecutor);
-    fastRemotingServer.registerProcessor(RequestCode.RECALL_MESSAGE, recallMessageProcessor, this.sendMessageExecutor);
-    /**
-     * PullMessageProcessor
-     */
-    remotingServer.registerProcessor(RequestCode.PULL_MESSAGE, this.pullMessageProcessor, this.pullMessageExecutor);
-    remotingServer.registerProcessor(RequestCode.LITE_PULL_MESSAGE, this.pullMessageProcessor, this.litePullMessageExecutor);
-    this.pullMessageProcessor.registerConsumeMessageHook(consumeMessageHookList);
-    /**
-     * PeekMessageProcessor
-     */
-    remotingServer.registerProcessor(RequestCode.PEEK_MESSAGE, this.peekMessageProcessor, this.pullMessageExecutor);
-    /**
-     * PopMessageProcessor
-     */
-    remotingServer.registerProcessor(RequestCode.POP_MESSAGE, this.popMessageProcessor, this.pullMessageExecutor);
+        remotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendMessageProcessor, this.sendMessageExecutor);
+        remotingServer.registerProcessor(RequestCode.SEND_MESSAGE_V2, sendMessageProcessor, this.sendMessageExecutor);
+        remotingServer.registerProcessor(RequestCode.SEND_BATCH_MESSAGE, sendMessageProcessor, this.sendMessageExecutor);
+        remotingServer.registerProcessor(RequestCode.CONSUMER_SEND_MSG_BACK, sendMessageProcessor, this.sendMessageExecutor);
+        remotingServer.registerProcessor(RequestCode.RECALL_MESSAGE, recallMessageProcessor, this.sendMessageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendMessageProcessor, this.sendMessageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.SEND_MESSAGE_V2, sendMessageProcessor, this.sendMessageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.SEND_BATCH_MESSAGE, sendMessageProcessor, this.sendMessageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.CONSUMER_SEND_MSG_BACK, sendMessageProcessor, this.sendMessageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.RECALL_MESSAGE, recallMessageProcessor, this.sendMessageExecutor);
+        /**
+         * PullMessageProcessor
+         */
+        remotingServer.registerProcessor(RequestCode.PULL_MESSAGE, this.pullMessageProcessor, this.pullMessageExecutor);
+        remotingServer.registerProcessor(RequestCode.LITE_PULL_MESSAGE, this.pullMessageProcessor, this.litePullMessageExecutor);
+        this.pullMessageProcessor.registerConsumeMessageHook(consumeMessageHookList);
+        /**
+         * PeekMessageProcessor
+         */
+        remotingServer.registerProcessor(RequestCode.PEEK_MESSAGE, this.peekMessageProcessor, this.pullMessageExecutor);
+        /**
+         * PopMessageProcessor
+         */
+        remotingServer.registerProcessor(RequestCode.POP_MESSAGE, this.popMessageProcessor, this.pullMessageExecutor);
 
-    /**
-     * AckMessageProcessor
-     */
-    remotingServer.registerProcessor(RequestCode.ACK_MESSAGE, this.ackMessageProcessor, this.ackMessageExecutor);
-    fastRemotingServer.registerProcessor(RequestCode.ACK_MESSAGE, this.ackMessageProcessor, this.ackMessageExecutor);
+        /**
+         * AckMessageProcessor
+         */
+        remotingServer.registerProcessor(RequestCode.ACK_MESSAGE, this.ackMessageProcessor, this.ackMessageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.ACK_MESSAGE, this.ackMessageProcessor, this.ackMessageExecutor);
 
-    remotingServer.registerProcessor(RequestCode.BATCH_ACK_MESSAGE, this.ackMessageProcessor, this.ackMessageExecutor);
-    fastRemotingServer.registerProcessor(RequestCode.BATCH_ACK_MESSAGE, this.ackMessageProcessor, this.ackMessageExecutor);
-    /**
-     * ChangeInvisibleTimeProcessor
-     */
-    remotingServer.registerProcessor(RequestCode.CHANGE_MESSAGE_INVISIBLETIME, this.changeInvisibleTimeProcessor, this.ackMessageExecutor);
-    fastRemotingServer.registerProcessor(RequestCode.CHANGE_MESSAGE_INVISIBLETIME, this.changeInvisibleTimeProcessor, this.ackMessageExecutor);
-    /**
-     * notificationProcessor
-     */
-    remotingServer.registerProcessor(RequestCode.NOTIFICATION, this.notificationProcessor, this.pullMessageExecutor);
+        remotingServer.registerProcessor(RequestCode.BATCH_ACK_MESSAGE, this.ackMessageProcessor, this.ackMessageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.BATCH_ACK_MESSAGE, this.ackMessageProcessor, this.ackMessageExecutor);
+        /**
+         * ChangeInvisibleTimeProcessor
+         */
+        remotingServer.registerProcessor(RequestCode.CHANGE_MESSAGE_INVISIBLETIME, this.changeInvisibleTimeProcessor, this.ackMessageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.CHANGE_MESSAGE_INVISIBLETIME, this.changeInvisibleTimeProcessor, this.ackMessageExecutor);
+        /**
+         * notificationProcessor
+         */
+        remotingServer.registerProcessor(RequestCode.NOTIFICATION, this.notificationProcessor, this.pullMessageExecutor);
+
+        /**
+         * pollingInfoProcessor
+         */
+        remotingServer.registerProcessor(RequestCode.POLLING_INFO, this.pollingInfoProcessor, this.pullMessageExecutor);
+
+        /**
+         * ReplyMessageProcessor
+         */
+
+        replyMessageProcessor.registerSendMessageHook(sendMessageHookList);
+
+        remotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE, replyMessageProcessor, replyMessageExecutor);
+        remotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE_V2, replyMessageProcessor, replyMessageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE, replyMessageProcessor, replyMessageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE_V2, replyMessageProcessor, replyMessageExecutor);
+
+        /**
+         * QueryMessageProcessor
+         */
+        NettyRequestProcessor queryProcessor = new QueryMessageProcessor(this);
+        remotingServer.registerProcessor(RequestCode.QUERY_MESSAGE, queryProcessor, this.queryMessageExecutor);
+        remotingServer.registerProcessor(RequestCode.VIEW_MESSAGE_BY_ID, queryProcessor, this.queryMessageExecutor);
+
+        fastRemotingServer.registerProcessor(RequestCode.QUERY_MESSAGE, queryProcessor, this.queryMessageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.VIEW_MESSAGE_BY_ID, queryProcessor, this.queryMessageExecutor);
+
+        /**
+         * ClientManageProcessor
+         */
+        remotingServer.registerProcessor(RequestCode.HEART_BEAT, clientManageProcessor, this.heartbeatExecutor);
+        remotingServer.registerProcessor(RequestCode.UNREGISTER_CLIENT, clientManageProcessor, this.clientManageExecutor);
+        remotingServer.registerProcessor(RequestCode.CHECK_CLIENT_CONFIG, clientManageProcessor, this.clientManageExecutor);
+
+        fastRemotingServer.registerProcessor(RequestCode.HEART_BEAT, clientManageProcessor, this.heartbeatExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.UNREGISTER_CLIENT, clientManageProcessor, this.clientManageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.CHECK_CLIENT_CONFIG, clientManageProcessor, this.clientManageExecutor);
+
+        /**
+         * ConsumerManageProcessor
+         */
+        ConsumerManageProcessor consumerManageProcessor = new ConsumerManageProcessor(this);
+        remotingServer.registerProcessor(RequestCode.GET_CONSUMER_LIST_BY_GROUP, consumerManageProcessor, this.consumerManageExecutor);
+        remotingServer.registerProcessor(RequestCode.UPDATE_CONSUMER_OFFSET, consumerManageProcessor, this.consumerManageExecutor);
+        remotingServer.registerProcessor(RequestCode.QUERY_CONSUMER_OFFSET, consumerManageProcessor, this.consumerManageExecutor);
+
+        fastRemotingServer.registerProcessor(RequestCode.GET_CONSUMER_LIST_BY_GROUP, consumerManageProcessor, this.consumerManageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.UPDATE_CONSUMER_OFFSET, consumerManageProcessor, this.consumerManageExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.QUERY_CONSUMER_OFFSET, consumerManageProcessor, this.consumerManageExecutor);
+
+        /**
+         * QueryAssignmentProcessor
+         */
+        remotingServer.registerProcessor(RequestCode.QUERY_ASSIGNMENT, queryAssignmentProcessor, loadBalanceExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.QUERY_ASSIGNMENT, queryAssignmentProcessor, loadBalanceExecutor);
+        remotingServer.registerProcessor(RequestCode.SET_MESSAGE_REQUEST_MODE, queryAssignmentProcessor, loadBalanceExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.SET_MESSAGE_REQUEST_MODE, queryAssignmentProcessor, loadBalanceExecutor);
+
+        /**
+         * EndTransactionProcessor
+         */
+        remotingServer.registerProcessor(RequestCode.END_TRANSACTION, endTransactionProcessor, this.endTransactionExecutor);
+        fastRemotingServer.registerProcessor(RequestCode.END_TRANSACTION, endTransactionProcessor, this.endTransactionExecutor);
+
+        /*
+         * Default
+         */
+        AdminBrokerProcessor adminProcessor = new AdminBrokerProcessor(this);
+        remotingServer.registerDefaultProcessor(adminProcessor, this.adminBrokerExecutor);
+        fastRemotingServer.registerDefaultProcessor(adminProcessor, this.adminBrokerExecutor);
+
+        /*
+         * Initialize the mapping of request codes to request headers.
+         */
+        RequestHeaderRegistry.getInstance().initialize();
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>看注册时传入的线程池对象，区分网络事件线程和业务处理线程。
@@ -1123,65 +1655,76 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[NettyRemotingAbstract.java · L336–L391](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/remoting/src/main/java/org/apache/rocketmq/remoting/netty/NettyRemotingAbstract.java#L336-L391)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[NettyRemotingAbstract.java · L336–L402](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/remoting/src/main/java/org/apache/rocketmq/remoting/netty/NettyRemotingAbstract.java#L336-L402)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-/**
- * Process incoming request command issued by remote peer.
- *
- * @param ctx channel handler context.
- * @param cmd request command.
- */
-public void processRequestCommand(final ChannelHandlerContext ctx, final RemotingCommand cmd) {
-    final Pair<NettyRequestProcessor, ExecutorService> matched = this.processorTable.get(cmd.getCode());
-    final Pair<NettyRequestProcessor, ExecutorService> pair = null == matched ? this.defaultRequestProcessorPair : matched;
-    final int opaque = cmd.getOpaque();
+    /**
+     * Process incoming request command issued by remote peer.
+     *
+     * @param ctx channel handler context.
+     * @param cmd request command.
+     */
+    public void processRequestCommand(final ChannelHandlerContext ctx, final RemotingCommand cmd) {
+        final Pair<NettyRequestProcessor, ExecutorService> matched = this.processorTable.get(cmd.getCode());
+        final Pair<NettyRequestProcessor, ExecutorService> pair = null == matched ? this.defaultRequestProcessorPair : matched;
+        final int opaque = cmd.getOpaque();
 
-    if (pair == null) {
-        String error = " request type " + cmd.getCode() + " not supported";
-        final RemotingCommand response =
-            RemotingCommand.createResponseCommand(RemotingSysResponseCode.REQUEST_CODE_NOT_SUPPORTED, error);
-        response.setOpaque(opaque);
-        this.writeResponse(ctx.channel(), cmd, response, null);
-        log.error(RemotingHelper.parseChannelRemoteAddr(ctx.channel()) + error);
-        return;
-    }
-
-    Runnable run = buildProcessRequestHandler(ctx, cmd, pair, opaque);
-
-    if (isShuttingDown.get()) {
-        if (cmd.getVersion() > MQVersion.Version.V5_3_1.ordinal()) {
-            final RemotingCommand response = RemotingCommand.createResponseCommand(ResponseCode.GO_AWAY,
-                "please go away");
+        if (pair == null) {
+            String error = " request type " + cmd.getCode() + " not supported";
+            final RemotingCommand response =
+                RemotingCommand.createResponseCommand(RemotingSysResponseCode.REQUEST_CODE_NOT_SUPPORTED, error);
             response.setOpaque(opaque);
             this.writeResponse(ctx.channel(), cmd, response, null);
-            log.info("proxy is shutting down, write response GO_AWAY. channel={}, requestCode={}, opaque={}", ctx.channel(), cmd.getCode(), opaque);
+            log.error(RemotingHelper.parseChannelRemoteAddr(ctx.channel()) + error);
             return;
         }
-    }
 
-    if (pair.getObject1().rejectRequest()) {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(RemotingSysResponseCode.SYSTEM_BUSY,
-            "[REJECTREQUEST]system busy, start flow control for a while");
-        response.setOpaque(opaque);
-        this.writeResponse(ctx.channel(), cmd, response, null);
-        return;
-    }
+        Runnable run = buildProcessRequestHandler(ctx, cmd, pair, opaque);
 
-    try {
-        final RequestTask requestTask = new RequestTask(run, ctx.channel(), cmd);
-        //async execute task, current thread return directly
-        pair.getObject2().submit(requestTask);
-    } catch (RejectedExecutionException e) {
-        if ((System.currentTimeMillis() % 10000) == 0) {
-            log.warn(RemotingHelper.parseChannelRemoteAddr(ctx.channel())
-                + ", too many requests and system thread pool busy, RejectedExecutionException "
-                + pair.getObject2().toString()
-                + " request code: " + cmd.getCode());
+        if (isShuttingDown.get()) {
+            if (cmd.getVersion() > MQVersion.Version.V5_3_1.ordinal()) {
+                final RemotingCommand response = RemotingCommand.createResponseCommand(ResponseCode.GO_AWAY,
+                    "please go away");
+                response.setOpaque(opaque);
+                this.writeResponse(ctx.channel(), cmd, response, null);
+                log.info("proxy is shutting down, write response GO_AWAY. channel={}, requestCode={}, opaque={}", ctx.channel(), cmd.getCode(), opaque);
+                return;
+            }
         }
 
-        final RemotingCommand response = RemotingCommand.createResponseCommand(RemotingSysResponseCode.SYSTEM_BUSY,
-            "[OVERLOAD]system busy, start flow control for a while");
+        if (pair.getObject1().rejectRequest()) {
+            final RemotingCommand response = RemotingCommand.createResponseCommand(RemotingSysResponseCode.SYSTEM_BUSY,
+                "[REJECTREQUEST]system busy, start flow control for a while");
+            response.setOpaque(opaque);
+            this.writeResponse(ctx.channel(), cmd, response, null);
+            return;
+        }
+
+        try {
+            final RequestTask requestTask = new RequestTask(run, ctx.channel(), cmd);
+            //async execute task, current thread return directly
+            pair.getObject2().submit(requestTask);
+        } catch (RejectedExecutionException e) {
+            if ((System.currentTimeMillis() % 10000) == 0) {
+                log.warn(RemotingHelper.parseChannelRemoteAddr(ctx.channel())
+                    + ", too many requests and system thread pool busy, RejectedExecutionException "
+                    + pair.getObject2().toString()
+                    + " request code: " + cmd.getCode());
+            }
+
+            final RemotingCommand response = RemotingCommand.createResponseCommand(RemotingSysResponseCode.SYSTEM_BUSY,
+                "[OVERLOAD]system busy, start flow control for a while");
+            response.setOpaque(opaque);
+            this.writeResponse(ctx.channel(), cmd, response, null);
+        } catch (Throwable e) {
+            if (remotingMetricsManager != null) {
+                AttributesBuilder attributesBuilder = remotingMetricsManager.newAttributesBuilder()
+                    .put(LABEL_REQUEST_CODE, RemotingHelper.getRequestCodeDesc(cmd.getCode()))
+                    .put(LABEL_RESULT, RESULT_PROCESS_REQUEST_FAILED);
+                remotingMetricsManager.getRpcLatency().record(cmd.getProcessTimer().elapsed(TimeUnit.MILLISECONDS), attributesBuilder.build());
+            }
+        }
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>关注rejectRequest与线程池提交失败的响应；繁忙错误不等于消息必然未写入。
@@ -1221,58 +1764,60 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L243–L291](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L243-L291)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L243–L293](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L243-L293)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public void start(final boolean startFactory) throws MQClientException {
-    switch (this.serviceState) {
-        case CREATE_JUST:
-            this.serviceState = ServiceState.START_FAILED;
+    public void start(final boolean startFactory) throws MQClientException {
+        switch (this.serviceState) {
+            case CREATE_JUST:
+                this.serviceState = ServiceState.START_FAILED;
 
-            this.checkConfig();
+                this.checkConfig();
 
-            if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {
-                this.defaultMQProducer.changeInstanceNameToPID();
-            }
+                if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {
+                    this.defaultMQProducer.changeInstanceNameToPID();
+                }
 
-            this.mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(this.defaultMQProducer, rpcHook);
+                this.mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(this.defaultMQProducer, rpcHook);
 
-            defaultMQProducer.initProduceAccumulator();
+                defaultMQProducer.initProduceAccumulator();
 
-            boolean registerOK = mQClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
-            if (!registerOK) {
-                this.serviceState = ServiceState.CREATE_JUST;
-                throw new MQClientException("The producer group[" + this.defaultMQProducer.getProducerGroup()
-                    + "] has been created before, specify another name please." + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
+                boolean registerOK = mQClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
+                if (!registerOK) {
+                    this.serviceState = ServiceState.CREATE_JUST;
+                    throw new MQClientException("The producer group[" + this.defaultMQProducer.getProducerGroup()
+                        + "] has been created before, specify another name please." + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
+                        null);
+                }
+
+                if (startFactory) {
+                    mQClientFactory.start();
+                }
+
+                this.initTopicRoute();
+
+                this.mqFaultStrategy.startDetector();
+
+                log.info("the producer [{}] start OK. sendMessageWithVIPChannel={}", this.defaultMQProducer.getProducerGroup(),
+                    this.defaultMQProducer.isSendMessageWithVIPChannel());
+                this.serviceState = ServiceState.RUNNING;
+                break;
+            case RUNNING:
+            case START_FAILED:
+            case SHUTDOWN_ALREADY:
+                throw new MQClientException("The producer service state not OK, maybe started once, "
+                    + this.serviceState
+                    + FAQUrl.suggestTodo(FAQUrl.CLIENT_SERVICE_NOT_OK),
                     null);
-            }
+            default:
+                break;
+        }
 
-            if (startFactory) {
-                mQClientFactory.start();
-            }
+        this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
 
-            this.initTopicRoute();
+        RequestFutureHolder.getInstance().startScheduledTask(this);
 
-            this.mqFaultStrategy.startDetector();
-
-            log.info("the producer [{}] start OK. sendMessageWithVIPChannel={}", this.defaultMQProducer.getProducerGroup(),
-                this.defaultMQProducer.isSendMessageWithVIPChannel());
-            this.serviceState = ServiceState.RUNNING;
-            break;
-        case RUNNING:
-        case START_FAILED:
-        case SHUTDOWN_ALREADY:
-            throw new MQClientException("The producer service state not OK, maybe started once, "
-                + this.serviceState
-                + FAQUrl.suggestTodo(FAQUrl.CLIENT_SERVICE_NOT_OK),
-                null);
-        default:
-            break;
     }
-
-    this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
-
-    RequestFutureHolder.getInstance().startScheduledTask(this);
 ```
 
 <strong>逐段阅读抓手：</strong>看ServiceState转换以及registerProducer失败分支；Group重复注册和路由不存在是两种问题。
@@ -1296,77 +1841,168 @@ G -- 成功或不可重试 --> H["返回结果或抛异常"]
 G -- 可重试且有次数 --> C
 ```
 
-<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L738–L805](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L738-L805)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L738–L896](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L738-L896)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-private SendResult sendDefaultImpl(
-    Message msg,
-    final CommunicationMode communicationMode,
-    final SendCallback sendCallback,
-    final long timeout
-) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
-    this.makeSureStateOK();
-    Validators.checkMessage(msg, this.defaultMQProducer);
-    final long invokeID = random.nextLong();
-    long beginTimestampFirst = System.currentTimeMillis();
-    long beginTimestampPrev = beginTimestampFirst;
-    long endTimestamp = beginTimestampFirst;
-    TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
-    if (topicPublishInfo != null && topicPublishInfo.ok()) {
-        boolean callTimeout = false;
-        MessageQueue mq = null;
-        Exception exception = null;
-        SendResult sendResult = null;
-        int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
-        int times = 0;
-        String[] brokersSent = new String[timesTotal];
-        boolean resetIndex = false;
-        for (; times < timesTotal; times++) {
-            String lastBrokerName = null == mq ? null : mq.getBrokerName();
-            if (times > 0) {
-                resetIndex = true;
-            }
-            MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName, resetIndex);
-            if (mqSelected != null) {
-                mq = mqSelected;
-                brokersSent[times] = mq.getBrokerName();
-                try {
-                    beginTimestampPrev = System.currentTimeMillis();
-                    if (times > 0) {
-                        //Reset topic with namespace during resend.
-                        msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
-                    }
-                    long costTime = beginTimestampPrev - beginTimestampFirst;
-                    if (timeout < costTime) {
-                        callTimeout = true;
-                        break;
-                    }
-                    long curTimeout = timeout - costTime;
-                    // Get the maximum timeout allowed per request
-                    long maxSendTimeoutPerRequest = defaultMQProducer.getSendMsgMaxTimeoutPerRequest();
-                    // Determine if retries are still possible
-                    boolean canRetryAgain = times + 1 < timesTotal;
-                    // If retries are possible, and the current timeout exceeds the max allowed timeout, set the current timeout to the max allowed
-                    if (maxSendTimeoutPerRequest > -1 && canRetryAgain && curTimeout > maxSendTimeoutPerRequest) {
-                        curTimeout = maxSendTimeoutPerRequest;
-                    }
-                    sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, curTimeout);
-                    endTimestamp = System.currentTimeMillis();
-                    this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false, true);
-                    switch (communicationMode) {
-                        case ASYNC:
-                            return null;
-                        case ONEWAY:
-                            return null;
-                        case SYNC:
-                            if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
-                                if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
-                                    continue;
+    private SendResult sendDefaultImpl(
+        Message msg,
+        final CommunicationMode communicationMode,
+        final SendCallback sendCallback,
+        final long timeout
+    ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        this.makeSureStateOK();
+        Validators.checkMessage(msg, this.defaultMQProducer);
+        final long invokeID = random.nextLong();
+        long beginTimestampFirst = System.currentTimeMillis();
+        long beginTimestampPrev = beginTimestampFirst;
+        long endTimestamp = beginTimestampFirst;
+        TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
+        if (topicPublishInfo != null && topicPublishInfo.ok()) {
+            boolean callTimeout = false;
+            MessageQueue mq = null;
+            Exception exception = null;
+            SendResult sendResult = null;
+            int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
+            int times = 0;
+            String[] brokersSent = new String[timesTotal];
+            boolean resetIndex = false;
+            for (; times < timesTotal; times++) {
+                String lastBrokerName = null == mq ? null : mq.getBrokerName();
+                if (times > 0) {
+                    resetIndex = true;
+                }
+                MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName, resetIndex);
+                if (mqSelected != null) {
+                    mq = mqSelected;
+                    brokersSent[times] = mq.getBrokerName();
+                    try {
+                        beginTimestampPrev = System.currentTimeMillis();
+                        if (times > 0) {
+                            //Reset topic with namespace during resend.
+                            msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
+                        }
+                        long costTime = beginTimestampPrev - beginTimestampFirst;
+                        if (timeout < costTime) {
+                            callTimeout = true;
+                            break;
+                        }
+                        long curTimeout = timeout - costTime;
+                        // Get the maximum timeout allowed per request
+                        long maxSendTimeoutPerRequest = defaultMQProducer.getSendMsgMaxTimeoutPerRequest();
+                        // Determine if retries are still possible
+                        boolean canRetryAgain = times + 1 < timesTotal;
+                        // If retries are possible, and the current timeout exceeds the max allowed timeout, set the current timeout to the max allowed
+                        if (maxSendTimeoutPerRequest > -1 && canRetryAgain && curTimeout > maxSendTimeoutPerRequest) {
+                            curTimeout = maxSendTimeoutPerRequest;
+                        }
+                        sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, curTimeout);
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false, true);
+                        switch (communicationMode) {
+                            case ASYNC:
+                                return null;
+                            case ONEWAY:
+                                return null;
+                            case SYNC:
+                                if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
+                                    if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
+                                        continue;
+                                    }
                                 }
+
+                                return sendResult;
+                            default:
+                                break;
+                        }
+                    } catch (MQClientException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false, true);
+                        log.warn("sendKernelImpl exception, resend at once, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        exception = e;
+                        continue;
+                    } catch (RemotingException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        if (this.mqFaultStrategy.isStartDetectorEnable()) {
+                            // Set this broker unreachable when detecting schedule task is running for RemotingException.
+                            this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, false);
+                        } else {
+                            // Otherwise, isolate this broker.
+                            this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, true);
+                        }
+                        log.warn("sendKernelImpl exception, resend at once, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        exception = e;
+                        continue;
+                    } catch (MQBrokerException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, false);
+                        log.warn("sendKernelImpl exception, resend at once, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        exception = e;
+                        if (this.defaultMQProducer.getRetryResponseCodes().contains(e.getResponseCode())) {
+                            continue;
+                        } else {
+                            if (sendResult != null) {
+                                return sendResult;
                             }
 
-                            return sendResult;
-                        default:
+                            throw e;
+                        }
+                    } catch (InterruptedException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false, true);
+                        log.warn("sendKernelImpl exception, throw exception, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        throw e;
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            if (sendResult != null) {
+                return sendResult;
+            }
+            String info = String.format("Send [%d] times, still failed, cost [%d]ms, Topic: %s, BrokersSent: %s",
+                times,
+                System.currentTimeMillis() - beginTimestampFirst,
+                msg.getTopic(),
+                Arrays.toString(brokersSent));
+
+            info += FAQUrl.suggestTodo(FAQUrl.SEND_MSG_FAILED);
+
+            MQClientException mqClientException = new MQClientException(info, exception);
+            if (callTimeout) {
+                throw new RemotingTooMuchRequestException("sendDefaultImpl call timeout");
+            }
+
+            if (exception instanceof MQBrokerException) {
+                mqClientException.setResponseCode(((MQBrokerException) exception).getResponseCode());
+            } else if (exception instanceof RemotingConnectException) {
+                mqClientException.setResponseCode(ClientErrorCode.CONNECT_BROKER_EXCEPTION);
+            } else if (exception instanceof RemotingTimeoutException) {
+                mqClientException.setResponseCode(ClientErrorCode.ACCESS_BROKER_TIMEOUT);
+            } else if (exception instanceof MQClientException) {
+                mqClientException.setResponseCode(ClientErrorCode.BROKER_NOT_EXIST_EXCEPTION);
+            }
+
+            throw mqClientException;
+        }
+
+        validateNameServerSetting();
+
+        throw new MQClientException("No route info of this topic: " + msg.getTopic() + FAQUrl.suggestTodo(FAQUrl.NO_TOPIC_ROUTE_INFO),
+            null).setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>关注timesTotal、costTime、curTimeout、canRetryAgain；这是总预算与单次预算的组合。
@@ -1438,73 +2074,196 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L915–L978](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L915-L978)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L915–L1101](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L915-L1101)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-private SendResult sendKernelImpl(final Message msg,
-    final MessageQueue mq,
-    final CommunicationMode communicationMode,
-    final SendCallback sendCallback,
-    final TopicPublishInfo topicPublishInfo,
-    final long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
-    long beginStartTime = System.currentTimeMillis();
-    String brokerName = this.mQClientFactory.getBrokerNameFromMessageQueue(mq);
-    String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(brokerName);
-    if (null == brokerAddr) {
-        tryToFindTopicPublishInfo(mq.getTopic());
-        brokerName = this.mQClientFactory.getBrokerNameFromMessageQueue(mq);
-        brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(brokerName);
+    private SendResult sendKernelImpl(final Message msg,
+        final MessageQueue mq,
+        final CommunicationMode communicationMode,
+        final SendCallback sendCallback,
+        final TopicPublishInfo topicPublishInfo,
+        final long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        long beginStartTime = System.currentTimeMillis();
+        String brokerName = this.mQClientFactory.getBrokerNameFromMessageQueue(mq);
+        String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(brokerName);
+        if (null == brokerAddr) {
+            tryToFindTopicPublishInfo(mq.getTopic());
+            brokerName = this.mQClientFactory.getBrokerNameFromMessageQueue(mq);
+            brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(brokerName);
+        }
+
+        SendMessageContext context = null;
+        if (brokerAddr != null) {
+            brokerAddr = MixAll.brokerVIPChannel(this.defaultMQProducer.isSendMessageWithVIPChannel(), brokerAddr);
+
+            byte[] prevBody = msg.getBody();
+            try {
+                //for MessageBatch,ID has been set in the generating process
+                if (!(msg instanceof MessageBatch)) {
+                    MessageClientIDSetter.setUniqID(msg);
+                }
+
+                boolean topicWithNamespace = false;
+                if (null != this.mQClientFactory.getClientConfig().getNamespace()) {
+                    msg.setInstanceId(this.mQClientFactory.getClientConfig().getNamespace());
+                    topicWithNamespace = true;
+                }
+
+                int sysFlag = 0;
+                boolean msgBodyCompressed = false;
+                if (this.tryToCompressMessage(msg)) {
+                    sysFlag |= MessageSysFlag.COMPRESSED_FLAG;
+                    sysFlag |= this.defaultMQProducer.getCompressType().getCompressionFlag();
+                    msgBodyCompressed = true;
+                }
+
+                final String tranMsg = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
+                if (Boolean.parseBoolean(tranMsg)) {
+                    sysFlag |= MessageSysFlag.TRANSACTION_PREPARED_TYPE;
+                }
+
+                if (hasCheckForbiddenHook()) {
+                    CheckForbiddenContext checkForbiddenContext = new CheckForbiddenContext();
+                    checkForbiddenContext.setNameSrvAddr(this.defaultMQProducer.getNamesrvAddr());
+                    checkForbiddenContext.setGroup(this.defaultMQProducer.getProducerGroup());
+                    checkForbiddenContext.setCommunicationMode(communicationMode);
+                    checkForbiddenContext.setBrokerAddr(brokerAddr);
+                    checkForbiddenContext.setMessage(msg);
+                    checkForbiddenContext.setMq(mq);
+                    checkForbiddenContext.setUnitMode(this.isUnitMode());
+                    this.executeCheckForbiddenHook(checkForbiddenContext);
+                }
+
+                if (this.hasSendMessageHook()) {
+                    context = new SendMessageContext();
+                    context.setProducer(this);
+                    context.setProducerGroup(this.defaultMQProducer.getProducerGroup());
+                    context.setCommunicationMode(communicationMode);
+                    context.setBornHost(this.defaultMQProducer.getClientIP());
+                    context.setBrokerAddr(brokerAddr);
+                    context.setMessage(msg);
+                    context.setMq(mq);
+                    context.setNamespace(this.defaultMQProducer.getNamespace());
+                    String isTrans = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
+                    if (isTrans != null && isTrans.equals("true")) {
+                        context.setMsgType(MessageType.Trans_Msg_Half);
+                    }
+
+                    if (msg.getProperty("__STARTDELIVERTIME") != null || msg.getProperty(MessageConst.PROPERTY_DELAY_TIME_LEVEL) != null) {
+                        context.setMsgType(MessageType.Delay_Msg);
+                    }
+                    this.executeSendMessageHookBefore(context);
+                }
+
+                SendMessageRequestHeader requestHeader = new SendMessageRequestHeader();
+                requestHeader.setProducerGroup(this.defaultMQProducer.getProducerGroup());
+                requestHeader.setTopic(msg.getTopic());
+                requestHeader.setDefaultTopic(this.defaultMQProducer.getCreateTopicKey());
+                requestHeader.setDefaultTopicQueueNums(this.defaultMQProducer.getDefaultTopicQueueNums());
+                requestHeader.setQueueId(mq.getQueueId());
+                requestHeader.setSysFlag(sysFlag);
+                requestHeader.setBornTimestamp(System.currentTimeMillis());
+                requestHeader.setFlag(msg.getFlag());
+                requestHeader.setProperties(MessageDecoder.messageProperties2String(msg.getProperties()));
+                requestHeader.setReconsumeTimes(0);
+                requestHeader.setUnitMode(this.isUnitMode());
+                requestHeader.setBatch(msg instanceof MessageBatch);
+                requestHeader.setBrokerName(brokerName);
+                if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+                    String reconsumeTimes = MessageAccessor.getReconsumeTime(msg);
+                    if (reconsumeTimes != null) {
+                        requestHeader.setReconsumeTimes(Integer.valueOf(reconsumeTimes));
+                        MessageAccessor.clearProperty(msg, MessageConst.PROPERTY_RECONSUME_TIME);
+                    }
+
+                    String maxReconsumeTimes = MessageAccessor.getMaxReconsumeTimes(msg);
+                    if (maxReconsumeTimes != null) {
+                        requestHeader.setMaxReconsumeTimes(Integer.valueOf(maxReconsumeTimes));
+                        MessageAccessor.clearProperty(msg, MessageConst.PROPERTY_MAX_RECONSUME_TIMES);
+                    }
+                }
+
+                SendResult sendResult = null;
+                switch (communicationMode) {
+                    case ASYNC:
+                        Message tmpMessage = msg;
+                        boolean messageCloned = false;
+                        if (msgBodyCompressed) {
+                            //If msg body was compressed, msgbody should be reset using prevBody.
+                            //Clone new message using compressed message body and recover origin massage.
+                            //Fix bug:https://github.com/apache/rocketmq-externals/issues/66
+                            tmpMessage = MessageAccessor.cloneMessage(msg);
+                            messageCloned = true;
+                            msg.setBody(prevBody);
+                        }
+
+                        if (topicWithNamespace) {
+                            if (!messageCloned) {
+                                tmpMessage = MessageAccessor.cloneMessage(msg);
+                                messageCloned = true;
+                            }
+                            msg.setTopic(NamespaceUtil.withoutNamespace(msg.getTopic(), this.defaultMQProducer.getNamespace()));
+                        }
+
+                        long costTimeAsync = System.currentTimeMillis() - beginStartTime;
+                        if (timeout < costTimeAsync) {
+                            throw new RemotingTooMuchRequestException("sendKernelImpl call timeout");
+                        }
+                        sendResult = this.mQClientFactory.getMQClientAPIImpl().sendMessage(
+                            brokerAddr,
+                            brokerName,
+                            tmpMessage,
+                            requestHeader,
+                            timeout - costTimeAsync,
+                            communicationMode,
+                            sendCallback,
+                            topicPublishInfo,
+                            this.mQClientFactory,
+                            this.defaultMQProducer.getRetryTimesWhenSendAsyncFailed(),
+                            context,
+                            this);
+                        break;
+                    case ONEWAY:
+                    case SYNC:
+                        long costTimeSync = System.currentTimeMillis() - beginStartTime;
+                        if (timeout < costTimeSync) {
+                            throw new RemotingTooMuchRequestException("sendKernelImpl call timeout");
+                        }
+                        sendResult = this.mQClientFactory.getMQClientAPIImpl().sendMessage(
+                            brokerAddr,
+                            brokerName,
+                            msg,
+                            requestHeader,
+                            timeout - costTimeSync,
+                            communicationMode,
+                            context,
+                            this);
+                        break;
+                    default:
+                        assert false;
+                        break;
+                }
+
+                if (this.hasSendMessageHook()) {
+                    context.setSendResult(sendResult);
+                    this.executeSendMessageHookAfter(context);
+                }
+
+                return sendResult;
+            } catch (RemotingException | InterruptedException | MQBrokerException e) {
+                if (this.hasSendMessageHook()) {
+                    context.setException(e);
+                    this.executeSendMessageHookAfter(context);
+                }
+                throw e;
+            } finally {
+                msg.setBody(prevBody);
+                msg.setTopic(NamespaceUtil.withoutNamespace(msg.getTopic(), this.defaultMQProducer.getNamespace()));
+            }
+        }
+
+        throw new MQClientException("The broker[" + brokerName + "] not exist", null);
     }
-
-    SendMessageContext context = null;
-    if (brokerAddr != null) {
-        brokerAddr = MixAll.brokerVIPChannel(this.defaultMQProducer.isSendMessageWithVIPChannel(), brokerAddr);
-
-        byte[] prevBody = msg.getBody();
-        try {
-            //for MessageBatch,ID has been set in the generating process
-            if (!(msg instanceof MessageBatch)) {
-                MessageClientIDSetter.setUniqID(msg);
-            }
-
-            boolean topicWithNamespace = false;
-            if (null != this.mQClientFactory.getClientConfig().getNamespace()) {
-                msg.setInstanceId(this.mQClientFactory.getClientConfig().getNamespace());
-                topicWithNamespace = true;
-            }
-
-            int sysFlag = 0;
-            boolean msgBodyCompressed = false;
-            if (this.tryToCompressMessage(msg)) {
-                sysFlag |= MessageSysFlag.COMPRESSED_FLAG;
-                sysFlag |= this.defaultMQProducer.getCompressType().getCompressionFlag();
-                msgBodyCompressed = true;
-            }
-
-            final String tranMsg = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
-            if (Boolean.parseBoolean(tranMsg)) {
-                sysFlag |= MessageSysFlag.TRANSACTION_PREPARED_TYPE;
-            }
-
-            if (hasCheckForbiddenHook()) {
-                CheckForbiddenContext checkForbiddenContext = new CheckForbiddenContext();
-                checkForbiddenContext.setNameSrvAddr(this.defaultMQProducer.getNamesrvAddr());
-                checkForbiddenContext.setGroup(this.defaultMQProducer.getProducerGroup());
-                checkForbiddenContext.setCommunicationMode(communicationMode);
-                checkForbiddenContext.setBrokerAddr(brokerAddr);
-                checkForbiddenContext.setMessage(msg);
-                checkForbiddenContext.setMq(mq);
-                checkForbiddenContext.setUnitMode(this.isUnitMode());
-                this.executeCheckForbiddenHook(checkForbiddenContext);
-            }
-
-            if (this.hasSendMessageHook()) {
-                context = new SendMessageContext();
-                context.setProducer(this);
-                context.setProducerGroup(this.defaultMQProducer.getProducerGroup());
-                context.setCommunicationMode(communicationMode);
-                context.setBornHost(this.defaultMQProducer.getClientIP());
-                context.setBrokerAddr(brokerAddr);
 ```
 
 <strong>逐段阅读抓手：</strong>从try到finally看临时修改的恢复；Hook是观察/扩展点，不能替代存储确认。
@@ -1531,97 +2290,307 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[DefaultMQProducerImpl.java · L555–L588](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L555-L588)，连续节选。
+<strong>4.9.8源码：</strong>[DefaultMQProducerImpl.java · L537–L670](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L537-L670)，连续节选。
 
 ```java
-int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
-int times = 0;
-String[] brokersSent = new String[timesTotal];
-for (; times < timesTotal; times++) {
-    String lastBrokerName = null == mq ? null : mq.getBrokerName();
-    MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName);
-    if (mqSelected != null) {
-        mq = mqSelected;
-        brokersSent[times] = mq.getBrokerName();
-        try {
-            beginTimestampPrev = System.currentTimeMillis();
-            if (times > 0) {
-                //Reset topic with namespace during resend.
-                msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
-            }
-            long costTime = beginTimestampPrev - beginTimestampFirst;
-            if (timeout < costTime) {
-                callTimeout = true;
-                break;
+    private SendResult sendDefaultImpl(
+        Message msg,
+        final CommunicationMode communicationMode,
+        final SendCallback sendCallback,
+        final long timeout
+    ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        this.makeSureStateOK();
+        Validators.checkMessage(msg, this.defaultMQProducer);
+        final long invokeID = random.nextLong();
+        long beginTimestampFirst = System.currentTimeMillis();
+        long beginTimestampPrev = beginTimestampFirst;
+        long endTimestamp = beginTimestampFirst;
+        TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
+        if (topicPublishInfo != null && topicPublishInfo.ok()) {
+            boolean callTimeout = false;
+            MessageQueue mq = null;
+            Exception exception = null;
+            SendResult sendResult = null;
+            int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
+            int times = 0;
+            String[] brokersSent = new String[timesTotal];
+            for (; times < timesTotal; times++) {
+                String lastBrokerName = null == mq ? null : mq.getBrokerName();
+                MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName);
+                if (mqSelected != null) {
+                    mq = mqSelected;
+                    brokersSent[times] = mq.getBrokerName();
+                    try {
+                        beginTimestampPrev = System.currentTimeMillis();
+                        if (times > 0) {
+                            //Reset topic with namespace during resend.
+                            msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
+                        }
+                        long costTime = beginTimestampPrev - beginTimestampFirst;
+                        if (timeout < costTime) {
+                            callTimeout = true;
+                            break;
+                        }
+
+                        sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
+                        switch (communicationMode) {
+                            case ASYNC:
+                                return null;
+                            case ONEWAY:
+                                return null;
+                            case SYNC:
+                                if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
+                                    if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
+                                        continue;
+                                    }
+                                }
+
+                                return sendResult;
+                            default:
+                                break;
+                        }
+                    } catch (RemotingException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true);
+                        log.warn(String.format("sendKernelImpl exception, resend at once, InvokeID: %s, RT: %sms, Broker: %s", invokeID, endTimestamp - beginTimestampPrev, mq), e);
+                        log.warn(msg.toString());
+                        exception = e;
+                        continue;
+                    } catch (MQClientException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true);
+                        log.warn(String.format("sendKernelImpl exception, resend at once, InvokeID: %s, RT: %sms, Broker: %s", invokeID, endTimestamp - beginTimestampPrev, mq), e);
+                        log.warn(msg.toString());
+                        exception = e;
+                        continue;
+                    } catch (MQBrokerException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true);
+                        log.warn(String.format("sendKernelImpl exception, resend at once, InvokeID: %s, RT: %sms, Broker: %s", invokeID, endTimestamp - beginTimestampPrev, mq), e);
+                        log.warn(msg.toString());
+                        exception = e;
+                        if (this.defaultMQProducer.getRetryResponseCodes().contains(e.getResponseCode())) {
+                            continue;
+                        } else {
+                            if (sendResult != null) {
+                                return sendResult;
+                            }
+
+                            throw e;
+                        }
+                    } catch (InterruptedException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
+                        log.warn(String.format("sendKernelImpl exception, throw exception, InvokeID: %s, RT: %sms, Broker: %s", invokeID, endTimestamp - beginTimestampPrev, mq), e);
+                        log.warn(msg.toString());
+                        throw e;
+                    }
+                } else {
+                    break;
+                }
             }
 
-            sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
-            endTimestamp = System.currentTimeMillis();
-            this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
-            switch (communicationMode) {
-                case ASYNC:
-                    return null;
-                case ONEWAY:
-                    return null;
-                case SYNC:
-                    if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
-                        if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
-                            continue;
-                        }
+            if (sendResult != null) {
+                return sendResult;
+            }
+
+            String info = String.format("Send [%d] times, still failed, cost [%d]ms, Topic: %s, BrokersSent: %s",
+                times,
+                System.currentTimeMillis() - beginTimestampFirst,
+                msg.getTopic(),
+                Arrays.toString(brokersSent));
+
+            info += FAQUrl.suggestTodo(FAQUrl.SEND_MSG_FAILED);
+
+            MQClientException mqClientException = new MQClientException(info, exception);
+            if (callTimeout) {
+                throw new RemotingTooMuchRequestException("sendDefaultImpl call timeout");
+            }
+
+            if (exception instanceof MQBrokerException) {
+                mqClientException.setResponseCode(((MQBrokerException) exception).getResponseCode());
+            } else if (exception instanceof RemotingConnectException) {
+                mqClientException.setResponseCode(ClientErrorCode.CONNECT_BROKER_EXCEPTION);
+            } else if (exception instanceof RemotingTimeoutException) {
+                mqClientException.setResponseCode(ClientErrorCode.ACCESS_BROKER_TIMEOUT);
+            } else if (exception instanceof MQClientException) {
+                mqClientException.setResponseCode(ClientErrorCode.BROKER_NOT_EXIST_EXCEPTION);
+            }
+
+            throw mqClientException;
+        }
+
+        validateNameServerSetting();
+
+        throw new MQClientException("No route info of this topic: " + msg.getTopic() + FAQUrl.suggestTodo(FAQUrl.NO_TOPIC_ROUTE_INFO),
+            null).setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
+    }
 ```
 
-<strong>5.3.4源码：</strong>[DefaultMQProducerImpl.java · L756–L804](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L756-L804)，连续节选。
+<strong>5.3.4源码：</strong>[DefaultMQProducerImpl.java · L738–L896](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L738-L896)，连续节选。
 
 ```java
-int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
-int times = 0;
-String[] brokersSent = new String[timesTotal];
-boolean resetIndex = false;
-for (; times < timesTotal; times++) {
-    String lastBrokerName = null == mq ? null : mq.getBrokerName();
-    if (times > 0) {
-        resetIndex = true;
-    }
-    MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName, resetIndex);
-    if (mqSelected != null) {
-        mq = mqSelected;
-        brokersSent[times] = mq.getBrokerName();
-        try {
-            beginTimestampPrev = System.currentTimeMillis();
-            if (times > 0) {
-                //Reset topic with namespace during resend.
-                msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
-            }
-            long costTime = beginTimestampPrev - beginTimestampFirst;
-            if (timeout < costTime) {
-                callTimeout = true;
-                break;
-            }
-            long curTimeout = timeout - costTime;
-            // Get the maximum timeout allowed per request
-            long maxSendTimeoutPerRequest = defaultMQProducer.getSendMsgMaxTimeoutPerRequest();
-            // Determine if retries are still possible
-            boolean canRetryAgain = times + 1 < timesTotal;
-            // If retries are possible, and the current timeout exceeds the max allowed timeout, set the current timeout to the max allowed
-            if (maxSendTimeoutPerRequest > -1 && canRetryAgain && curTimeout > maxSendTimeoutPerRequest) {
-                curTimeout = maxSendTimeoutPerRequest;
-            }
-            sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, curTimeout);
-            endTimestamp = System.currentTimeMillis();
-            this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false, true);
-            switch (communicationMode) {
-                case ASYNC:
-                    return null;
-                case ONEWAY:
-                    return null;
-                case SYNC:
-                    if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
-                        if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
-                            continue;
+    private SendResult sendDefaultImpl(
+        Message msg,
+        final CommunicationMode communicationMode,
+        final SendCallback sendCallback,
+        final long timeout
+    ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        this.makeSureStateOK();
+        Validators.checkMessage(msg, this.defaultMQProducer);
+        final long invokeID = random.nextLong();
+        long beginTimestampFirst = System.currentTimeMillis();
+        long beginTimestampPrev = beginTimestampFirst;
+        long endTimestamp = beginTimestampFirst;
+        TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
+        if (topicPublishInfo != null && topicPublishInfo.ok()) {
+            boolean callTimeout = false;
+            MessageQueue mq = null;
+            Exception exception = null;
+            SendResult sendResult = null;
+            int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
+            int times = 0;
+            String[] brokersSent = new String[timesTotal];
+            boolean resetIndex = false;
+            for (; times < timesTotal; times++) {
+                String lastBrokerName = null == mq ? null : mq.getBrokerName();
+                if (times > 0) {
+                    resetIndex = true;
+                }
+                MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName, resetIndex);
+                if (mqSelected != null) {
+                    mq = mqSelected;
+                    brokersSent[times] = mq.getBrokerName();
+                    try {
+                        beginTimestampPrev = System.currentTimeMillis();
+                        if (times > 0) {
+                            //Reset topic with namespace during resend.
+                            msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
                         }
-                    }
+                        long costTime = beginTimestampPrev - beginTimestampFirst;
+                        if (timeout < costTime) {
+                            callTimeout = true;
+                            break;
+                        }
+                        long curTimeout = timeout - costTime;
+                        // Get the maximum timeout allowed per request
+                        long maxSendTimeoutPerRequest = defaultMQProducer.getSendMsgMaxTimeoutPerRequest();
+                        // Determine if retries are still possible
+                        boolean canRetryAgain = times + 1 < timesTotal;
+                        // If retries are possible, and the current timeout exceeds the max allowed timeout, set the current timeout to the max allowed
+                        if (maxSendTimeoutPerRequest > -1 && canRetryAgain && curTimeout > maxSendTimeoutPerRequest) {
+                            curTimeout = maxSendTimeoutPerRequest;
+                        }
+                        sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, curTimeout);
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false, true);
+                        switch (communicationMode) {
+                            case ASYNC:
+                                return null;
+                            case ONEWAY:
+                                return null;
+                            case SYNC:
+                                if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
+                                    if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
+                                        continue;
+                                    }
+                                }
 
-                    return sendResult;
+                                return sendResult;
+                            default:
+                                break;
+                        }
+                    } catch (MQClientException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false, true);
+                        log.warn("sendKernelImpl exception, resend at once, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        exception = e;
+                        continue;
+                    } catch (RemotingException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        if (this.mqFaultStrategy.isStartDetectorEnable()) {
+                            // Set this broker unreachable when detecting schedule task is running for RemotingException.
+                            this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, false);
+                        } else {
+                            // Otherwise, isolate this broker.
+                            this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, true);
+                        }
+                        log.warn("sendKernelImpl exception, resend at once, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        exception = e;
+                        continue;
+                    } catch (MQBrokerException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, false);
+                        log.warn("sendKernelImpl exception, resend at once, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        exception = e;
+                        if (this.defaultMQProducer.getRetryResponseCodes().contains(e.getResponseCode())) {
+                            continue;
+                        } else {
+                            if (sendResult != null) {
+                                return sendResult;
+                            }
+
+                            throw e;
+                        }
+                    } catch (InterruptedException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false, true);
+                        log.warn("sendKernelImpl exception, throw exception, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        throw e;
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            if (sendResult != null) {
+                return sendResult;
+            }
+            String info = String.format("Send [%d] times, still failed, cost [%d]ms, Topic: %s, BrokersSent: %s",
+                times,
+                System.currentTimeMillis() - beginTimestampFirst,
+                msg.getTopic(),
+                Arrays.toString(brokersSent));
+
+            info += FAQUrl.suggestTodo(FAQUrl.SEND_MSG_FAILED);
+
+            MQClientException mqClientException = new MQClientException(info, exception);
+            if (callTimeout) {
+                throw new RemotingTooMuchRequestException("sendDefaultImpl call timeout");
+            }
+
+            if (exception instanceof MQBrokerException) {
+                mqClientException.setResponseCode(((MQBrokerException) exception).getResponseCode());
+            } else if (exception instanceof RemotingConnectException) {
+                mqClientException.setResponseCode(ClientErrorCode.CONNECT_BROKER_EXCEPTION);
+            } else if (exception instanceof RemotingTimeoutException) {
+                mqClientException.setResponseCode(ClientErrorCode.ACCESS_BROKER_TIMEOUT);
+            } else if (exception instanceof MQClientException) {
+                mqClientException.setResponseCode(ClientErrorCode.BROKER_NOT_EXIST_EXCEPTION);
+            }
+
+            throw mqClientException;
+        }
+
+        validateNameServerSetting();
+
+        throw new MQClientException("No route info of this topic: " + msg.getTopic() + FAQUrl.suggestTodo(FAQUrl.NO_TOPIC_ROUTE_INFO),
+            null).setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
+    }
 ```
 
 <strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
@@ -1843,74 +2812,133 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[SendMessageProcessor.java · L242–L306](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L242-L306)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[SendMessageProcessor.java · L242–L365](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L242-L365)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public RemotingCommand sendMessage(final ChannelHandlerContext ctx,
-    final RemotingCommand request,
-    final SendMessageContext sendMessageContext,
-    final SendMessageRequestHeader requestHeader,
-    final TopicQueueMappingContext mappingContext,
-    final SendMessageCallback sendMessageCallback) throws RemotingCommandException {
+    public RemotingCommand sendMessage(final ChannelHandlerContext ctx,
+        final RemotingCommand request,
+        final SendMessageContext sendMessageContext,
+        final SendMessageRequestHeader requestHeader,
+        final TopicQueueMappingContext mappingContext,
+        final SendMessageCallback sendMessageCallback) throws RemotingCommandException {
 
-    final RemotingCommand response = preSend(ctx, request, requestHeader);
-    if (response.getCode() != -1) {
-        return response;
-    }
+        final RemotingCommand response = preSend(ctx, request, requestHeader);
+        if (response.getCode() != -1) {
+            return response;
+        }
 
-    final SendMessageResponseHeader responseHeader = (SendMessageResponseHeader) response.readCustomHeader();
+        final SendMessageResponseHeader responseHeader = (SendMessageResponseHeader) response.readCustomHeader();
 
-    final byte[] body = request.getBody();
+        final byte[] body = request.getBody();
 
-    int queueIdInt = requestHeader.getQueueId();
-    TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
+        int queueIdInt = requestHeader.getQueueId();
+        TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
 
-    if (queueIdInt < 0) {
-        queueIdInt = randomQueueId(topicConfig.getWriteQueueNums());
-    }
+        if (queueIdInt < 0) {
+            queueIdInt = randomQueueId(topicConfig.getWriteQueueNums());
+        }
 
-    MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
-    msgInner.setTopic(requestHeader.getTopic());
-    msgInner.setQueueId(queueIdInt);
+        MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
+        msgInner.setTopic(requestHeader.getTopic());
+        msgInner.setQueueId(queueIdInt);
 
-    Map<String, String> oriProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
-    if (!handleRetryAndDLQ(requestHeader, response, request, msgInner, topicConfig, oriProps)) {
-        return response;
-    }
+        Map<String, String> oriProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
+        if (!handleRetryAndDLQ(requestHeader, response, request, msgInner, topicConfig, oriProps)) {
+            return response;
+        }
 
-    msgInner.setBody(body);
-    msgInner.setFlag(requestHeader.getFlag());
+        msgInner.setBody(body);
+        msgInner.setFlag(requestHeader.getFlag());
 
-    String uniqKey = oriProps.get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
-    if (uniqKey == null || uniqKey.length() <= 0) {
-        uniqKey = MessageClientIDSetter.createUniqID();
-        oriProps.put(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX, uniqKey);
-    }
+        String uniqKey = oriProps.get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
+        if (uniqKey == null || uniqKey.length() <= 0) {
+            uniqKey = MessageClientIDSetter.createUniqID();
+            oriProps.put(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX, uniqKey);
+        }
 
-    MessageAccessor.setProperties(msgInner, oriProps);
+        MessageAccessor.setProperties(msgInner, oriProps);
 
-    CleanupPolicy cleanupPolicy = CleanupPolicyUtils.getDeletePolicy(Optional.of(topicConfig));
-    if (Objects.equals(cleanupPolicy, CleanupPolicy.COMPACTION)) {
-        if (StringUtils.isBlank(msgInner.getKeys())) {
-            response.setCode(ResponseCode.MESSAGE_ILLEGAL);
-            response.setRemark("Required message key is missing");
+        CleanupPolicy cleanupPolicy = CleanupPolicyUtils.getDeletePolicy(Optional.of(topicConfig));
+        if (Objects.equals(cleanupPolicy, CleanupPolicy.COMPACTION)) {
+            if (StringUtils.isBlank(msgInner.getKeys())) {
+                response.setCode(ResponseCode.MESSAGE_ILLEGAL);
+                response.setRemark("Required message key is missing");
+                return response;
+            }
+        }
+
+        msgInner.setTagsCode(MessageExtBrokerInner.tagsString2tagsCode(topicConfig.getTopicFilterType(), msgInner.getTags()));
+        msgInner.setBornTimestamp(requestHeader.getBornTimestamp());
+        msgInner.setBornHost(ctx.channel().remoteAddress());
+        msgInner.setStoreHost(this.getStoreHost());
+        msgInner.setReconsumeTimes(requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes());
+        String clusterName = this.brokerController.getBrokerConfig().getBrokerClusterName();
+        MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_CLUSTER, clusterName);
+
+        msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
+
+        // Map<String, String> oriProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
+        String traFlag = oriProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
+        boolean sendTransactionPrepareMessage;
+        if (Boolean.parseBoolean(traFlag)
+            && !(msgInner.getReconsumeTimes() > 0 && msgInner.getDelayTimeLevel() > 0)) { //For client under version 4.6.1
+            if (this.brokerController.getBrokerConfig().isRejectTransactionMessage()) {
+                response.setCode(ResponseCode.NO_PERMISSION);
+                response.setRemark(
+                    "the broker[" + this.brokerController.getBrokerConfig().getBrokerIP1()
+                        + "] sending transaction message is forbidden");
+                return response;
+            }
+            sendTransactionPrepareMessage = true;
+        } else {
+            sendTransactionPrepareMessage = false;
+        }
+
+        long beginTimeMillis = this.brokerController.getMessageStore().now();
+
+        if (brokerController.getBrokerConfig().isAsyncSendEnable()) {
+            CompletableFuture<PutMessageResult> asyncPutMessageFuture;
+            if (sendTransactionPrepareMessage) {
+                asyncPutMessageFuture = this.brokerController.getTransactionalMessageService().asyncPrepareMessage(msgInner);
+            } else {
+                asyncPutMessageFuture = this.brokerController.getMessageStore().asyncPutMessage(msgInner);
+            }
+
+            final int finalQueueIdInt = queueIdInt;
+            final MessageExtBrokerInner finalMsgInner = msgInner;
+            asyncPutMessageFuture.thenAcceptAsync(putMessageResult -> {
+                RemotingCommand responseFuture =
+                    handlePutMessageResult(putMessageResult, response, request, finalMsgInner, responseHeader, sendMessageContext,
+                        ctx, finalQueueIdInt, beginTimeMillis, mappingContext, BrokerMetricsManager.getMessageType(requestHeader));
+                if (responseFuture != null) {
+                    doResponse(ctx, request, responseFuture);
+                }
+
+                // record the transaction metrics, responseFuture == null means put successfully
+                if (sendTransactionPrepareMessage && (responseFuture == null || responseFuture.getCode() == ResponseCode.SUCCESS)) {
+                    this.brokerController.getTransactionalMessageService().getTransactionMetrics().addAndGet(msgInner.getProperty(MessageConst.PROPERTY_REAL_TOPIC), 1);
+                }
+
+                sendMessageCallback.onComplete(sendMessageContext, response);
+            }, this.brokerController.getPutMessageFutureExecutor());
+            // Returns null to release the send message thread
+            return null;
+        } else {
+            PutMessageResult putMessageResult = null;
+            if (sendTransactionPrepareMessage) {
+                putMessageResult = this.brokerController.getTransactionalMessageService().prepareMessage(msgInner);
+            } else {
+                putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
+            }
+            handlePutMessageResult(putMessageResult, response, request, msgInner, responseHeader, sendMessageContext, ctx, queueIdInt, beginTimeMillis, mappingContext, BrokerMetricsManager.getMessageType(requestHeader));
+            // record the transaction metrics
+            if (sendTransactionPrepareMessage && putMessageResult.getPutMessageStatus() == PutMessageStatus.PUT_OK && putMessageResult.getAppendMessageResult().isOk()) {
+                this.brokerController.getTransactionalMessageService().getTransactionMetrics().addAndGet(msgInner.getProperty(MessageConst.PROPERTY_REAL_TOPIC), 1);
+            }
+            sendMessageCallback.onComplete(sendMessageContext, response);
             return response;
         }
     }
-
-    msgInner.setTagsCode(MessageExtBrokerInner.tagsString2tagsCode(topicConfig.getTopicFilterType(), msgInner.getTags()));
-    msgInner.setBornTimestamp(requestHeader.getBornTimestamp());
-    msgInner.setBornHost(ctx.channel().remoteAddress());
-    msgInner.setStoreHost(this.getStoreHost());
-    msgInner.setReconsumeTimes(requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes());
-    String clusterName = this.brokerController.getBrokerConfig().getBrokerClusterName();
-    MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_CLUSTER, clusterName);
-
-    msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
-
-    // Map<String, String> oriProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
-    String traFlag = oriProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
-    boolean sendTransactionPrepareMessage;
 ```
 
 <strong>逐段阅读抓手：</strong>看preSend与sendMessage的先后关系；参数校验和存储失败分别由不同位置产生。
@@ -1931,71 +2959,188 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-<strong>源码对照：</strong>[SendMessageProcessor.java · L367–L428](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L367-L428)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[SendMessageProcessor.java · L367–L545](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L367-L545)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-private RemotingCommand handlePutMessageResult(PutMessageResult putMessageResult, RemotingCommand response,
-    RemotingCommand request, MessageExt msg, SendMessageResponseHeader responseHeader,
-    SendMessageContext sendMessageContext, ChannelHandlerContext ctx, int queueIdInt, long beginTimeMillis,
-    TopicQueueMappingContext mappingContext, TopicMessageType messageType) {
-    if (putMessageResult == null) {
-        response.setCode(ResponseCode.SYSTEM_ERROR);
-        response.setRemark("store putMessage return null");
+    private RemotingCommand handlePutMessageResult(PutMessageResult putMessageResult, RemotingCommand response,
+        RemotingCommand request, MessageExt msg, SendMessageResponseHeader responseHeader,
+        SendMessageContext sendMessageContext, ChannelHandlerContext ctx, int queueIdInt, long beginTimeMillis,
+        TopicQueueMappingContext mappingContext, TopicMessageType messageType) {
+        if (putMessageResult == null) {
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark("store putMessage return null");
+            return response;
+        }
+        boolean sendOK = false;
+
+        switch (putMessageResult.getPutMessageStatus()) {
+            // Success
+            case PUT_OK:
+                sendOK = true;
+                response.setCode(ResponseCode.SUCCESS);
+                break;
+            case FLUSH_DISK_TIMEOUT:
+                response.setCode(ResponseCode.FLUSH_DISK_TIMEOUT);
+                sendOK = true;
+                break;
+            case FLUSH_SLAVE_TIMEOUT:
+                response.setCode(ResponseCode.FLUSH_SLAVE_TIMEOUT);
+                sendOK = true;
+                break;
+            case SLAVE_NOT_AVAILABLE:
+                response.setCode(ResponseCode.SLAVE_NOT_AVAILABLE);
+                sendOK = true;
+                break;
+
+            // Failed
+            case IN_SYNC_REPLICAS_NOT_ENOUGH:
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                response.setRemark("in-sync replicas not enough");
+                break;
+            case CREATE_MAPPED_FILE_FAILED:
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                response.setRemark("create mapped file failed, server is busy or broken.");
+                break;
+            case MESSAGE_ILLEGAL:
+            case PROPERTIES_SIZE_EXCEEDED:
+                response.setCode(ResponseCode.MESSAGE_ILLEGAL);
+                response.setRemark(String.format("the message is illegal, maybe msg body or properties length not matched. msg body length limit %dB, msg properties length limit 32KB.",
+                    this.brokerController.getMessageStoreConfig().getMaxMessageSize()));
+                break;
+            case WHEEL_TIMER_MSG_ILLEGAL:
+                response.setCode(ResponseCode.MESSAGE_ILLEGAL);
+                response.setRemark(String.format("timer message illegal, the delay time should not be bigger than the max delay %dms; or if set del msg, the delay time should be bigger than the current time",
+                    this.brokerController.getMessageStoreConfig().getTimerMaxDelaySec() * 1000L));
+                break;
+            case WHEEL_TIMER_FLOW_CONTROL:
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                response.setRemark(String.format("timer message is under flow control, max num limit is %d or the current value is greater than %d and less than %d, trigger random flow control",
+                     this.brokerController.getMessageStoreConfig().getTimerCongestNumEachSlot() * 2L, this.brokerController.getMessageStoreConfig().getTimerCongestNumEachSlot(), this.brokerController.getMessageStoreConfig().getTimerCongestNumEachSlot() * 2L));
+                break;
+            case WHEEL_TIMER_NOT_ENABLE:
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                response.setRemark(String.format("accurate timer message is not enabled, timerWheelEnable is %s",
+                     this.brokerController.getMessageStoreConfig().isTimerWheelEnable()));
+                break;
+            case SERVICE_NOT_AVAILABLE:
+                response.setCode(ResponseCode.SERVICE_NOT_AVAILABLE);
+                response.setRemark(
+                    "service not available now. It may be caused by one of the following reasons: " +
+                        "the broker's disk is full [" + diskUtil() + "], messages are put to the slave, message store has been shut down, etc.");
+                break;
+            case OS_PAGE_CACHE_BUSY:
+                response.setCode(ResponseCode.SYSTEM_BUSY);
+                response.setRemark("[PC_SYNCHRONIZED]broker busy, start flow control for a while");
+                break;
+            case LMQ_CONSUME_QUEUE_NUM_EXCEEDED:
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                response.setRemark("[LMQ_CONSUME_QUEUE_NUM_EXCEEDED]broker config enableLmq and enableMultiDispatch, lmq consumeQueue num exceed maxLmqConsumeQueueNum config num, default limit 2w.");
+                break;
+            case UNKNOWN_ERROR:
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                response.setRemark("UNKNOWN_ERROR");
+                break;
+            default:
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                response.setRemark("UNKNOWN_ERROR DEFAULT");
+                break;
+        }
+
+        String owner = request.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER);
+        String authType = request.getExtFields().get(BrokerStatsManager.ACCOUNT_AUTH_TYPE);
+        String ownerParent = request.getExtFields().get(BrokerStatsManager.ACCOUNT_OWNER_PARENT);
+        String ownerSelf = request.getExtFields().get(BrokerStatsManager.ACCOUNT_OWNER_SELF);
+        int commercialSizePerMsg = brokerController.getBrokerConfig().getCommercialSizePerMsg();
+        if (sendOK) {
+
+            if (TopicValidator.RMQ_SYS_SCHEDULE_TOPIC.equals(msg.getTopic())) {
+                this.brokerController.getBrokerStatsManager().incQueuePutNums(msg.getTopic(), msg.getQueueId(), putMessageResult.getAppendMessageResult().getMsgNum(), 1);
+                this.brokerController.getBrokerStatsManager().incQueuePutSize(msg.getTopic(), msg.getQueueId(), putMessageResult.getAppendMessageResult().getWroteBytes());
+            }
+
+            this.brokerController.getBrokerStatsManager().incTopicPutNums(msg.getTopic(), putMessageResult.getAppendMessageResult().getMsgNum(), 1);
+            this.brokerController.getBrokerStatsManager().incTopicPutSize(msg.getTopic(),
+                putMessageResult.getAppendMessageResult().getWroteBytes());
+            this.brokerController.getBrokerStatsManager().incBrokerPutNums(msg.getTopic(), putMessageResult.getAppendMessageResult().getMsgNum());
+            this.brokerController.getBrokerStatsManager().incTopicPutLatency(msg.getTopic(), queueIdInt,
+                (int) (this.brokerController.getMessageStore().now() - beginTimeMillis));
+
+            if (!BrokerMetricsManager.isRetryOrDlqTopic(msg.getTopic())) {
+                Attributes attributes = this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
+                    .put(LABEL_TOPIC, msg.getTopic())
+                    .put(LABEL_MESSAGE_TYPE, messageType.getMetricsValue())
+                    .put(LABEL_IS_SYSTEM, TopicValidator.isSystemTopic(msg.getTopic()))
+                    .build();
+                this.brokerController.getBrokerMetricsManager().getMessagesInTotal().add(putMessageResult.getAppendMessageResult().getMsgNum(), attributes);
+                this.brokerController.getBrokerMetricsManager().getThroughputInTotal().add(putMessageResult.getAppendMessageResult().getWroteBytes(), attributes);
+                this.brokerController.getBrokerMetricsManager().getMessageSize().record(putMessageResult.getAppendMessageResult().getWroteBytes() / putMessageResult.getAppendMessageResult().getMsgNum(), attributes);
+            }
+
+            response.setRemark(null);
+
+            responseHeader.setMsgId(putMessageResult.getAppendMessageResult().getMsgId());
+            responseHeader.setQueueId(queueIdInt);
+            responseHeader.setQueueOffset(putMessageResult.getAppendMessageResult().getLogicsOffset());
+            responseHeader.setTransactionId(MessageClientIDSetter.getUniqID(msg));
+            attachRecallHandle(request, msg, responseHeader);
+
+            RemotingCommand rewriteResult = rewriteResponseForStaticTopic(responseHeader, mappingContext);
+            if (rewriteResult != null) {
+                return rewriteResult;
+            }
+
+            doResponse(ctx, request, response);
+
+            if (hasSendMessageHook()) {
+                sendMessageContext.setMsgId(responseHeader.getMsgId());
+                sendMessageContext.setQueueId(responseHeader.getQueueId());
+                sendMessageContext.setQueueOffset(responseHeader.getQueueOffset());
+
+                int commercialBaseCount = brokerController.getBrokerConfig().getCommercialBaseCount();
+                int wroteSize = putMessageResult.getAppendMessageResult().getWroteBytes();
+                int msgNum = putMessageResult.getAppendMessageResult().getMsgNum();
+                int commercialMsgNum = (int) Math.ceil(wroteSize / (double) commercialSizePerMsg);
+                int incValue = commercialMsgNum * commercialBaseCount;
+
+                sendMessageContext.setCommercialSendStats(BrokerStatsManager.StatsType.SEND_SUCCESS);
+                sendMessageContext.setCommercialSendTimes(incValue);
+                sendMessageContext.setCommercialSendSize(wroteSize);
+                sendMessageContext.setCommercialOwner(owner);
+
+                sendMessageContext.setSendStat(BrokerStatsManager.StatsType.SEND_SUCCESS);
+                sendMessageContext.setCommercialSendMsgNum(commercialMsgNum);
+                sendMessageContext.setAccountAuthType(authType);
+                sendMessageContext.setAccountOwnerParent(ownerParent);
+                sendMessageContext.setAccountOwnerSelf(ownerSelf);
+                sendMessageContext.setSendMsgSize(wroteSize);
+                sendMessageContext.setSendMsgNum(msgNum);
+            }
+            return null;
+        } else {
+            if (hasSendMessageHook()) {
+                AppendMessageResult appendMessageResult = putMessageResult.getAppendMessageResult();
+
+                // TODO process partial failures of batch message
+                int wroteSize = request.getBody().length;
+                int msgNum = Math.max(appendMessageResult != null ? appendMessageResult.getMsgNum() : 1, 1);
+                int commercialMsgNum = (int) Math.ceil(wroteSize / (double) commercialSizePerMsg);
+
+                sendMessageContext.setCommercialSendStats(BrokerStatsManager.StatsType.SEND_FAILURE);
+                sendMessageContext.setCommercialSendTimes(commercialMsgNum);
+                sendMessageContext.setCommercialSendSize(wroteSize);
+                sendMessageContext.setCommercialOwner(owner);
+
+                sendMessageContext.setSendStat(BrokerStatsManager.StatsType.SEND_FAILURE);
+                sendMessageContext.setCommercialSendMsgNum(commercialMsgNum);
+                sendMessageContext.setAccountAuthType(authType);
+                sendMessageContext.setAccountOwnerParent(ownerParent);
+                sendMessageContext.setAccountOwnerSelf(ownerSelf);
+                sendMessageContext.setSendMsgSize(wroteSize);
+                sendMessageContext.setSendMsgNum(msgNum);
+            }
+        }
         return response;
     }
-    boolean sendOK = false;
-
-    switch (putMessageResult.getPutMessageStatus()) {
-        // Success
-        case PUT_OK:
-            sendOK = true;
-            response.setCode(ResponseCode.SUCCESS);
-            break;
-        case FLUSH_DISK_TIMEOUT:
-            response.setCode(ResponseCode.FLUSH_DISK_TIMEOUT);
-            sendOK = true;
-            break;
-        case FLUSH_SLAVE_TIMEOUT:
-            response.setCode(ResponseCode.FLUSH_SLAVE_TIMEOUT);
-            sendOK = true;
-            break;
-        case SLAVE_NOT_AVAILABLE:
-            response.setCode(ResponseCode.SLAVE_NOT_AVAILABLE);
-            sendOK = true;
-            break;
-
-        // Failed
-        case IN_SYNC_REPLICAS_NOT_ENOUGH:
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark("in-sync replicas not enough");
-            break;
-        case CREATE_MAPPED_FILE_FAILED:
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark("create mapped file failed, server is busy or broken.");
-            break;
-        case MESSAGE_ILLEGAL:
-        case PROPERTIES_SIZE_EXCEEDED:
-            response.setCode(ResponseCode.MESSAGE_ILLEGAL);
-            response.setRemark(String.format("the message is illegal, maybe msg body or properties length not matched. msg body length limit %dB, msg properties length limit 32KB.",
-                this.brokerController.getMessageStoreConfig().getMaxMessageSize()));
-            break;
-        case WHEEL_TIMER_MSG_ILLEGAL:
-            response.setCode(ResponseCode.MESSAGE_ILLEGAL);
-            response.setRemark(String.format("timer message illegal, the delay time should not be bigger than the max delay %dms; or if set del msg, the delay time should be bigger than the current time",
-                this.brokerController.getMessageStoreConfig().getTimerMaxDelaySec() * 1000L));
-            break;
-        case WHEEL_TIMER_FLOW_CONTROL:
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark(String.format("timer message is under flow control, max num limit is %d or the current value is greater than %d and less than %d, trigger random flow control",
-                 this.brokerController.getMessageStoreConfig().getTimerCongestNumEachSlot() * 2L, this.brokerController.getMessageStoreConfig().getTimerCongestNumEachSlot(), this.brokerController.getMessageStoreConfig().getTimerCongestNumEachSlot() * 2L));
-            break;
-        case WHEEL_TIMER_NOT_ENABLE:
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark(String.format("accurate timer message is not enabled, timerWheelEnable is %s",
-                 this.brokerController.getMessageStoreConfig().isTimerWheelEnable()));
-            break;
-        case SERVICE_NOT_AVAILABLE:
-            response.setCode(ResponseCode.SERVICE_NOT_AVAILABLE);
 ```
 
 <strong>逐段阅读抓手：</strong>对照switch中的每个状态；发送返回不是CQ已分发和消费者已处理的证明。
@@ -2016,69 +3161,70 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-<strong>源码对照：</strong>[SendMessageProcessor.java · L180–L239](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L180-L239)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[SendMessageProcessor.java · L180–L240](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L180-L240)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, RemotingCommand response,
-    RemotingCommand request,
-    MessageExt msg, TopicConfig topicConfig, Map<String, String> properties) {
-    String newTopic = requestHeader.getTopic();
-    if (null != newTopic && newTopic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
-        String groupName = KeyBuilder.parseGroup(newTopic);
-        SubscriptionGroupConfig subscriptionGroupConfig =
-            this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(groupName);
-        if (null == subscriptionGroupConfig) {
-            response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
-            response.setRemark(
-                "subscription group not exist, " + groupName + " " + FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
-            return false;
-        }
-
-        int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
-        if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal() && requestHeader.getMaxReconsumeTimes() != null) {
-            maxReconsumeTimes = requestHeader.getMaxReconsumeTimes();
-        }
-        int reconsumeTimes = requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes();
-
-        boolean sendRetryMessageToDeadLetterQueueDirectly = false;
-        if (!brokerController.getRebalanceLockManager().isLockAllExpired(groupName)) {
-            LOGGER.info("Group has unexpired lock record, which show it is ordered message, send it to DLQ "
-                    + "right now group={}, topic={}, reconsumeTimes={}, maxReconsumeTimes={}.", groupName,
-                newTopic, reconsumeTimes, maxReconsumeTimes);
-            sendRetryMessageToDeadLetterQueueDirectly = true;
-        }
-
-        if (reconsumeTimes > maxReconsumeTimes || sendRetryMessageToDeadLetterQueueDirectly) {
-            Attributes attributes = this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
-                .put(LABEL_CONSUMER_GROUP, requestHeader.getProducerGroup())
-                .put(LABEL_TOPIC, requestHeader.getTopic())
-                .put(LABEL_IS_SYSTEM, BrokerMetricsManager.isSystem(requestHeader.getTopic(), requestHeader.getProducerGroup()))
-                .build();
-            this.brokerController.getBrokerMetricsManager().getSendToDlqMessages().add(1, attributes);
-
-            properties.put(MessageConst.PROPERTY_DELAY_TIME_LEVEL, "-1");
-            newTopic = MixAll.getDLQTopic(groupName);
-            int queueIdInt = randomQueueId(DLQ_NUMS_PER_GROUP);
-            topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic,
-                DLQ_NUMS_PER_GROUP,
-                PermName.PERM_WRITE | PermName.PERM_READ, 0
-            );
-            msg.setTopic(newTopic);
-            msg.setQueueId(queueIdInt);
-            msg.setDelayTimeLevel(0);
-            if (null == topicConfig) {
-                response.setCode(ResponseCode.SYSTEM_ERROR);
-                response.setRemark("topic[" + newTopic + "] not exist");
+    private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, RemotingCommand response,
+        RemotingCommand request,
+        MessageExt msg, TopicConfig topicConfig, Map<String, String> properties) {
+        String newTopic = requestHeader.getTopic();
+        if (null != newTopic && newTopic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+            String groupName = KeyBuilder.parseGroup(newTopic);
+            SubscriptionGroupConfig subscriptionGroupConfig =
+                this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(groupName);
+            if (null == subscriptionGroupConfig) {
+                response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
+                response.setRemark(
+                    "subscription group not exist, " + groupName + " " + FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
                 return false;
             }
+
+            int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
+            if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal() && requestHeader.getMaxReconsumeTimes() != null) {
+                maxReconsumeTimes = requestHeader.getMaxReconsumeTimes();
+            }
+            int reconsumeTimes = requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes();
+
+            boolean sendRetryMessageToDeadLetterQueueDirectly = false;
+            if (!brokerController.getRebalanceLockManager().isLockAllExpired(groupName)) {
+                LOGGER.info("Group has unexpired lock record, which show it is ordered message, send it to DLQ "
+                        + "right now group={}, topic={}, reconsumeTimes={}, maxReconsumeTimes={}.", groupName,
+                    newTopic, reconsumeTimes, maxReconsumeTimes);
+                sendRetryMessageToDeadLetterQueueDirectly = true;
+            }
+
+            if (reconsumeTimes > maxReconsumeTimes || sendRetryMessageToDeadLetterQueueDirectly) {
+                Attributes attributes = this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
+                    .put(LABEL_CONSUMER_GROUP, requestHeader.getProducerGroup())
+                    .put(LABEL_TOPIC, requestHeader.getTopic())
+                    .put(LABEL_IS_SYSTEM, BrokerMetricsManager.isSystem(requestHeader.getTopic(), requestHeader.getProducerGroup()))
+                    .build();
+                this.brokerController.getBrokerMetricsManager().getSendToDlqMessages().add(1, attributes);
+
+                properties.put(MessageConst.PROPERTY_DELAY_TIME_LEVEL, "-1");
+                newTopic = MixAll.getDLQTopic(groupName);
+                int queueIdInt = randomQueueId(DLQ_NUMS_PER_GROUP);
+                topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic,
+                    DLQ_NUMS_PER_GROUP,
+                    PermName.PERM_WRITE | PermName.PERM_READ, 0
+                );
+                msg.setTopic(newTopic);
+                msg.setQueueId(queueIdInt);
+                msg.setDelayTimeLevel(0);
+                if (null == topicConfig) {
+                    response.setCode(ResponseCode.SYSTEM_ERROR);
+                    response.setRemark("topic[" + newTopic + "] not exist");
+                    return false;
+                }
+            }
         }
+        int sysFlag = requestHeader.getSysFlag();
+        if (TopicFilterType.MULTI_TAG == topicConfig.getTopicFilterType()) {
+            sysFlag |= MessageSysFlag.MULTI_TAGS_FLAG;
+        }
+        msg.setSysFlag(sysFlag);
+        return true;
     }
-    int sysFlag = requestHeader.getSysFlag();
-    if (TopicFilterType.MULTI_TAG == topicConfig.getTopicFilterType()) {
-        sysFlag |= MessageSysFlag.MULTI_TAGS_FLAG;
-    }
-    msg.setSysFlag(sysFlag);
-    return true;
 ```
 
 <strong>逐段阅读抓手：</strong>关注reconsumeTimes与maxReconsumeTimes；Producer发送次数并不进入这个计数。
@@ -2119,99 +3265,185 @@ flowchart TB
  T --> H["组合刷盘与HA结果"]
 ```
 
-<strong>源码对照：</strong>[CommitLog.java · L1017–L1106](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1017-L1106)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L948–L1123](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L948-L1123)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-topicQueueLock.lock(topicQueueKey);
-try {
-
-    boolean needAssignOffset = true;
-    if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
-        && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
-        needAssignOffset = false;
-    }
-    if (needAssignOffset) {
-        defaultMessageStore.assignOffset(msg);
-    }
-
-    PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
-    if (encodeResult != null) {
-        return CompletableFuture.completedFuture(encodeResult);
-    }
-    msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
-    PutMessageContext putMessageContext = new PutMessageContext(topicQueueKey);
-
-    putMessageLock.lock(); //spin or ReentrantLock, depending on store config
-    try {
-        long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
-        this.beginTimeInLock = beginLockTimestamp;
-
-        // Here settings are stored timestamp, in order to ensure an orderly
-        // global
+    public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
+        // Set the storage time
         if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
-            msg.setStoreTimestamp(beginLockTimestamp);
+            msg.setStoreTimestamp(System.currentTimeMillis());
+        }
+        // Set the message body CRC (consider the most appropriate setting on the client)
+        msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
+        if (enabledAppendPropCRC) {
+            // delete crc32 properties if exist
+            msg.deleteProperty(MessageConst.PROPERTY_CRC32);
+        }
+        // Back to Results
+        AppendMessageResult result = null;
+
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
+
+        String topic = msg.getTopic();
+        msg.setVersion(MessageVersion.MESSAGE_VERSION_V1);
+        boolean autoMessageVersionOnTopicLen =
+            this.defaultMessageStore.getMessageStoreConfig().isAutoMessageVersionOnTopicLen();
+        if (autoMessageVersionOnTopicLen && topic.length() > Byte.MAX_VALUE) {
+            msg.setVersion(MessageVersion.MESSAGE_VERSION_V2);
         }
 
-        if (null == mappedFile || mappedFile.isFull()) {
-            mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
-            if (isCloseReadAhead()) {
-                setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+        InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
+        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setBornHostV6Flag();
+        }
+
+        InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
+        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setStoreHostAddressV6Flag();
+        }
+
+        PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
+        updateMaxMessageSize(putMessageThreadLocal);
+        String topicQueueKey = generateKey(putMessageThreadLocal.getKeyBuilder(), msg);
+        long elapsedTimeInLock = 0;
+        MappedFile unlockMappedFile = null;
+        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
+
+        long currOffset;
+        if (mappedFile == null) {
+            currOffset = 0;
+        } else {
+            currOffset = mappedFile.getFileFromOffset() + mappedFile.getWrotePosition();
+        }
+
+        int needAckNums = this.defaultMessageStore.getMessageStoreConfig().getInSyncReplicas();
+        boolean needHandleHA = needHandleHA(msg);
+
+        if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableControllerMode()) {
+            if (this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset) < this.defaultMessageStore.getMessageStoreConfig().getMinInSyncReplicas()) {
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
+            }
+            if (this.defaultMessageStore.getMessageStoreConfig().isAllAckInSyncStateSet()) {
+                // -1 means all ack in SyncStateSet
+                needAckNums = MixAll.ALL_ACK_IN_SYNC_STATE_SET;
+            }
+        } else if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableSlaveActingMaster()) {
+            int inSyncReplicas = Math.min(this.defaultMessageStore.getAliveReplicaNumInGroup(),
+                this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset));
+            needAckNums = calcNeedAckNums(inSyncReplicas);
+            if (needAckNums > inSyncReplicas) {
+                // Tell the producer, don't have enough slaves to handle the send request
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
             }
         }
-        if (null == mappedFile) {
-            log.error("create mapped file1 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
-            beginTimeInLock = 0;
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, null));
-        }
 
-        result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
-        switch (result.getStatus()) {
-            case PUT_OK:
-                onCommitLogAppend(msg, result, mappedFile);
-                break;
-            case END_OF_FILE:
-                onCommitLogAppend(msg, result, mappedFile);
-                unlockMappedFile = mappedFile;
-                // Create a new file, re-write the message
-                mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+        topicQueueLock.lock(topicQueueKey);
+        try {
+
+            boolean needAssignOffset = true;
+            if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
+                && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
+                needAssignOffset = false;
+            }
+            if (needAssignOffset) {
+                defaultMessageStore.assignOffset(msg);
+            }
+
+            PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
+            if (encodeResult != null) {
+                return CompletableFuture.completedFuture(encodeResult);
+            }
+            msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
+            PutMessageContext putMessageContext = new PutMessageContext(topicQueueKey);
+
+            putMessageLock.lock(); //spin or ReentrantLock, depending on store config
+            try {
+                long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+                this.beginTimeInLock = beginLockTimestamp;
+
+                // Here settings are stored timestamp, in order to ensure an orderly
+                // global
+                if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
+                    msg.setStoreTimestamp(beginLockTimestamp);
+                }
+
+                if (null == mappedFile || mappedFile.isFull()) {
+                    mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+                    if (isCloseReadAhead()) {
+                        setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+                    }
+                }
                 if (null == mappedFile) {
-                    // XXX: warn and notify me
-                    log.error("create mapped file2 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+                    log.error("create mapped file1 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
                     beginTimeInLock = 0;
-                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, result));
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, null));
                 }
-                if (isCloseReadAhead()) {
-                    setFileReadMode(mappedFile, LibC.MADV_RANDOM);
-                }
+
                 result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
-                if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
-                    onCommitLogAppend(msg, result, mappedFile);
+                switch (result.getStatus()) {
+                    case PUT_OK:
+                        onCommitLogAppend(msg, result, mappedFile);
+                        break;
+                    case END_OF_FILE:
+                        onCommitLogAppend(msg, result, mappedFile);
+                        unlockMappedFile = mappedFile;
+                        // Create a new file, re-write the message
+                        mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                        if (null == mappedFile) {
+                            // XXX: warn and notify me
+                            log.error("create mapped file2 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+                            beginTimeInLock = 0;
+                            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, result));
+                        }
+                        if (isCloseReadAhead()) {
+                            setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+                        }
+                        result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                        if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
+                            onCommitLogAppend(msg, result, mappedFile);
+                        }
+                        break;
+                    case MESSAGE_SIZE_EXCEEDED:
+                    case PROPERTIES_SIZE_EXCEEDED:
+                        beginTimeInLock = 0;
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+                    case UNKNOWN_ERROR:
+                    default:
+                        beginTimeInLock = 0;
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
                 }
-                break;
-            case MESSAGE_SIZE_EXCEEDED:
-            case PROPERTIES_SIZE_EXCEEDED:
+
+                elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
                 beginTimeInLock = 0;
-                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
-            case UNKNOWN_ERROR:
-            default:
-                beginTimeInLock = 0;
-                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+            } finally {
+                putMessageLock.unlock();
+            }
+            // Increase queue offset when messages are successfully written
+            if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
+                this.defaultMessageStore.increaseOffset(msg, getMessageNum(msg));
+            }
+        } catch (RocksDBException e) {
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+        } finally {
+            topicQueueLock.unlock(topicQueueKey);
         }
 
-        elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
-        beginTimeInLock = 0;
-    } finally {
-        putMessageLock.unlock();
+        if (elapsedTimeInLock > 500) {
+            log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
+        }
+
+        if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
+            this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
+        }
+
+        PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
+
+        // Statistics
+        storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).add(result.getMsgNum());
+        storeStatsService.getSinglePutMessageTopicSizeTotal(topic).add(result.getWroteBytes());
+
+        return handleDiskFlushAndHA(putMessageResult, msg, needAckNums, needHandleHA);
     }
-    // Increase queue offset when messages are successfully written
-    if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
-        this.defaultMessageStore.increaseOffset(msg, getMessageNum(msg));
-    }
-} catch (RocksDBException e) {
-    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
-} finally {
-    topicQueueLock.unlock(topicQueueKey);
-}
 ```
 
 <strong>逐段阅读抓手：</strong>这段连续原文已经覆盖两把锁：topicQueueLock包住队列offset分配、编码与offset递增；putMessageLock只在内层保护文件选择与物理追加。成功追加后才增加队列offset，两个finally分别释放各自的锁。
@@ -2237,37 +3469,185 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[CommitLog.java · L1064–L1091](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1064-L1091)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L948–L1123](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L948-L1123)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-    case END_OF_FILE:
-        onCommitLogAppend(msg, result, mappedFile);
-        unlockMappedFile = mappedFile;
-        // Create a new file, re-write the message
-        mappedFile = this.mappedFileQueue.getLastMappedFile(0);
-        if (null == mappedFile) {
-            // XXX: warn and notify me
-            log.error("create mapped file2 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
-            beginTimeInLock = 0;
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, result));
+    public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
+        // Set the storage time
+        if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
+            msg.setStoreTimestamp(System.currentTimeMillis());
         }
-        if (isCloseReadAhead()) {
-            setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+        // Set the message body CRC (consider the most appropriate setting on the client)
+        msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
+        if (enabledAppendPropCRC) {
+            // delete crc32 properties if exist
+            msg.deleteProperty(MessageConst.PROPERTY_CRC32);
         }
-        result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
-        if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
-            onCommitLogAppend(msg, result, mappedFile);
+        // Back to Results
+        AppendMessageResult result = null;
+
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
+
+        String topic = msg.getTopic();
+        msg.setVersion(MessageVersion.MESSAGE_VERSION_V1);
+        boolean autoMessageVersionOnTopicLen =
+            this.defaultMessageStore.getMessageStoreConfig().isAutoMessageVersionOnTopicLen();
+        if (autoMessageVersionOnTopicLen && topic.length() > Byte.MAX_VALUE) {
+            msg.setVersion(MessageVersion.MESSAGE_VERSION_V2);
         }
-        break;
-    case MESSAGE_SIZE_EXCEEDED:
-    case PROPERTIES_SIZE_EXCEEDED:
-        beginTimeInLock = 0;
-        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
-    case UNKNOWN_ERROR:
-    default:
-        beginTimeInLock = 0;
-        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
-}
+
+        InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
+        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setBornHostV6Flag();
+        }
+
+        InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
+        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setStoreHostAddressV6Flag();
+        }
+
+        PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
+        updateMaxMessageSize(putMessageThreadLocal);
+        String topicQueueKey = generateKey(putMessageThreadLocal.getKeyBuilder(), msg);
+        long elapsedTimeInLock = 0;
+        MappedFile unlockMappedFile = null;
+        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
+
+        long currOffset;
+        if (mappedFile == null) {
+            currOffset = 0;
+        } else {
+            currOffset = mappedFile.getFileFromOffset() + mappedFile.getWrotePosition();
+        }
+
+        int needAckNums = this.defaultMessageStore.getMessageStoreConfig().getInSyncReplicas();
+        boolean needHandleHA = needHandleHA(msg);
+
+        if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableControllerMode()) {
+            if (this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset) < this.defaultMessageStore.getMessageStoreConfig().getMinInSyncReplicas()) {
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
+            }
+            if (this.defaultMessageStore.getMessageStoreConfig().isAllAckInSyncStateSet()) {
+                // -1 means all ack in SyncStateSet
+                needAckNums = MixAll.ALL_ACK_IN_SYNC_STATE_SET;
+            }
+        } else if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableSlaveActingMaster()) {
+            int inSyncReplicas = Math.min(this.defaultMessageStore.getAliveReplicaNumInGroup(),
+                this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset));
+            needAckNums = calcNeedAckNums(inSyncReplicas);
+            if (needAckNums > inSyncReplicas) {
+                // Tell the producer, don't have enough slaves to handle the send request
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
+            }
+        }
+
+        topicQueueLock.lock(topicQueueKey);
+        try {
+
+            boolean needAssignOffset = true;
+            if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
+                && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
+                needAssignOffset = false;
+            }
+            if (needAssignOffset) {
+                defaultMessageStore.assignOffset(msg);
+            }
+
+            PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
+            if (encodeResult != null) {
+                return CompletableFuture.completedFuture(encodeResult);
+            }
+            msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
+            PutMessageContext putMessageContext = new PutMessageContext(topicQueueKey);
+
+            putMessageLock.lock(); //spin or ReentrantLock, depending on store config
+            try {
+                long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+                this.beginTimeInLock = beginLockTimestamp;
+
+                // Here settings are stored timestamp, in order to ensure an orderly
+                // global
+                if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
+                    msg.setStoreTimestamp(beginLockTimestamp);
+                }
+
+                if (null == mappedFile || mappedFile.isFull()) {
+                    mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+                    if (isCloseReadAhead()) {
+                        setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+                    }
+                }
+                if (null == mappedFile) {
+                    log.error("create mapped file1 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+                    beginTimeInLock = 0;
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, null));
+                }
+
+                result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                switch (result.getStatus()) {
+                    case PUT_OK:
+                        onCommitLogAppend(msg, result, mappedFile);
+                        break;
+                    case END_OF_FILE:
+                        onCommitLogAppend(msg, result, mappedFile);
+                        unlockMappedFile = mappedFile;
+                        // Create a new file, re-write the message
+                        mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                        if (null == mappedFile) {
+                            // XXX: warn and notify me
+                            log.error("create mapped file2 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+                            beginTimeInLock = 0;
+                            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, result));
+                        }
+                        if (isCloseReadAhead()) {
+                            setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+                        }
+                        result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                        if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
+                            onCommitLogAppend(msg, result, mappedFile);
+                        }
+                        break;
+                    case MESSAGE_SIZE_EXCEEDED:
+                    case PROPERTIES_SIZE_EXCEEDED:
+                        beginTimeInLock = 0;
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+                    case UNKNOWN_ERROR:
+                    default:
+                        beginTimeInLock = 0;
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+                }
+
+                elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
+                beginTimeInLock = 0;
+            } finally {
+                putMessageLock.unlock();
+            }
+            // Increase queue offset when messages are successfully written
+            if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
+                this.defaultMessageStore.increaseOffset(msg, getMessageNum(msg));
+            }
+        } catch (RocksDBException e) {
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+        } finally {
+            topicQueueLock.unlock(topicQueueKey);
+        }
+
+        if (elapsedTimeInLock > 500) {
+            log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
+        }
+
+        if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
+            this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
+        }
+
+        PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
+
+        // Statistics
+        storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).add(result.getMsgNum());
+        storeStatsService.getSinglePutMessageTopicSizeTotal(topic).add(result.getWroteBytes());
+
+        return handleDiskFlushAndHA(putMessageResult, msg, needAckNums, needHandleHA);
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>观察getLastMappedFile(0)之后是否可能CREATE_MAPPED_FILE_FAILED；切文件也有资源失败分支。
@@ -2288,74 +3668,121 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-<strong>源码对照：</strong>[CommitLog.java · L1959–L2023](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1959-L2023)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L1959–L2070](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1959-L2070)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer, final int maxBlank,
-    final MessageExtBrokerInner msgInner, PutMessageContext putMessageContext) {
-    // STORETIMESTAMP + STOREHOSTADDRESS + OFFSET <br>
+        public AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer, final int maxBlank,
+            final MessageExtBrokerInner msgInner, PutMessageContext putMessageContext) {
+            // STORETIMESTAMP + STOREHOSTADDRESS + OFFSET <br>
 
-    ByteBuffer preEncodeBuffer = msgInner.getEncodedBuff();
-    boolean isMultiDispatchMsg = messageStoreConfig.isEnableLmq() && msgInner.needDispatchLMQ();
-    if (isMultiDispatchMsg) {
-        AppendMessageResult appendMessageResult = handlePropertiesForLmqMsg(preEncodeBuffer, msgInner);
-        if (appendMessageResult != null) {
-            return appendMessageResult;
+            ByteBuffer preEncodeBuffer = msgInner.getEncodedBuff();
+            boolean isMultiDispatchMsg = messageStoreConfig.isEnableLmq() && msgInner.needDispatchLMQ();
+            if (isMultiDispatchMsg) {
+                AppendMessageResult appendMessageResult = handlePropertiesForLmqMsg(preEncodeBuffer, msgInner);
+                if (appendMessageResult != null) {
+                    return appendMessageResult;
+                }
+            }
+
+            final int msgLen = preEncodeBuffer.getInt(0);
+            preEncodeBuffer.position(0);
+            preEncodeBuffer.limit(msgLen);
+
+            // PHY OFFSET
+            long wroteOffset = fileFromOffset + byteBuffer.position();
+
+            Supplier<String> msgIdSupplier = () -> {
+                int sysflag = msgInner.getSysFlag();
+                int msgIdLen = (sysflag & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 4 + 4 + 8 : 16 + 4 + 8;
+                ByteBuffer msgIdBuffer = ByteBuffer.allocate(msgIdLen);
+                MessageExt.socketAddress2ByteBuffer(msgInner.getStoreHost(), msgIdBuffer);
+                msgIdBuffer.clear();//because socketAddress2ByteBuffer flip the buffer
+                msgIdBuffer.putLong(msgIdLen - 8, wroteOffset);
+                return UtilAll.bytes2string(msgIdBuffer.array());
+            };
+
+            // Record ConsumeQueue information
+            Long queueOffset = msgInner.getQueueOffset();
+
+            // this msg maybe an inner-batch msg.
+            short messageNum = getMessageNum(msgInner);
+
+            // Transaction messages that require special handling
+            final int tranType = MessageSysFlag.getTransactionValue(msgInner.getSysFlag());
+            switch (tranType) {
+                // Prepared and Rollback message is not consumed, will not enter the consume queue
+                case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
+                case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
+                    queueOffset = 0L;
+                    break;
+                case MessageSysFlag.TRANSACTION_NOT_TYPE:
+                case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
+                default:
+                    break;
+            }
+
+            // Determines whether there is sufficient free space
+            if ((msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) {
+                this.msgStoreItemMemory.clear();
+                // 1 TOTALSIZE
+                this.msgStoreItemMemory.putInt(maxBlank);
+                // 2 MAGICCODE
+                this.msgStoreItemMemory.putInt(CommitLog.BLANK_MAGIC_CODE);
+                // 3 The remaining space may be any value
+                // Here the length of the specially set maxBlank
+                final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
+                byteBuffer.put(this.msgStoreItemMemory.array(), 0, 8);
+                return new AppendMessageResult(AppendMessageStatus.END_OF_FILE, wroteOffset,
+                    maxBlank, /* only wrote 8 bytes, but declare wrote maxBlank for compute write position */
+                    msgIdSupplier, msgInner.getStoreTimestamp(),
+                    queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
+            }
+
+            int pos = 4     // 1 TOTALSIZE
+                + 4     // 2 MAGICCODE
+                + 4     // 3 BODYCRC
+                + 4     // 4 QUEUEID
+                + 4;    // 5 FLAG
+            // 6 QUEUEOFFSET
+            preEncodeBuffer.putLong(pos, queueOffset);
+            pos += 8;
+            // 7 PHYSICALOFFSET
+            preEncodeBuffer.putLong(pos, fileFromOffset + byteBuffer.position());
+            pos += 8;
+            int ipLen = (msgInner.getSysFlag() & MessageSysFlag.BORNHOST_V6_FLAG) == 0 ? 4 + 4 : 16 + 4;
+            // 8 SYSFLAG, 9 BORNTIMESTAMP, 10 BORNHOST
+            pos += 4 + 8 + ipLen;
+            // 11 STORETIMESTAMP refresh store time stamp in lock
+            preEncodeBuffer.putLong(pos, msgInner.getStoreTimestamp());
+            if (enabledAppendPropCRC) {
+                // 18 CRC32
+                int checkSize = msgLen - crc32ReservedLength;
+                ByteBuffer tmpBuffer = preEncodeBuffer.duplicate();
+                tmpBuffer.limit(tmpBuffer.position() + checkSize);
+                int crc32 = UtilAll.crc32(tmpBuffer);   // UtilAll.crc32 function will change the position to limit of the buffer
+                tmpBuffer.limit(tmpBuffer.position() + crc32ReservedLength);
+                MessageDecoder.createCrc32(tmpBuffer, crc32);
+            }
+
+            final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
+            CommitLog.this.getMessageStore().getPerfCounter().startTick("WRITE_MEMORY_TIME_MS");
+            // Write messages to the queue buffer
+            byteBuffer.put(preEncodeBuffer);
+            CommitLog.this.getMessageStore().getPerfCounter().endTick("WRITE_MEMORY_TIME_MS");
+            msgInner.setEncodedBuff(null);
+
+            if (isMultiDispatchMsg) {
+                try {
+                    LmqDispatch.updateLmqOffsets(defaultMessageStore, msgInner);
+                } catch (ConsumeQueueException e) {
+                    // Increase in-memory max offset of the queue should not fail.
+                    return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
+                }
+            }
+
+            return new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, msgLen, msgIdSupplier,
+                msgInner.getStoreTimestamp(), queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills, messageNum);
         }
-    }
-
-    final int msgLen = preEncodeBuffer.getInt(0);
-    preEncodeBuffer.position(0);
-    preEncodeBuffer.limit(msgLen);
-
-    // PHY OFFSET
-    long wroteOffset = fileFromOffset + byteBuffer.position();
-
-    Supplier<String> msgIdSupplier = () -> {
-        int sysflag = msgInner.getSysFlag();
-        int msgIdLen = (sysflag & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 4 + 4 + 8 : 16 + 4 + 8;
-        ByteBuffer msgIdBuffer = ByteBuffer.allocate(msgIdLen);
-        MessageExt.socketAddress2ByteBuffer(msgInner.getStoreHost(), msgIdBuffer);
-        msgIdBuffer.clear();//because socketAddress2ByteBuffer flip the buffer
-        msgIdBuffer.putLong(msgIdLen - 8, wroteOffset);
-        return UtilAll.bytes2string(msgIdBuffer.array());
-    };
-
-    // Record ConsumeQueue information
-    Long queueOffset = msgInner.getQueueOffset();
-
-    // this msg maybe an inner-batch msg.
-    short messageNum = getMessageNum(msgInner);
-
-    // Transaction messages that require special handling
-    final int tranType = MessageSysFlag.getTransactionValue(msgInner.getSysFlag());
-    switch (tranType) {
-        // Prepared and Rollback message is not consumed, will not enter the consume queue
-        case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
-        case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
-            queueOffset = 0L;
-            break;
-        case MessageSysFlag.TRANSACTION_NOT_TYPE:
-        case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
-        default:
-            break;
-    }
-
-    // Determines whether there is sufficient free space
-    if ((msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) {
-        this.msgStoreItemMemory.clear();
-        // 1 TOTALSIZE
-        this.msgStoreItemMemory.putInt(maxBlank);
-        // 2 MAGICCODE
-        this.msgStoreItemMemory.putInt(CommitLog.BLANK_MAGIC_CODE);
-        // 3 The remaining space may be any value
-        // Here the length of the specially set maxBlank
-        final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
-        byteBuffer.put(this.msgStoreItemMemory.array(), 0, 8);
-        return new AppendMessageResult(AppendMessageStatus.END_OF_FILE, wroteOffset,
-            maxBlank, /* only wrote 8 bytes, but declare wrote maxBlank for compute write position */
-            msgIdSupplier, msgInner.getStoreTimestamp(),
-            queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
 ```
 
 <strong>逐段阅读抓手：</strong>看tranType：prepare与rollback不按普通可消费消息的逻辑offset方式处理。
@@ -2382,127 +3809,323 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[CommitLog.java · L676–L730](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L676-L730)，连续节选。
+<strong>4.9.8源码：</strong>[CommitLog.java · L617–L749](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L617-L749)，连续节选。
 
 ```java
-putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
-try {
-    MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
-    long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
-    this.beginTimeInLock = beginLockTimestamp;
+    public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
+        // Set the storage time
+        msg.setStoreTimestamp(System.currentTimeMillis());
+        // Set the message body BODY CRC (consider the most appropriate setting
+        // on the client)
+        msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
+        // Back to Results
+        AppendMessageResult result = null;
 
-    // Here settings are stored timestamp, in order to ensure an orderly
-    // global
-    msg.setStoreTimestamp(beginLockTimestamp);
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
 
-    if (null == mappedFile || mappedFile.isFull()) {
-        mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
-    }
-    if (null == mappedFile) {
-        log.error("create mapped file1 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
-        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
-    }
+        String topic = msg.getTopic();
+//        int queueId msg.getQueueId();
+        final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
+        if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
+                || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
+            // Delay Delivery
+            if (msg.getDelayTimeLevel() > 0) {
+                if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
+                    msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
+                }
 
-    result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
-    switch (result.getStatus()) {
-        case PUT_OK:
-            break;
-        case END_OF_FILE:
-            unlockMappedFile = mappedFile;
-            // Create a new file, re-write the message
-            mappedFile = this.mappedFileQueue.getLastMappedFile(0);
-            if (null == mappedFile) {
-                // XXX: warn and notify me
-                log.error("create mapped file2 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
-                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, result));
+                topic = TopicValidator.RMQ_SYS_SCHEDULE_TOPIC;
+                int queueId = ScheduleMessageService.delayLevel2QueueId(msg.getDelayTimeLevel());
+
+                // Backup real topic, queueId
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_TOPIC, msg.getTopic());
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_QUEUE_ID, String.valueOf(msg.getQueueId()));
+                msg.setPropertiesString(MessageDecoder.messageProperties2String(msg.getProperties()));
+
+                msg.setTopic(topic);
+                msg.setQueueId(queueId);
             }
+        }
+
+        InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
+        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setBornHostV6Flag();
+        }
+
+        InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
+        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setStoreHostAddressV6Flag();
+        }
+
+        PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
+        updateMaxMessageSize(putMessageThreadLocal);
+        if (!multiDispatch.isMultiDispatchMsg(msg)) {
+            PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
+            if (encodeResult != null) {
+                return CompletableFuture.completedFuture(encodeResult);
+            }
+            msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
+        }
+        PutMessageContext putMessageContext = new PutMessageContext(generateKey(putMessageThreadLocal.getKeyBuilder(), msg));
+
+        long elapsedTimeInLock = 0;
+        MappedFile unlockMappedFile = null;
+
+        putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
+        try {
+            MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
+            long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+            this.beginTimeInLock = beginLockTimestamp;
+
+            // Here settings are stored timestamp, in order to ensure an orderly
+            // global
+            msg.setStoreTimestamp(beginLockTimestamp);
+
+            if (null == mappedFile || mappedFile.isFull()) {
+                mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+            }
+            if (null == mappedFile) {
+                log.error("create mapped file1 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
+            }
+
             result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
-            break;
-        case MESSAGE_SIZE_EXCEEDED:
-        case PROPERTIES_SIZE_EXCEEDED:
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
-        case UNKNOWN_ERROR:
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
-        default:
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+            switch (result.getStatus()) {
+                case PUT_OK:
+                    break;
+                case END_OF_FILE:
+                    unlockMappedFile = mappedFile;
+                    // Create a new file, re-write the message
+                    mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                    if (null == mappedFile) {
+                        // XXX: warn and notify me
+                        log.error("create mapped file2 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, result));
+                    }
+                    result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                    break;
+                case MESSAGE_SIZE_EXCEEDED:
+                case PROPERTIES_SIZE_EXCEEDED:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+                case UNKNOWN_ERROR:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+                default:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+            }
+
+            elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
+        } finally {
+            beginTimeInLock = 0;
+            putMessageLock.unlock();
+        }
+
+        if (elapsedTimeInLock > 500) {
+            log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
+        }
+
+        if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
+            this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
+        }
+
+        PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
+
+        // Statistics
+        storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).add(1);
+        storeStatsService.getSinglePutMessageTopicSizeTotal(topic).add(result.getWroteBytes());
+
+        CompletableFuture<PutMessageStatus> flushResultFuture = submitFlushRequest(result, msg);
+        CompletableFuture<PutMessageStatus> replicaResultFuture = submitReplicaRequest(result, msg);
+        return flushResultFuture.thenCombine(replicaResultFuture, (flushStatus, replicaStatus) -> {
+            if (flushStatus != PutMessageStatus.PUT_OK) {
+                putMessageResult.setPutMessageStatus(flushStatus);
+            }
+            if (replicaStatus != PutMessageStatus.PUT_OK) {
+                putMessageResult.setPutMessageStatus(replicaStatus);
+            }
+            return putMessageResult;
+        });
     }
-
-    elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
-} finally {
-    beginTimeInLock = 0;
-    putMessageLock.unlock();
-}
-
-if (elapsedTimeInLock > 500) {
-    log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
-}
-
-if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
-    this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
-}
 ```
 
-<strong>5.3.4源码：</strong>[CommitLog.java · L1017–L1074](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1017-L1074)，连续节选。
+<strong>5.3.4源码：</strong>[CommitLog.java · L948–L1123](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L948-L1123)，连续节选。
 
 ```java
-topicQueueLock.lock(topicQueueKey);
-try {
-
-    boolean needAssignOffset = true;
-    if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
-        && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
-        needAssignOffset = false;
-    }
-    if (needAssignOffset) {
-        defaultMessageStore.assignOffset(msg);
-    }
-
-    PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
-    if (encodeResult != null) {
-        return CompletableFuture.completedFuture(encodeResult);
-    }
-    msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
-    PutMessageContext putMessageContext = new PutMessageContext(topicQueueKey);
-
-    putMessageLock.lock(); //spin or ReentrantLock, depending on store config
-    try {
-        long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
-        this.beginTimeInLock = beginLockTimestamp;
-
-        // Here settings are stored timestamp, in order to ensure an orderly
-        // global
+    public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
+        // Set the storage time
         if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
-            msg.setStoreTimestamp(beginLockTimestamp);
+            msg.setStoreTimestamp(System.currentTimeMillis());
+        }
+        // Set the message body CRC (consider the most appropriate setting on the client)
+        msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
+        if (enabledAppendPropCRC) {
+            // delete crc32 properties if exist
+            msg.deleteProperty(MessageConst.PROPERTY_CRC32);
+        }
+        // Back to Results
+        AppendMessageResult result = null;
+
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
+
+        String topic = msg.getTopic();
+        msg.setVersion(MessageVersion.MESSAGE_VERSION_V1);
+        boolean autoMessageVersionOnTopicLen =
+            this.defaultMessageStore.getMessageStoreConfig().isAutoMessageVersionOnTopicLen();
+        if (autoMessageVersionOnTopicLen && topic.length() > Byte.MAX_VALUE) {
+            msg.setVersion(MessageVersion.MESSAGE_VERSION_V2);
         }
 
-        if (null == mappedFile || mappedFile.isFull()) {
-            mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
-            if (isCloseReadAhead()) {
-                setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+        InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
+        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setBornHostV6Flag();
+        }
+
+        InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
+        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setStoreHostAddressV6Flag();
+        }
+
+        PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
+        updateMaxMessageSize(putMessageThreadLocal);
+        String topicQueueKey = generateKey(putMessageThreadLocal.getKeyBuilder(), msg);
+        long elapsedTimeInLock = 0;
+        MappedFile unlockMappedFile = null;
+        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
+
+        long currOffset;
+        if (mappedFile == null) {
+            currOffset = 0;
+        } else {
+            currOffset = mappedFile.getFileFromOffset() + mappedFile.getWrotePosition();
+        }
+
+        int needAckNums = this.defaultMessageStore.getMessageStoreConfig().getInSyncReplicas();
+        boolean needHandleHA = needHandleHA(msg);
+
+        if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableControllerMode()) {
+            if (this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset) < this.defaultMessageStore.getMessageStoreConfig().getMinInSyncReplicas()) {
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
+            }
+            if (this.defaultMessageStore.getMessageStoreConfig().isAllAckInSyncStateSet()) {
+                // -1 means all ack in SyncStateSet
+                needAckNums = MixAll.ALL_ACK_IN_SYNC_STATE_SET;
+            }
+        } else if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableSlaveActingMaster()) {
+            int inSyncReplicas = Math.min(this.defaultMessageStore.getAliveReplicaNumInGroup(),
+                this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset));
+            needAckNums = calcNeedAckNums(inSyncReplicas);
+            if (needAckNums > inSyncReplicas) {
+                // Tell the producer, don't have enough slaves to handle the send request
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
             }
         }
-        if (null == mappedFile) {
-            log.error("create mapped file1 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
-            beginTimeInLock = 0;
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, null));
+
+        topicQueueLock.lock(topicQueueKey);
+        try {
+
+            boolean needAssignOffset = true;
+            if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
+                && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
+                needAssignOffset = false;
+            }
+            if (needAssignOffset) {
+                defaultMessageStore.assignOffset(msg);
+            }
+
+            PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
+            if (encodeResult != null) {
+                return CompletableFuture.completedFuture(encodeResult);
+            }
+            msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
+            PutMessageContext putMessageContext = new PutMessageContext(topicQueueKey);
+
+            putMessageLock.lock(); //spin or ReentrantLock, depending on store config
+            try {
+                long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+                this.beginTimeInLock = beginLockTimestamp;
+
+                // Here settings are stored timestamp, in order to ensure an orderly
+                // global
+                if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
+                    msg.setStoreTimestamp(beginLockTimestamp);
+                }
+
+                if (null == mappedFile || mappedFile.isFull()) {
+                    mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+                    if (isCloseReadAhead()) {
+                        setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+                    }
+                }
+                if (null == mappedFile) {
+                    log.error("create mapped file1 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+                    beginTimeInLock = 0;
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, null));
+                }
+
+                result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                switch (result.getStatus()) {
+                    case PUT_OK:
+                        onCommitLogAppend(msg, result, mappedFile);
+                        break;
+                    case END_OF_FILE:
+                        onCommitLogAppend(msg, result, mappedFile);
+                        unlockMappedFile = mappedFile;
+                        // Create a new file, re-write the message
+                        mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                        if (null == mappedFile) {
+                            // XXX: warn and notify me
+                            log.error("create mapped file2 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+                            beginTimeInLock = 0;
+                            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, result));
+                        }
+                        if (isCloseReadAhead()) {
+                            setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+                        }
+                        result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                        if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
+                            onCommitLogAppend(msg, result, mappedFile);
+                        }
+                        break;
+                    case MESSAGE_SIZE_EXCEEDED:
+                    case PROPERTIES_SIZE_EXCEEDED:
+                        beginTimeInLock = 0;
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+                    case UNKNOWN_ERROR:
+                    default:
+                        beginTimeInLock = 0;
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+                }
+
+                elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
+                beginTimeInLock = 0;
+            } finally {
+                putMessageLock.unlock();
+            }
+            // Increase queue offset when messages are successfully written
+            if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
+                this.defaultMessageStore.increaseOffset(msg, getMessageNum(msg));
+            }
+        } catch (RocksDBException e) {
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+        } finally {
+            topicQueueLock.unlock(topicQueueKey);
         }
 
-        result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
-        switch (result.getStatus()) {
-            case PUT_OK:
-                onCommitLogAppend(msg, result, mappedFile);
-                break;
-            case END_OF_FILE:
-                onCommitLogAppend(msg, result, mappedFile);
-                unlockMappedFile = mappedFile;
-                // Create a new file, re-write the message
-                mappedFile = this.mappedFileQueue.getLastMappedFile(0);
-                if (null == mappedFile) {
-                    // XXX: warn and notify me
-                    log.error("create mapped file2 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
-                    beginTimeInLock = 0;
-                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, result));
-                }
+        if (elapsedTimeInLock > 500) {
+            log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
+        }
+
+        if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
+            this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
+        }
+
+        PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
+
+        // Statistics
+        storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).add(result.getMsgNum());
+        storeStatsService.getSinglePutMessageTopicSizeTotal(topic).add(result.getWroteBytes());
+
+        return handleDiskFlushAndHA(putMessageResult, msg, needAckNums, needHandleHA);
+    }
 ```
 
 <strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
@@ -2911,82 +4534,100 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[CommitLog.java · L1662–L1734](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1662-L1734)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[CommitLog.java · L1659–L1749](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1659-L1749)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-class GroupCommitService extends FlushCommitLogService {
-    private LinkedList<GroupCommitRequest> requestsWrite = new LinkedList<>();
-    private LinkedList<GroupCommitRequest> requestsRead = new LinkedList<>();
-    private final PutMessageSpinLock lock = new PutMessageSpinLock();
+    /**
+     * GroupCommit Service
+     */
+    class GroupCommitService extends FlushCommitLogService {
+        private LinkedList<GroupCommitRequest> requestsWrite = new LinkedList<>();
+        private LinkedList<GroupCommitRequest> requestsRead = new LinkedList<>();
+        private final PutMessageSpinLock lock = new PutMessageSpinLock();
 
-    public void putRequest(final GroupCommitRequest request) {
-        lock.lock();
-        try {
-            this.requestsWrite.add(request);
-        } finally {
-            lock.unlock();
+        public void putRequest(final GroupCommitRequest request) {
+            lock.lock();
+            try {
+                this.requestsWrite.add(request);
+            } finally {
+                lock.unlock();
+            }
+            this.wakeup();
         }
-        this.wakeup();
-    }
 
-    private void swapRequests() {
-        lock.lock();
-        try {
-            LinkedList<GroupCommitRequest> tmp = this.requestsWrite;
-            this.requestsWrite = this.requestsRead;
-            this.requestsRead = tmp;
-        } finally {
-            lock.unlock();
+        private void swapRequests() {
+            lock.lock();
+            try {
+                LinkedList<GroupCommitRequest> tmp = this.requestsWrite;
+                this.requestsWrite = this.requestsRead;
+                this.requestsRead = tmp;
+            } finally {
+                lock.unlock();
+            }
         }
-    }
 
-    private void doCommit() {
-        if (!this.requestsRead.isEmpty()) {
-            for (GroupCommitRequest req : this.requestsRead) {
-                boolean flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
-                for (int i = 0; i < 1000 && !flushOK; i++) {
-                    CommitLog.this.mappedFileQueue.flush(0);
-                    flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
-                    if (flushOK) {
-                        break;
-                    } else {
-                        // When transientStorePoolEnable is true, the messages in writeBuffer may not be committed
-                        // to pageCache very quickly, and flushOk here may almost be false, so we can sleep 1ms to
-                        // wait for the messages to be committed to pageCache.
-                        try {
-                            Thread.sleep(1);
-                        } catch (InterruptedException ignored) {
+        private void doCommit() {
+            if (!this.requestsRead.isEmpty()) {
+                for (GroupCommitRequest req : this.requestsRead) {
+                    boolean flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
+                    for (int i = 0; i < 1000 && !flushOK; i++) {
+                        CommitLog.this.mappedFileQueue.flush(0);
+                        flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
+                        if (flushOK) {
+                            break;
+                        } else {
+                            // When transientStorePoolEnable is true, the messages in writeBuffer may not be committed
+                            // to pageCache very quickly, and flushOk here may almost be false, so we can sleep 1ms to
+                            // wait for the messages to be committed to pageCache.
+                            try {
+                                Thread.sleep(1);
+                            } catch (InterruptedException ignored) {
+                            }
                         }
                     }
+
+                    req.wakeupCustomer(flushOK ? PutMessageStatus.PUT_OK : PutMessageStatus.FLUSH_DISK_TIMEOUT);
                 }
 
-                req.wakeupCustomer(flushOK ? PutMessageStatus.PUT_OK : PutMessageStatus.FLUSH_DISK_TIMEOUT);
-            }
+                long storeTimestamp = CommitLog.this.mappedFileQueue.getStoreTimestamp();
+                if (storeTimestamp > 0) {
+                    CommitLog.this.defaultMessageStore.getStoreCheckpoint().setPhysicMsgTimestamp(storeTimestamp);
+                }
 
-            long storeTimestamp = CommitLog.this.mappedFileQueue.getStoreTimestamp();
-            if (storeTimestamp > 0) {
-                CommitLog.this.defaultMessageStore.getStoreCheckpoint().setPhysicMsgTimestamp(storeTimestamp);
+                this.requestsRead = new LinkedList<>();
+            } else {
+                // Because of individual messages is set to not sync flush, it
+                // will come to this process
+                CommitLog.this.mappedFileQueue.flush(0);
             }
-
-            this.requestsRead = new LinkedList<>();
-        } else {
-            // Because of individual messages is set to not sync flush, it
-            // will come to this process
-            CommitLog.this.mappedFileQueue.flush(0);
         }
-    }
 
-    @Override
-    public void run() {
-        CommitLog.log.info("{} service started", this.getServiceName());
+        @Override
+        public void run() {
+            CommitLog.log.info("{} service started", this.getServiceName());
 
-        while (!this.isStopped()) {
-            try {
-                this.waitForRunning(10);
-                this.doCommit();
-            } catch (Exception e) {
-                CommitLog.log.warn("{} service has exception. ", this.getServiceName(), e);
+            while (!this.isStopped()) {
+                try {
+                    this.waitForRunning(10);
+                    this.doCommit();
+                } catch (Exception e) {
+                    CommitLog.log.warn("{} service has exception. ", this.getServiceName(), e);
+                }
             }
+
+            // Under normal circumstances shutdown, wait for the arrival of the
+            // request, and then flush
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                CommitLog.log.warn("GroupCommitService Exception, ", e);
+            }
+
+            this.swapRequests();
+            this.doCommit();
+
+            CommitLog.log.info("{} service end", this.getServiceName());
+        }
 ```
 
 <strong>逐段阅读抓手：</strong>目标值通常是wroteOffset加wroteBytes；这表示整条记录的末尾位置。
@@ -3054,7 +4695,7 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[CommitLog.java · L617–L653](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L617-L653)，连续节选。
+<strong>4.9.8源码：</strong>[CommitLog.java · L617–L749](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L617-L749)，连续节选。
 
 ```java
     public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
@@ -3094,39 +4735,282 @@ A -. "比较状态归属 / 确认条件 / 配置" .-> B
 
         InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
         if (bornSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setBornHostV6Flag();
+        }
+
+        InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
+        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setStoreHostAddressV6Flag();
+        }
+
+        PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
+        updateMaxMessageSize(putMessageThreadLocal);
+        if (!multiDispatch.isMultiDispatchMsg(msg)) {
+            PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
+            if (encodeResult != null) {
+                return CompletableFuture.completedFuture(encodeResult);
+            }
+            msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
+        }
+        PutMessageContext putMessageContext = new PutMessageContext(generateKey(putMessageThreadLocal.getKeyBuilder(), msg));
+
+        long elapsedTimeInLock = 0;
+        MappedFile unlockMappedFile = null;
+
+        putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
+        try {
+            MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
+            long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+            this.beginTimeInLock = beginLockTimestamp;
+
+            // Here settings are stored timestamp, in order to ensure an orderly
+            // global
+            msg.setStoreTimestamp(beginLockTimestamp);
+
+            if (null == mappedFile || mappedFile.isFull()) {
+                mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+            }
+            if (null == mappedFile) {
+                log.error("create mapped file1 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
+            }
+
+            result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+            switch (result.getStatus()) {
+                case PUT_OK:
+                    break;
+                case END_OF_FILE:
+                    unlockMappedFile = mappedFile;
+                    // Create a new file, re-write the message
+                    mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                    if (null == mappedFile) {
+                        // XXX: warn and notify me
+                        log.error("create mapped file2 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, result));
+                    }
+                    result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                    break;
+                case MESSAGE_SIZE_EXCEEDED:
+                case PROPERTIES_SIZE_EXCEEDED:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+                case UNKNOWN_ERROR:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+                default:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+            }
+
+            elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
+        } finally {
+            beginTimeInLock = 0;
+            putMessageLock.unlock();
+        }
+
+        if (elapsedTimeInLock > 500) {
+            log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
+        }
+
+        if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
+            this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
+        }
+
+        PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
+
+        // Statistics
+        storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).add(1);
+        storeStatsService.getSinglePutMessageTopicSizeTotal(topic).add(result.getWroteBytes());
+
+        CompletableFuture<PutMessageStatus> flushResultFuture = submitFlushRequest(result, msg);
+        CompletableFuture<PutMessageStatus> replicaResultFuture = submitReplicaRequest(result, msg);
+        return flushResultFuture.thenCombine(replicaResultFuture, (flushStatus, replicaStatus) -> {
+            if (flushStatus != PutMessageStatus.PUT_OK) {
+                putMessageResult.setPutMessageStatus(flushStatus);
+            }
+            if (replicaStatus != PutMessageStatus.PUT_OK) {
+                putMessageResult.setPutMessageStatus(replicaStatus);
+            }
+            return putMessageResult;
+        });
+    }
 ```
 
-<strong>5.3.4源码：</strong>[CommitLog.java · L996–L1024](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L996-L1024)，连续节选。
+<strong>5.3.4源码：</strong>[CommitLog.java · L948–L1123](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L948-L1123)，连续节选。
 
 ```java
-int needAckNums = this.defaultMessageStore.getMessageStoreConfig().getInSyncReplicas();
-boolean needHandleHA = needHandleHA(msg);
+    public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
+        // Set the storage time
+        if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
+            msg.setStoreTimestamp(System.currentTimeMillis());
+        }
+        // Set the message body CRC (consider the most appropriate setting on the client)
+        msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
+        if (enabledAppendPropCRC) {
+            // delete crc32 properties if exist
+            msg.deleteProperty(MessageConst.PROPERTY_CRC32);
+        }
+        // Back to Results
+        AppendMessageResult result = null;
 
-if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableControllerMode()) {
-    if (this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset) < this.defaultMessageStore.getMessageStoreConfig().getMinInSyncReplicas()) {
-        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
-    }
-    if (this.defaultMessageStore.getMessageStoreConfig().isAllAckInSyncStateSet()) {
-        // -1 means all ack in SyncStateSet
-        needAckNums = MixAll.ALL_ACK_IN_SYNC_STATE_SET;
-    }
-} else if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableSlaveActingMaster()) {
-    int inSyncReplicas = Math.min(this.defaultMessageStore.getAliveReplicaNumInGroup(),
-        this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset));
-    needAckNums = calcNeedAckNums(inSyncReplicas);
-    if (needAckNums > inSyncReplicas) {
-        // Tell the producer, don't have enough slaves to handle the send request
-        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
-    }
-}
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
 
-topicQueueLock.lock(topicQueueKey);
-try {
+        String topic = msg.getTopic();
+        msg.setVersion(MessageVersion.MESSAGE_VERSION_V1);
+        boolean autoMessageVersionOnTopicLen =
+            this.defaultMessageStore.getMessageStoreConfig().isAutoMessageVersionOnTopicLen();
+        if (autoMessageVersionOnTopicLen && topic.length() > Byte.MAX_VALUE) {
+            msg.setVersion(MessageVersion.MESSAGE_VERSION_V2);
+        }
 
-    boolean needAssignOffset = true;
-    if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
-        && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
-        needAssignOffset = false;
+        InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
+        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setBornHostV6Flag();
+        }
+
+        InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
+        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setStoreHostAddressV6Flag();
+        }
+
+        PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
+        updateMaxMessageSize(putMessageThreadLocal);
+        String topicQueueKey = generateKey(putMessageThreadLocal.getKeyBuilder(), msg);
+        long elapsedTimeInLock = 0;
+        MappedFile unlockMappedFile = null;
+        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
+
+        long currOffset;
+        if (mappedFile == null) {
+            currOffset = 0;
+        } else {
+            currOffset = mappedFile.getFileFromOffset() + mappedFile.getWrotePosition();
+        }
+
+        int needAckNums = this.defaultMessageStore.getMessageStoreConfig().getInSyncReplicas();
+        boolean needHandleHA = needHandleHA(msg);
+
+        if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableControllerMode()) {
+            if (this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset) < this.defaultMessageStore.getMessageStoreConfig().getMinInSyncReplicas()) {
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
+            }
+            if (this.defaultMessageStore.getMessageStoreConfig().isAllAckInSyncStateSet()) {
+                // -1 means all ack in SyncStateSet
+                needAckNums = MixAll.ALL_ACK_IN_SYNC_STATE_SET;
+            }
+        } else if (needHandleHA && this.defaultMessageStore.getBrokerConfig().isEnableSlaveActingMaster()) {
+            int inSyncReplicas = Math.min(this.defaultMessageStore.getAliveReplicaNumInGroup(),
+                this.defaultMessageStore.getHaService().inSyncReplicasNums(currOffset));
+            needAckNums = calcNeedAckNums(inSyncReplicas);
+            if (needAckNums > inSyncReplicas) {
+                // Tell the producer, don't have enough slaves to handle the send request
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH, null));
+            }
+        }
+
+        topicQueueLock.lock(topicQueueKey);
+        try {
+
+            boolean needAssignOffset = true;
+            if (defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()
+                && defaultMessageStore.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE) {
+                needAssignOffset = false;
+            }
+            if (needAssignOffset) {
+                defaultMessageStore.assignOffset(msg);
+            }
+
+            PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
+            if (encodeResult != null) {
+                return CompletableFuture.completedFuture(encodeResult);
+            }
+            msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
+            PutMessageContext putMessageContext = new PutMessageContext(topicQueueKey);
+
+            putMessageLock.lock(); //spin or ReentrantLock, depending on store config
+            try {
+                long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+                this.beginTimeInLock = beginLockTimestamp;
+
+                // Here settings are stored timestamp, in order to ensure an orderly
+                // global
+                if (!defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
+                    msg.setStoreTimestamp(beginLockTimestamp);
+                }
+
+                if (null == mappedFile || mappedFile.isFull()) {
+                    mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+                    if (isCloseReadAhead()) {
+                        setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+                    }
+                }
+                if (null == mappedFile) {
+                    log.error("create mapped file1 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+                    beginTimeInLock = 0;
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, null));
+                }
+
+                result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                switch (result.getStatus()) {
+                    case PUT_OK:
+                        onCommitLogAppend(msg, result, mappedFile);
+                        break;
+                    case END_OF_FILE:
+                        onCommitLogAppend(msg, result, mappedFile);
+                        unlockMappedFile = mappedFile;
+                        // Create a new file, re-write the message
+                        mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                        if (null == mappedFile) {
+                            // XXX: warn and notify me
+                            log.error("create mapped file2 error, topic: {} clientAddr: {}", msg.getTopic(), msg.getBornHostString());
+                            beginTimeInLock = 0;
+                            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, result));
+                        }
+                        if (isCloseReadAhead()) {
+                            setFileReadMode(mappedFile, LibC.MADV_RANDOM);
+                        }
+                        result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                        if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
+                            onCommitLogAppend(msg, result, mappedFile);
+                        }
+                        break;
+                    case MESSAGE_SIZE_EXCEEDED:
+                    case PROPERTIES_SIZE_EXCEEDED:
+                        beginTimeInLock = 0;
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+                    case UNKNOWN_ERROR:
+                    default:
+                        beginTimeInLock = 0;
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+                }
+
+                elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
+                beginTimeInLock = 0;
+            } finally {
+                putMessageLock.unlock();
+            }
+            // Increase queue offset when messages are successfully written
+            if (AppendMessageStatus.PUT_OK.equals(result.getStatus())) {
+                this.defaultMessageStore.increaseOffset(msg, getMessageNum(msg));
+            }
+        } catch (RocksDBException e) {
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+        } finally {
+            topicQueueLock.unlock(topicQueueKey);
+        }
+
+        if (elapsedTimeInLock > 500) {
+            log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
+        }
+
+        if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
+            this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
+        }
+
+        PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
+
+        // Statistics
+        storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).add(result.getMsgNum());
+        storeStatsService.getSinglePutMessageTopicSizeTotal(topic).add(result.getWroteBytes());
+
+        return handleDiskFlushAndHA(putMessageResult, msg, needAckNums, needHandleHA);
     }
 ```
 
@@ -3369,38 +5253,44 @@ K -- PREPARE或ROLLBACK --> NO["此分发器不按普通消息构建业务CQ"]
 CQ --> C["订阅业务Topic的消费者可读取"]
 ```
 
-<strong>源码对照：</strong>[DefaultMessageStore.java · L2083–L2111](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L2083-L2111)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMessageStore.java · L2083–L2117](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L2083-L2117)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-class CommitLogDispatcherBuildConsumeQueue implements CommitLogDispatcher {
+    class CommitLogDispatcherBuildConsumeQueue implements CommitLogDispatcher {
 
-    @Override
-    public void dispatch(DispatchRequest request) throws RocksDBException {
-        final int tranType = MessageSysFlag.getTransactionValue(request.getSysFlag());
-        switch (tranType) {
-            case MessageSysFlag.TRANSACTION_NOT_TYPE:
-            case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
-                putMessagePositionInfo(request);
-                break;
-            case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
-            case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
-                break;
+        @Override
+        public void dispatch(DispatchRequest request) throws RocksDBException {
+            final int tranType = MessageSysFlag.getTransactionValue(request.getSysFlag());
+            switch (tranType) {
+                case MessageSysFlag.TRANSACTION_NOT_TYPE:
+                case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
+                    putMessagePositionInfo(request);
+                    break;
+                case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
+                case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
+                    break;
+            }
         }
     }
-}
 
-class CommitLogDispatcherBuildIndex implements CommitLogDispatcher {
+    class CommitLogDispatcherBuildIndex implements CommitLogDispatcher {
 
-    @Override
-    public void dispatch(DispatchRequest request) {
-        if (DefaultMessageStore.this.messageStoreConfig.isMessageIndexEnable()) {
-            DefaultMessageStore.this.indexService.buildIndex(request);
+        @Override
+        public void dispatch(DispatchRequest request) {
+            if (DefaultMessageStore.this.messageStoreConfig.isMessageIndexEnable()) {
+                DefaultMessageStore.this.indexService.buildIndex(request);
+            }
         }
     }
-}
 
-public boolean isTimeToDelete() {
-    String when = messageStoreConfig.getDeleteWhen();
+    public boolean isTimeToDelete() {
+        String when = messageStoreConfig.getDeleteWhen();
+        if (UtilAll.isItTimeToDo(when)) {
+            LOGGER.info("it's time to reclaim disk space, " + when);
+            return true;
+        }
+        return false;
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>对照switch枚举；可见性判断位于索引分发，不仅在Consumer过滤层。
@@ -3476,28 +5366,42 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[DefaultMessageStore.java · L1235–L1253](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1235-L1253)，连续节选。
+<strong>4.9.8源码：</strong>[DefaultMessageStore.java · L1221–L1253](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L1221-L1253)，连续节选。
 
 ```java
-        ConsumeQueue newLogic = new ConsumeQueue(
-            topic,
-            queueId,
-            StorePathConfigHelper.getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()),
-            this.getMessageStoreConfig().getMappedFileSizeConsumeQueue(),
-            this);
-        ConsumeQueue oldLogic = map.putIfAbsent(queueId, newLogic);
-        if (oldLogic != null) {
-            logic = oldLogic;
-        } else {
-            if (MixAll.isLmq(topic)) {
-                lmqConsumeQueueNum.getAndIncrement();
+    public ConsumeQueue findConsumeQueue(String topic, int queueId) {
+        ConcurrentMap<Integer, ConsumeQueue> map = consumeQueueTable.get(topic);
+        if (null == map) {
+            ConcurrentMap<Integer, ConsumeQueue> newMap = new ConcurrentHashMap<Integer, ConsumeQueue>(128);
+            ConcurrentMap<Integer, ConsumeQueue> oldMap = consumeQueueTable.putIfAbsent(topic, newMap);
+            if (oldMap != null) {
+                map = oldMap;
+            } else {
+                map = newMap;
             }
-            logic = newLogic;
         }
-    }
 
-    return logic;
-}
+        ConsumeQueue logic = map.get(queueId);
+        if (null == logic) {
+            ConsumeQueue newLogic = new ConsumeQueue(
+                topic,
+                queueId,
+                StorePathConfigHelper.getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()),
+                this.getMessageStoreConfig().getMappedFileSizeConsumeQueue(),
+                this);
+            ConsumeQueue oldLogic = map.putIfAbsent(queueId, newLogic);
+            if (oldLogic != null) {
+                logic = oldLogic;
+            } else {
+                if (MixAll.isLmq(topic)) {
+                    lmqConsumeQueueNum.getAndIncrement();
+                }
+                logic = newLogic;
+            }
+        }
+
+        return logic;
+    }
 ```
 
 <strong>5.3.4源码：</strong>[DefaultMessageStore.java · L268–L273](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L268-L273)，连续节选。
@@ -3792,44 +5696,175 @@ D --> E["最终查询列表"]
 ```
 
 
-<strong>5.3.4源码对照：</strong>[MQAdminImpl.java · L441–L475](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/MQAdminImpl.java#L441-L475)，连续节选。
+<strong>5.3.4源码对照：</strong>[MQAdminImpl.java · L323–L488](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/MQAdminImpl.java#L323-L488)，连续节选。
 
 ```java
-    for (MessageExt msgExt : qr.getMessageList()) {
-        if (isUniqKey) {
-            if (msgExt.getMsgId().equals(key)) {
-                messageList.add(msgExt);
-            } else {
-                log.warn("queryMessage by uniqKey, find message key not matched, maybe hash duplicate {}", msgExt.toString());
+    public QueryResult queryMessage(String clusterName, String topic, String key, int maxNum, long begin, long end,
+        boolean isUniqKey) throws MQClientException,
+        InterruptedException {
+        boolean isLmq = MixAll.isLmq(topic);
+
+        String routeTopic = topic;
+        // if topic is lmq ,then use clusterName as lmq parent topic
+        // Use clusterName or lmq parent topic to get topic route for lmq or rmq_sys_wheel_timer
+        if (!StringUtils.isEmpty(topic) && (isLmq || topic.equals(TopicValidator.SYSTEM_TOPIC_PREFIX + "wheel_timer"))
+            && !StringUtils.isEmpty(clusterName)) {
+            routeTopic = clusterName;
+        }
+
+        TopicRouteData topicRouteData = this.mQClientFactory.getAnExistTopicRouteData(routeTopic);
+        if (null == topicRouteData) {
+            this.mQClientFactory.updateTopicRouteInfoFromNameServer(routeTopic);
+            topicRouteData = this.mQClientFactory.getAnExistTopicRouteData(routeTopic);
+        }
+
+        if (topicRouteData != null) {
+            List<String> brokerAddrs = new LinkedList<>();
+            for (BrokerData brokerData : topicRouteData.getBrokerDatas()) {
+                if (!isLmq && clusterName != null && !clusterName.isEmpty()
+                    && !clusterName.equals(brokerData.getCluster())) {
+                    continue;
+                }
+                String addr = brokerData.selectBrokerAddr();
+                if (addr != null) {
+                    brokerAddrs.add(addr);
+                }
             }
-        } else {
-            String keys = msgExt.getKeys();
-            String msgTopic = msgExt.getTopic();
-            if (keys != null) {
-                boolean matched = false;
-                String[] keyArray = keys.split(MessageConst.KEY_SEPARATOR);
-                for (String k : keyArray) {
-                    // both topic and key must be equal at the same time
-                    if (Objects.equals(key, k) && (isLmq || Objects.equals(topic, msgTopic))) {
-                        matched = true;
-                        break;
+
+            if (!brokerAddrs.isEmpty()) {
+                final CountDownLatch countDownLatch = new CountDownLatch(brokerAddrs.size());
+                final List<QueryResult> queryResultList = new LinkedList<>();
+                final ReadWriteLock lock = new ReentrantReadWriteLock(false);
+
+                for (String addr : brokerAddrs) {
+                    try {
+                        QueryMessageRequestHeader requestHeader = new QueryMessageRequestHeader();
+                        if (isLmq) {
+                            requestHeader.setTopic(clusterName);
+                        } else {
+                            requestHeader.setTopic(topic);
+                        }
+                        requestHeader.setKey(key);
+                        requestHeader.setMaxNum(maxNum);
+                        requestHeader.setBeginTimestamp(begin);
+                        requestHeader.setEndTimestamp(end);
+
+                        this.mQClientFactory.getMQClientAPIImpl().queryMessage(addr, requestHeader, timeoutMillis * 3,
+                            new InvokeCallback() {
+                                @Override
+                                public void operationComplete(ResponseFuture responseFuture) {
+
+                                }
+
+                                @Override
+                                public void operationSucceed(RemotingCommand response) {
+                                    try {
+                                        switch (response.getCode()) {
+                                            case ResponseCode.SUCCESS: {
+                                                QueryMessageResponseHeader responseHeader = null;
+                                                try {
+                                                    responseHeader =
+                                                        (QueryMessageResponseHeader) response
+                                                            .decodeCommandCustomHeader(QueryMessageResponseHeader.class);
+                                                } catch (RemotingCommandException e) {
+                                                    log.error("decodeCommandCustomHeader exception", e);
+                                                    return;
+                                                }
+
+                                                List<MessageExt> wrappers =
+                                                    MessageDecoder.decodes(ByteBuffer.wrap(response.getBody()), true);
+
+                                                QueryResult qr = new QueryResult(responseHeader.getIndexLastUpdateTimestamp(), wrappers);
+                                                try {
+                                                    lock.writeLock().lock();
+                                                    queryResultList.add(qr);
+                                                } finally {
+                                                    lock.writeLock().unlock();
+                                                }
+                                                break;
+                                            }
+                                            default:
+                                                log.warn("getResponseCommand failed, {} {}", response.getCode(), response.getRemark());
+                                                break;
+                                        }
+
+                                    } finally {
+                                        countDownLatch.countDown();
+                                    }
+                                }
+
+                                @Override
+                                public void operationFail(Throwable throwable) {
+                                    log.error("queryMessage error, requestHeader={}", requestHeader);
+                                    countDownLatch.countDown();
+                                }
+                            }, isUniqKey);
+                    } catch (Exception e) {
+                        log.warn("queryMessage exception", e);
+                    }
+
+                }
+
+                boolean ok = countDownLatch.await(timeoutMillis * 4, TimeUnit.MILLISECONDS);
+                if (!ok) {
+                    log.warn("queryMessage, maybe some broker failed");
+                }
+
+                long indexLastUpdateTimestamp = 0;
+                List<MessageExt> messageList = new LinkedList<>();
+                for (QueryResult qr : queryResultList) {
+                    if (qr.getIndexLastUpdateTimestamp() > indexLastUpdateTimestamp) {
+                        indexLastUpdateTimestamp = qr.getIndexLastUpdateTimestamp();
+                    }
+
+                    for (MessageExt msgExt : qr.getMessageList()) {
+                        if (isUniqKey) {
+                            if (msgExt.getMsgId().equals(key)) {
+                                messageList.add(msgExt);
+                            } else {
+                                log.warn("queryMessage by uniqKey, find message key not matched, maybe hash duplicate {}", msgExt.toString());
+                            }
+                        } else {
+                            String keys = msgExt.getKeys();
+                            String msgTopic = msgExt.getTopic();
+                            if (keys != null) {
+                                boolean matched = false;
+                                String[] keyArray = keys.split(MessageConst.KEY_SEPARATOR);
+                                for (String k : keyArray) {
+                                    // both topic and key must be equal at the same time
+                                    if (Objects.equals(key, k) && (isLmq || Objects.equals(topic, msgTopic))) {
+                                        matched = true;
+                                        break;
+                                    }
+                                }
+
+                                if (matched) {
+                                    messageList.add(msgExt);
+                                } else {
+                                    log.warn("queryMessage, find message key not matched, maybe hash duplicate {}", msgExt.toString());
+                                }
+                            }
+                        }
                     }
                 }
 
-                if (matched) {
-                    messageList.add(msgExt);
+                //If namespace not null , reset Topic without namespace.
+                if (null != this.mQClientFactory.getClientConfig().getNamespace()) {
+                    for (MessageExt messageExt : messageList) {
+                        messageExt.setTopic(NamespaceUtil.withoutNamespace(messageExt.getTopic(), this.mQClientFactory.getClientConfig().getNamespace()));
+                    }
+                }
+
+                if (!messageList.isEmpty()) {
+                    return new QueryResult(indexLastUpdateTimestamp, messageList);
                 } else {
-                    log.warn("queryMessage, find message key not matched, maybe hash duplicate {}", msgExt.toString());
+                    throw new MQClientException(ResponseCode.NO_MESSAGE, "query message by key finished, but no message.");
                 }
             }
         }
-    }
-}
 
-//If namespace not null , reset Topic without namespace.
-if (null != this.mQClientFactory.getClientConfig().getNamespace()) {
-    for (MessageExt messageExt : messageList) {
-        messageExt.setTopic(NamespaceUtil.withoutNamespace(messageExt.getTopic(), this.mQClientFactory.getClientConfig().getNamespace()));
+        throw new MQClientException(ResponseCode.TOPIC_NOT_EXIST, "The topic[" + topic + "] not matched route info");
+    }
 ```
 
 
@@ -3867,75 +5902,310 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[PullMessageProcessor.java · L302–L368](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PullMessageProcessor.java#L302-L368)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PullMessageProcessor.java · L302–L603](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PullMessageProcessor.java#L302-L603)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-private RemotingCommand processRequest(final Channel channel, RemotingCommand request, boolean brokerAllowSuspend,
-    boolean brokerAllowFlowCtrSuspend)
-    throws RemotingCommandException {
-    final long beginTimeMills = this.brokerController.getMessageStore().now();
-    RemotingCommand response = RemotingCommand.createResponseCommand(PullMessageResponseHeader.class);
-    final PullMessageResponseHeader responseHeader = (PullMessageResponseHeader) response.readCustomHeader();
-    final PullMessageRequestHeader requestHeader =
-        (PullMessageRequestHeader) request.decodeCommandCustomHeader(PullMessageRequestHeader.class);
+    private RemotingCommand processRequest(final Channel channel, RemotingCommand request, boolean brokerAllowSuspend,
+        boolean brokerAllowFlowCtrSuspend)
+        throws RemotingCommandException {
+        final long beginTimeMills = this.brokerController.getMessageStore().now();
+        RemotingCommand response = RemotingCommand.createResponseCommand(PullMessageResponseHeader.class);
+        final PullMessageResponseHeader responseHeader = (PullMessageResponseHeader) response.readCustomHeader();
+        final PullMessageRequestHeader requestHeader =
+            (PullMessageRequestHeader) request.decodeCommandCustomHeader(PullMessageRequestHeader.class);
 
-    response.setOpaque(request.getOpaque());
+        response.setOpaque(request.getOpaque());
 
-    LOGGER.debug("receive PullMessage request command, {}", request);
+        LOGGER.debug("receive PullMessage request command, {}", request);
 
-    if (!PermName.isReadable(this.brokerController.getBrokerConfig().getBrokerPermission())) {
-        response.setCode(ResponseCode.NO_PERMISSION);
-        responseHeader.setForbiddenType(ForbiddenType.BROKER_FORBIDDEN);
-        response.setRemark(String.format("the broker[%s] pulling message is forbidden",
-            this.brokerController.getBrokerConfig().getBrokerIP1()));
-        return response;
-    }
-
-    if (request.getCode() == RequestCode.LITE_PULL_MESSAGE && !this.brokerController.getBrokerConfig().isLitePullMessageEnable()) {
-        response.setCode(ResponseCode.NO_PERMISSION);
-        responseHeader.setForbiddenType(ForbiddenType.BROKER_FORBIDDEN);
-        response.setRemark(
-            "the broker[" + this.brokerController.getBrokerConfig().getBrokerIP1() + "] for lite pull consumer is forbidden");
-        return response;
-    }
-
-    SubscriptionGroupConfig subscriptionGroupConfig =
-        this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(requestHeader.getConsumerGroup());
-    if (null == subscriptionGroupConfig) {
-        response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
-        response.setRemark(String.format("subscription group [%s] does not exist, %s", requestHeader.getConsumerGroup(), FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST)));
-        return response;
-    }
-
-    if (!subscriptionGroupConfig.isConsumeEnable()) {
-        response.setCode(ResponseCode.NO_PERMISSION);
-        responseHeader.setForbiddenType(ForbiddenType.GROUP_FORBIDDEN);
-        response.setRemark("subscription group no permission, " + requestHeader.getConsumerGroup());
-        return response;
-    }
-
-    TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
-    if (null == topicConfig) {
-        LOGGER.error("the topic {} not exist, consumer: {}", requestHeader.getTopic(), RemotingHelper.parseChannelRemoteAddr(channel));
-        response.setCode(ResponseCode.TOPIC_NOT_EXIST);
-        response.setRemark(String.format("topic[%s] not exist, apply first please! %s", requestHeader.getTopic(), FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL)));
-        return response;
-    }
-
-    if (!PermName.isReadable(topicConfig.getPerm())) {
-        response.setCode(ResponseCode.NO_PERMISSION);
-        responseHeader.setForbiddenType(ForbiddenType.TOPIC_FORBIDDEN);
-        response.setRemark("the topic[" + requestHeader.getTopic() + "] pulling message is forbidden");
-        return response;
-    }
-
-    TopicQueueMappingContext mappingContext = this.brokerController.getTopicQueueMappingManager().buildTopicQueueMappingContext(requestHeader, false);
-
-    {
-        RemotingCommand rewriteResult = rewriteRequestForStaticTopic(requestHeader, mappingContext);
-        if (rewriteResult != null) {
-            return rewriteResult;
+        if (!PermName.isReadable(this.brokerController.getBrokerConfig().getBrokerPermission())) {
+            response.setCode(ResponseCode.NO_PERMISSION);
+            responseHeader.setForbiddenType(ForbiddenType.BROKER_FORBIDDEN);
+            response.setRemark(String.format("the broker[%s] pulling message is forbidden",
+                this.brokerController.getBrokerConfig().getBrokerIP1()));
+            return response;
         }
+
+        if (request.getCode() == RequestCode.LITE_PULL_MESSAGE && !this.brokerController.getBrokerConfig().isLitePullMessageEnable()) {
+            response.setCode(ResponseCode.NO_PERMISSION);
+            responseHeader.setForbiddenType(ForbiddenType.BROKER_FORBIDDEN);
+            response.setRemark(
+                "the broker[" + this.brokerController.getBrokerConfig().getBrokerIP1() + "] for lite pull consumer is forbidden");
+            return response;
+        }
+
+        SubscriptionGroupConfig subscriptionGroupConfig =
+            this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(requestHeader.getConsumerGroup());
+        if (null == subscriptionGroupConfig) {
+            response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
+            response.setRemark(String.format("subscription group [%s] does not exist, %s", requestHeader.getConsumerGroup(), FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST)));
+            return response;
+        }
+
+        if (!subscriptionGroupConfig.isConsumeEnable()) {
+            response.setCode(ResponseCode.NO_PERMISSION);
+            responseHeader.setForbiddenType(ForbiddenType.GROUP_FORBIDDEN);
+            response.setRemark("subscription group no permission, " + requestHeader.getConsumerGroup());
+            return response;
+        }
+
+        TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
+        if (null == topicConfig) {
+            LOGGER.error("the topic {} not exist, consumer: {}", requestHeader.getTopic(), RemotingHelper.parseChannelRemoteAddr(channel));
+            response.setCode(ResponseCode.TOPIC_NOT_EXIST);
+            response.setRemark(String.format("topic[%s] not exist, apply first please! %s", requestHeader.getTopic(), FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL)));
+            return response;
+        }
+
+        if (!PermName.isReadable(topicConfig.getPerm())) {
+            response.setCode(ResponseCode.NO_PERMISSION);
+            responseHeader.setForbiddenType(ForbiddenType.TOPIC_FORBIDDEN);
+            response.setRemark("the topic[" + requestHeader.getTopic() + "] pulling message is forbidden");
+            return response;
+        }
+
+        TopicQueueMappingContext mappingContext = this.brokerController.getTopicQueueMappingManager().buildTopicQueueMappingContext(requestHeader, false);
+
+        {
+            RemotingCommand rewriteResult = rewriteRequestForStaticTopic(requestHeader, mappingContext);
+            if (rewriteResult != null) {
+                return rewriteResult;
+            }
+        }
+
+        if (requestHeader.getQueueId() < 0 || requestHeader.getQueueId() >= topicConfig.getReadQueueNums()) {
+            String errorInfo = String.format("queueId[%d] is illegal, topic:[%s] topicConfig.readQueueNums:[%d] consumer:[%s]",
+                requestHeader.getQueueId(), requestHeader.getTopic(), topicConfig.getReadQueueNums(), channel.remoteAddress());
+            LOGGER.warn(errorInfo);
+            response.setCode(ResponseCode.INVALID_PARAMETER);
+            response.setRemark(errorInfo);
+            return response;
+        }
+
+        ConsumerManager consumerManager = brokerController.getConsumerManager();
+        switch (RequestSource.parseInteger(requestHeader.getRequestSource())) {
+            case PROXY_FOR_BROADCAST:
+                consumerManager.compensateBasicConsumerInfo(requestHeader.getConsumerGroup(), ConsumeType.CONSUME_PASSIVELY, MessageModel.BROADCASTING);
+                break;
+            case PROXY_FOR_STREAM:
+                consumerManager.compensateBasicConsumerInfo(requestHeader.getConsumerGroup(), ConsumeType.CONSUME_ACTIVELY, MessageModel.CLUSTERING);
+                break;
+            default:
+                consumerManager.compensateBasicConsumerInfo(requestHeader.getConsumerGroup(), ConsumeType.CONSUME_PASSIVELY, MessageModel.CLUSTERING);
+                break;
+        }
+
+        SubscriptionData subscriptionData = null;
+        ConsumerFilterData consumerFilterData = null;
+        final boolean hasSubscriptionFlag = PullSysFlag.hasSubscriptionFlag(requestHeader.getSysFlag());
+        if (hasSubscriptionFlag) {
+            try {
+                subscriptionData = FilterAPI.build(
+                    requestHeader.getTopic(), requestHeader.getSubscription(), requestHeader.getExpressionType()
+                );
+                consumerManager.compensateSubscribeData(requestHeader.getConsumerGroup(), requestHeader.getTopic(), subscriptionData);
+
+                if (!ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+                    consumerFilterData = ConsumerFilterManager.build(
+                        requestHeader.getTopic(), requestHeader.getConsumerGroup(), requestHeader.getSubscription(),
+                        requestHeader.getExpressionType(), requestHeader.getSubVersion()
+                    );
+                    assert consumerFilterData != null;
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Parse the consumer's subscription[{}] failed, group: {}", requestHeader.getSubscription(),
+                    requestHeader.getConsumerGroup());
+                response.setCode(ResponseCode.SUBSCRIPTION_PARSE_FAILED);
+                response.setRemark("parse the consumer's subscription failed");
+                return response;
+            }
+        } else {
+            ConsumerGroupInfo consumerGroupInfo =
+                this.brokerController.getConsumerManager().getConsumerGroupInfo(requestHeader.getConsumerGroup());
+            if (null == consumerGroupInfo) {
+                LOGGER.warn("the consumer's group info not exist, group: {}", requestHeader.getConsumerGroup());
+                response.setCode(ResponseCode.SUBSCRIPTION_NOT_EXIST);
+                response.setRemark("the consumer's group info not exist" + FAQUrl.suggestTodo(FAQUrl.SAME_GROUP_DIFFERENT_TOPIC));
+                return response;
+            }
+
+            if (!subscriptionGroupConfig.isConsumeBroadcastEnable()
+                && consumerGroupInfo.getMessageModel() == MessageModel.BROADCASTING) {
+                response.setCode(ResponseCode.NO_PERMISSION);
+                responseHeader.setForbiddenType(ForbiddenType.BROADCASTING_DISABLE_FORBIDDEN);
+                response.setRemark("the consumer group[" + requestHeader.getConsumerGroup() + "] can not consume by broadcast way");
+                return response;
+            }
+
+            boolean readForbidden = this.brokerController.getSubscriptionGroupManager().getForbidden(//
+                subscriptionGroupConfig.getGroupName(), requestHeader.getTopic(), PermName.INDEX_PERM_READ);
+            if (readForbidden) {
+                response.setCode(ResponseCode.NO_PERMISSION);
+                responseHeader.setForbiddenType(ForbiddenType.SUBSCRIPTION_FORBIDDEN);
+                response.setRemark("the consumer group[" + requestHeader.getConsumerGroup() + "] is forbidden for topic[" + requestHeader.getTopic() + "]");
+                return response;
+            }
+
+            subscriptionData = consumerGroupInfo.findSubscriptionData(requestHeader.getTopic());
+            if (null == subscriptionData) {
+                LOGGER.warn("the consumer's subscription not exist, group: {}, topic:{}", requestHeader.getConsumerGroup(), requestHeader.getTopic());
+                response.setCode(ResponseCode.SUBSCRIPTION_NOT_EXIST);
+                response.setRemark("the consumer's subscription not exist" + FAQUrl.suggestTodo(FAQUrl.SAME_GROUP_DIFFERENT_TOPIC));
+                return response;
+            }
+
+            if (subscriptionData.getSubVersion() < requestHeader.getSubVersion()) {
+                LOGGER.warn("The broker's subscription is not latest, group: {} {}", requestHeader.getConsumerGroup(),
+                    subscriptionData.getSubString());
+                response.setCode(ResponseCode.SUBSCRIPTION_NOT_LATEST);
+                response.setRemark("the consumer's subscription not latest");
+                return response;
+            }
+            if (!ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+                consumerFilterData = this.brokerController.getConsumerFilterManager().get(requestHeader.getTopic(),
+                    requestHeader.getConsumerGroup());
+                if (consumerFilterData == null) {
+                    response.setCode(ResponseCode.FILTER_DATA_NOT_EXIST);
+                    response.setRemark("The broker's consumer filter data is not exist!Your expression may be wrong!");
+                    return response;
+                }
+                if (consumerFilterData.getClientVersion() < requestHeader.getSubVersion()) {
+                    LOGGER.warn("The broker's consumer filter data is not latest, group: {}, topic: {}, serverV: {}, clientV: {}",
+                        requestHeader.getConsumerGroup(), requestHeader.getTopic(), consumerFilterData.getClientVersion(), requestHeader.getSubVersion());
+                    response.setCode(ResponseCode.FILTER_DATA_NOT_LATEST);
+                    response.setRemark("the consumer's consumer filter data not latest");
+                    return response;
+                }
+            }
+        }
+
+        if (!ExpressionType.isTagType(subscriptionData.getExpressionType())
+            && !this.brokerController.getBrokerConfig().isEnablePropertyFilter()) {
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark("The broker does not support consumer to filter message by " + subscriptionData.getExpressionType());
+            return response;
+        }
+
+        MessageFilter messageFilter;
+        if (this.brokerController.getBrokerConfig().isFilterSupportRetry()) {
+            messageFilter = new ExpressionForRetryMessageFilter(subscriptionData, consumerFilterData,
+                this.brokerController.getConsumerFilterManager());
+        } else {
+            messageFilter = new ExpressionMessageFilter(subscriptionData, consumerFilterData,
+                this.brokerController.getConsumerFilterManager());
+        }
+
+        if (brokerController.getBrokerConfig().isRejectPullConsumerEnable()) {
+            ConsumerGroupInfo consumerGroupInfo =
+                    this.brokerController.getConsumerManager().getConsumerGroupInfo(requestHeader.getConsumerGroup());
+            if (null == consumerGroupInfo || ConsumeType.CONSUME_ACTIVELY == consumerGroupInfo.getConsumeType()) {
+                if ((null == consumerGroupInfo || null == consumerGroupInfo.findChannel(channel))
+                        && !MixAll.isSysConsumerGroupPullMessage(requestHeader.getConsumerGroup())) {
+                    response.setCode(ResponseCode.SUBSCRIPTION_NOT_EXIST);
+                    response.setRemark("the consumer's group info not exist, or the pull consumer is rejected by server." + FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
+                    return response;
+                }
+            }
+        }
+
+        final MessageStore messageStore = brokerController.getMessageStore();
+        if (this.brokerController.getMessageStore() instanceof DefaultMessageStore) {
+            DefaultMessageStore defaultMessageStore = (DefaultMessageStore) this.brokerController.getMessageStore();
+            boolean cgNeedColdDataFlowCtr = brokerController.getColdDataCgCtrService().isCgNeedColdDataFlowCtr(requestHeader.getConsumerGroup());
+            if (cgNeedColdDataFlowCtr) {
+                boolean isMsgLogicCold = defaultMessageStore.getCommitLog()
+                    .getColdDataCheckService().isMsgInColdArea(requestHeader.getConsumerGroup(),
+                        requestHeader.getTopic(), requestHeader.getQueueId(), requestHeader.getQueueOffset());
+                if (isMsgLogicCold) {
+                    ConsumeType consumeType = this.brokerController.getConsumerManager().getConsumerGroupInfo(requestHeader.getConsumerGroup()).getConsumeType();
+                    if (consumeType == ConsumeType.CONSUME_PASSIVELY) {
+                        response.setCode(ResponseCode.SYSTEM_BUSY);
+                        response.setRemark("This consumer group is reading cold data. It has been flow control");
+                        return response;
+                    } else if (consumeType == ConsumeType.CONSUME_ACTIVELY) {
+                        if (brokerAllowFlowCtrSuspend) {  // second arrived, which will not be held
+                            PullRequest pullRequest = new PullRequest(request, channel, 1000,
+                                this.brokerController.getMessageStore().now(), requestHeader.getQueueOffset(), subscriptionData, messageFilter);
+                            this.brokerController.getColdDataPullRequestHoldService().suspendColdDataReadRequest(pullRequest);
+                            return null;
+                        }
+                        requestHeader.setMaxMsgNums(1);
+                    }
+                }
+            }
+        }
+
+        final boolean useResetOffsetFeature = brokerController.getBrokerConfig().isUseServerSideResetOffset();
+        String topic = requestHeader.getTopic();
+        String group = requestHeader.getConsumerGroup();
+        int queueId = requestHeader.getQueueId();
+        Long resetOffset = brokerController.getConsumerOffsetManager().queryThenEraseResetOffset(topic, group, queueId);
+
+        GetMessageResult getMessageResult = null;
+        if (useResetOffsetFeature && null != resetOffset) {
+            getMessageResult = new GetMessageResult();
+            getMessageResult.setStatus(GetMessageStatus.OFFSET_RESET);
+            getMessageResult.setNextBeginOffset(resetOffset);
+            getMessageResult.setMinOffset(messageStore.getMinOffsetInQueue(topic, queueId));
+            try {
+                getMessageResult.setMaxOffset(messageStore.getMaxOffsetInQueue(topic, queueId));
+            } catch (ConsumeQueueException e) {
+                throw new RemotingCommandException("Failed tp get max offset in queue", e);
+            }
+            getMessageResult.setSuggestPullingFromSlave(false);
+        } else {
+            long broadcastInitOffset = queryBroadcastPullInitOffset(topic, group, queueId, requestHeader, channel);
+            if (broadcastInitOffset >= 0) {
+                getMessageResult = new GetMessageResult();
+                getMessageResult.setStatus(GetMessageStatus.OFFSET_RESET);
+                getMessageResult.setNextBeginOffset(broadcastInitOffset);
+            } else {
+                SubscriptionData finalSubscriptionData = subscriptionData;
+                RemotingCommand finalResponse = response;
+                messageStore.getMessageAsync(group, topic, queueId, requestHeader.getQueueOffset(),
+                        requestHeader.getMaxMsgNums(), messageFilter)
+                    .thenApply(result -> {
+                        if (null == result) {
+                            finalResponse.setCode(ResponseCode.SYSTEM_ERROR);
+                            finalResponse.setRemark("store getMessage return null");
+                            return finalResponse;
+                        }
+                        brokerController.getColdDataCgCtrService().coldAcc(requestHeader.getConsumerGroup(), result.getColdDataSum());
+                        return pullMessageResultHandler.handle(
+                            result,
+                            request,
+                            requestHeader,
+                            channel,
+                            finalSubscriptionData,
+                            subscriptionGroupConfig,
+                            brokerAllowSuspend,
+                            messageFilter,
+                            finalResponse,
+                            mappingContext,
+                            beginTimeMills
+                        );
+                    })
+                    .thenAccept(result -> NettyRemotingAbstract.writeResponse(channel, request, result, null, brokerController.getBrokerMetricsManager().getRemotingMetricsManager()));
+            }
+        }
+
+        if (getMessageResult != null) {
+
+            return this.pullMessageResultHandler.handle(
+                getMessageResult,
+                request,
+                requestHeader,
+                channel,
+                subscriptionData,
+                subscriptionGroupConfig,
+                brokerAllowSuspend,
+                messageFilter,
+                response,
+                mappingContext,
+                beginTimeMills
+            );
+        }
+        return null;
     }
 ```
 
@@ -4232,84 +6502,89 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[RebalanceImpl.java · L428–L503](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java#L428-L503)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RebalanceImpl.java · L428–L508](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java#L428-L508)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet,
-    final boolean needLockMq) {
-    boolean changed = false;
+    private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet,
+        final boolean needLockMq) {
+        boolean changed = false;
 
-    // drop process queues no longer belong me
-    HashMap<MessageQueue, ProcessQueue> removeQueueMap = new HashMap<>(this.processQueueTable.size());
-    Iterator<Entry<MessageQueue, ProcessQueue>> it = this.processQueueTable.entrySet().iterator();
-    while (it.hasNext()) {
-        Entry<MessageQueue, ProcessQueue> next = it.next();
-        MessageQueue mq = next.getKey();
-        ProcessQueue pq = next.getValue();
+        // drop process queues no longer belong me
+        HashMap<MessageQueue, ProcessQueue> removeQueueMap = new HashMap<>(this.processQueueTable.size());
+        Iterator<Entry<MessageQueue, ProcessQueue>> it = this.processQueueTable.entrySet().iterator();
+        while (it.hasNext()) {
+            Entry<MessageQueue, ProcessQueue> next = it.next();
+            MessageQueue mq = next.getKey();
+            ProcessQueue pq = next.getValue();
 
-        if (mq.getTopic().equals(topic)) {
-            if (!mqSet.contains(mq)) {
-                pq.setDropped(true);
-                removeQueueMap.put(mq, pq);
-            } else if (pq.isPullExpired() && this.consumeType() == ConsumeType.CONSUME_PASSIVELY) {
-                pq.setDropped(true);
-                removeQueueMap.put(mq, pq);
-                log.error("[BUG]doRebalance, {}, try remove unnecessary mq, {}, because pull is pause, so try to fixed it",
-                    consumerGroup, mq);
-            }
-        }
-    }
-
-    // remove message queues no longer belong me
-    for (Entry<MessageQueue, ProcessQueue> entry : removeQueueMap.entrySet()) {
-        MessageQueue mq = entry.getKey();
-        ProcessQueue pq = entry.getValue();
-
-        if (this.removeUnnecessaryMessageQueue(mq, pq)) {
-            this.processQueueTable.remove(mq);
-            changed = true;
-            log.info("doRebalance, {}, remove unnecessary mq, {}", consumerGroup, mq);
-        }
-    }
-
-    // add new message queue
-    boolean allMQLocked = true;
-    List<PullRequest> pullRequestList = new ArrayList<>();
-    for (MessageQueue mq : mqSet) {
-        if (!this.processQueueTable.containsKey(mq)) {
-            if (needLockMq && !this.lock(mq)) {
-                log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
-                allMQLocked = false;
-                continue;
-            }
-
-            this.removeDirtyOffset(mq);
-            ProcessQueue pq = createProcessQueue();
-            pq.setLocked(true);
-            long nextOffset = this.computePullFromWhere(mq);
-            if (nextOffset >= 0) {
-                ProcessQueue pre = this.processQueueTable.putIfAbsent(mq, pq);
-                if (pre != null) {
-                    log.info("doRebalance, {}, mq already exists, {}", consumerGroup, mq);
-                } else {
-                    log.info("doRebalance, {}, add a new mq, {}", consumerGroup, mq);
-                    PullRequest pullRequest = new PullRequest();
-                    pullRequest.setConsumerGroup(consumerGroup);
-                    pullRequest.setNextOffset(nextOffset);
-                    pullRequest.setMessageQueue(mq);
-                    pullRequest.setProcessQueue(pq);
-                    pullRequestList.add(pullRequest);
-                    changed = true;
+            if (mq.getTopic().equals(topic)) {
+                if (!mqSet.contains(mq)) {
+                    pq.setDropped(true);
+                    removeQueueMap.put(mq, pq);
+                } else if (pq.isPullExpired() && this.consumeType() == ConsumeType.CONSUME_PASSIVELY) {
+                    pq.setDropped(true);
+                    removeQueueMap.put(mq, pq);
+                    log.error("[BUG]doRebalance, {}, try remove unnecessary mq, {}, because pull is pause, so try to fixed it",
+                        consumerGroup, mq);
                 }
-            } else {
-                log.warn("doRebalance, {}, add new mq failed, {}", consumerGroup, mq);
             }
         }
 
-    }
+        // remove message queues no longer belong me
+        for (Entry<MessageQueue, ProcessQueue> entry : removeQueueMap.entrySet()) {
+            MessageQueue mq = entry.getKey();
+            ProcessQueue pq = entry.getValue();
 
-    if (!allMQLocked) {
-        mQClientFactory.rebalanceLater(500);
+            if (this.removeUnnecessaryMessageQueue(mq, pq)) {
+                this.processQueueTable.remove(mq);
+                changed = true;
+                log.info("doRebalance, {}, remove unnecessary mq, {}", consumerGroup, mq);
+            }
+        }
+
+        // add new message queue
+        boolean allMQLocked = true;
+        List<PullRequest> pullRequestList = new ArrayList<>();
+        for (MessageQueue mq : mqSet) {
+            if (!this.processQueueTable.containsKey(mq)) {
+                if (needLockMq && !this.lock(mq)) {
+                    log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
+                    allMQLocked = false;
+                    continue;
+                }
+
+                this.removeDirtyOffset(mq);
+                ProcessQueue pq = createProcessQueue();
+                pq.setLocked(true);
+                long nextOffset = this.computePullFromWhere(mq);
+                if (nextOffset >= 0) {
+                    ProcessQueue pre = this.processQueueTable.putIfAbsent(mq, pq);
+                    if (pre != null) {
+                        log.info("doRebalance, {}, mq already exists, {}", consumerGroup, mq);
+                    } else {
+                        log.info("doRebalance, {}, add a new mq, {}", consumerGroup, mq);
+                        PullRequest pullRequest = new PullRequest();
+                        pullRequest.setConsumerGroup(consumerGroup);
+                        pullRequest.setNextOffset(nextOffset);
+                        pullRequest.setMessageQueue(mq);
+                        pullRequest.setProcessQueue(pq);
+                        pullRequestList.add(pullRequest);
+                        changed = true;
+                    }
+                } else {
+                    log.warn("doRebalance, {}, add new mq failed, {}", consumerGroup, mq);
+                }
+            }
+
+        }
+
+        if (!allMQLocked) {
+            mQClientFactory.rebalanceLater(500);
+        }
+
+        this.dispatchPullRequest(pullRequestList, 500);
+
+        return changed;
     }
 ```
 
@@ -4404,134 +6679,292 @@ M2 --> ACK
 end
 ```
 
-<strong>4.9.8源码：</strong>[RebalanceImpl.java · L239–L304](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java#L239-L304)，连续节选。
+<strong>4.9.8源码：</strong>[RebalanceImpl.java · L239–L312](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java#L239-L312)，连续节选。
 
 ```java
-private void rebalanceByTopic(final String topic, final boolean isOrder) {
-    switch (messageModel) {
-        case BROADCASTING: {
-            Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
-            if (mqSet != null) {
-                boolean changed = this.updateProcessQueueTableInRebalance(topic, mqSet, isOrder);
-                if (changed) {
-                    this.messageQueueChanged(topic, mqSet, mqSet);
-                    log.info("messageQueueChanged {} {} {} {}",
-                        consumerGroup,
-                        topic,
-                        mqSet,
-                        mqSet);
-                }
-            } else {
-                log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
-            }
-            break;
-        }
-        case CLUSTERING: {
-            Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
-            List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup);
-            if (null == mqSet) {
-                if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+    private void rebalanceByTopic(final String topic, final boolean isOrder) {
+        switch (messageModel) {
+            case BROADCASTING: {
+                Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
+                if (mqSet != null) {
+                    boolean changed = this.updateProcessQueueTableInRebalance(topic, mqSet, isOrder);
+                    if (changed) {
+                        this.messageQueueChanged(topic, mqSet, mqSet);
+                        log.info("messageQueueChanged {} {} {} {}",
+                            consumerGroup,
+                            topic,
+                            mqSet,
+                            mqSet);
+                    }
+                } else {
                     log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
                 }
+                break;
             }
-
-            if (null == cidAll) {
-                log.warn("doRebalance, {} {}, get consumer id list failed", consumerGroup, topic);
-            }
-
-            if (mqSet != null && cidAll != null) {
-                List<MessageQueue> mqAll = new ArrayList<MessageQueue>();
-                mqAll.addAll(mqSet);
-
-                Collections.sort(mqAll);
-                Collections.sort(cidAll);
-
-                AllocateMessageQueueStrategy strategy = this.allocateMessageQueueStrategy;
-
-                List<MessageQueue> allocateResult = null;
-                try {
-                    allocateResult = strategy.allocate(
-                        this.consumerGroup,
-                        this.mQClientFactory.getClientId(),
-                        mqAll,
-                        cidAll);
-                } catch (Throwable e) {
-                    log.error("AllocateMessageQueueStrategy.allocate Exception. allocateMessageQueueStrategyName={}", strategy.getName(),
-                        e);
-                    return;
+            case CLUSTERING: {
+                Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
+                List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup);
+                if (null == mqSet) {
+                    if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+                        log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
+                    }
                 }
 
-                Set<MessageQueue> allocateResultSet = new HashSet<MessageQueue>();
-                if (allocateResult != null) {
-                    allocateResultSet.addAll(allocateResult);
+                if (null == cidAll) {
+                    log.warn("doRebalance, {} {}, get consumer id list failed", consumerGroup, topic);
                 }
 
-                boolean changed = this.updateProcessQueueTableInRebalance(topic, allocateResultSet, isOrder);
-                if (changed) {
-                    log.info(
-                        "rebalanced result changed. allocateMessageQueueStrategyName={}, group={}, topic={}, clientId={}, mqAllSize={}, cidAllSize={}, rebalanceResultSize={}, rebalanceResultSet={}",
-                        strategy.getName(), consumerGroup, topic, this.mQClientFactory.getClientId(), mqSet.size(), cidAll.size(),
-                        allocateResultSet.size(), allocateResultSet);
-                    this.messageQueueChanged(topic, mqSet, allocateResultSet);
+                if (mqSet != null && cidAll != null) {
+                    List<MessageQueue> mqAll = new ArrayList<MessageQueue>();
+                    mqAll.addAll(mqSet);
+
+                    Collections.sort(mqAll);
+                    Collections.sort(cidAll);
+
+                    AllocateMessageQueueStrategy strategy = this.allocateMessageQueueStrategy;
+
+                    List<MessageQueue> allocateResult = null;
+                    try {
+                        allocateResult = strategy.allocate(
+                            this.consumerGroup,
+                            this.mQClientFactory.getClientId(),
+                            mqAll,
+                            cidAll);
+                    } catch (Throwable e) {
+                        log.error("AllocateMessageQueueStrategy.allocate Exception. allocateMessageQueueStrategyName={}", strategy.getName(),
+                            e);
+                        return;
+                    }
+
+                    Set<MessageQueue> allocateResultSet = new HashSet<MessageQueue>();
+                    if (allocateResult != null) {
+                        allocateResultSet.addAll(allocateResult);
+                    }
+
+                    boolean changed = this.updateProcessQueueTableInRebalance(topic, allocateResultSet, isOrder);
+                    if (changed) {
+                        log.info(
+                            "rebalanced result changed. allocateMessageQueueStrategyName={}, group={}, topic={}, clientId={}, mqAllSize={}, cidAllSize={}, rebalanceResultSize={}, rebalanceResultSet={}",
+                            strategy.getName(), consumerGroup, topic, this.mQClientFactory.getClientId(), mqSet.size(), cidAll.size(),
+                            allocateResultSet.size(), allocateResultSet);
+                        this.messageQueueChanged(topic, mqSet, allocateResultSet);
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
 ```
 
-<strong>5.3.4源码：</strong>[PopMessageProcessor.java · L675–L728](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L675-L728)，连续节选。
+<strong>5.3.4源码：</strong>[PopMessageProcessor.java · L675–L878](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L675-L878)，连续节选。
 
 ```java
-private CompletableFuture<Long> popMsgFromQueue(String topic, String attemptId, boolean isRetry,
-    GetMessageResult getMessageResult,
-    PopMessageRequestHeader requestHeader, int queueId, long restNum, int reviveQid,
-    Channel channel, long popTime, ExpressionMessageFilter messageFilter, StringBuilder startOffsetInfo,
-    StringBuilder msgOffsetInfo, StringBuilder orderCountInfo) {
+    private CompletableFuture<Long> popMsgFromQueue(String topic, String attemptId, boolean isRetry,
+        GetMessageResult getMessageResult,
+        PopMessageRequestHeader requestHeader, int queueId, long restNum, int reviveQid,
+        Channel channel, long popTime, ExpressionMessageFilter messageFilter, StringBuilder startOffsetInfo,
+        StringBuilder msgOffsetInfo, StringBuilder orderCountInfo) {
 
-    String lockKey =
-        topic + PopAckConstants.SPLIT + requestHeader.getConsumerGroup() + PopAckConstants.SPLIT + queueId;
-    boolean isOrder = requestHeader.isOrder();
-    long offset;
-    try {
-        offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
-            false, lockKey, false);
-    } catch (ConsumeQueueException e) {
-        CompletableFuture<Long> failure = new CompletableFuture<>();
-        failure.completeExceptionally(e);
-        return failure;
-    }
-
-    CompletableFuture<Long> future = new CompletableFuture<>();
-    if (!queueLockManager.tryLock(lockKey)) {
+        String lockKey =
+            topic + PopAckConstants.SPLIT + requestHeader.getConsumerGroup() + PopAckConstants.SPLIT + queueId;
+        boolean isOrder = requestHeader.isOrder();
+        long offset;
         try {
-            if (!requestHeader.isOrder()) {
-                restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
+            offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
+                false, lockKey, false);
+        } catch (ConsumeQueueException e) {
+            CompletableFuture<Long> failure = new CompletableFuture<>();
+            failure.completeExceptionally(e);
+            return failure;
+        }
+
+        CompletableFuture<Long> future = new CompletableFuture<>();
+        if (!queueLockManager.tryLock(lockKey)) {
+            try {
+                if (!requestHeader.isOrder()) {
+                    restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
+                }
+                future.complete(restNum);
+            } catch (ConsumeQueueException e) {
+                future.completeExceptionally(e);
             }
-            future.complete(restNum);
-        } catch (ConsumeQueueException e) {
-            future.completeExceptionally(e);
+            return future;
         }
-        return future;
-    }
 
-    future.whenComplete((result, throwable) -> queueLockManager.unLock(lockKey));
-    if (isPopShouldStop(topic, requestHeader.getConsumerGroup(), queueId)) {
-        POP_LOGGER.warn("Too much msgs unacked, then stop popping. topic={}, group={}, queueId={}",
-            topic, requestHeader.getConsumerGroup(), queueId);
+        future.whenComplete((result, throwable) -> queueLockManager.unLock(lockKey));
+        if (isPopShouldStop(topic, requestHeader.getConsumerGroup(), queueId)) {
+            POP_LOGGER.warn("Too much msgs unacked, then stop popping. topic={}, group={}, queueId={}",
+                topic, requestHeader.getConsumerGroup(), queueId);
+            try {
+                restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
+                future.complete(restNum);
+            } catch (ConsumeQueueException e) {
+                future.completeExceptionally(e);
+            }
+            return future;
+        }
+
         try {
-            restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
+            offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
+                true, lockKey, true);
+
+            // Current requests would calculate the total number of messages
+            // waiting to be filtered for new message arrival notifications in
+            // the long-polling service, need disregarding the backlog in order
+            // consumption scenario. If rest message num including the blocked
+            // queue accumulation would lead to frequent unnecessary wake-ups
+            // of long-polling requests, resulting unnecessary CPU usage.
+            // When client ack message, long-polling request would be notifications
+            // by AckMessageProcessor.ackOrderly() and message will not be delayed.
+            if (isOrder) {
+                if (brokerController.getConsumerOrderInfoManager().checkBlock(
+                    attemptId, topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInvisibleTime())) {
+                    // should not add accumulation(max offset - consumer offset) here
+                    future.complete(restNum);
+                    return future;
+                }
+                this.brokerController.getPopInflightMessageCounter().clearInFlightMessageNum(
+                    topic, requestHeader.getConsumerGroup(), queueId);
+            }
+
+            if (getMessageResult.getMessageMapedList().size() >= requestHeader.getMaxMsgNums()) {
+                restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
+                future.complete(restNum);
+                return future;
+            }
+        } catch (Exception e) {
+            POP_LOGGER.error("Exception in popMsgFromQueue", e);
             future.complete(restNum);
-        } catch (ConsumeQueueException e) {
-            future.completeExceptionally(e);
+            return future;
         }
-        return future;
+
+        AtomicLong atomicRestNum = new AtomicLong(restNum);
+        AtomicLong atomicOffset = new AtomicLong(offset);
+        long finalOffset = offset;
+        return this.brokerController.getMessageStore()
+            .getMessageAsync(requestHeader.getConsumerGroup(), topic, queueId, offset,
+                requestHeader.getMaxMsgNums() - getMessageResult.getMessageMapedList().size(), messageFilter)
+            .thenCompose(result -> {
+                if (result == null) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                // maybe store offset is not correct.
+                if (GetMessageStatus.OFFSET_TOO_SMALL.equals(result.getStatus())
+                    || GetMessageStatus.OFFSET_OVERFLOW_BADLY.equals(result.getStatus())
+                    || GetMessageStatus.OFFSET_FOUND_NULL.equals(result.getStatus())) {
+                    // commit offset, because the offset is not correct
+                    // If offset in store is greater than cq offset, it will cause duplicate messages,
+                    // because offset in PopBuffer is not committed.
+                    POP_LOGGER.warn("Pop initial offset, because store is no correct, {}, {}->{}",
+                        lockKey, atomicOffset.get(), result.getNextBeginOffset());
+                    this.brokerController.getConsumerOffsetManager().commitOffset(channel.remoteAddress().toString(), requestHeader.getConsumerGroup(), topic,
+                        queueId, result.getNextBeginOffset());
+                    atomicOffset.set(result.getNextBeginOffset());
+                    return this.brokerController.getMessageStore().getMessageAsync(requestHeader.getConsumerGroup(), topic, queueId, atomicOffset.get(),
+                        requestHeader.getMaxMsgNums() - getMessageResult.getMessageMapedList().size(), messageFilter);
+                }
+                return CompletableFuture.completedFuture(result);
+            }).thenApply(result -> {
+                if (result == null) {
+                    try {
+                        atomicRestNum.set(brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - atomicOffset.get() + atomicRestNum.get());
+                    } catch (ConsumeQueueException e) {
+                        POP_LOGGER.error("Failed to get max offset in queue", e);
+                    }
+                    return atomicRestNum.get();
+                }
+                if (!result.getMessageMapedList().isEmpty()) {
+                    this.brokerController.getBrokerStatsManager().incBrokerGetNums(requestHeader.getTopic(), result.getMessageCount());
+                    this.brokerController.getBrokerStatsManager().incGroupGetNums(requestHeader.getConsumerGroup(), topic,
+                        result.getMessageCount());
+                    this.brokerController.getBrokerStatsManager().incGroupGetSize(requestHeader.getConsumerGroup(), topic,
+                        result.getBufferTotalSize());
+
+                    Attributes attributes = this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
+                        .put(LABEL_TOPIC, requestHeader.getTopic())
+                        .put(LABEL_CONSUMER_GROUP, requestHeader.getConsumerGroup())
+                        .put(LABEL_IS_SYSTEM, TopicValidator.isSystemTopic(requestHeader.getTopic()) || MixAll.isSysConsumerGroup(requestHeader.getConsumerGroup()))
+                        .put(LABEL_IS_RETRY, isRetry)
+                        .build();
+                    this.brokerController.getBrokerMetricsManager().getMessagesOutTotal().add(result.getMessageCount(), attributes);
+                    this.brokerController.getBrokerMetricsManager().getThroughputOutTotal().add(result.getBufferTotalSize(), attributes);
+
+                    if (isOrder) {
+                        this.brokerController.getConsumerOrderInfoManager().update(requestHeader.getAttemptId(), isRetry, topic,
+                            requestHeader.getConsumerGroup(),
+                            queueId, popTime, requestHeader.getInvisibleTime(), result.getMessageQueueOffset(),
+                            orderCountInfo);
+                        this.brokerController.getConsumerOffsetManager().commitOffset(channel.remoteAddress().toString(),
+                            requestHeader.getConsumerGroup(), topic, queueId, finalOffset);
+                    } else {
+                        if (!appendCheckPoint(requestHeader, topic, reviveQid, queueId, finalOffset, result, popTime, this.brokerController.getBrokerConfig().getBrokerName())) {
+                            return atomicRestNum.get() + result.getMessageCount();
+                        }
+                    }
+                    ExtraInfoUtil.buildStartOffsetInfo(startOffsetInfo, topic, queueId, finalOffset);
+                    ExtraInfoUtil.buildMsgOffsetInfo(msgOffsetInfo, topic, queueId,
+                        result.getMessageQueueOffset());
+                } else if ((GetMessageStatus.NO_MATCHED_MESSAGE.equals(result.getStatus())
+                    || GetMessageStatus.OFFSET_FOUND_NULL.equals(result.getStatus())
+                    || GetMessageStatus.MESSAGE_WAS_REMOVING.equals(result.getStatus())
+                    || GetMessageStatus.NO_MATCHED_LOGIC_QUEUE.equals(result.getStatus()))
+                    && result.getNextBeginOffset() > -1) {
+                    if (isOrder) {
+                        this.brokerController.getConsumerOffsetManager().commitOffset(channel.remoteAddress().toString(), requestHeader.getConsumerGroup(), topic,
+                            queueId, result.getNextBeginOffset());
+                    } else {
+                        popBufferMergeService.addCkMock(requestHeader.getConsumerGroup(), topic, queueId, finalOffset,
+                            requestHeader.getInvisibleTime(), popTime, reviveQid, result.getNextBeginOffset(), brokerController.getBrokerConfig().getBrokerName());
+                    }
+                }
+
+                atomicRestNum.set(result.getMaxOffset() - result.getNextBeginOffset() + atomicRestNum.get());
+                String brokerName = brokerController.getBrokerConfig().getBrokerName();
+                for (SelectMappedBufferResult mapedBuffer : result.getMessageMapedList()) {
+                    // We should not recode buffer when popResponseReturnActualRetryTopic is true or topic is not retry topic
+                    if (brokerController.getBrokerConfig().isPopResponseReturnActualRetryTopic() || !isRetry) {
+                        getMessageResult.addMessage(mapedBuffer);
+                    } else {
+                        List<MessageExt> messageExtList = MessageDecoder.decodesBatch(mapedBuffer.getByteBuffer(),
+                            true, false, true);
+                        mapedBuffer.release();
+                        for (MessageExt messageExt : messageExtList) {
+                            try {
+                                String ckInfo = ExtraInfoUtil.buildExtraInfo(finalOffset, popTime, requestHeader.getInvisibleTime(),
+                                    reviveQid, messageExt.getTopic(), brokerName, messageExt.getQueueId(), messageExt.getQueueOffset());
+                                messageExt.getProperties().putIfAbsent(MessageConst.PROPERTY_POP_CK, ckInfo);
+
+                                // Set retry message topic to origin topic and clear message store size to recode
+                                messageExt.setTopic(requestHeader.getTopic());
+                                messageExt.setStoreSize(0);
+
+                                byte[] encode = MessageDecoder.encode(messageExt, false);
+                                ByteBuffer buffer = ByteBuffer.wrap(encode);
+                                SelectMappedBufferResult tmpResult =
+                                    new SelectMappedBufferResult(mapedBuffer.getStartOffset(), buffer, encode.length, null);
+                                getMessageResult.addMessage(tmpResult);
+                            } catch (Exception e) {
+                                POP_LOGGER.error("Exception in recode retry message buffer, topic={}", topic, e);
+                            }
+                        }
+                    }
+                }
+                this.brokerController.getPopInflightMessageCounter().incrementInFlightMessageNum(
+                    topic,
+                    requestHeader.getConsumerGroup(),
+                    queueId,
+                    result.getMessageCount()
+                );
+                return atomicRestNum.get();
+            }).whenComplete((result, throwable) -> {
+                if (throwable != null) {
+                    POP_LOGGER.error("Pop message error, {}", lockKey, throwable);
+                }
+                queueLockManager.unLock(lockKey);
+            });
     }
-
-    try {
-        offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
-            true, lockKey, true);
-
-        // Current requests would calculate the total number of messages
-        // waiting to be filtered for new message arrival notifications in
-        // the long-polling service, need disregarding the backlog in order
-        // consumption scenario. If rest message num including the blocked
-        // queue accumulation would lead to frequent unnecessary wake-ups
 ```
 
 <strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
@@ -4580,104 +7013,262 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-<strong>源码对照：</strong>[DefaultMQPushConsumerImpl.java · L246–L341](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java#L246-L341)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQPushConsumerImpl.java · L246–L499](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java#L246-L499)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public void pullMessage(final PullRequest pullRequest) {
-    final ProcessQueue processQueue = pullRequest.getProcessQueue();
-    if (processQueue.isDropped()) {
-        log.info("the pull request[{}] is dropped.", pullRequest.toString());
-        return;
-    }
-
-    pullRequest.getProcessQueue().setLastPullTimestamp(System.currentTimeMillis());
-
-    try {
-        this.makeSureStateOK();
-    } catch (MQClientException e) {
-        log.warn("pullMessage exception, consumer state not ok", e);
-        this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
-        return;
-    }
-
-    if (this.isPause()) {
-        log.warn("consumer was paused, execute pull request later. instanceName={}, group={}", this.defaultMQPushConsumer.getInstanceName(), this.defaultMQPushConsumer.getConsumerGroup());
-        this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_SUSPEND);
-        return;
-    }
-
-    long cachedMessageCount = processQueue.getMsgCount().get();
-    long cachedMessageSizeInMiB = processQueue.getMsgSize().get() / (1024 * 1024);
-
-    if (cachedMessageCount > this.defaultMQPushConsumer.getPullThresholdForQueue()) {
-        this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_CACHE_FLOW_CONTROL);
-        if ((queueFlowControlTimes++ % 1000) == 0) {
-            log.warn(
-                "the cached message count exceeds the threshold {}, so do flow control, minOffset={}, maxOffset={}, count={}, size={} MiB, pullRequest={}, flowControlTimes={}",
-                this.defaultMQPushConsumer.getPullThresholdForQueue(), processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(), cachedMessageCount, cachedMessageSizeInMiB, pullRequest, queueFlowControlTimes);
+    public void pullMessage(final PullRequest pullRequest) {
+        final ProcessQueue processQueue = pullRequest.getProcessQueue();
+        if (processQueue.isDropped()) {
+            log.info("the pull request[{}] is dropped.", pullRequest.toString());
+            return;
         }
-        return;
-    }
 
-    if (cachedMessageSizeInMiB > this.defaultMQPushConsumer.getPullThresholdSizeForQueue()) {
-        this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_CACHE_FLOW_CONTROL);
-        if ((queueFlowControlTimes++ % 1000) == 0) {
-            log.warn(
-                "the cached message size exceeds the threshold {} MiB, so do flow control, minOffset={}, maxOffset={}, count={}, size={} MiB, pullRequest={}, flowControlTimes={}",
-                this.defaultMQPushConsumer.getPullThresholdSizeForQueue(), processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(), cachedMessageCount, cachedMessageSizeInMiB, pullRequest, queueFlowControlTimes);
+        pullRequest.getProcessQueue().setLastPullTimestamp(System.currentTimeMillis());
+
+        try {
+            this.makeSureStateOK();
+        } catch (MQClientException e) {
+            log.warn("pullMessage exception, consumer state not ok", e);
+            this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
+            return;
         }
-        return;
-    }
 
-    if (!this.consumeOrderly) {
-        if (processQueue.getMaxSpan() > this.defaultMQPushConsumer.getConsumeConcurrentlyMaxSpan()) {
+        if (this.isPause()) {
+            log.warn("consumer was paused, execute pull request later. instanceName={}, group={}", this.defaultMQPushConsumer.getInstanceName(), this.defaultMQPushConsumer.getConsumerGroup());
+            this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_SUSPEND);
+            return;
+        }
+
+        long cachedMessageCount = processQueue.getMsgCount().get();
+        long cachedMessageSizeInMiB = processQueue.getMsgSize().get() / (1024 * 1024);
+
+        if (cachedMessageCount > this.defaultMQPushConsumer.getPullThresholdForQueue()) {
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_CACHE_FLOW_CONTROL);
-            if ((queueMaxSpanFlowControlTimes++ % 1000) == 0) {
+            if ((queueFlowControlTimes++ % 1000) == 0) {
                 log.warn(
-                    "the queue's messages, span too long, so do flow control, minOffset={}, maxOffset={}, maxSpan={}, pullRequest={}, flowControlTimes={}",
-                    processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(), processQueue.getMaxSpan(),
-                    pullRequest, queueMaxSpanFlowControlTimes);
+                    "the cached message count exceeds the threshold {}, so do flow control, minOffset={}, maxOffset={}, count={}, size={} MiB, pullRequest={}, flowControlTimes={}",
+                    this.defaultMQPushConsumer.getPullThresholdForQueue(), processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(), cachedMessageCount, cachedMessageSizeInMiB, pullRequest, queueFlowControlTimes);
             }
             return;
         }
-    } else {
-        if (processQueue.isLocked()) {
-            if (!pullRequest.isPreviouslyLocked()) {
-                long offset = -1L;
-                try {
-                    offset = this.rebalanceImpl.computePullFromWhereWithException(pullRequest.getMessageQueue());
-                    if (offset < 0) {
-                        throw new MQClientException(ResponseCode.SYSTEM_ERROR, "Unexpected offset " + offset);
-                    }
-                } catch (Exception e) {
-                    this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
-                    log.error("Failed to compute pull offset, pullResult: {}", pullRequest, e);
-                    return;
-                }
-                boolean brokerBusy = offset < pullRequest.getNextOffset();
-                log.info("the first time to pull message, so fix offset from broker. pullRequest: {} NewOffset: {} brokerBusy: {}",
-                    pullRequest, offset, brokerBusy);
-                if (brokerBusy) {
-                    log.info("[NOTIFYME]the first time to pull message, but pull request offset larger than broker consume offset. pullRequest: {} NewOffset: {}",
-                        pullRequest, offset);
-                }
 
-                pullRequest.setPreviouslyLocked(true);
-                pullRequest.setNextOffset(offset);
+        if (cachedMessageSizeInMiB > this.defaultMQPushConsumer.getPullThresholdSizeForQueue()) {
+            this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_CACHE_FLOW_CONTROL);
+            if ((queueFlowControlTimes++ % 1000) == 0) {
+                log.warn(
+                    "the cached message size exceeds the threshold {} MiB, so do flow control, minOffset={}, maxOffset={}, count={}, size={} MiB, pullRequest={}, flowControlTimes={}",
+                    this.defaultMQPushConsumer.getPullThresholdSizeForQueue(), processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(), cachedMessageCount, cachedMessageSizeInMiB, pullRequest, queueFlowControlTimes);
+            }
+            return;
+        }
+
+        if (!this.consumeOrderly) {
+            if (processQueue.getMaxSpan() > this.defaultMQPushConsumer.getConsumeConcurrentlyMaxSpan()) {
+                this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_CACHE_FLOW_CONTROL);
+                if ((queueMaxSpanFlowControlTimes++ % 1000) == 0) {
+                    log.warn(
+                        "the queue's messages, span too long, so do flow control, minOffset={}, maxOffset={}, maxSpan={}, pullRequest={}, flowControlTimes={}",
+                        processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(), processQueue.getMaxSpan(),
+                        pullRequest, queueMaxSpanFlowControlTimes);
+                }
+                return;
             }
         } else {
+            if (processQueue.isLocked()) {
+                if (!pullRequest.isPreviouslyLocked()) {
+                    long offset = -1L;
+                    try {
+                        offset = this.rebalanceImpl.computePullFromWhereWithException(pullRequest.getMessageQueue());
+                        if (offset < 0) {
+                            throw new MQClientException(ResponseCode.SYSTEM_ERROR, "Unexpected offset " + offset);
+                        }
+                    } catch (Exception e) {
+                        this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
+                        log.error("Failed to compute pull offset, pullResult: {}", pullRequest, e);
+                        return;
+                    }
+                    boolean brokerBusy = offset < pullRequest.getNextOffset();
+                    log.info("the first time to pull message, so fix offset from broker. pullRequest: {} NewOffset: {} brokerBusy: {}",
+                        pullRequest, offset, brokerBusy);
+                    if (brokerBusy) {
+                        log.info("[NOTIFYME]the first time to pull message, but pull request offset larger than broker consume offset. pullRequest: {} NewOffset: {}",
+                            pullRequest, offset);
+                    }
+
+                    pullRequest.setPreviouslyLocked(true);
+                    pullRequest.setNextOffset(offset);
+                }
+            } else {
+                this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
+                log.info("pull message later because not locked in broker, {}", pullRequest);
+                return;
+            }
+        }
+
+        final MessageQueue messageQueue = pullRequest.getMessageQueue();
+        final SubscriptionData subscriptionData = this.rebalanceImpl.getSubscriptionInner().get(messageQueue.getTopic());
+        if (null == subscriptionData) {
             this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
-            log.info("pull message later because not locked in broker, {}", pullRequest);
+            log.warn("find the consumer's subscription failed, {}", pullRequest);
             return;
         }
-    }
 
-    final MessageQueue messageQueue = pullRequest.getMessageQueue();
-    final SubscriptionData subscriptionData = this.rebalanceImpl.getSubscriptionInner().get(messageQueue.getTopic());
-    if (null == subscriptionData) {
-        this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
-        log.warn("find the consumer's subscription failed, {}", pullRequest);
-        return;
+        final long beginTimestamp = System.currentTimeMillis();
+
+        PullCallback pullCallback = new PullCallback() {
+            @Override
+            public void onSuccess(PullResult pullResult) {
+                if (pullResult != null) {
+                    pullResult = DefaultMQPushConsumerImpl.this.pullAPIWrapper.processPullResult(pullRequest.getMessageQueue(), pullResult,
+                        subscriptionData);
+
+                    switch (pullResult.getPullStatus()) {
+                        case FOUND:
+                            long prevRequestOffset = pullRequest.getNextOffset();
+                            pullRequest.setNextOffset(pullResult.getNextBeginOffset());
+                            long pullRT = System.currentTimeMillis() - beginTimestamp;
+                            DefaultMQPushConsumerImpl.this.getConsumerStatsManager().incPullRT(pullRequest.getConsumerGroup(),
+                                pullRequest.getMessageQueue().getTopic(), pullRT);
+
+                            long firstMsgOffset = Long.MAX_VALUE;
+                            if (pullResult.getMsgFoundList() == null || pullResult.getMsgFoundList().isEmpty()) {
+                                DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
+                            } else {
+                                firstMsgOffset = pullResult.getMsgFoundList().get(0).getQueueOffset();
+
+                                DefaultMQPushConsumerImpl.this.getConsumerStatsManager().incPullTPS(pullRequest.getConsumerGroup(),
+                                    pullRequest.getMessageQueue().getTopic(), pullResult.getMsgFoundList().size());
+
+                                boolean dispatchToConsume = processQueue.putMessage(pullResult.getMsgFoundList());
+                                DefaultMQPushConsumerImpl.this.consumeMessageService.submitConsumeRequest(
+                                    pullResult.getMsgFoundList(),
+                                    processQueue,
+                                    pullRequest.getMessageQueue(),
+                                    dispatchToConsume);
+
+                                if (DefaultMQPushConsumerImpl.this.defaultMQPushConsumer.getPullInterval() > 0) {
+                                    DefaultMQPushConsumerImpl.this.executePullRequestLater(pullRequest,
+                                        DefaultMQPushConsumerImpl.this.defaultMQPushConsumer.getPullInterval());
+                                } else {
+                                    DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
+                                }
+                            }
+
+                            if (pullResult.getNextBeginOffset() < prevRequestOffset
+                                || firstMsgOffset < prevRequestOffset) {
+                                log.warn(
+                                    "[BUG] pull message result maybe data wrong, nextBeginOffset: {} firstMsgOffset: {} prevRequestOffset: {}",
+                                    pullResult.getNextBeginOffset(),
+                                    firstMsgOffset,
+                                    prevRequestOffset);
+                            }
+
+                            break;
+                        case NO_NEW_MSG:
+                        case NO_MATCHED_MSG:
+                            pullRequest.setNextOffset(pullResult.getNextBeginOffset());
+
+                            DefaultMQPushConsumerImpl.this.correctTagsOffset(pullRequest);
+
+                            DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
+                            break;
+                        case OFFSET_ILLEGAL:
+                            log.warn("the pull request offset illegal, {} {}",
+                                pullRequest.toString(), pullResult.toString());
+                            pullRequest.setNextOffset(pullResult.getNextBeginOffset());
+
+                            pullRequest.getProcessQueue().setDropped(true);
+                            DefaultMQPushConsumerImpl.this.executeTask(new Runnable() {
+
+                                @Override
+                                public void run() {
+                                    try {
+                                        DefaultMQPushConsumerImpl.this.offsetStore.updateAndFreezeOffset(pullRequest.getMessageQueue(),
+                                            pullRequest.getNextOffset());
+
+                                        DefaultMQPushConsumerImpl.this.offsetStore.persist(pullRequest.getMessageQueue());
+
+                                        // removeProcessQueue will also remove offset to cancel the frozen status.
+                                        DefaultMQPushConsumerImpl.this.rebalanceImpl.removeProcessQueue(pullRequest.getMessageQueue());
+                                        DefaultMQPushConsumerImpl.this.rebalanceImpl.getmQClientFactory().rebalanceImmediately();
+
+                                        log.warn("fix the pull request offset, {}", pullRequest);
+                                    } catch (Throwable e) {
+                                        log.error("executeTaskLater Exception", e);
+                                    }
+                                }
+                            });
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            @Override
+            public void onException(Throwable e) {
+                if (!pullRequest.getMessageQueue().getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+                    if (e instanceof MQBrokerException && ((MQBrokerException) e).getResponseCode() == ResponseCode.SUBSCRIPTION_NOT_LATEST) {
+                        log.warn("the subscription is not latest, group={}, messageQueue={}", groupName(), messageQueue);
+                    } else {
+                        log.warn("execute the pull request exception, group={}, messageQueue={}", groupName(), messageQueue, e);
+                    }
+                }
+
+                if (e instanceof MQBrokerException && ((MQBrokerException) e).getResponseCode() == ResponseCode.FLOW_CONTROL) {
+                    DefaultMQPushConsumerImpl.this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_BROKER_FLOW_CONTROL);
+                } else {
+                    DefaultMQPushConsumerImpl.this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
+                }
+            }
+        };
+
+        boolean commitOffsetEnable = false;
+        long commitOffsetValue = 0L;
+        if (MessageModel.CLUSTERING == this.defaultMQPushConsumer.getMessageModel()) {
+            commitOffsetValue = this.offsetStore.readOffset(pullRequest.getMessageQueue(), ReadOffsetType.READ_FROM_MEMORY);
+            if (commitOffsetValue > 0) {
+                commitOffsetEnable = true;
+            }
+        }
+
+        String subExpression = null;
+        boolean classFilter = false;
+        SubscriptionData sd = this.rebalanceImpl.getSubscriptionInner().get(pullRequest.getMessageQueue().getTopic());
+        if (sd != null) {
+            if (this.defaultMQPushConsumer.isPostSubscriptionWhenPull() && !sd.isClassFilterMode()) {
+                subExpression = sd.getSubString();
+            }
+
+            classFilter = sd.isClassFilterMode();
+        }
+
+        int sysFlag = PullSysFlag.buildSysFlag(
+            commitOffsetEnable, // commitOffset
+            true, // suspend
+            subExpression != null, // subscription
+            classFilter // class filter
+        );
+        try {
+            this.pullAPIWrapper.pullKernelImpl(
+                pullRequest.getMessageQueue(),
+                subExpression,
+                subscriptionData.getExpressionType(),
+                subscriptionData.getSubVersion(),
+                pullRequest.getNextOffset(),
+                this.defaultMQPushConsumer.getPullBatchSize(),
+                this.defaultMQPushConsumer.getPullBatchSizeInBytes(),
+                sysFlag,
+                commitOffsetValue,
+                BROKER_SUSPEND_MAX_TIME_MILLIS,
+                CONSUMER_TIMEOUT_MILLIS_WHEN_SUSPEND,
+                CommunicationMode.ASYNC,
+                pullCallback
+            );
+        } catch (Exception e) {
+            log.error("pullKernelImpl exception", e);
+            this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
+        }
     }
 ```
 
@@ -4700,65 +7291,97 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DefaultMQPushConsumerImpl.java · L353–L408](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java#L353-L408)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQPushConsumerImpl.java · L346–L433](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java#L346-L433)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-case FOUND:
-    long prevRequestOffset = pullRequest.getNextOffset();
-    pullRequest.setNextOffset(pullResult.getNextBeginOffset());
-    long pullRT = System.currentTimeMillis() - beginTimestamp;
-    DefaultMQPushConsumerImpl.this.getConsumerStatsManager().incPullRT(pullRequest.getConsumerGroup(),
-        pullRequest.getMessageQueue().getTopic(), pullRT);
+            @Override
+            public void onSuccess(PullResult pullResult) {
+                if (pullResult != null) {
+                    pullResult = DefaultMQPushConsumerImpl.this.pullAPIWrapper.processPullResult(pullRequest.getMessageQueue(), pullResult,
+                        subscriptionData);
 
-    long firstMsgOffset = Long.MAX_VALUE;
-    if (pullResult.getMsgFoundList() == null || pullResult.getMsgFoundList().isEmpty()) {
-        DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
-    } else {
-        firstMsgOffset = pullResult.getMsgFoundList().get(0).getQueueOffset();
+                    switch (pullResult.getPullStatus()) {
+                        case FOUND:
+                            long prevRequestOffset = pullRequest.getNextOffset();
+                            pullRequest.setNextOffset(pullResult.getNextBeginOffset());
+                            long pullRT = System.currentTimeMillis() - beginTimestamp;
+                            DefaultMQPushConsumerImpl.this.getConsumerStatsManager().incPullRT(pullRequest.getConsumerGroup(),
+                                pullRequest.getMessageQueue().getTopic(), pullRT);
 
-        DefaultMQPushConsumerImpl.this.getConsumerStatsManager().incPullTPS(pullRequest.getConsumerGroup(),
-            pullRequest.getMessageQueue().getTopic(), pullResult.getMsgFoundList().size());
+                            long firstMsgOffset = Long.MAX_VALUE;
+                            if (pullResult.getMsgFoundList() == null || pullResult.getMsgFoundList().isEmpty()) {
+                                DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
+                            } else {
+                                firstMsgOffset = pullResult.getMsgFoundList().get(0).getQueueOffset();
 
-        boolean dispatchToConsume = processQueue.putMessage(pullResult.getMsgFoundList());
-        DefaultMQPushConsumerImpl.this.consumeMessageService.submitConsumeRequest(
-            pullResult.getMsgFoundList(),
-            processQueue,
-            pullRequest.getMessageQueue(),
-            dispatchToConsume);
+                                DefaultMQPushConsumerImpl.this.getConsumerStatsManager().incPullTPS(pullRequest.getConsumerGroup(),
+                                    pullRequest.getMessageQueue().getTopic(), pullResult.getMsgFoundList().size());
 
-        if (DefaultMQPushConsumerImpl.this.defaultMQPushConsumer.getPullInterval() > 0) {
-            DefaultMQPushConsumerImpl.this.executePullRequestLater(pullRequest,
-                DefaultMQPushConsumerImpl.this.defaultMQPushConsumer.getPullInterval());
-        } else {
-            DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
-        }
-    }
+                                boolean dispatchToConsume = processQueue.putMessage(pullResult.getMsgFoundList());
+                                DefaultMQPushConsumerImpl.this.consumeMessageService.submitConsumeRequest(
+                                    pullResult.getMsgFoundList(),
+                                    processQueue,
+                                    pullRequest.getMessageQueue(),
+                                    dispatchToConsume);
 
-    if (pullResult.getNextBeginOffset() < prevRequestOffset
-        || firstMsgOffset < prevRequestOffset) {
-        log.warn(
-            "[BUG] pull message result maybe data wrong, nextBeginOffset: {} firstMsgOffset: {} prevRequestOffset: {}",
-            pullResult.getNextBeginOffset(),
-            firstMsgOffset,
-            prevRequestOffset);
-    }
+                                if (DefaultMQPushConsumerImpl.this.defaultMQPushConsumer.getPullInterval() > 0) {
+                                    DefaultMQPushConsumerImpl.this.executePullRequestLater(pullRequest,
+                                        DefaultMQPushConsumerImpl.this.defaultMQPushConsumer.getPullInterval());
+                                } else {
+                                    DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
+                                }
+                            }
 
-    break;
-case NO_NEW_MSG:
-case NO_MATCHED_MSG:
-    pullRequest.setNextOffset(pullResult.getNextBeginOffset());
+                            if (pullResult.getNextBeginOffset() < prevRequestOffset
+                                || firstMsgOffset < prevRequestOffset) {
+                                log.warn(
+                                    "[BUG] pull message result maybe data wrong, nextBeginOffset: {} firstMsgOffset: {} prevRequestOffset: {}",
+                                    pullResult.getNextBeginOffset(),
+                                    firstMsgOffset,
+                                    prevRequestOffset);
+                            }
 
-    DefaultMQPushConsumerImpl.this.correctTagsOffset(pullRequest);
+                            break;
+                        case NO_NEW_MSG:
+                        case NO_MATCHED_MSG:
+                            pullRequest.setNextOffset(pullResult.getNextBeginOffset());
 
-    DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
-    break;
-case OFFSET_ILLEGAL:
-    log.warn("the pull request offset illegal, {} {}",
-        pullRequest.toString(), pullResult.toString());
-    pullRequest.setNextOffset(pullResult.getNextBeginOffset());
+                            DefaultMQPushConsumerImpl.this.correctTagsOffset(pullRequest);
 
-    pullRequest.getProcessQueue().setDropped(true);
-    DefaultMQPushConsumerImpl.this.executeTask(new Runnable() {
+                            DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
+                            break;
+                        case OFFSET_ILLEGAL:
+                            log.warn("the pull request offset illegal, {} {}",
+                                pullRequest.toString(), pullResult.toString());
+                            pullRequest.setNextOffset(pullResult.getNextBeginOffset());
+
+                            pullRequest.getProcessQueue().setDropped(true);
+                            DefaultMQPushConsumerImpl.this.executeTask(new Runnable() {
+
+                                @Override
+                                public void run() {
+                                    try {
+                                        DefaultMQPushConsumerImpl.this.offsetStore.updateAndFreezeOffset(pullRequest.getMessageQueue(),
+                                            pullRequest.getNextOffset());
+
+                                        DefaultMQPushConsumerImpl.this.offsetStore.persist(pullRequest.getMessageQueue());
+
+                                        // removeProcessQueue will also remove offset to cancel the frozen status.
+                                        DefaultMQPushConsumerImpl.this.rebalanceImpl.removeProcessQueue(pullRequest.getMessageQueue());
+                                        DefaultMQPushConsumerImpl.this.rebalanceImpl.getmQClientFactory().rebalanceImmediately();
+
+                                        log.warn("fix the pull request offset, {}", pullRequest);
+                                    } catch (Throwable e) {
+                                        log.error("executeTaskLater Exception", e);
+                                    }
+                                }
+                            });
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
 ```
 
 <strong>逐段阅读抓手：</strong>比较PullRequest.nextOffset与OffsetStore中的offset，确认两个位置不同。
@@ -4861,43 +7484,78 @@ flowchart TB
  P --> R["后缀按MessageModel处理失败"]
 ```
 
-<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L242–L275](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L242-L275)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L242–L310](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L242-L310)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public void processConsumeResult(
-    final ConsumeConcurrentlyStatus status,
-    final ConsumeConcurrentlyContext context,
-    final ConsumeRequest consumeRequest
-) {
-    int ackIndex = context.getAckIndex();
+    public void processConsumeResult(
+        final ConsumeConcurrentlyStatus status,
+        final ConsumeConcurrentlyContext context,
+        final ConsumeRequest consumeRequest
+    ) {
+        int ackIndex = context.getAckIndex();
 
-    if (consumeRequest.getMsgs().isEmpty())
-        return;
+        if (consumeRequest.getMsgs().isEmpty())
+            return;
 
-    switch (status) {
-        case CONSUME_SUCCESS:
-            if (ackIndex >= consumeRequest.getMsgs().size()) {
-                ackIndex = consumeRequest.getMsgs().size() - 1;
-            }
-            int ok = ackIndex + 1;
-            int failed = consumeRequest.getMsgs().size() - ok;
-            this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), ok);
-            this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), failed);
-            break;
-        case RECONSUME_LATER:
-            ackIndex = -1;
-            this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(),
-                consumeRequest.getMsgs().size());
-            break;
-        default:
-            break;
+        switch (status) {
+            case CONSUME_SUCCESS:
+                if (ackIndex >= consumeRequest.getMsgs().size()) {
+                    ackIndex = consumeRequest.getMsgs().size() - 1;
+                }
+                int ok = ackIndex + 1;
+                int failed = consumeRequest.getMsgs().size() - ok;
+                this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), ok);
+                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), failed);
+                break;
+            case RECONSUME_LATER:
+                ackIndex = -1;
+                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(),
+                    consumeRequest.getMsgs().size());
+                break;
+            default:
+                break;
+        }
+
+        switch (this.defaultMQPushConsumer.getMessageModel()) {
+            case BROADCASTING:
+                for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
+                    MessageExt msg = consumeRequest.getMsgs().get(i);
+                    log.warn("BROADCASTING, the message consume failed, drop it, {}", msg.toString());
+                }
+                break;
+            case CLUSTERING:
+                List<MessageExt> msgBackFailed = new ArrayList<>(consumeRequest.getMsgs().size());
+                for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
+                    MessageExt msg = consumeRequest.getMsgs().get(i);
+                    // Maybe message is expired and cleaned, just ignore it.
+                    if (!consumeRequest.getProcessQueue().containsMessage(msg)) {
+                        log.info("Message is not found in its process queue; skip send-back-procedure, topic={}, "
+                                + "brokerName={}, queueId={}, queueOffset={}", msg.getTopic(), msg.getBrokerName(),
+                            msg.getQueueId(), msg.getQueueOffset());
+                        continue;
+                    }
+                    boolean result = this.sendMessageBack(msg, context);
+                    if (!result) {
+                        msg.setReconsumeTimes(msg.getReconsumeTimes() + 1);
+                        msgBackFailed.add(msg);
+                    }
+                }
+
+                if (!msgBackFailed.isEmpty()) {
+                    consumeRequest.getMsgs().removeAll(msgBackFailed);
+
+                    this.submitConsumeRequestLater(msgBackFailed, consumeRequest.getProcessQueue(), consumeRequest.getMessageQueue());
+                }
+                break;
+            default:
+                break;
+        }
+
+        long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
+        if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
+            this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
+        }
     }
-
-    switch (this.defaultMQPushConsumer.getMessageModel()) {
-        case BROADCASTING:
-            for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
-                MessageExt msg = consumeRequest.getMsgs().get(i);
-                log.warn("BROADCASTING, the message consume failed, drop it, {}", msg.toString());
 ```
 
 <strong>逐段阅读抓手：</strong>ackIndex是批内数组下标，不是queueOffset；两个整数不要混用。
@@ -4922,48 +7580,78 @@ R -- 否 --> RET["保留本地并延后消费"]
 B --> OK
 ```
 
-<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L272–L310](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L272-L310)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L242–L310](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L242-L310)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-        case BROADCASTING:
-            for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
-                MessageExt msg = consumeRequest.getMsgs().get(i);
-                log.warn("BROADCASTING, the message consume failed, drop it, {}", msg.toString());
-            }
-            break;
-        case CLUSTERING:
-            List<MessageExt> msgBackFailed = new ArrayList<>(consumeRequest.getMsgs().size());
-            for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
-                MessageExt msg = consumeRequest.getMsgs().get(i);
-                // Maybe message is expired and cleaned, just ignore it.
-                if (!consumeRequest.getProcessQueue().containsMessage(msg)) {
-                    log.info("Message is not found in its process queue; skip send-back-procedure, topic={}, "
-                            + "brokerName={}, queueId={}, queueOffset={}", msg.getTopic(), msg.getBrokerName(),
-                        msg.getQueueId(), msg.getQueueOffset());
-                    continue;
+    public void processConsumeResult(
+        final ConsumeConcurrentlyStatus status,
+        final ConsumeConcurrentlyContext context,
+        final ConsumeRequest consumeRequest
+    ) {
+        int ackIndex = context.getAckIndex();
+
+        if (consumeRequest.getMsgs().isEmpty())
+            return;
+
+        switch (status) {
+            case CONSUME_SUCCESS:
+                if (ackIndex >= consumeRequest.getMsgs().size()) {
+                    ackIndex = consumeRequest.getMsgs().size() - 1;
                 }
-                boolean result = this.sendMessageBack(msg, context);
-                if (!result) {
-                    msg.setReconsumeTimes(msg.getReconsumeTimes() + 1);
-                    msgBackFailed.add(msg);
+                int ok = ackIndex + 1;
+                int failed = consumeRequest.getMsgs().size() - ok;
+                this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), ok);
+                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), failed);
+                break;
+            case RECONSUME_LATER:
+                ackIndex = -1;
+                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(),
+                    consumeRequest.getMsgs().size());
+                break;
+            default:
+                break;
+        }
+
+        switch (this.defaultMQPushConsumer.getMessageModel()) {
+            case BROADCASTING:
+                for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
+                    MessageExt msg = consumeRequest.getMsgs().get(i);
+                    log.warn("BROADCASTING, the message consume failed, drop it, {}", msg.toString());
                 }
-            }
+                break;
+            case CLUSTERING:
+                List<MessageExt> msgBackFailed = new ArrayList<>(consumeRequest.getMsgs().size());
+                for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
+                    MessageExt msg = consumeRequest.getMsgs().get(i);
+                    // Maybe message is expired and cleaned, just ignore it.
+                    if (!consumeRequest.getProcessQueue().containsMessage(msg)) {
+                        log.info("Message is not found in its process queue; skip send-back-procedure, topic={}, "
+                                + "brokerName={}, queueId={}, queueOffset={}", msg.getTopic(), msg.getBrokerName(),
+                            msg.getQueueId(), msg.getQueueOffset());
+                        continue;
+                    }
+                    boolean result = this.sendMessageBack(msg, context);
+                    if (!result) {
+                        msg.setReconsumeTimes(msg.getReconsumeTimes() + 1);
+                        msgBackFailed.add(msg);
+                    }
+                }
 
-            if (!msgBackFailed.isEmpty()) {
-                consumeRequest.getMsgs().removeAll(msgBackFailed);
+                if (!msgBackFailed.isEmpty()) {
+                    consumeRequest.getMsgs().removeAll(msgBackFailed);
 
-                this.submitConsumeRequestLater(msgBackFailed, consumeRequest.getProcessQueue(), consumeRequest.getMessageQueue());
-            }
-            break;
-        default:
-            break;
+                    this.submitConsumeRequestLater(msgBackFailed, consumeRequest.getProcessQueue(), consumeRequest.getMessageQueue());
+                }
+                break;
+            default:
+                break;
+        }
+
+        long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
+        if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
+            this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
+        }
     }
-
-    long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
-    if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
-        this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
-    }
-}
 ```
 
 <strong>逐段阅读抓手：</strong>msgBackFailed会从本次可移除集合排除；先成功交接到重试存储，再让原队列进度前进。
@@ -5081,86 +7769,169 @@ flowchart TB
  B --> N["提交进度或本地回退/稍后重试"]
 ```
 
-<strong>源码对照：</strong>[ConsumeMessageOrderlyService.java · L410–L486](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L410-L486)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageOrderlyService.java · L410–L569](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L410-L569)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-class ConsumeRequest implements Runnable {
-    private final ProcessQueue processQueue;
-    private final MessageQueue messageQueue;
+    class ConsumeRequest implements Runnable {
+        private final ProcessQueue processQueue;
+        private final MessageQueue messageQueue;
 
-    public ConsumeRequest(ProcessQueue processQueue, MessageQueue messageQueue) {
-        this.processQueue = processQueue;
-        this.messageQueue = messageQueue;
-    }
-
-    public ProcessQueue getProcessQueue() {
-        return processQueue;
-    }
-
-    public MessageQueue getMessageQueue() {
-        return messageQueue;
-    }
-
-    @Override
-    public void run() {
-        if (this.processQueue.isDropped()) {
-            log.warn("run, the message queue not be able to consume, because it's dropped. {}", this.messageQueue);
-            return;
+        public ConsumeRequest(ProcessQueue processQueue, MessageQueue messageQueue) {
+            this.processQueue = processQueue;
+            this.messageQueue = messageQueue;
         }
 
-        final Object objLock = messageQueueLock.fetchLockObject(this.messageQueue);
-        synchronized (objLock) {
-            if (MessageModel.BROADCASTING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
-                || this.processQueue.isLocked() && !this.processQueue.isLockExpired()) {
-                final long beginTime = System.currentTimeMillis();
-                for (boolean continueConsume = true; continueConsume; ) {
+        public ProcessQueue getProcessQueue() {
+            return processQueue;
+        }
+
+        public MessageQueue getMessageQueue() {
+            return messageQueue;
+        }
+
+        @Override
+        public void run() {
+            if (this.processQueue.isDropped()) {
+                log.warn("run, the message queue not be able to consume, because it's dropped. {}", this.messageQueue);
+                return;
+            }
+
+            final Object objLock = messageQueueLock.fetchLockObject(this.messageQueue);
+            synchronized (objLock) {
+                if (MessageModel.BROADCASTING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
+                    || this.processQueue.isLocked() && !this.processQueue.isLockExpired()) {
+                    final long beginTime = System.currentTimeMillis();
+                    for (boolean continueConsume = true; continueConsume; ) {
+                        if (this.processQueue.isDropped()) {
+                            log.warn("the message queue not be able to consume, because it's dropped. {}", this.messageQueue);
+                            break;
+                        }
+
+                        if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
+                            && !this.processQueue.isLocked()) {
+                            log.warn("the message queue not locked, so consume later, {}", this.messageQueue);
+                            ConsumeMessageOrderlyService.this.tryLockLaterAndReconsume(this.messageQueue, this.processQueue, 10);
+                            break;
+                        }
+
+                        if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
+                            && this.processQueue.isLockExpired()) {
+                            log.warn("the message queue lock expired, so consume later, {}", this.messageQueue);
+                            ConsumeMessageOrderlyService.this.tryLockLaterAndReconsume(this.messageQueue, this.processQueue, 10);
+                            break;
+                        }
+
+                        long interval = System.currentTimeMillis() - beginTime;
+                        if (interval > MAX_TIME_CONSUME_CONTINUOUSLY) {
+                            ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, messageQueue, 10);
+                            break;
+                        }
+
+                        final int consumeBatchSize =
+                            ConsumeMessageOrderlyService.this.defaultMQPushConsumer.getConsumeMessageBatchMaxSize();
+
+                        List<MessageExt> msgs = this.processQueue.takeMessages(consumeBatchSize);
+                        defaultMQPushConsumerImpl.resetRetryAndNamespace(msgs, defaultMQPushConsumer.getConsumerGroup());
+                        if (!msgs.isEmpty()) {
+                            final ConsumeOrderlyContext context = new ConsumeOrderlyContext(this.messageQueue);
+
+                            ConsumeOrderlyStatus status = null;
+
+                            ConsumeMessageContext consumeMessageContext = null;
+                            if (ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.hasHook()) {
+                                consumeMessageContext = new ConsumeMessageContext();
+                                consumeMessageContext
+                                    .setConsumerGroup(ConsumeMessageOrderlyService.this.defaultMQPushConsumer.getConsumerGroup());
+                                consumeMessageContext.setNamespace(defaultMQPushConsumer.getNamespace());
+                                consumeMessageContext.setMq(messageQueue);
+                                consumeMessageContext.setMsgList(msgs);
+                                consumeMessageContext.setSuccess(false);
+                                // init the consume context type
+                                consumeMessageContext.setProps(new HashMap<>());
+                                ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.executeHookBefore(consumeMessageContext);
+                            }
+
+                            long beginTimestamp = System.currentTimeMillis();
+                            ConsumeReturnType returnType = ConsumeReturnType.SUCCESS;
+                            boolean hasException = false;
+                            try {
+                                this.processQueue.getConsumeLock().readLock().lock();
+                                if (this.processQueue.isDropped()) {
+                                    log.warn("consumeMessage, the message queue not be able to consume, because it's dropped. {}",
+                                        this.messageQueue);
+                                    break;
+                                }
+
+                                status = messageListener.consumeMessage(Collections.unmodifiableList(msgs), context);
+                            } catch (Throwable e) {
+                                log.warn("consumeMessage exception: {} Group: {} Msgs: {} MQ: {}",
+                                    UtilAll.exceptionSimpleDesc(e),
+                                    ConsumeMessageOrderlyService.this.consumerGroup,
+                                    msgs,
+                                    messageQueue, e);
+                                hasException = true;
+                            } finally {
+                                this.processQueue.getConsumeLock().readLock().unlock();
+                            }
+
+                            if (null == status
+                                || ConsumeOrderlyStatus.ROLLBACK == status
+                                || ConsumeOrderlyStatus.SUSPEND_CURRENT_QUEUE_A_MOMENT == status) {
+                                log.warn("consumeMessage Orderly return not OK, Group: {} Msgs: {} MQ: {}",
+                                    ConsumeMessageOrderlyService.this.consumerGroup,
+                                    msgs,
+                                    messageQueue);
+                            }
+
+                            long consumeRT = System.currentTimeMillis() - beginTimestamp;
+                            if (null == status) {
+                                if (hasException) {
+                                    returnType = ConsumeReturnType.EXCEPTION;
+                                } else {
+                                    returnType = ConsumeReturnType.RETURNNULL;
+                                }
+                            } else if (consumeRT >= defaultMQPushConsumer.getConsumeTimeout() * 60 * 1000) {
+                                returnType = ConsumeReturnType.TIME_OUT;
+                            } else if (ConsumeOrderlyStatus.SUSPEND_CURRENT_QUEUE_A_MOMENT == status) {
+                                returnType = ConsumeReturnType.FAILED;
+                            } else if (ConsumeOrderlyStatus.SUCCESS == status) {
+                                returnType = ConsumeReturnType.SUCCESS;
+                            }
+
+                            if (ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.hasHook()) {
+                                consumeMessageContext.getProps().put(MixAll.CONSUME_CONTEXT_TYPE, returnType.name());
+                            }
+
+                            if (null == status) {
+                                status = ConsumeOrderlyStatus.SUSPEND_CURRENT_QUEUE_A_MOMENT;
+                            }
+
+                            if (ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.hasHook()) {
+                                consumeMessageContext.setStatus(status.toString());
+                                consumeMessageContext
+                                    .setSuccess(ConsumeOrderlyStatus.SUCCESS == status || ConsumeOrderlyStatus.COMMIT == status);
+                                consumeMessageContext.setAccessChannel(defaultMQPushConsumer.getAccessChannel());
+                                ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.executeHookAfter(consumeMessageContext);
+                            }
+
+                            ConsumeMessageOrderlyService.this.getConsumerStatsManager()
+                                .incConsumeRT(ConsumeMessageOrderlyService.this.consumerGroup, messageQueue.getTopic(), consumeRT);
+
+                            continueConsume = ConsumeMessageOrderlyService.this.processConsumeResult(msgs, status, context, this);
+                        } else {
+                            continueConsume = false;
+                        }
+                    }
+                } else {
                     if (this.processQueue.isDropped()) {
                         log.warn("the message queue not be able to consume, because it's dropped. {}", this.messageQueue);
-                        break;
+                        return;
                     }
 
-                    if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
-                        && !this.processQueue.isLocked()) {
-                        log.warn("the message queue not locked, so consume later, {}", this.messageQueue);
-                        ConsumeMessageOrderlyService.this.tryLockLaterAndReconsume(this.messageQueue, this.processQueue, 10);
-                        break;
-                    }
-
-                    if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
-                        && this.processQueue.isLockExpired()) {
-                        log.warn("the message queue lock expired, so consume later, {}", this.messageQueue);
-                        ConsumeMessageOrderlyService.this.tryLockLaterAndReconsume(this.messageQueue, this.processQueue, 10);
-                        break;
-                    }
-
-                    long interval = System.currentTimeMillis() - beginTime;
-                    if (interval > MAX_TIME_CONSUME_CONTINUOUSLY) {
-                        ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, messageQueue, 10);
-                        break;
-                    }
-
-                    final int consumeBatchSize =
-                        ConsumeMessageOrderlyService.this.defaultMQPushConsumer.getConsumeMessageBatchMaxSize();
-
-                    List<MessageExt> msgs = this.processQueue.takeMessages(consumeBatchSize);
-                    defaultMQPushConsumerImpl.resetRetryAndNamespace(msgs, defaultMQPushConsumer.getConsumerGroup());
-                    if (!msgs.isEmpty()) {
-                        final ConsumeOrderlyContext context = new ConsumeOrderlyContext(this.messageQueue);
-
-                        ConsumeOrderlyStatus status = null;
-
-                        ConsumeMessageContext consumeMessageContext = null;
-                        if (ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.hasHook()) {
-                            consumeMessageContext = new ConsumeMessageContext();
-                            consumeMessageContext
-                                .setConsumerGroup(ConsumeMessageOrderlyService.this.defaultMQPushConsumer.getConsumerGroup());
-                            consumeMessageContext.setNamespace(defaultMQPushConsumer.getNamespace());
-                            consumeMessageContext.setMq(messageQueue);
-                            consumeMessageContext.setMsgList(msgs);
-                            consumeMessageContext.setSuccess(false);
-                            // init the consume context type
-                            consumeMessageContext.setProps(new HashMap<>());
-                            ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.executeHookBefore(consumeMessageContext);
+                    ConsumeMessageOrderlyService.this.tryLockLaterAndReconsume(this.messageQueue, this.processQueue, 100);
+                }
+            }
+        }
 ```
 
 <strong>逐段阅读抓手：</strong>顺序锁粒度是MessageQueue；不同Queue可以并发消费。
@@ -5182,80 +7953,81 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[ConsumeMessageOrderlyService.java · L274–L344](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L274-L344)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageOrderlyService.java · L274–L345](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L274-L345)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public boolean processConsumeResult(
-    final List<MessageExt> msgs,
-    final ConsumeOrderlyStatus status,
-    final ConsumeOrderlyContext context,
-    final ConsumeRequest consumeRequest
-) {
-    boolean continueConsume = true;
-    long commitOffset = -1L;
-    if (context.isAutoCommit()) {
-        switch (status) {
-            case COMMIT:
-            case ROLLBACK:
-                log.warn("the message queue consume result is illegal, we think you want to ack these message {}",
-                    consumeRequest.getMessageQueue());
-            case SUCCESS:
-                commitOffset = consumeRequest.getProcessQueue().commit();
-                this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
-                break;
-            case SUSPEND_CURRENT_QUEUE_A_MOMENT:
-                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
-                if (checkReconsumeTimes(msgs)) {
-                    consumeRequest.getProcessQueue().makeMessageToConsumeAgain(msgs);
-                    this.submitConsumeRequestLater(
-                        consumeRequest.getProcessQueue(),
-                        consumeRequest.getMessageQueue(),
-                        context.getSuspendCurrentQueueTimeMillis());
-                    continueConsume = false;
-                } else {
+    public boolean processConsumeResult(
+        final List<MessageExt> msgs,
+        final ConsumeOrderlyStatus status,
+        final ConsumeOrderlyContext context,
+        final ConsumeRequest consumeRequest
+    ) {
+        boolean continueConsume = true;
+        long commitOffset = -1L;
+        if (context.isAutoCommit()) {
+            switch (status) {
+                case COMMIT:
+                case ROLLBACK:
+                    log.warn("the message queue consume result is illegal, we think you want to ack these message {}",
+                        consumeRequest.getMessageQueue());
+                case SUCCESS:
                     commitOffset = consumeRequest.getProcessQueue().commit();
-                }
-                break;
-            default:
-                break;
-        }
-    } else {
-        switch (status) {
-            case SUCCESS:
-                this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
-                break;
-            case COMMIT:
-                commitOffset = consumeRequest.getProcessQueue().commit();
-                break;
-            case ROLLBACK:
-                consumeRequest.getProcessQueue().rollback();
-                this.submitConsumeRequestLater(
-                    consumeRequest.getProcessQueue(),
-                    consumeRequest.getMessageQueue(),
-                    context.getSuspendCurrentQueueTimeMillis());
-                continueConsume = false;
-                break;
-            case SUSPEND_CURRENT_QUEUE_A_MOMENT:
-                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
-                if (checkReconsumeTimes(msgs)) {
-                    consumeRequest.getProcessQueue().makeMessageToConsumeAgain(msgs);
+                    this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
+                    break;
+                case SUSPEND_CURRENT_QUEUE_A_MOMENT:
+                    this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
+                    if (checkReconsumeTimes(msgs)) {
+                        consumeRequest.getProcessQueue().makeMessageToConsumeAgain(msgs);
+                        this.submitConsumeRequestLater(
+                            consumeRequest.getProcessQueue(),
+                            consumeRequest.getMessageQueue(),
+                            context.getSuspendCurrentQueueTimeMillis());
+                        continueConsume = false;
+                    } else {
+                        commitOffset = consumeRequest.getProcessQueue().commit();
+                    }
+                    break;
+                default:
+                    break;
+            }
+        } else {
+            switch (status) {
+                case SUCCESS:
+                    this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
+                    break;
+                case COMMIT:
+                    commitOffset = consumeRequest.getProcessQueue().commit();
+                    break;
+                case ROLLBACK:
+                    consumeRequest.getProcessQueue().rollback();
                     this.submitConsumeRequestLater(
                         consumeRequest.getProcessQueue(),
                         consumeRequest.getMessageQueue(),
                         context.getSuspendCurrentQueueTimeMillis());
                     continueConsume = false;
-                }
-                break;
-            default:
-                break;
+                    break;
+                case SUSPEND_CURRENT_QUEUE_A_MOMENT:
+                    this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
+                    if (checkReconsumeTimes(msgs)) {
+                        consumeRequest.getProcessQueue().makeMessageToConsumeAgain(msgs);
+                        this.submitConsumeRequestLater(
+                            consumeRequest.getProcessQueue(),
+                            consumeRequest.getMessageQueue(),
+                            context.getSuspendCurrentQueueTimeMillis());
+                        continueConsume = false;
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
-    }
 
-    if (commitOffset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
-        this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), commitOffset, false);
-    }
+        if (commitOffset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
+            this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), commitOffset, false);
+        }
 
-    return continueConsume;
+        return continueConsume;
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>对照context.isAutoCommit两套switch；不要把并发消费返回枚举搬到顺序Listener。
@@ -5314,56 +8086,81 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[ConsumeMessageOrderlyService.java · L272–L318](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L272-L318)，连续节选。
+<strong>4.9.8源码：</strong>[ConsumeMessageOrderlyService.java · L272–L343](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java#L272-L343)，连续节选。
 
 ```java
-public boolean processConsumeResult(
-    final List<MessageExt> msgs,
-    final ConsumeOrderlyStatus status,
-    final ConsumeOrderlyContext context,
-    final ConsumeRequest consumeRequest
-) {
-    boolean continueConsume = true;
-    long commitOffset = -1L;
-    if (context.isAutoCommit()) {
-        switch (status) {
-            case COMMIT:
-            case ROLLBACK:
-                log.warn("the message queue consume result is illegal, we think you want to ack these message {}",
-                    consumeRequest.getMessageQueue());
-            case SUCCESS:
-                commitOffset = consumeRequest.getProcessQueue().commit();
-                this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
-                break;
-            case SUSPEND_CURRENT_QUEUE_A_MOMENT:
-                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
-                if (checkReconsumeTimes(msgs)) {
-                    consumeRequest.getProcessQueue().makeMessageToConsumeAgain(msgs);
+    public boolean processConsumeResult(
+        final List<MessageExt> msgs,
+        final ConsumeOrderlyStatus status,
+        final ConsumeOrderlyContext context,
+        final ConsumeRequest consumeRequest
+    ) {
+        boolean continueConsume = true;
+        long commitOffset = -1L;
+        if (context.isAutoCommit()) {
+            switch (status) {
+                case COMMIT:
+                case ROLLBACK:
+                    log.warn("the message queue consume result is illegal, we think you want to ack these message {}",
+                        consumeRequest.getMessageQueue());
+                case SUCCESS:
+                    commitOffset = consumeRequest.getProcessQueue().commit();
+                    this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
+                    break;
+                case SUSPEND_CURRENT_QUEUE_A_MOMENT:
+                    this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
+                    if (checkReconsumeTimes(msgs)) {
+                        consumeRequest.getProcessQueue().makeMessageToConsumeAgain(msgs);
+                        this.submitConsumeRequestLater(
+                            consumeRequest.getProcessQueue(),
+                            consumeRequest.getMessageQueue(),
+                            context.getSuspendCurrentQueueTimeMillis());
+                        continueConsume = false;
+                    } else {
+                        commitOffset = consumeRequest.getProcessQueue().commit();
+                    }
+                    break;
+                default:
+                    break;
+            }
+        } else {
+            switch (status) {
+                case SUCCESS:
+                    this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
+                    break;
+                case COMMIT:
+                    commitOffset = consumeRequest.getProcessQueue().commit();
+                    break;
+                case ROLLBACK:
+                    consumeRequest.getProcessQueue().rollback();
                     this.submitConsumeRequestLater(
                         consumeRequest.getProcessQueue(),
                         consumeRequest.getMessageQueue(),
                         context.getSuspendCurrentQueueTimeMillis());
                     continueConsume = false;
-                } else {
-                    commitOffset = consumeRequest.getProcessQueue().commit();
-                }
-                break;
-            default:
-                break;
+                    break;
+                case SUSPEND_CURRENT_QUEUE_A_MOMENT:
+                    this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
+                    if (checkReconsumeTimes(msgs)) {
+                        consumeRequest.getProcessQueue().makeMessageToConsumeAgain(msgs);
+                        this.submitConsumeRequestLater(
+                            consumeRequest.getProcessQueue(),
+                            consumeRequest.getMessageQueue(),
+                            context.getSuspendCurrentQueueTimeMillis());
+                        continueConsume = false;
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
-    } else {
-        switch (status) {
-            case SUCCESS:
-                this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
-                break;
-            case COMMIT:
-                commitOffset = consumeRequest.getProcessQueue().commit();
-                break;
-            case ROLLBACK:
-                consumeRequest.getProcessQueue().rollback();
-                this.submitConsumeRequestLater(
-                    consumeRequest.getProcessQueue(),
-                    consumeRequest.getMessageQueue(),
+
+        if (commitOffset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
+            this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), commitOffset, false);
+        }
+
+        return continueConsume;
+    }
 ```
 
 <strong>5.3.4源码：</strong>[ConsumerOrderInfoManager.java · L143–L160](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/offset/ConsumerOrderInfoManager.java#L143-L160)，连续节选。
@@ -5584,27 +8381,108 @@ C -. "不同职责" .-> B
 ```
 
 
-<strong>5.3.4源码对照：</strong>[SendMessageActivity.java · L271–L288](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/grpc/v2/producer/SendMessageActivity.java#L271-L288)，连续节选。
+<strong>5.3.4源码对照：</strong>[SendMessageActivity.java · L198–L296](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/grpc/v2/producer/SendMessageActivity.java#L198-L296)，连续节选。
 
 ```java
-String messageGroup = message.getSystemProperties().getMessageGroup();
-if (StringUtils.isNotEmpty(messageGroup)) {
-    validateMessageGroup(messageGroup);
-    MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_SHARDING_KEY, messageGroup);
-}
-// set trace context
-String traceContext = message.getSystemProperties().getTraceContext();
-if (!traceContext.isEmpty()) {
-    MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_TRACE_CONTEXT, traceContext);
-}
+    protected Map<String, String> buildMessageProperty(ProxyContext context, apache.rocketmq.v2.Message message, String producerGroup) {
+        long userPropertySize = 0;
+        ProxyConfig config = ConfigurationManager.getProxyConfig();
+        org.apache.rocketmq.common.message.Message messageWithHeader = new org.apache.rocketmq.common.message.Message();
+        // set user properties
+        Map<String, String> userProperties = message.getUserPropertiesMap();
+        if (userProperties.size() > config.getUserPropertyMaxNum()) {
+            throw new GrpcProxyException(Code.MESSAGE_PROPERTIES_TOO_LARGE, "too many user properties, max is " + config.getUserPropertyMaxNum());
+        }
+        for (Map.Entry<String, String> userPropertiesEntry : userProperties.entrySet()) {
+            if (MessageConst.STRING_HASH_SET.contains(userPropertiesEntry.getKey())) {
+                throw new GrpcProxyException(Code.ILLEGAL_MESSAGE_PROPERTY_KEY, "property is used by system: " + userPropertiesEntry.getKey());
+            }
+            if (GrpcValidator.getInstance().containControlCharacter(userPropertiesEntry.getKey())) {
+                throw new GrpcProxyException(Code.ILLEGAL_MESSAGE_PROPERTY_KEY, "the key of property cannot contain control character");
+            }
+            if (GrpcValidator.getInstance().containControlCharacter(userPropertiesEntry.getValue())) {
+                throw new GrpcProxyException(Code.ILLEGAL_MESSAGE_PROPERTY_KEY, "the value of property cannot contain control character");
+            }
+            userPropertySize += userPropertiesEntry.getKey().getBytes(StandardCharsets.UTF_8).length;
+            userPropertySize += userPropertiesEntry.getValue().getBytes(StandardCharsets.UTF_8).length;
+        }
+        MessageAccessor.setProperties(messageWithHeader, Maps.newHashMap(userProperties));
 
-String bornHost = message.getSystemProperties().getBornHost();
-if (StringUtils.isBlank(bornHost)) {
-    bornHost = context.getRemoteAddress();
-}
-if (StringUtils.isNotBlank(bornHost)) {
-    MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_BORN_HOST, bornHost);
-}
+        // set tag
+        String tag = message.getSystemProperties().getTag();
+        GrpcValidator.getInstance().validateTag(tag);
+        messageWithHeader.setTags(tag);
+        userPropertySize += tag.getBytes(StandardCharsets.UTF_8).length;
+
+        // set keys
+        List<String> keysList = message.getSystemProperties().getKeysList();
+        for (String key : keysList) {
+            validateMessageKey(key);
+            userPropertySize += key.getBytes(StandardCharsets.UTF_8).length;
+        }
+        if (keysList.size() > 0) {
+            messageWithHeader.setKeys(keysList);
+        }
+
+        if (userPropertySize > config.getMaxUserPropertySize()) {
+            throw new GrpcProxyException(Code.MESSAGE_PROPERTIES_TOO_LARGE, "the total size of user property is too large, max is " + config.getMaxUserPropertySize());
+        }
+
+        // set message id
+        String messageId = message.getSystemProperties().getMessageId();
+        if (StringUtils.isBlank(messageId)) {
+            throw new GrpcProxyException(Code.ILLEGAL_MESSAGE_ID, "message id cannot be empty");
+        }
+        MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX, messageId);
+
+        // set transaction property
+        MessageType messageType = message.getSystemProperties().getMessageType();
+        if (messageType.equals(MessageType.TRANSACTION)) {
+            MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_TRANSACTION_PREPARED, "true");
+
+            if (message.getSystemProperties().hasOrphanedTransactionRecoveryDuration()) {
+                long transactionRecoverySecond = Durations.toSeconds(message.getSystemProperties().getOrphanedTransactionRecoveryDuration());
+                validateTransactionRecoverySecond(transactionRecoverySecond);
+                MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_CHECK_IMMUNITY_TIME_IN_SECONDS,
+                    String.valueOf(transactionRecoverySecond));
+            }
+        }
+
+        // set delay level or deliver timestamp
+        fillDelayMessageProperty(message, messageWithHeader);
+
+        // set reconsume times
+        int reconsumeTimes = message.getSystemProperties().getDeliveryAttempt();
+        MessageAccessor.setReconsumeTime(messageWithHeader, String.valueOf(reconsumeTimes));
+        // set producer group
+        MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_PRODUCER_GROUP, producerGroup);
+        // set message group
+        String messageGroup = message.getSystemProperties().getMessageGroup();
+        if (StringUtils.isNotEmpty(messageGroup)) {
+            validateMessageGroup(messageGroup);
+            MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_SHARDING_KEY, messageGroup);
+        }
+        // set trace context
+        String traceContext = message.getSystemProperties().getTraceContext();
+        if (!traceContext.isEmpty()) {
+            MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_TRACE_CONTEXT, traceContext);
+        }
+
+        String bornHost = message.getSystemProperties().getBornHost();
+        if (StringUtils.isBlank(bornHost)) {
+            bornHost = context.getRemoteAddress();
+        }
+        if (StringUtils.isNotBlank(bornHost)) {
+            MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_BORN_HOST, bornHost);
+        }
+
+        Timestamp bornTimestamp = message.getSystemProperties().getBornTimestamp();
+        if (Timestamps.isValid(bornTimestamp)) {
+            MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_BORN_TIMESTAMP, String.valueOf(Timestamps.toMillis(bornTimestamp)));
+        }
+
+        return messageWithHeader.getProperties();
+    }
 ```
 
 ## 本章纸面推演
@@ -5692,79 +8570,250 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[AbstractSendMessageProcessor.java · L92–L163](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/AbstractSendMessageProcessor.java#L92-L163)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[AbstractSendMessageProcessor.java · L92–L334](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/AbstractSendMessageProcessor.java#L92-L334)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-protected RemotingCommand consumerSendMsgBack(final ChannelHandlerContext ctx, final RemotingCommand request)
-    throws RemotingCommandException {
-    final RemotingCommand response = RemotingCommand.createResponseCommand(null);
-    final ConsumerSendMsgBackRequestHeader requestHeader =
-        (ConsumerSendMsgBackRequestHeader) request.decodeCommandCustomHeader(ConsumerSendMsgBackRequestHeader.class);
+    protected RemotingCommand consumerSendMsgBack(final ChannelHandlerContext ctx, final RemotingCommand request)
+        throws RemotingCommandException {
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        final ConsumerSendMsgBackRequestHeader requestHeader =
+            (ConsumerSendMsgBackRequestHeader) request.decodeCommandCustomHeader(ConsumerSendMsgBackRequestHeader.class);
 
-    // The send back requests sent to SlaveBroker will be forwarded to the master broker beside
-    final BrokerController masterBroker = this.brokerController.peekMasterBroker();
-    if (null == masterBroker) {
-        response.setCode(ResponseCode.SYSTEM_ERROR);
-        response.setRemark("no master available along with " + brokerController.getBrokerConfig().getBrokerIP1());
-        return response;
-    }
+        // The send back requests sent to SlaveBroker will be forwarded to the master broker beside
+        final BrokerController masterBroker = this.brokerController.peekMasterBroker();
+        if (null == masterBroker) {
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark("no master available along with " + brokerController.getBrokerConfig().getBrokerIP1());
+            return response;
+        }
 
-    // The broker that received the request.
-    // It may be a master broker or a slave broker
-    final BrokerController currentBroker = this.brokerController;
+        // The broker that received the request.
+        // It may be a master broker or a slave broker
+        final BrokerController currentBroker = this.brokerController;
 
-    SubscriptionGroupConfig subscriptionGroupConfig =
-        masterBroker.getSubscriptionGroupManager().findSubscriptionGroupConfig(requestHeader.getGroup());
-    if (null == subscriptionGroupConfig) {
-        response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
-        response.setRemark("subscription group not exist, " + requestHeader.getGroup() + " "
-            + FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
-        return response;
-    }
+        SubscriptionGroupConfig subscriptionGroupConfig =
+            masterBroker.getSubscriptionGroupManager().findSubscriptionGroupConfig(requestHeader.getGroup());
+        if (null == subscriptionGroupConfig) {
+            response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
+            response.setRemark("subscription group not exist, " + requestHeader.getGroup() + " "
+                + FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
+            return response;
+        }
 
-    BrokerConfig masterBrokerConfig = masterBroker.getBrokerConfig();
-    if (!PermName.isWriteable(masterBrokerConfig.getBrokerPermission())) {
-        response.setCode(ResponseCode.NO_PERMISSION);
-        response.setRemark("the broker[" + masterBrokerConfig.getBrokerIP1() + "] sending message is forbidden");
-        return response;
-    }
+        BrokerConfig masterBrokerConfig = masterBroker.getBrokerConfig();
+        if (!PermName.isWriteable(masterBrokerConfig.getBrokerPermission())) {
+            response.setCode(ResponseCode.NO_PERMISSION);
+            response.setRemark("the broker[" + masterBrokerConfig.getBrokerIP1() + "] sending message is forbidden");
+            return response;
+        }
 
-    if (subscriptionGroupConfig.getRetryQueueNums() <= 0) {
-        response.setCode(ResponseCode.SUCCESS);
-        response.setRemark(null);
-        return response;
-    }
+        if (subscriptionGroupConfig.getRetryQueueNums() <= 0) {
+            response.setCode(ResponseCode.SUCCESS);
+            response.setRemark(null);
+            return response;
+        }
 
-    String newTopic = MixAll.getRetryTopic(requestHeader.getGroup());
-    int queueIdInt = this.random.nextInt(subscriptionGroupConfig.getRetryQueueNums());
+        String newTopic = MixAll.getRetryTopic(requestHeader.getGroup());
+        int queueIdInt = this.random.nextInt(subscriptionGroupConfig.getRetryQueueNums());
 
-    int topicSysFlag = 0;
-    if (requestHeader.isUnitMode()) {
-        topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
-    }
+        int topicSysFlag = 0;
+        if (requestHeader.isUnitMode()) {
+            topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
+        }
 
-    // Create retry topic to master broker
-    TopicConfig topicConfig = masterBroker.getTopicConfigManager().createTopicInSendMessageBackMethod(
-        newTopic,
-        subscriptionGroupConfig.getRetryQueueNums(),
-        PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
-    if (null == topicConfig) {
-        response.setCode(ResponseCode.SYSTEM_ERROR);
-        response.setRemark("topic[" + newTopic + "] not exist");
-        return response;
-    }
+        // Create retry topic to master broker
+        TopicConfig topicConfig = masterBroker.getTopicConfigManager().createTopicInSendMessageBackMethod(
+            newTopic,
+            subscriptionGroupConfig.getRetryQueueNums(),
+            PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
+        if (null == topicConfig) {
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark("topic[" + newTopic + "] not exist");
+            return response;
+        }
 
-    if (!PermName.isWriteable(topicConfig.getPerm())) {
-        response.setCode(ResponseCode.NO_PERMISSION);
-        response.setRemark(String.format("the topic[%s] sending message is forbidden", newTopic));
-        return response;
-    }
+        if (!PermName.isWriteable(topicConfig.getPerm())) {
+            response.setCode(ResponseCode.NO_PERMISSION);
+            response.setRemark(String.format("the topic[%s] sending message is forbidden", newTopic));
+            return response;
+        }
 
-    // Look message from the origin message store
-    MessageExt msgExt = currentBroker.getMessageStore().lookMessageByOffset(requestHeader.getOffset());
-    if (null == msgExt) {
-        response.setCode(ResponseCode.SYSTEM_ERROR);
-        response.setRemark("look message by offset failed, " + requestHeader.getOffset());
+        // Look message from the origin message store
+        MessageExt msgExt = currentBroker.getMessageStore().lookMessageByOffset(requestHeader.getOffset());
+        if (null == msgExt) {
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark("look message by offset failed, " + requestHeader.getOffset());
+            return response;
+        }
+
+        final String retryTopic = msgExt.getProperty(MessageConst.PROPERTY_RETRY_TOPIC);
+        if (null == retryTopic) {
+            MessageAccessor.putProperty(msgExt, MessageConst.PROPERTY_RETRY_TOPIC, msgExt.getTopic());
+        }
+        msgExt.setWaitStoreMsgOK(false);
+
+        int delayLevel = requestHeader.getDelayLevel();
+
+        int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
+        if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal()) {
+            Integer times = requestHeader.getMaxReconsumeTimes();
+            if (times != null) {
+                maxReconsumeTimes = times;
+            }
+        }
+
+        boolean isDLQ = false;
+        if (msgExt.getReconsumeTimes() >= maxReconsumeTimes
+            || delayLevel < 0) {
+
+            Attributes attributes = this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
+                .put(LABEL_CONSUMER_GROUP, requestHeader.getGroup())
+                .put(LABEL_TOPIC, requestHeader.getOriginTopic())
+                .put(LABEL_IS_SYSTEM, BrokerMetricsManager.isSystem(requestHeader.getOriginTopic(), requestHeader.getGroup()))
+                .build();
+            this.brokerController.getBrokerMetricsManager().getSendToDlqMessages().add(1, attributes);
+
+            isDLQ = true;
+            newTopic = MixAll.getDLQTopic(requestHeader.getGroup());
+            queueIdInt = randomQueueId(DLQ_NUMS_PER_GROUP);
+
+            // Create DLQ topic to master broker
+            topicConfig = masterBroker.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic,
+                DLQ_NUMS_PER_GROUP,
+                PermName.PERM_WRITE | PermName.PERM_READ, 0);
+
+            if (null == topicConfig) {
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                response.setRemark("topic[" + newTopic + "] not exist");
+                return response;
+            }
+            msgExt.setDelayTimeLevel(0);
+        } else {
+            if (0 == delayLevel) {
+                delayLevel = 3 + msgExt.getReconsumeTimes();
+            }
+
+            msgExt.setDelayTimeLevel(delayLevel);
+        }
+
+        MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
+        msgInner.setTopic(newTopic);
+        msgInner.setBody(msgExt.getBody());
+        msgInner.setFlag(msgExt.getFlag());
+        MessageAccessor.setProperties(msgInner, msgExt.getProperties());
+        msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgExt.getProperties()));
+        msgInner.setTagsCode(MessageExtBrokerInner.tagsString2tagsCode(null, msgExt.getTags()));
+
+        msgInner.setQueueId(queueIdInt);
+        msgInner.setSysFlag(msgExt.getSysFlag());
+        msgInner.setBornTimestamp(msgExt.getBornTimestamp());
+        msgInner.setBornHost(msgExt.getBornHost());
+        msgInner.setStoreHost(this.getStoreHost());
+        msgInner.setReconsumeTimes(msgExt.getReconsumeTimes() + 1);
+
+        String originMsgId = MessageAccessor.getOriginMessageId(msgExt);
+        MessageAccessor.setOriginMessageId(msgInner, UtilAll.isBlank(originMsgId) ? msgExt.getMsgId() : originMsgId);
+        msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgExt.getProperties()));
+
+        boolean succeeded = false;
+
+        // Put retry topic to master message store
+        PutMessageResult putMessageResult = masterBroker.getMessageStore().putMessage(msgInner);
+        if (putMessageResult != null) {
+            String commercialOwner = request.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER);
+
+            switch (putMessageResult.getPutMessageStatus()) {
+                case PUT_OK:
+                    String backTopic = msgExt.getTopic();
+                    String correctTopic = msgExt.getProperty(MessageConst.PROPERTY_RETRY_TOPIC);
+                    if (correctTopic != null) {
+                        backTopic = correctTopic;
+                    }
+                    if (TopicValidator.RMQ_SYS_SCHEDULE_TOPIC.equals(msgInner.getTopic())) {
+                        masterBroker.getBrokerStatsManager().incTopicPutNums(msgInner.getTopic());
+                        masterBroker.getBrokerStatsManager().incTopicPutSize(msgInner.getTopic(), putMessageResult.getAppendMessageResult().getWroteBytes());
+                        masterBroker.getBrokerStatsManager().incQueuePutNums(msgInner.getTopic(), msgInner.getQueueId());
+                        masterBroker.getBrokerStatsManager().incQueuePutSize(msgInner.getTopic(), msgInner.getQueueId(), putMessageResult.getAppendMessageResult().getWroteBytes());
+                    }
+                    masterBroker.getBrokerStatsManager().incSendBackNums(requestHeader.getGroup(), backTopic);
+
+                    if (isDLQ) {
+                        masterBroker.getBrokerStatsManager().incDLQStatValue(
+                            BrokerStatsManager.SNDBCK2DLQ_TIMES,
+                            commercialOwner,
+                            requestHeader.getGroup(),
+                            requestHeader.getOriginTopic(),
+                            BrokerStatsManager.StatsType.SEND_BACK_TO_DLQ.name(),
+                            1);
+
+                        String uniqKey = msgInner.getProperties().get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
+                        DLQ_LOG.info("send msg to DLQ {}, owner={}, originalTopic={}, consumerId={}, msgUniqKey={}, storeTimestamp={}",
+                            newTopic,
+                            commercialOwner,
+                            requestHeader.getOriginTopic(),
+                            requestHeader.getGroup(),
+                            uniqKey,
+                            putMessageResult.getAppendMessageResult().getStoreTimestamp());
+                    }
+
+                    response.setCode(ResponseCode.SUCCESS);
+                    response.setRemark(null);
+
+                    succeeded = true;
+                    break;
+                default:
+                    break;
+            }
+
+            if (!succeeded) {
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                response.setRemark(putMessageResult.getPutMessageStatus().name());
+            }
+        } else {
+            if (isDLQ) {
+                String owner = request.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER);
+                String uniqKey = msgInner.getProperties().get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
+                DLQ_LOG.info("failed to send msg to DLQ {}, owner={}, originalTopic={}, consumerId={}, msgUniqKey={}, result={}",
+                    newTopic,
+                    owner,
+                    requestHeader.getOriginTopic(),
+                    requestHeader.getGroup(),
+                    uniqKey,
+                    "null");
+            }
+
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark("putMessageResult is null");
+        }
+
+        if (this.hasConsumeMessageHook() && !UtilAll.isBlank(requestHeader.getOriginMsgId())) {
+            String namespace = NamespaceUtil.getNamespaceFromResource(requestHeader.getGroup());
+            ConsumeMessageContext context = new ConsumeMessageContext();
+            context.setNamespace(namespace);
+            context.setTopic(requestHeader.getOriginTopic());
+            context.setConsumerGroup(requestHeader.getGroup());
+            context.setCommercialRcvStats(BrokerStatsManager.StatsType.SEND_BACK);
+            context.setCommercialRcvTimes(1);
+            context.setCommercialOwner(request.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER));
+
+            context.setAccountAuthType(request.getExtFields().get(BrokerStatsManager.ACCOUNT_AUTH_TYPE));
+            context.setAccountOwnerParent(request.getExtFields().get(BrokerStatsManager.ACCOUNT_OWNER_PARENT));
+            context.setAccountOwnerSelf(request.getExtFields().get(BrokerStatsManager.ACCOUNT_OWNER_SELF));
+            context.setRcvStat(isDLQ ? BrokerStatsManager.StatsType.SEND_BACK_TO_DLQ : BrokerStatsManager.StatsType.SEND_BACK);
+            context.setSuccess(succeeded);
+            context.setRcvMsgNum(1);
+            //Set msg body size 0 when sent back by consumer.
+            context.setRcvMsgSize(0);
+            context.setCommercialRcvMsgNum(succeeded ? 1 : 0);
+
+            try {
+                this.executeConsumeMessageHookAfter(context);
+            } catch (AbortProcessException e) {
+                response.setCode(e.getResponseCode());
+                response.setRemark(e.getErrorMessage());
+            }
+        }
+
         return response;
     }
 ```
@@ -5788,69 +8837,70 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[SendMessageProcessor.java · L180–L239](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L180-L239)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[SendMessageProcessor.java · L180–L240](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java#L180-L240)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, RemotingCommand response,
-    RemotingCommand request,
-    MessageExt msg, TopicConfig topicConfig, Map<String, String> properties) {
-    String newTopic = requestHeader.getTopic();
-    if (null != newTopic && newTopic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
-        String groupName = KeyBuilder.parseGroup(newTopic);
-        SubscriptionGroupConfig subscriptionGroupConfig =
-            this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(groupName);
-        if (null == subscriptionGroupConfig) {
-            response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
-            response.setRemark(
-                "subscription group not exist, " + groupName + " " + FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
-            return false;
-        }
-
-        int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
-        if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal() && requestHeader.getMaxReconsumeTimes() != null) {
-            maxReconsumeTimes = requestHeader.getMaxReconsumeTimes();
-        }
-        int reconsumeTimes = requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes();
-
-        boolean sendRetryMessageToDeadLetterQueueDirectly = false;
-        if (!brokerController.getRebalanceLockManager().isLockAllExpired(groupName)) {
-            LOGGER.info("Group has unexpired lock record, which show it is ordered message, send it to DLQ "
-                    + "right now group={}, topic={}, reconsumeTimes={}, maxReconsumeTimes={}.", groupName,
-                newTopic, reconsumeTimes, maxReconsumeTimes);
-            sendRetryMessageToDeadLetterQueueDirectly = true;
-        }
-
-        if (reconsumeTimes > maxReconsumeTimes || sendRetryMessageToDeadLetterQueueDirectly) {
-            Attributes attributes = this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
-                .put(LABEL_CONSUMER_GROUP, requestHeader.getProducerGroup())
-                .put(LABEL_TOPIC, requestHeader.getTopic())
-                .put(LABEL_IS_SYSTEM, BrokerMetricsManager.isSystem(requestHeader.getTopic(), requestHeader.getProducerGroup()))
-                .build();
-            this.brokerController.getBrokerMetricsManager().getSendToDlqMessages().add(1, attributes);
-
-            properties.put(MessageConst.PROPERTY_DELAY_TIME_LEVEL, "-1");
-            newTopic = MixAll.getDLQTopic(groupName);
-            int queueIdInt = randomQueueId(DLQ_NUMS_PER_GROUP);
-            topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic,
-                DLQ_NUMS_PER_GROUP,
-                PermName.PERM_WRITE | PermName.PERM_READ, 0
-            );
-            msg.setTopic(newTopic);
-            msg.setQueueId(queueIdInt);
-            msg.setDelayTimeLevel(0);
-            if (null == topicConfig) {
-                response.setCode(ResponseCode.SYSTEM_ERROR);
-                response.setRemark("topic[" + newTopic + "] not exist");
+    private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, RemotingCommand response,
+        RemotingCommand request,
+        MessageExt msg, TopicConfig topicConfig, Map<String, String> properties) {
+        String newTopic = requestHeader.getTopic();
+        if (null != newTopic && newTopic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+            String groupName = KeyBuilder.parseGroup(newTopic);
+            SubscriptionGroupConfig subscriptionGroupConfig =
+                this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(groupName);
+            if (null == subscriptionGroupConfig) {
+                response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
+                response.setRemark(
+                    "subscription group not exist, " + groupName + " " + FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
                 return false;
             }
+
+            int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
+            if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal() && requestHeader.getMaxReconsumeTimes() != null) {
+                maxReconsumeTimes = requestHeader.getMaxReconsumeTimes();
+            }
+            int reconsumeTimes = requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes();
+
+            boolean sendRetryMessageToDeadLetterQueueDirectly = false;
+            if (!brokerController.getRebalanceLockManager().isLockAllExpired(groupName)) {
+                LOGGER.info("Group has unexpired lock record, which show it is ordered message, send it to DLQ "
+                        + "right now group={}, topic={}, reconsumeTimes={}, maxReconsumeTimes={}.", groupName,
+                    newTopic, reconsumeTimes, maxReconsumeTimes);
+                sendRetryMessageToDeadLetterQueueDirectly = true;
+            }
+
+            if (reconsumeTimes > maxReconsumeTimes || sendRetryMessageToDeadLetterQueueDirectly) {
+                Attributes attributes = this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
+                    .put(LABEL_CONSUMER_GROUP, requestHeader.getProducerGroup())
+                    .put(LABEL_TOPIC, requestHeader.getTopic())
+                    .put(LABEL_IS_SYSTEM, BrokerMetricsManager.isSystem(requestHeader.getTopic(), requestHeader.getProducerGroup()))
+                    .build();
+                this.brokerController.getBrokerMetricsManager().getSendToDlqMessages().add(1, attributes);
+
+                properties.put(MessageConst.PROPERTY_DELAY_TIME_LEVEL, "-1");
+                newTopic = MixAll.getDLQTopic(groupName);
+                int queueIdInt = randomQueueId(DLQ_NUMS_PER_GROUP);
+                topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic,
+                    DLQ_NUMS_PER_GROUP,
+                    PermName.PERM_WRITE | PermName.PERM_READ, 0
+                );
+                msg.setTopic(newTopic);
+                msg.setQueueId(queueIdInt);
+                msg.setDelayTimeLevel(0);
+                if (null == topicConfig) {
+                    response.setCode(ResponseCode.SYSTEM_ERROR);
+                    response.setRemark("topic[" + newTopic + "] not exist");
+                    return false;
+                }
+            }
         }
+        int sysFlag = requestHeader.getSysFlag();
+        if (TopicFilterType.MULTI_TAG == topicConfig.getTopicFilterType()) {
+            sysFlag |= MessageSysFlag.MULTI_TAGS_FLAG;
+        }
+        msg.setSysFlag(sysFlag);
+        return true;
     }
-    int sysFlag = requestHeader.getSysFlag();
-    if (TopicFilterType.MULTI_TAG == topicConfig.getTopicFilterType()) {
-        sysFlag |= MessageSysFlag.MULTI_TAGS_FLAG;
-    }
-    msg.setSysFlag(sysFlag);
-    return true;
 ```
 
 <strong>逐段阅读抓手：</strong>物理存储身份变化与业务事件身份不一致，这是重复处理设计的重要边界。
@@ -6033,82 +9083,90 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[PullAPIWrapper.java · L73–L145](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/PullAPIWrapper.java#L73-L145)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PullAPIWrapper.java · L73–L153](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/PullAPIWrapper.java#L73-L153)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult,
-    final SubscriptionData subscriptionData) {
-    PullResultExt pullResultExt = (PullResultExt) pullResult;
+    public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult,
+        final SubscriptionData subscriptionData) {
+        PullResultExt pullResultExt = (PullResultExt) pullResult;
 
-    this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
-    if (PullStatus.FOUND == pullResult.getPullStatus()) {
-        ByteBuffer byteBuffer = ByteBuffer.wrap(pullResultExt.getMessageBinary());
-        List<MessageExt> msgList = MessageDecoder.decodesBatch(
-            byteBuffer,
-            this.mQClientFactory.getClientConfig().isDecodeReadBody(),
-            this.mQClientFactory.getClientConfig().isDecodeDecompressBody(),
-            true
-        );
+        this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
+        if (PullStatus.FOUND == pullResult.getPullStatus()) {
+            ByteBuffer byteBuffer = ByteBuffer.wrap(pullResultExt.getMessageBinary());
+            List<MessageExt> msgList = MessageDecoder.decodesBatch(
+                byteBuffer,
+                this.mQClientFactory.getClientConfig().isDecodeReadBody(),
+                this.mQClientFactory.getClientConfig().isDecodeDecompressBody(),
+                true
+            );
 
-        boolean needDecodeInnerMessage = false;
-        for (MessageExt messageExt: msgList) {
-            if (MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)
-                && MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.NEED_UNWRAP_FLAG)) {
-                needDecodeInnerMessage = true;
-                break;
-            }
-        }
-        if (needDecodeInnerMessage) {
-            List<MessageExt> innerMsgList = new ArrayList<>();
-            try {
-                for (MessageExt messageExt: msgList) {
-                    if (MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)
-                        && MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.NEED_UNWRAP_FLAG)) {
-                        MessageDecoder.decodeMessage(messageExt, innerMsgList);
-                    } else {
-                        innerMsgList.add(messageExt);
-                    }
-                }
-                msgList = innerMsgList;
-            } catch (Throwable t) {
-                log.error("Try to decode the inner batch failed for {}", pullResult.toString(), t);
-            }
-        }
-
-        List<MessageExt> msgListFilterAgain = msgList;
-        if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
-            msgListFilterAgain = new ArrayList<>(msgList.size());
-            for (MessageExt msg : msgList) {
-                if (msg.getTags() != null) {
-                    if (subscriptionData.getTagsSet().contains(msg.getTags())) {
-                        msgListFilterAgain.add(msg);
-                    }
+            boolean needDecodeInnerMessage = false;
+            for (MessageExt messageExt: msgList) {
+                if (MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)
+                    && MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.NEED_UNWRAP_FLAG)) {
+                    needDecodeInnerMessage = true;
+                    break;
                 }
             }
+            if (needDecodeInnerMessage) {
+                List<MessageExt> innerMsgList = new ArrayList<>();
+                try {
+                    for (MessageExt messageExt: msgList) {
+                        if (MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)
+                            && MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.NEED_UNWRAP_FLAG)) {
+                            MessageDecoder.decodeMessage(messageExt, innerMsgList);
+                        } else {
+                            innerMsgList.add(messageExt);
+                        }
+                    }
+                    msgList = innerMsgList;
+                } catch (Throwable t) {
+                    log.error("Try to decode the inner batch failed for {}", pullResult.toString(), t);
+                }
+            }
+
+            List<MessageExt> msgListFilterAgain = msgList;
+            if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
+                msgListFilterAgain = new ArrayList<>(msgList.size());
+                for (MessageExt msg : msgList) {
+                    if (msg.getTags() != null) {
+                        if (subscriptionData.getTagsSet().contains(msg.getTags())) {
+                            msgListFilterAgain.add(msg);
+                        }
+                    }
+                }
+            }
+
+            if (this.hasHook()) {
+                FilterMessageContext filterMessageContext = new FilterMessageContext();
+                filterMessageContext.setUnitMode(unitMode);
+                filterMessageContext.setMsgList(msgListFilterAgain);
+                this.executeHook(filterMessageContext);
+            }
+
+            for (MessageExt msg : msgListFilterAgain) {
+                String traFlag = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
+                if (Boolean.parseBoolean(traFlag)) {
+                    msg.setTransactionId(msg.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
+                }
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MIN_OFFSET,
+                    Long.toString(pullResult.getMinOffset()));
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MAX_OFFSET,
+                    Long.toString(pullResult.getMaxOffset()));
+                msg.setBrokerName(mq.getBrokerName());
+                msg.setQueueId(mq.getQueueId());
+                if (pullResultExt.getOffsetDelta() != null) {
+                    msg.setQueueOffset(pullResultExt.getOffsetDelta() + msg.getQueueOffset());
+                }
+            }
+
+            pullResultExt.setMsgFoundList(msgListFilterAgain);
         }
 
-        if (this.hasHook()) {
-            FilterMessageContext filterMessageContext = new FilterMessageContext();
-            filterMessageContext.setUnitMode(unitMode);
-            filterMessageContext.setMsgList(msgListFilterAgain);
-            this.executeHook(filterMessageContext);
-        }
+        pullResultExt.setMessageBinary(null);
 
-        for (MessageExt msg : msgListFilterAgain) {
-            String traFlag = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
-            if (Boolean.parseBoolean(traFlag)) {
-                msg.setTransactionId(msg.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
-            }
-            MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MIN_OFFSET,
-                Long.toString(pullResult.getMinOffset()));
-            MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MAX_OFFSET,
-                Long.toString(pullResult.getMaxOffset()));
-            msg.setBrokerName(mq.getBrokerName());
-            msg.setQueueId(mq.getQueueId());
-            if (pullResultExt.getOffsetDelta() != null) {
-                msg.setQueueOffset(pullResultExt.getOffsetDelta() + msg.getQueueOffset());
-            }
-        }
+        return pullResult;
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>观察tagsSet.contains(msg.getTags())；不要把预筛选返回的候选全部当成最终匹配。
@@ -6303,69 +9361,142 @@ flowchart TB
  O --> V["后续检查用op跳过已处理half"]
 ```
 
-<strong>源码对照：</strong>[EndTransactionProcessor.java · L130–L189](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/EndTransactionProcessor.java#L130-L189)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[EndTransactionProcessor.java · L57–L189](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/EndTransactionProcessor.java#L57-L189)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-    if (MessageSysFlag.TRANSACTION_COMMIT_TYPE == requestHeader.getCommitOrRollback()) {
-        result = this.brokerController.getTransactionalMessageService().commitMessage(requestHeader);
-        if (result.getResponseCode() == ResponseCode.SUCCESS) {
-            if (rejectCommitOrRollback(requestHeader, result.getPrepareMessage())) {
-                response.setCode(ResponseCode.ILLEGAL_OPERATION);
-                LOGGER.warn("Message commit fail [producer end]. currentTimeMillis - bornTime > checkImmunityTime, msgId={},commitLogOffset={}, wait check",
-                        requestHeader.getMsgId(), requestHeader.getCommitLogOffset());
-                return response;
+    @Override
+    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request) throws
+        RemotingCommandException {
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        final EndTransactionRequestHeader requestHeader =
+            (EndTransactionRequestHeader) request.decodeCommandCustomHeader(EndTransactionRequestHeader.class);
+        LOGGER.debug("Transaction request:{}", requestHeader);
+        if (BrokerRole.SLAVE == brokerController.getMessageStoreConfig().getBrokerRole()) {
+            response.setCode(ResponseCode.SLAVE_NOT_AVAILABLE);
+            LOGGER.warn("Message store is slave mode, so end transaction is forbidden. ");
+            return response;
+        }
+
+        if (requestHeader.getFromTransactionCheck()) {
+            switch (requestHeader.getCommitOrRollback()) {
+                case MessageSysFlag.TRANSACTION_NOT_TYPE: {
+                    LOGGER.warn("Check producer[{}] transaction state, but it's pending status."
+                            + "RequestHeader: {} Remark: {}",
+                        RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
+                        requestHeader.toString(),
+                        request.getRemark());
+                    return null;
+                }
+
+                case MessageSysFlag.TRANSACTION_COMMIT_TYPE: {
+                    LOGGER.warn("Check producer[{}] transaction state, the producer commit the message."
+                            + "RequestHeader: {} Remark: {}",
+                        RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
+                        requestHeader.toString(),
+                        request.getRemark());
+
+                    break;
+                }
+
+                case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE: {
+                    LOGGER.warn("Check producer[{}] transaction state, the producer rollback the message."
+                            + "RequestHeader: {} Remark: {}",
+                        RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
+                        requestHeader.toString(),
+                        request.getRemark());
+                    break;
+                }
+                default:
+                    return null;
             }
-            RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
-            if (res.getCode() == ResponseCode.SUCCESS) {
-                MessageExtBrokerInner msgInner = endMessageTransaction(result.getPrepareMessage());
-                msgInner.setSysFlag(MessageSysFlag.resetTransactionValue(msgInner.getSysFlag(), requestHeader.getCommitOrRollback()));
-                msgInner.setQueueOffset(requestHeader.getTranStateTableOffset());
-                msgInner.setPreparedTransactionOffset(requestHeader.getCommitLogOffset());
-                msgInner.setStoreTimestamp(result.getPrepareMessage().getStoreTimestamp());
-                MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_TRANSACTION_PREPARED);
-                RemotingCommand sendResult = sendFinalMessage(msgInner);
-                if (sendResult.getCode() == ResponseCode.SUCCESS) {
+        } else {
+            switch (requestHeader.getCommitOrRollback()) {
+                case MessageSysFlag.TRANSACTION_NOT_TYPE: {
+                    LOGGER.warn("The producer[{}] end transaction in sending message,  and it's pending status."
+                            + "RequestHeader: {} Remark: {}",
+                        RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
+                        requestHeader.toString(),
+                        request.getRemark());
+                    return null;
+                }
+
+                case MessageSysFlag.TRANSACTION_COMMIT_TYPE: {
+                    break;
+                }
+
+                case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE: {
+                    LOGGER.warn("The producer[{}] end transaction in sending message, rollback the message."
+                            + "RequestHeader: {} Remark: {}",
+                        RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
+                        requestHeader.toString(),
+                        request.getRemark());
+                    break;
+                }
+                default:
+                    return null;
+            }
+        }
+        OperationResult result = new OperationResult();
+        if (MessageSysFlag.TRANSACTION_COMMIT_TYPE == requestHeader.getCommitOrRollback()) {
+            result = this.brokerController.getTransactionalMessageService().commitMessage(requestHeader);
+            if (result.getResponseCode() == ResponseCode.SUCCESS) {
+                if (rejectCommitOrRollback(requestHeader, result.getPrepareMessage())) {
+                    response.setCode(ResponseCode.ILLEGAL_OPERATION);
+                    LOGGER.warn("Message commit fail [producer end]. currentTimeMillis - bornTime > checkImmunityTime, msgId={},commitLogOffset={}, wait check",
+                            requestHeader.getMsgId(), requestHeader.getCommitLogOffset());
+                    return response;
+                }
+                RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
+                if (res.getCode() == ResponseCode.SUCCESS) {
+                    MessageExtBrokerInner msgInner = endMessageTransaction(result.getPrepareMessage());
+                    msgInner.setSysFlag(MessageSysFlag.resetTransactionValue(msgInner.getSysFlag(), requestHeader.getCommitOrRollback()));
+                    msgInner.setQueueOffset(requestHeader.getTranStateTableOffset());
+                    msgInner.setPreparedTransactionOffset(requestHeader.getCommitLogOffset());
+                    msgInner.setStoreTimestamp(result.getPrepareMessage().getStoreTimestamp());
+                    MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_TRANSACTION_PREPARED);
+                    RemotingCommand sendResult = sendFinalMessage(msgInner);
+                    if (sendResult.getCode() == ResponseCode.SUCCESS) {
+                        this.brokerController.getTransactionalMessageService().deletePrepareMessage(result.getPrepareMessage());
+                        // successful committed, then total num of half-messages minus 1
+                        this.brokerController.getTransactionalMessageService().getTransactionMetrics().addAndGet(msgInner.getTopic(), -1);
+                        this.brokerController.getBrokerMetricsManager().getCommitMessagesTotal().add(1, this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
+                                .put(LABEL_TOPIC, msgInner.getTopic())
+                                .build());
+                        // record the commit latency.
+                        Long commitLatency = (System.currentTimeMillis() - result.getPrepareMessage().getBornTimestamp()) / 1000;
+                        this.brokerController.getBrokerMetricsManager().getTransactionFinishLatency().record(commitLatency, this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
+                                .put(LABEL_TOPIC, msgInner.getTopic())
+                                .build());
+                    }
+                    return sendResult;
+                }
+                return res;
+            }
+        } else if (MessageSysFlag.TRANSACTION_ROLLBACK_TYPE == requestHeader.getCommitOrRollback()) {
+            result = this.brokerController.getTransactionalMessageService().rollbackMessage(requestHeader);
+            if (result.getResponseCode() == ResponseCode.SUCCESS) {
+                if (rejectCommitOrRollback(requestHeader, result.getPrepareMessage())) {
+                    response.setCode(ResponseCode.ILLEGAL_OPERATION);
+                    LOGGER.warn("Message rollback fail [producer end]. currentTimeMillis - bornTime > checkImmunityTime, msgId={},commitLogOffset={}, wait check",
+                            requestHeader.getMsgId(), requestHeader.getCommitLogOffset());
+                    return response;
+                }
+                RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
+                if (res.getCode() == ResponseCode.SUCCESS) {
                     this.brokerController.getTransactionalMessageService().deletePrepareMessage(result.getPrepareMessage());
-                    // successful committed, then total num of half-messages minus 1
-                    this.brokerController.getTransactionalMessageService().getTransactionMetrics().addAndGet(msgInner.getTopic(), -1);
-                    this.brokerController.getBrokerMetricsManager().getCommitMessagesTotal().add(1, this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
-                            .put(LABEL_TOPIC, msgInner.getTopic())
-                            .build());
-                    // record the commit latency.
-                    Long commitLatency = (System.currentTimeMillis() - result.getPrepareMessage().getBornTimestamp()) / 1000;
-                    this.brokerController.getBrokerMetricsManager().getTransactionFinishLatency().record(commitLatency, this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
-                            .put(LABEL_TOPIC, msgInner.getTopic())
+                    // roll back, then total num of half-messages minus 1
+                    this.brokerController.getTransactionalMessageService().getTransactionMetrics().addAndGet(result.getPrepareMessage().getProperty(MessageConst.PROPERTY_REAL_TOPIC), -1);
+                    this.brokerController.getBrokerMetricsManager().getRollBackMessagesTotal().add(1, this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
+                            .put(LABEL_TOPIC, result.getPrepareMessage().getProperty(MessageConst.PROPERTY_REAL_TOPIC))
                             .build());
                 }
-                return sendResult;
+                return res;
             }
-            return res;
         }
-    } else if (MessageSysFlag.TRANSACTION_ROLLBACK_TYPE == requestHeader.getCommitOrRollback()) {
-        result = this.brokerController.getTransactionalMessageService().rollbackMessage(requestHeader);
-        if (result.getResponseCode() == ResponseCode.SUCCESS) {
-            if (rejectCommitOrRollback(requestHeader, result.getPrepareMessage())) {
-                response.setCode(ResponseCode.ILLEGAL_OPERATION);
-                LOGGER.warn("Message rollback fail [producer end]. currentTimeMillis - bornTime > checkImmunityTime, msgId={},commitLogOffset={}, wait check",
-                        requestHeader.getMsgId(), requestHeader.getCommitLogOffset());
-                return response;
-            }
-            RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
-            if (res.getCode() == ResponseCode.SUCCESS) {
-                this.brokerController.getTransactionalMessageService().deletePrepareMessage(result.getPrepareMessage());
-                // roll back, then total num of half-messages minus 1
-                this.brokerController.getTransactionalMessageService().getTransactionMetrics().addAndGet(result.getPrepareMessage().getProperty(MessageConst.PROPERTY_REAL_TOPIC), -1);
-                this.brokerController.getBrokerMetricsManager().getRollBackMessagesTotal().add(1, this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
-                        .put(LABEL_TOPIC, result.getPrepareMessage().getProperty(MessageConst.PROPERTY_REAL_TOPIC))
-                        .build());
-            }
-            return res;
-        }
+        response.setCode(result.getResponseCode());
+        response.setRemark(result.getResponseRemark());
+        return response;
     }
-    response.setCode(result.getResponseCode());
-    response.setRemark(result.getResponseRemark());
-    return response;
-}
 ```
 
 <strong>逐段阅读抓手：</strong>看sendFinalMessage结果与deletePrepareMessage的先后；失败不能提前当作提交成功。
@@ -6387,98 +9518,203 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[TransactionalMessageServiceImpl.java · L161–L249](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L161-L249)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[TransactionalMessageServiceImpl.java · L161–L354](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L161-L354)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-@Override
-public void check(long transactionTimeout, int transactionCheckMax,
-    AbstractTransactionalMessageCheckListener listener) {
-    try {
-        String topic = TopicValidator.RMQ_SYS_TRANS_HALF_TOPIC;
-        Set<MessageQueue> msgQueues = transactionalMessageBridge.fetchMessageQueues(topic);
-        if (msgQueues == null || msgQueues.size() == 0) {
-            log.warn("The queue of topic is empty :" + topic);
-            return;
-        }
-        log.debug("Check topic={}, queues={}", topic, msgQueues);
-        for (MessageQueue messageQueue : msgQueues) {
-            long startTime = System.currentTimeMillis();
-            MessageQueue opQueue = getOpQueue(messageQueue);
-            long halfOffset = transactionalMessageBridge.fetchConsumeOffset(messageQueue);
-            long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);
-            log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
-            if (halfOffset < 0 || opOffset < 0) {
-                log.error("MessageQueue: {} illegal offset read: {}, op offset: {},skip this queue", messageQueue,
-                    halfOffset, opOffset);
-                continue;
+    @Override
+    public void check(long transactionTimeout, int transactionCheckMax,
+        AbstractTransactionalMessageCheckListener listener) {
+        try {
+            String topic = TopicValidator.RMQ_SYS_TRANS_HALF_TOPIC;
+            Set<MessageQueue> msgQueues = transactionalMessageBridge.fetchMessageQueues(topic);
+            if (msgQueues == null || msgQueues.size() == 0) {
+                log.warn("The queue of topic is empty :" + topic);
+                return;
             }
-
-            List<Long> doneOpOffset = new ArrayList<>();
-            HashMap<Long, Long> removeMap = new HashMap<>();
-            HashMap<Long, HashSet<Long>> opMsgMap = new HashMap<Long, HashSet<Long>>();
-            PullResult pullResult = fillOpRemoveMap(removeMap, opQueue, opOffset, halfOffset, opMsgMap, doneOpOffset);
-            if (null == pullResult) {
-                log.error("The queue={} check msgOffset={} with opOffset={} failed, pullResult is null",
-                    messageQueue, halfOffset, opOffset);
-                continue;
-            }
-            // single thread
-            int getMessageNullCount = 1;
-            long newOffset = halfOffset;
-            long i = halfOffset;
-            long nextOpOffset = pullResult.getNextBeginOffset();
-            int putInQueueCount = 0;
-            int escapeFailCnt = 0;
-
-            while (true) {
-                if (System.currentTimeMillis() - startTime > MAX_PROCESS_TIME_LIMIT) {
-                    log.info("Queue={} process time reach max={}", messageQueue, MAX_PROCESS_TIME_LIMIT);
-                    break;
+            log.debug("Check topic={}, queues={}", topic, msgQueues);
+            for (MessageQueue messageQueue : msgQueues) {
+                long startTime = System.currentTimeMillis();
+                MessageQueue opQueue = getOpQueue(messageQueue);
+                long halfOffset = transactionalMessageBridge.fetchConsumeOffset(messageQueue);
+                long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);
+                log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
+                if (halfOffset < 0 || opOffset < 0) {
+                    log.error("MessageQueue: {} illegal offset read: {}, op offset: {},skip this queue", messageQueue,
+                        halfOffset, opOffset);
+                    continue;
                 }
-                Long removedOpOffset;
-                if ((removedOpOffset = removeMap.remove(i)) != null) {
-                    log.debug("Half offset {} has been committed/rolled back", i);
-                    opMsgMap.get(removedOpOffset).remove(i);
-                    if (opMsgMap.get(removedOpOffset).size() == 0) {
-                        opMsgMap.remove(removedOpOffset);
-                        doneOpOffset.add(removedOpOffset);
+
+                List<Long> doneOpOffset = new ArrayList<>();
+                HashMap<Long, Long> removeMap = new HashMap<>();
+                HashMap<Long, HashSet<Long>> opMsgMap = new HashMap<Long, HashSet<Long>>();
+                PullResult pullResult = fillOpRemoveMap(removeMap, opQueue, opOffset, halfOffset, opMsgMap, doneOpOffset);
+                if (null == pullResult) {
+                    log.error("The queue={} check msgOffset={} with opOffset={} failed, pullResult is null",
+                        messageQueue, halfOffset, opOffset);
+                    continue;
+                }
+                // single thread
+                int getMessageNullCount = 1;
+                long newOffset = halfOffset;
+                long i = halfOffset;
+                long nextOpOffset = pullResult.getNextBeginOffset();
+                int putInQueueCount = 0;
+                int escapeFailCnt = 0;
+
+                while (true) {
+                    if (System.currentTimeMillis() - startTime > MAX_PROCESS_TIME_LIMIT) {
+                        log.info("Queue={} process time reach max={}", messageQueue, MAX_PROCESS_TIME_LIMIT);
+                        break;
                     }
-                } else {
-                    GetResult getResult = getHalfMsg(messageQueue, i);
-                    MessageExt msgExt = getResult.getMsg();
-                    if (msgExt == null) {
-                        if (getMessageNullCount++ > MAX_RETRY_COUNT_WHEN_HALF_NULL) {
+                    Long removedOpOffset;
+                    if ((removedOpOffset = removeMap.remove(i)) != null) {
+                        log.debug("Half offset {} has been committed/rolled back", i);
+                        opMsgMap.get(removedOpOffset).remove(i);
+                        if (opMsgMap.get(removedOpOffset).size() == 0) {
+                            opMsgMap.remove(removedOpOffset);
+                            doneOpOffset.add(removedOpOffset);
+                        }
+                    } else {
+                        GetResult getResult = getHalfMsg(messageQueue, i);
+                        MessageExt msgExt = getResult.getMsg();
+                        if (msgExt == null) {
+                            if (getMessageNullCount++ > MAX_RETRY_COUNT_WHEN_HALF_NULL) {
+                                break;
+                            }
+                            if (getResult.getPullResult().getPullStatus() == PullStatus.NO_NEW_MSG) {
+                                log.debug("No new msg, the miss offset={} in={}, continue check={}, pull result={}", i,
+                                    messageQueue, getMessageNullCount, getResult.getPullResult());
+                                break;
+                            } else {
+                                log.info("Illegal offset, the miss offset={} in={}, continue check={}, pull result={}",
+                                    i, messageQueue, getMessageNullCount, getResult.getPullResult());
+                                i = getResult.getPullResult().getNextBeginOffset();
+                                newOffset = i;
+                                continue;
+                            }
+                        }
+
+                        if (this.transactionalMessageBridge.getBrokerController().getBrokerConfig().isEnableSlaveActingMaster()
+                            && this.transactionalMessageBridge.getBrokerController().getMinBrokerIdInGroup()
+                            == this.transactionalMessageBridge.getBrokerController().getBrokerIdentity().getBrokerId()
+                            && BrokerRole.SLAVE.equals(this.transactionalMessageBridge.getBrokerController().getMessageStoreConfig().getBrokerRole())
+                        ) {
+                            final MessageExtBrokerInner msgInner = this.transactionalMessageBridge.renewHalfMessageInner(msgExt);
+                            final boolean isSuccess = this.transactionalMessageBridge.escapeMessage(msgInner);
+
+                            if (isSuccess) {
+                                escapeFailCnt = 0;
+                                newOffset = i + 1;
+                                i++;
+                            } else {
+                                log.warn("Escaping transactional message failed {} times! msgId(offsetId)={}, UNIQ_KEY(transactionId)={}",
+                                    escapeFailCnt + 1,
+                                    msgExt.getMsgId(),
+                                    msgExt.getUserProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
+                                if (escapeFailCnt < MAX_RETRY_TIMES_FOR_ESCAPE) {
+                                    escapeFailCnt++;
+                                    Thread.sleep(100L * (2 ^ escapeFailCnt));
+                                } else {
+                                    escapeFailCnt = 0;
+                                    newOffset = i + 1;
+                                    i++;
+                                }
+                            }
+                            continue;
+                        }
+
+                        if (needDiscard(msgExt, transactionCheckMax) || needSkip(msgExt)) {
+                            listener.resolveDiscardMsg(msgExt);
+                            newOffset = i + 1;
+                            i++;
+                            continue;
+                        }
+                        if (msgExt.getStoreTimestamp() >= startTime) {
+                            log.debug("Fresh stored. the miss offset={}, check it later, store={}", i,
+                                new Date(msgExt.getStoreTimestamp()));
                             break;
                         }
-                        if (getResult.getPullResult().getPullStatus() == PullStatus.NO_NEW_MSG) {
-                            log.debug("No new msg, the miss offset={} in={}, continue check={}, pull result={}", i,
-                                messageQueue, getMessageNullCount, getResult.getPullResult());
-                            break;
+
+                        long valueOfCurrentMinusBorn = System.currentTimeMillis() - msgExt.getBornTimestamp();
+                        long checkImmunityTime = transactionTimeout;
+                        String checkImmunityTimeStr = msgExt.getUserProperty(MessageConst.PROPERTY_CHECK_IMMUNITY_TIME_IN_SECONDS);
+                        if (null != checkImmunityTimeStr) {
+                            checkImmunityTime = getImmunityTime(checkImmunityTimeStr, transactionTimeout);
+                            if (valueOfCurrentMinusBorn <= checkImmunityTime) {
+                                if (checkPrepareQueueOffset(removeMap, doneOpOffset, msgExt, checkImmunityTimeStr)) {
+                                    newOffset = i + 1;
+                                    i++;
+                                    continue;
+                                }
+                            }
                         } else {
-                            log.info("Illegal offset, the miss offset={} in={}, continue check={}, pull result={}",
-                                i, messageQueue, getMessageNullCount, getResult.getPullResult());
-                            i = getResult.getPullResult().getNextBeginOffset();
-                            newOffset = i;
+                            if (0 <= valueOfCurrentMinusBorn && valueOfCurrentMinusBorn <= checkImmunityTime) {
+                                log.debug("New arrived, the miss offset={}, check it later checkImmunity={}, born={}", i,
+                                    checkImmunityTime, new Date(msgExt.getBornTimestamp()));
+                                break;
+                            }
+                        }
+                        List<MessageExt> opMsg = pullResult == null ? null : pullResult.getMsgFoundList();
+                        boolean isNeedCheck = opMsg == null && valueOfCurrentMinusBorn > checkImmunityTime
+                            || opMsg != null && opMsg.get(opMsg.size() - 1).getBornTimestamp() - startTime > transactionTimeout
+                            || valueOfCurrentMinusBorn <= -1;
+
+                        if (isNeedCheck) {
+
+                            if (!putBackHalfMsgQueue(msgExt, i)) {
+                                continue;
+                            }
+                            putInQueueCount++;
+                            log.info("Check transaction. real_topic={},uniqKey={},offset={},commitLogOffset={}",
+                                    msgExt.getUserProperty(MessageConst.PROPERTY_REAL_TOPIC),
+                                    msgExt.getUserProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX),
+                                    msgExt.getQueueOffset(), msgExt.getCommitLogOffset());
+                            listener.resolveHalfMsg(msgExt);
+                        } else {
+                            nextOpOffset = pullResult != null ? pullResult.getNextBeginOffset() : nextOpOffset;
+                            pullResult = fillOpRemoveMap(removeMap, opQueue, nextOpOffset,
+                                    halfOffset, opMsgMap, doneOpOffset);
+                            if (pullResult == null || pullResult.getPullStatus() == PullStatus.NO_NEW_MSG
+                                    || pullResult.getPullStatus() == PullStatus.OFFSET_ILLEGAL
+                                    || pullResult.getPullStatus() == PullStatus.NO_MATCHED_MSG) {
+
+                                try {
+                                    Thread.sleep(SLEEP_WHILE_NO_OP);
+                                } catch (Throwable ignored) {
+                                }
+
+                            } else {
+                                log.info("The miss message offset:{}, pullOffsetOfOp:{}, miniOffset:{} get more opMsg.", i, nextOpOffset, halfOffset);
+                            }
+
                             continue;
                         }
                     }
+                    newOffset = i + 1;
+                    i++;
+                }
+                if (newOffset != halfOffset) {
+                    transactionalMessageBridge.updateConsumeOffset(messageQueue, newOffset);
+                }
+                long newOpOffset = calculateOpOffset(doneOpOffset, opOffset);
+                if (newOpOffset != opOffset) {
+                    transactionalMessageBridge.updateConsumeOffset(opQueue, newOpOffset);
+                }
+                GetResult getResult = getHalfMsg(messageQueue, newOffset);
+                pullResult = pullOpMsg(opQueue, newOpOffset, 1);
+                long maxMsgOffset = getResult.getPullResult() == null ? newOffset : getResult.getPullResult().getMaxOffset();
+                long maxOpOffset = pullResult == null ? newOpOffset : pullResult.getMaxOffset();
+                long msgTime = getResult.getMsg() == null ? System.currentTimeMillis() : getResult.getMsg().getStoreTimestamp();
 
-                    if (this.transactionalMessageBridge.getBrokerController().getBrokerConfig().isEnableSlaveActingMaster()
-                        && this.transactionalMessageBridge.getBrokerController().getMinBrokerIdInGroup()
-                        == this.transactionalMessageBridge.getBrokerController().getBrokerIdentity().getBrokerId()
-                        && BrokerRole.SLAVE.equals(this.transactionalMessageBridge.getBrokerController().getMessageStoreConfig().getBrokerRole())
-                    ) {
-                        final MessageExtBrokerInner msgInner = this.transactionalMessageBridge.renewHalfMessageInner(msgExt);
-                        final boolean isSuccess = this.transactionalMessageBridge.escapeMessage(msgInner);
+                log.info("After check, {} opOffset={} opOffsetDiff={} msgOffset={} msgOffsetDiff={} msgTime={} msgTimeDelayInMs={} putInQueueCount={}",
+                        messageQueue, newOpOffset, maxOpOffset - newOpOffset, newOffset, maxMsgOffset - newOffset, new Date(msgTime),
+                        System.currentTimeMillis() - msgTime, putInQueueCount);
+            }
+        } catch (Throwable e) {
+            log.error("Check error", e);
+        }
 
-                        if (isSuccess) {
-                            escapeFailCnt = 0;
-                            newOffset = i + 1;
-                            i++;
-                        } else {
-                            log.warn("Escaping transactional message failed {} times! msgId(offsetId)={}, UNIQ_KEY(transactionId)={}",
-                                escapeFailCnt + 1,
-                                msgExt.getMsgId(),
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>阅读removeMap、checkOffset与opOffset推进；跳过不等于从物理日志删除。
@@ -6829,42 +10065,43 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[ScheduleMessageService.java · L276–L308](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/schedule/ScheduleMessageService.java#L276-L308)，连续节选。
+<strong>4.9.8源码：</strong>[ScheduleMessageService.java · L276–L309](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/schedule/ScheduleMessageService.java#L276-L309)，连续节选。
 
 ```java
-public boolean parseDelayLevel() {
-    HashMap<String, Long> timeUnitTable = new HashMap<String, Long>();
-    timeUnitTable.put("s", 1000L);
-    timeUnitTable.put("m", 1000L * 60);
-    timeUnitTable.put("h", 1000L * 60 * 60);
-    timeUnitTable.put("d", 1000L * 60 * 60 * 24);
+    public boolean parseDelayLevel() {
+        HashMap<String, Long> timeUnitTable = new HashMap<String, Long>();
+        timeUnitTable.put("s", 1000L);
+        timeUnitTable.put("m", 1000L * 60);
+        timeUnitTable.put("h", 1000L * 60 * 60);
+        timeUnitTable.put("d", 1000L * 60 * 60 * 24);
 
-    String levelString = this.defaultMessageStore.getMessageStoreConfig().getMessageDelayLevel();
-    try {
-        String[] levelArray = levelString.split(" ");
-        for (int i = 0; i < levelArray.length; i++) {
-            String value = levelArray[i];
-            String ch = value.substring(value.length() - 1);
-            Long tu = timeUnitTable.get(ch);
+        String levelString = this.defaultMessageStore.getMessageStoreConfig().getMessageDelayLevel();
+        try {
+            String[] levelArray = levelString.split(" ");
+            for (int i = 0; i < levelArray.length; i++) {
+                String value = levelArray[i];
+                String ch = value.substring(value.length() - 1);
+                Long tu = timeUnitTable.get(ch);
 
-            int level = i + 1;
-            if (level > this.maxDelayLevel) {
-                this.maxDelayLevel = level;
+                int level = i + 1;
+                if (level > this.maxDelayLevel) {
+                    this.maxDelayLevel = level;
+                }
+                long num = Long.parseLong(value.substring(0, value.length() - 1));
+                long delayTimeMillis = tu * num;
+                this.delayLevelTable.put(level, delayTimeMillis);
+                if (this.enableAsyncDeliver) {
+                    this.deliverPendingTable.put(level, new LinkedBlockingQueue<>());
+                }
             }
-            long num = Long.parseLong(value.substring(0, value.length() - 1));
-            long delayTimeMillis = tu * num;
-            this.delayLevelTable.put(level, delayTimeMillis);
-            if (this.enableAsyncDeliver) {
-                this.deliverPendingTable.put(level, new LinkedBlockingQueue<>());
-            }
+        } catch (Exception e) {
+            log.error("parseDelayLevel exception", e);
+            log.info("levelString String = {}", levelString);
+            return false;
         }
-    } catch (Exception e) {
-        log.error("parseDelayLevel exception", e);
-        log.info("levelString String = {}", levelString);
-        return false;
-    }
 
-    return true;
+        return true;
+    }
 ```
 
 <strong>5.3.4源码：</strong>[TimerMessageStore.java · L830–L871](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java#L830-L871)，连续节选。
@@ -6992,70 +10229,160 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DefaultHAConnection.java · L256–L316](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAConnection.java#L256-L316)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultHAConnection.java · L256–L406](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAConnection.java#L256-L406)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-class WriteSocketService extends ServiceThread {
-    private final Selector selector;
-    private final SocketChannel socketChannel;
+    class WriteSocketService extends ServiceThread {
+        private final Selector selector;
+        private final SocketChannel socketChannel;
 
-    private final ByteBuffer byteBufferHeader = ByteBuffer.allocate(TRANSFER_HEADER_SIZE);
-    private long nextTransferFromWhere = -1;
-    private SelectMappedBufferResult selectMappedBufferResult;
-    private boolean lastWriteOver = true;
-    private long lastPrintTimestamp = System.currentTimeMillis();
-    private long lastWriteTimestamp = System.currentTimeMillis();
+        private final ByteBuffer byteBufferHeader = ByteBuffer.allocate(TRANSFER_HEADER_SIZE);
+        private long nextTransferFromWhere = -1;
+        private SelectMappedBufferResult selectMappedBufferResult;
+        private boolean lastWriteOver = true;
+        private long lastPrintTimestamp = System.currentTimeMillis();
+        private long lastWriteTimestamp = System.currentTimeMillis();
 
-    public WriteSocketService(final SocketChannel socketChannel) throws IOException {
-        this.selector = NetworkUtil.openSelector();
-        this.socketChannel = socketChannel;
-        this.socketChannel.register(this.selector, SelectionKey.OP_WRITE);
-        this.setDaemon(true);
-    }
+        public WriteSocketService(final SocketChannel socketChannel) throws IOException {
+            this.selector = NetworkUtil.openSelector();
+            this.socketChannel = socketChannel;
+            this.socketChannel.register(this.selector, SelectionKey.OP_WRITE);
+            this.setDaemon(true);
+        }
 
-    @Override
-    public void run() {
-        log.info(this.getServiceName() + " service started");
+        @Override
+        public void run() {
+            log.info(this.getServiceName() + " service started");
 
-        while (!this.isStopped()) {
-            try {
-                this.selector.select(1000);
+            while (!this.isStopped()) {
+                try {
+                    this.selector.select(1000);
 
-                if (-1 == DefaultHAConnection.this.slaveRequestOffset) {
-                    Thread.sleep(10);
-                    continue;
-                }
-
-                if (-1 == this.nextTransferFromWhere) {
-                    if (0 == DefaultHAConnection.this.slaveRequestOffset) {
-                        long masterOffset = DefaultHAConnection.this.haService.getDefaultMessageStore().getCommitLog().getMaxOffset();
-                        masterOffset =
-                            masterOffset
-                                - (masterOffset % DefaultHAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig()
-                                .getMappedFileSizeCommitLog());
-
-                        if (masterOffset < 0) {
-                            masterOffset = 0;
-                        }
-
-                        this.nextTransferFromWhere = masterOffset;
-                    } else {
-                        this.nextTransferFromWhere = DefaultHAConnection.this.slaveRequestOffset;
+                    if (-1 == DefaultHAConnection.this.slaveRequestOffset) {
+                        Thread.sleep(10);
+                        continue;
                     }
 
-                    log.info("master transfer data from " + this.nextTransferFromWhere + " to slave[" + DefaultHAConnection.this.clientAddress
-                        + "], and slave request " + DefaultHAConnection.this.slaveRequestOffset);
-                }
+                    if (-1 == this.nextTransferFromWhere) {
+                        if (0 == DefaultHAConnection.this.slaveRequestOffset) {
+                            long masterOffset = DefaultHAConnection.this.haService.getDefaultMessageStore().getCommitLog().getMaxOffset();
+                            masterOffset =
+                                masterOffset
+                                    - (masterOffset % DefaultHAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig()
+                                    .getMappedFileSizeCommitLog());
 
-                if (this.lastWriteOver) {
+                            if (masterOffset < 0) {
+                                masterOffset = 0;
+                            }
 
-                    long interval =
-                        DefaultHAConnection.this.haService.getDefaultMessageStore().getSystemClock().now() - this.lastWriteTimestamp;
+                            this.nextTransferFromWhere = masterOffset;
+                        } else {
+                            this.nextTransferFromWhere = DefaultHAConnection.this.slaveRequestOffset;
+                        }
 
-                    if (interval > DefaultHAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig()
-                        .getHaSendHeartbeatInterval()) {
+                        log.info("master transfer data from " + this.nextTransferFromWhere + " to slave[" + DefaultHAConnection.this.clientAddress
+                            + "], and slave request " + DefaultHAConnection.this.slaveRequestOffset);
+                    }
+
+                    if (this.lastWriteOver) {
+
+                        long interval =
+                            DefaultHAConnection.this.haService.getDefaultMessageStore().getSystemClock().now() - this.lastWriteTimestamp;
+
+                        if (interval > DefaultHAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig()
+                            .getHaSendHeartbeatInterval()) {
+
+                            // Build Header
+                            this.byteBufferHeader.position(0);
+                            this.byteBufferHeader.limit(TRANSFER_HEADER_SIZE);
+                            this.byteBufferHeader.putLong(this.nextTransferFromWhere);
+                            this.byteBufferHeader.putInt(0);
+                            this.byteBufferHeader.flip();
+
+                            this.lastWriteOver = this.transferData();
+                            if (!this.lastWriteOver)
+                                continue;
+                        }
+                    } else {
+                        this.lastWriteOver = this.transferData();
+                        if (!this.lastWriteOver)
+                            continue;
+                    }
+
+                    SelectMappedBufferResult selectResult =
+                        DefaultHAConnection.this.haService.getDefaultMessageStore().getCommitLogData(this.nextTransferFromWhere);
+                    if (selectResult != null) {
+                        int size = selectResult.getSize();
+                        if (size > DefaultHAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig().getHaTransferBatchSize()) {
+                            size = DefaultHAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig().getHaTransferBatchSize();
+                        }
+
+                        int canTransferMaxBytes = flowMonitor.canTransferMaxByteNum();
+                        if (size > canTransferMaxBytes) {
+                            if (System.currentTimeMillis() - lastPrintTimestamp > 1000) {
+                                log.warn("Trigger HA flow control, max transfer speed {}KB/s, current speed: {}KB/s",
+                                    String.format("%.2f", flowMonitor.maxTransferByteInSecond() / 1024.0),
+                                    String.format("%.2f", flowMonitor.getTransferredByteInSecond() / 1024.0));
+                                lastPrintTimestamp = System.currentTimeMillis();
+                            }
+                            size = canTransferMaxBytes;
+                        }
+
+                        long thisOffset = this.nextTransferFromWhere;
+                        this.nextTransferFromWhere += size;
+
+                        selectResult.getByteBuffer().limit(size);
+                        this.selectMappedBufferResult = selectResult;
 
                         // Build Header
+                        this.byteBufferHeader.position(0);
+                        this.byteBufferHeader.limit(TRANSFER_HEADER_SIZE);
+                        this.byteBufferHeader.putLong(thisOffset);
+                        this.byteBufferHeader.putInt(size);
+                        this.byteBufferHeader.flip();
+
+                        this.lastWriteOver = this.transferData();
+                    } else {
+
+                        DefaultHAConnection.this.haService.getWaitNotifyObject().allWaitForRunning(100);
+                    }
+                } catch (Exception e) {
+
+                    DefaultHAConnection.log.error(this.getServiceName() + " service has exception.", e);
+                    break;
+                }
+            }
+
+            DefaultHAConnection.this.haService.getWaitNotifyObject().removeFromWaitingThreadTable();
+
+            if (this.selectMappedBufferResult != null) {
+                this.selectMappedBufferResult.release();
+            }
+
+            changeCurrentState(HAConnectionState.SHUTDOWN);
+
+            this.makeStop();
+
+            readSocketService.makeStop();
+
+            haService.removeConnection(DefaultHAConnection.this);
+
+            SelectionKey sk = this.socketChannel.keyFor(this.selector);
+            if (sk != null) {
+                sk.cancel();
+            }
+
+            try {
+                this.selector.close();
+                this.socketChannel.close();
+            } catch (IOException e) {
+                DefaultHAConnection.log.error("", e);
+            }
+
+            flowMonitor.shutdown(true);
+
+            DefaultHAConnection.log.info(this.getServiceName() + " service end");
+        }
 ```
 
 <strong>逐段阅读抓手：</strong>看header与body的剩余字节、释放SelectMappedBufferResult的时机。
@@ -7287,80 +10614,111 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DLedgerCommitLog.java · L538–L608](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L538-L608)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DLedgerCommitLog.java · L538–L639](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L538-L639)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-@Override
-public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
+    @Override
+    public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
 
-    StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
 
-    final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
+        final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
 
-    setMessageInfo(msg, tranType);
+        setMessageInfo(msg, tranType);
 
-    final String finalTopic = msg.getTopic();
+        final String finalTopic = msg.getTopic();
 
-    msg.setVersion(MessageVersion.MESSAGE_VERSION_V1);
-    boolean autoMessageVersionOnTopicLen =
-        this.defaultMessageStore.getMessageStoreConfig().isAutoMessageVersionOnTopicLen();
-    if (autoMessageVersionOnTopicLen && msg.getTopic().length() > Byte.MAX_VALUE) {
-        msg.setVersion(MessageVersion.MESSAGE_VERSION_V2);
-    }
+        msg.setVersion(MessageVersion.MESSAGE_VERSION_V1);
+        boolean autoMessageVersionOnTopicLen =
+            this.defaultMessageStore.getMessageStoreConfig().isAutoMessageVersionOnTopicLen();
+        if (autoMessageVersionOnTopicLen && msg.getTopic().length() > Byte.MAX_VALUE) {
+            msg.setVersion(MessageVersion.MESSAGE_VERSION_V2);
+        }
 
-    // Back to Results
-    AppendMessageResult appendResult;
-    AppendFuture<AppendEntryResponse> dledgerFuture;
-    EncodeResult encodeResult;
+        // Back to Results
+        AppendMessageResult appendResult;
+        AppendFuture<AppendEntryResponse> dledgerFuture;
+        EncodeResult encodeResult;
 
-    encodeResult = this.messageSerializer.serialize(msg);
-    if (encodeResult.status != AppendMessageStatus.PUT_OK) {
-        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, new AppendMessageResult(encodeResult.status)));
-    }
+        encodeResult = this.messageSerializer.serialize(msg);
+        if (encodeResult.status != AppendMessageStatus.PUT_OK) {
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, new AppendMessageResult(encodeResult.status)));
+        }
 
-    String topicQueueKey = msg.getTopic() + "-" + msg.getQueueId();
-    topicQueueLock.lock(topicQueueKey);
-    try {
-        defaultMessageStore.assignOffset(msg);
-
-        putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
-        long elapsedTimeInLock;
-        long queueOffset;
+        String topicQueueKey = msg.getTopic() + "-" + msg.getQueueId();
+        topicQueueLock.lock(topicQueueKey);
         try {
-            beginTimeInDledgerLock = this.defaultMessageStore.getSystemClock().now();
-            queueOffset = getQueueOffsetByKey(msg, tranType);
-            encodeResult.setQueueOffsetKey(queueOffset, false);
-            AppendEntryRequest request = new AppendEntryRequest();
-            request.setGroup(dLedgerConfig.getGroup());
-            request.setRemoteId(dLedgerServer.getMemberState().getSelfId());
-            request.setBody(encodeResult.getData());
-            dledgerFuture = (AppendFuture<AppendEntryResponse>) dLedgerServer.handleAppend(request);
-            if (dledgerFuture.getPos() == -1) {
-                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.OS_PAGE_CACHE_BUSY, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR)));
+            defaultMessageStore.assignOffset(msg);
+
+            putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
+            long elapsedTimeInLock;
+            long queueOffset;
+            try {
+                beginTimeInDledgerLock = this.defaultMessageStore.getSystemClock().now();
+                queueOffset = getQueueOffsetByKey(msg, tranType);
+                encodeResult.setQueueOffsetKey(queueOffset, false);
+                AppendEntryRequest request = new AppendEntryRequest();
+                request.setGroup(dLedgerConfig.getGroup());
+                request.setRemoteId(dLedgerServer.getMemberState().getSelfId());
+                request.setBody(encodeResult.getData());
+                dledgerFuture = (AppendFuture<AppendEntryResponse>) dLedgerServer.handleAppend(request);
+                if (dledgerFuture.getPos() == -1) {
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.OS_PAGE_CACHE_BUSY, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR)));
+                }
+                long wroteOffset = dledgerFuture.getPos() + DLedgerEntry.BODY_OFFSET;
+
+                int msgIdLength = (msg.getSysFlag() & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 4 + 4 + 8 : 16 + 4 + 8;
+                ByteBuffer buffer = ByteBuffer.allocate(msgIdLength);
+
+                String msgId = MessageDecoder.createMessageId(buffer, msg.getStoreHostBytes(), wroteOffset);
+                elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginTimeInDledgerLock;
+                appendResult = new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, encodeResult.getData().length, msgId, System.currentTimeMillis(), queueOffset, elapsedTimeInLock);
+            } finally {
+                beginTimeInDledgerLock = 0;
+                putMessageLock.unlock();
             }
-            long wroteOffset = dledgerFuture.getPos() + DLedgerEntry.BODY_OFFSET;
 
-            int msgIdLength = (msg.getSysFlag() & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 4 + 4 + 8 : 16 + 4 + 8;
-            ByteBuffer buffer = ByteBuffer.allocate(msgIdLength);
+            if (elapsedTimeInLock > 500) {
+                log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, appendResult);
+            }
 
-            String msgId = MessageDecoder.createMessageId(buffer, msg.getStoreHostBytes(), wroteOffset);
-            elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginTimeInDledgerLock;
-            appendResult = new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, encodeResult.getData().length, msgId, System.currentTimeMillis(), queueOffset, elapsedTimeInLock);
+            defaultMessageStore.increaseOffset(msg, getMessageNum(msg));
+        } catch (Exception e) {
+            log.error("Put message error", e);
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR)));
         } finally {
-            beginTimeInDledgerLock = 0;
-            putMessageLock.unlock();
+            topicQueueLock.unlock(topicQueueKey);
         }
 
-        if (elapsedTimeInLock > 500) {
-            log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, appendResult);
-        }
-
-        defaultMessageStore.increaseOffset(msg, getMessageNum(msg));
-    } catch (Exception e) {
-        log.error("Put message error", e);
-        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR)));
-    } finally {
-        topicQueueLock.unlock(topicQueueKey);
+        return dledgerFuture.thenApply(appendEntryResponse -> {
+            PutMessageStatus putMessageStatus = PutMessageStatus.UNKNOWN_ERROR;
+            switch (DLedgerResponseCode.valueOf(appendEntryResponse.getCode())) {
+                case SUCCESS:
+                    putMessageStatus = PutMessageStatus.PUT_OK;
+                    break;
+                case INCONSISTENT_LEADER:
+                case NOT_LEADER:
+                case LEADER_NOT_READY:
+                case DISK_FULL:
+                    putMessageStatus = PutMessageStatus.SERVICE_NOT_AVAILABLE;
+                    break;
+                case WAIT_QUORUM_ACK_TIMEOUT:
+                    //Do not return flush_slave_timeout to the client, for the client will ignore it.
+                    putMessageStatus = PutMessageStatus.IN_SYNC_REPLICAS_NOT_ENOUGH;
+                    break;
+                case LEADER_PENDING_FULL:
+                    putMessageStatus = PutMessageStatus.OS_PAGE_CACHE_BUSY;
+                    break;
+            }
+            PutMessageResult putMessageResult = new PutMessageResult(putMessageStatus, appendResult);
+            if (putMessageStatus == PutMessageStatus.PUT_OK) {
+                // Statistics
+                storeStatsService.getSinglePutMessageTopicTimesTotal(finalTopic).add(1);
+                storeStatsService.getSinglePutMessageTopicSizeTotal(msg.getTopic()).add(appendResult.getWroteBytes());
+            }
+            return putMessageResult;
+        });
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>检查当前Store中实际CommitLog类型；不要同时把两套路径的保证叠加。
@@ -7388,58 +10746,120 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[DLedgerCommitLog.java · L424–L472](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L424-L472)，连续节选。
+<strong>4.9.8源码：</strong>[DLedgerCommitLog.java · L424–L534](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java#L424-L534)，连续节选。
 
 ```java
-@Override
-public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
+    @Override
+    public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
 
-    StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
 
-    final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
+        final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
 
-    setMessageInfo(msg, tranType);
+        setMessageInfo(msg, tranType);
 
-    final String finalTopic = msg.getTopic();
+        final String finalTopic = msg.getTopic();
 
-    // Back to Results
-    AppendMessageResult appendResult;
-    AppendFuture<AppendEntryResponse> dledgerFuture;
-    EncodeResult encodeResult = null;
+        // Back to Results
+        AppendMessageResult appendResult;
+        AppendFuture<AppendEntryResponse> dledgerFuture;
+        EncodeResult encodeResult = null;
 
-    boolean isMultiDispatch = multiDispatch.isMultiDispatchMsg(msg);
-    if (!isMultiDispatch) {
-        encodeResult = this.messageSerializer.serialize(msg);
-        if (encodeResult.status != AppendMessageStatus.PUT_OK) {
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, new AppendMessageResult(encodeResult.status)));
-        }
-    }
-    putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
-    long elapsedTimeInLock;
-    long queueOffset;
-    try {
-        beginTimeInDledgerLock = this.defaultMessageStore.getSystemClock().now();
-        if (isMultiDispatch) {
-            boolean multiDispatchWrapResult = multiDispatch.wrapMultiDispatch(msg);
-            if (!multiDispatchWrapResult) {
-                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR)));
-            } else {
-                encodeResult = this.messageSerializer.serialize(msg);
-                if (encodeResult.status != AppendMessageStatus.PUT_OK) {
-                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, new AppendMessageResult(encodeResult.status)));
-                }
+        boolean isMultiDispatch = multiDispatch.isMultiDispatchMsg(msg);
+        if (!isMultiDispatch) {
+            encodeResult = this.messageSerializer.serialize(msg);
+            if (encodeResult.status != AppendMessageStatus.PUT_OK) {
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, new AppendMessageResult(encodeResult.status)));
             }
         }
-        queueOffset = getQueueOffsetByKey(encodeResult.queueOffsetKey, tranType);
-        encodeResult.setQueueOffsetKey(queueOffset, false);
-        AppendEntryRequest request = new AppendEntryRequest();
-        request.setGroup(dLedgerConfig.getGroup());
-        request.setRemoteId(dLedgerServer.getMemberState().getSelfId());
-        request.setBody(encodeResult.getData());
-        dledgerFuture = (AppendFuture<AppendEntryResponse>) dLedgerServer.handleAppend(request);
-        if (dledgerFuture.getPos() == -1) {
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.OS_PAGECACHE_BUSY, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR)));
+        putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
+        long elapsedTimeInLock;
+        long queueOffset;
+        try {
+            beginTimeInDledgerLock = this.defaultMessageStore.getSystemClock().now();
+            if (isMultiDispatch) {
+                boolean multiDispatchWrapResult = multiDispatch.wrapMultiDispatch(msg);
+                if (!multiDispatchWrapResult) {
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR)));
+                } else {
+                    encodeResult = this.messageSerializer.serialize(msg);
+                    if (encodeResult.status != AppendMessageStatus.PUT_OK) {
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, new AppendMessageResult(encodeResult.status)));
+                    }
+                }
+            }
+            queueOffset = getQueueOffsetByKey(encodeResult.queueOffsetKey, tranType);
+            encodeResult.setQueueOffsetKey(queueOffset, false);
+            AppendEntryRequest request = new AppendEntryRequest();
+            request.setGroup(dLedgerConfig.getGroup());
+            request.setRemoteId(dLedgerServer.getMemberState().getSelfId());
+            request.setBody(encodeResult.getData());
+            dledgerFuture = (AppendFuture<AppendEntryResponse>) dLedgerServer.handleAppend(request);
+            if (dledgerFuture.getPos() == -1) {
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.OS_PAGECACHE_BUSY, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR)));
+            }
+            long wroteOffset = dledgerFuture.getPos() + DLedgerEntry.BODY_OFFSET;
+
+            int msgIdLength = (msg.getSysFlag() & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 4 + 4 + 8 : 16 + 4 + 8;
+            ByteBuffer buffer = ByteBuffer.allocate(msgIdLength);
+
+            String msgId = MessageDecoder.createMessageId(buffer, msg.getStoreHostBytes(), wroteOffset);
+            elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginTimeInDledgerLock;
+            appendResult = new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, encodeResult.getData().length, msgId, System.currentTimeMillis(), queueOffset, elapsedTimeInLock);
+            switch (tranType) {
+                case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
+                case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
+                    break;
+                case MessageSysFlag.TRANSACTION_NOT_TYPE:
+                case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
+                    // The next update ConsumeQueue information
+                    DLedgerCommitLog.this.topicQueueTable.put(encodeResult.queueOffsetKey, queueOffset + 1);
+                    multiDispatch.updateMultiQueueOffset(msg);
+                    break;
+                default:
+                    break;
+            }
+        } catch (Exception e) {
+            log.error("Put message error", e);
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR)));
+        } finally {
+            beginTimeInDledgerLock = 0;
+            putMessageLock.unlock();
         }
+
+        if (elapsedTimeInLock > 500) {
+            log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, appendResult);
+        }
+
+        return dledgerFuture.thenApply(appendEntryResponse -> {
+            PutMessageStatus putMessageStatus = PutMessageStatus.UNKNOWN_ERROR;
+            switch (DLedgerResponseCode.valueOf(appendEntryResponse.getCode())) {
+                case SUCCESS:
+                    putMessageStatus = PutMessageStatus.PUT_OK;
+                    break;
+                case INCONSISTENT_LEADER:
+                case NOT_LEADER:
+                case LEADER_NOT_READY:
+                case DISK_FULL:
+                    putMessageStatus = PutMessageStatus.SERVICE_NOT_AVAILABLE;
+                    break;
+                case WAIT_QUORUM_ACK_TIMEOUT:
+                    //Do not return flush_slave_timeout to the client, for the ons client will ignore it.
+                    putMessageStatus = PutMessageStatus.OS_PAGECACHE_BUSY;
+                    break;
+                case LEADER_PENDING_FULL:
+                    putMessageStatus = PutMessageStatus.OS_PAGECACHE_BUSY;
+                    break;
+            }
+            PutMessageResult putMessageResult = new PutMessageResult(putMessageStatus, appendResult);
+            if (putMessageStatus == PutMessageStatus.PUT_OK) {
+                // Statistics
+                storeStatsService.getSinglePutMessageTopicTimesTotal(finalTopic).add(1);
+                storeStatsService.getSinglePutMessageTopicSizeTotal(msg.getTopic()).add(appendResult.getWroteBytes());
+            }
+            return putMessageResult;
+        });
+    }
 ```
 
 <strong>5.3.4源码：</strong>[ReplicasManager.java · L237–L279](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/controller/ReplicasManager.java#L237-L279)，连续节选。
@@ -7549,105 +10969,120 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[ReceiveMessageActivity.java · L59–L154](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/grpc/v2/consumer/ReceiveMessageActivity.java#L59-L154)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ReceiveMessageActivity.java · L59–L169](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/grpc/v2/consumer/ReceiveMessageActivity.java#L59-L169)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public void receiveMessage(ProxyContext ctx, ReceiveMessageRequest request,
-    StreamObserver<ReceiveMessageResponse> responseObserver) {
-    ReceiveMessageResponseStreamWriter writer = createWriter(ctx, responseObserver);
+    public void receiveMessage(ProxyContext ctx, ReceiveMessageRequest request,
+        StreamObserver<ReceiveMessageResponse> responseObserver) {
+        ReceiveMessageResponseStreamWriter writer = createWriter(ctx, responseObserver);
 
-    try {
-        Settings settings = this.grpcClientSettingsManager.getClientSettings(ctx);
-        Subscription subscription = settings.getSubscription();
-        boolean fifo = subscription.getFifo();
-        int maxAttempts = settings.getBackoffPolicy().getMaxAttempts();
-        ProxyConfig config = ConfigurationManager.getProxyConfig();
+        try {
+            Settings settings = this.grpcClientSettingsManager.getClientSettings(ctx);
+            Subscription subscription = settings.getSubscription();
+            boolean fifo = subscription.getFifo();
+            int maxAttempts = settings.getBackoffPolicy().getMaxAttempts();
+            ProxyConfig config = ConfigurationManager.getProxyConfig();
 
-        Long timeRemaining = ctx.getRemainingMs();
-        long pollingTime;
-        if (request.hasLongPollingTimeout()) {
-            pollingTime = Durations.toMillis(request.getLongPollingTimeout());
-        } else {
-            pollingTime = timeRemaining - Durations.toMillis(settings.getRequestTimeout()) / 2;
-        }
-        if (pollingTime < config.getGrpcClientConsumerMinLongPollingTimeoutMillis()) {
-            pollingTime = config.getGrpcClientConsumerMinLongPollingTimeoutMillis();
-        }
-        if (pollingTime > config.getGrpcClientConsumerMaxLongPollingTimeoutMillis()) {
-            pollingTime = config.getGrpcClientConsumerMaxLongPollingTimeoutMillis();
-        }
-
-        if (pollingTime > timeRemaining) {
-            if (timeRemaining >= config.getGrpcClientConsumerMinLongPollingTimeoutMillis()) {
-                pollingTime = timeRemaining;
+            Long timeRemaining = ctx.getRemainingMs();
+            long pollingTime;
+            if (request.hasLongPollingTimeout()) {
+                pollingTime = Durations.toMillis(request.getLongPollingTimeout());
             } else {
-                final String clientVersion = ctx.getClientVersion();
-                Code code =
-                    null == clientVersion || ILLEGAL_POLLING_TIME_INTRODUCED_CLIENT_VERSION.compareTo(clientVersion) > 0 ?
-                    Code.BAD_REQUEST : Code.ILLEGAL_POLLING_TIME;
-                writer.writeAndComplete(ctx, code, "The deadline time remaining is not enough" +
-                    " for polling, please check network condition");
+                pollingTime = timeRemaining - Durations.toMillis(settings.getRequestTimeout()) / 2;
+            }
+            if (pollingTime < config.getGrpcClientConsumerMinLongPollingTimeoutMillis()) {
+                pollingTime = config.getGrpcClientConsumerMinLongPollingTimeoutMillis();
+            }
+            if (pollingTime > config.getGrpcClientConsumerMaxLongPollingTimeoutMillis()) {
+                pollingTime = config.getGrpcClientConsumerMaxLongPollingTimeoutMillis();
+            }
+
+            if (pollingTime > timeRemaining) {
+                if (timeRemaining >= config.getGrpcClientConsumerMinLongPollingTimeoutMillis()) {
+                    pollingTime = timeRemaining;
+                } else {
+                    final String clientVersion = ctx.getClientVersion();
+                    Code code =
+                        null == clientVersion || ILLEGAL_POLLING_TIME_INTRODUCED_CLIENT_VERSION.compareTo(clientVersion) > 0 ?
+                        Code.BAD_REQUEST : Code.ILLEGAL_POLLING_TIME;
+                    writer.writeAndComplete(ctx, code, "The deadline time remaining is not enough" +
+                        " for polling, please check network condition");
+                    return;
+                }
+            }
+
+            validateTopicAndConsumerGroup(request.getMessageQueue().getTopic(), request.getGroup());
+            String topic = request.getMessageQueue().getTopic().getName();
+            String group = request.getGroup().getName();
+
+            long actualInvisibleTime = Durations.toMillis(request.getInvisibleDuration());
+            ProxyConfig proxyConfig = ConfigurationManager.getProxyConfig();
+            if (proxyConfig.isEnableProxyAutoRenew() && request.getAutoRenew()) {
+                actualInvisibleTime = proxyConfig.getDefaultInvisibleTimeMills();
+            } else {
+                validateInvisibleTime(actualInvisibleTime,
+                    ConfigurationManager.getProxyConfig().getMinInvisibleTimeMillsForRecv());
+            }
+
+            FilterExpression filterExpression = request.getFilterExpression();
+            SubscriptionData subscriptionData;
+            try {
+                subscriptionData = FilterAPI.build(topic, filterExpression.getExpression(),
+                    GrpcConverter.getInstance().buildExpressionType(filterExpression.getType()));
+            } catch (Exception e) {
+                writer.writeAndComplete(ctx, Code.ILLEGAL_FILTER_EXPRESSION, e.getMessage());
                 return;
             }
-        }
 
-        validateTopicAndConsumerGroup(request.getMessageQueue().getTopic(), request.getGroup());
-        String topic = request.getMessageQueue().getTopic().getName();
-        String group = request.getGroup().getName();
-
-        long actualInvisibleTime = Durations.toMillis(request.getInvisibleDuration());
-        ProxyConfig proxyConfig = ConfigurationManager.getProxyConfig();
-        if (proxyConfig.isEnableProxyAutoRenew() && request.getAutoRenew()) {
-            actualInvisibleTime = proxyConfig.getDefaultInvisibleTimeMills();
-        } else {
-            validateInvisibleTime(actualInvisibleTime,
-                ConfigurationManager.getProxyConfig().getMinInvisibleTimeMillsForRecv());
-        }
-
-        FilterExpression filterExpression = request.getFilterExpression();
-        SubscriptionData subscriptionData;
-        try {
-            subscriptionData = FilterAPI.build(topic, filterExpression.getExpression(),
-                GrpcConverter.getInstance().buildExpressionType(filterExpression.getType()));
-        } catch (Exception e) {
-            writer.writeAndComplete(ctx, Code.ILLEGAL_FILTER_EXPRESSION, e.getMessage());
-            return;
-        }
-
-        this.messagingProcessor.popMessage(
-                ctx,
-                new ReceiveMessageQueueSelector(
-                    request.getMessageQueue().getBroker().getName()
-                ),
-                group,
-                topic,
-                request.getBatchSize(),
-                actualInvisibleTime,
-                pollingTime,
-                ConsumeInitMode.MAX,
-                subscriptionData,
-                fifo,
-                new PopMessageResultFilterImpl(maxAttempts),
-                request.hasAttemptId() ? request.getAttemptId() : null,
-                timeRemaining
-            ).thenAccept(popResult -> {
-                if (proxyConfig.isEnableProxyAutoRenew() && request.getAutoRenew()) {
-                    if (PopStatus.FOUND.equals(popResult.getPopStatus())) {
-                        GrpcClientChannel clientChannel = grpcChannelManager.getChannel(ctx.getClientID());
-                        if (clientChannel == null) {
-                            GrpcProxyException e = new GrpcProxyException(Code.MESSAGE_NOT_FOUND,
-                                String.format("The client [%s] is disconnected.", ctx.getClientID()));
-                            popResult.getMsgFoundList().forEach(messageExt ->
-                                writer.processThrowableWhenWriteMessage(e, ctx, request, messageExt));
-                            throw e;
+            this.messagingProcessor.popMessage(
+                    ctx,
+                    new ReceiveMessageQueueSelector(
+                        request.getMessageQueue().getBroker().getName()
+                    ),
+                    group,
+                    topic,
+                    request.getBatchSize(),
+                    actualInvisibleTime,
+                    pollingTime,
+                    ConsumeInitMode.MAX,
+                    subscriptionData,
+                    fifo,
+                    new PopMessageResultFilterImpl(maxAttempts),
+                    request.hasAttemptId() ? request.getAttemptId() : null,
+                    timeRemaining
+                ).thenAccept(popResult -> {
+                    if (proxyConfig.isEnableProxyAutoRenew() && request.getAutoRenew()) {
+                        if (PopStatus.FOUND.equals(popResult.getPopStatus())) {
+                            GrpcClientChannel clientChannel = grpcChannelManager.getChannel(ctx.getClientID());
+                            if (clientChannel == null) {
+                                GrpcProxyException e = new GrpcProxyException(Code.MESSAGE_NOT_FOUND,
+                                    String.format("The client [%s] is disconnected.", ctx.getClientID()));
+                                popResult.getMsgFoundList().forEach(messageExt ->
+                                    writer.processThrowableWhenWriteMessage(e, ctx, request, messageExt));
+                                throw e;
+                            }
+                            List<MessageExt> messageExtList = popResult.getMsgFoundList();
+                            for (MessageExt messageExt : messageExtList) {
+                                String receiptHandle = messageExt.getProperty(MessageConst.PROPERTY_POP_CK);
+                                if (receiptHandle != null) {
+                                    MessageReceiptHandle messageReceiptHandle =
+                                        new MessageReceiptHandle(group, topic, messageExt.getQueueId(), receiptHandle, messageExt.getMsgId(),
+                                            messageExt.getQueueOffset(), messageExt.getReconsumeTimes());
+                                    messagingProcessor.addReceiptHandle(ctx, clientChannel, group, messageExt.getMsgId(), messageReceiptHandle);
+                                }
+                            }
                         }
-                        List<MessageExt> messageExtList = popResult.getMsgFoundList();
-                        for (MessageExt messageExt : messageExtList) {
-                            String receiptHandle = messageExt.getProperty(MessageConst.PROPERTY_POP_CK);
-                            if (receiptHandle != null) {
-                                MessageReceiptHandle messageReceiptHandle =
-                                    new MessageReceiptHandle(group, topic, messageExt.getQueueId(), receiptHandle, messageExt.getMsgId(),
-                                        messageExt.getQueueOffset(), messageExt.getReconsumeTimes());
+                    }
+                    writer.writeAndComplete(ctx, request, popResult);
+                })
+                .exceptionally(t -> {
+                    writer.writeAndComplete(ctx, request, t);
+                    return null;
+                });
+        } catch (Throwable t) {
+            writer.writeAndComplete(ctx, request, t);
+        }
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>看request的pollingDuration、invisibleDuration与上下文超时如何校验和传递。
@@ -7718,48 +11153,89 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[BrokerController.java · L542–L580](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L542-L580)，连续节选。
+<strong>4.9.8源码：</strong>[BrokerController.java · L542–L621](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java#L542-L621)，连续节选。
 
 ```java
-public void registerProcessor() {
-    /**
-     * SendMessageProcessor
-     */
-    SendMessageProcessor sendProcessor = new SendMessageProcessor(this);
-    sendProcessor.registerSendMessageHook(sendMessageHookList);
-    sendProcessor.registerConsumeMessageHook(consumeMessageHookList);
+    public void registerProcessor() {
+        /**
+         * SendMessageProcessor
+         */
+        SendMessageProcessor sendProcessor = new SendMessageProcessor(this);
+        sendProcessor.registerSendMessageHook(sendMessageHookList);
+        sendProcessor.registerConsumeMessageHook(consumeMessageHookList);
 
-    this.remotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendProcessor, this.sendMessageExecutor);
-    this.remotingServer.registerProcessor(RequestCode.SEND_MESSAGE_V2, sendProcessor, this.sendMessageExecutor);
-    this.remotingServer.registerProcessor(RequestCode.SEND_BATCH_MESSAGE, sendProcessor, this.sendMessageExecutor);
-    this.remotingServer.registerProcessor(RequestCode.CONSUMER_SEND_MSG_BACK, sendProcessor, this.sendMessageExecutor);
-    this.fastRemotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendProcessor, this.sendMessageExecutor);
-    this.fastRemotingServer.registerProcessor(RequestCode.SEND_MESSAGE_V2, sendProcessor, this.sendMessageExecutor);
-    this.fastRemotingServer.registerProcessor(RequestCode.SEND_BATCH_MESSAGE, sendProcessor, this.sendMessageExecutor);
-    this.fastRemotingServer.registerProcessor(RequestCode.CONSUMER_SEND_MSG_BACK, sendProcessor, this.sendMessageExecutor);
-    /**
-     * PullMessageProcessor
-     */
-    this.remotingServer.registerProcessor(RequestCode.PULL_MESSAGE, this.pullMessageProcessor, this.pullMessageExecutor);
-    this.pullMessageProcessor.registerConsumeMessageHook(consumeMessageHookList);
+        this.remotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendProcessor, this.sendMessageExecutor);
+        this.remotingServer.registerProcessor(RequestCode.SEND_MESSAGE_V2, sendProcessor, this.sendMessageExecutor);
+        this.remotingServer.registerProcessor(RequestCode.SEND_BATCH_MESSAGE, sendProcessor, this.sendMessageExecutor);
+        this.remotingServer.registerProcessor(RequestCode.CONSUMER_SEND_MSG_BACK, sendProcessor, this.sendMessageExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.SEND_MESSAGE, sendProcessor, this.sendMessageExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.SEND_MESSAGE_V2, sendProcessor, this.sendMessageExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.SEND_BATCH_MESSAGE, sendProcessor, this.sendMessageExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.CONSUMER_SEND_MSG_BACK, sendProcessor, this.sendMessageExecutor);
+        /**
+         * PullMessageProcessor
+         */
+        this.remotingServer.registerProcessor(RequestCode.PULL_MESSAGE, this.pullMessageProcessor, this.pullMessageExecutor);
+        this.pullMessageProcessor.registerConsumeMessageHook(consumeMessageHookList);
 
-    /**
-     * ReplyMessageProcessor
-     */
-    ReplyMessageProcessor replyMessageProcessor = new ReplyMessageProcessor(this);
-    replyMessageProcessor.registerSendMessageHook(sendMessageHookList);
+        /**
+         * ReplyMessageProcessor
+         */
+        ReplyMessageProcessor replyMessageProcessor = new ReplyMessageProcessor(this);
+        replyMessageProcessor.registerSendMessageHook(sendMessageHookList);
 
-    this.remotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE, replyMessageProcessor, replyMessageExecutor);
-    this.remotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE_V2, replyMessageProcessor, replyMessageExecutor);
-    this.fastRemotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE, replyMessageProcessor, replyMessageExecutor);
-    this.fastRemotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE_V2, replyMessageProcessor, replyMessageExecutor);
+        this.remotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE, replyMessageProcessor, replyMessageExecutor);
+        this.remotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE_V2, replyMessageProcessor, replyMessageExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE, replyMessageProcessor, replyMessageExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.SEND_REPLY_MESSAGE_V2, replyMessageProcessor, replyMessageExecutor);
 
-    /**
-     * QueryMessageProcessor
-     */
-    NettyRequestProcessor queryProcessor = new QueryMessageProcessor(this);
-    this.remotingServer.registerProcessor(RequestCode.QUERY_MESSAGE, queryProcessor, this.queryMessageExecutor);
-    this.remotingServer.registerProcessor(RequestCode.VIEW_MESSAGE_BY_ID, queryProcessor, this.queryMessageExecutor);
+        /**
+         * QueryMessageProcessor
+         */
+        NettyRequestProcessor queryProcessor = new QueryMessageProcessor(this);
+        this.remotingServer.registerProcessor(RequestCode.QUERY_MESSAGE, queryProcessor, this.queryMessageExecutor);
+        this.remotingServer.registerProcessor(RequestCode.VIEW_MESSAGE_BY_ID, queryProcessor, this.queryMessageExecutor);
+
+        this.fastRemotingServer.registerProcessor(RequestCode.QUERY_MESSAGE, queryProcessor, this.queryMessageExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.VIEW_MESSAGE_BY_ID, queryProcessor, this.queryMessageExecutor);
+
+        /**
+         * ClientManageProcessor
+         */
+        ClientManageProcessor clientProcessor = new ClientManageProcessor(this);
+        this.remotingServer.registerProcessor(RequestCode.HEART_BEAT, clientProcessor, this.heartbeatExecutor);
+        this.remotingServer.registerProcessor(RequestCode.UNREGISTER_CLIENT, clientProcessor, this.clientManageExecutor);
+        this.remotingServer.registerProcessor(RequestCode.CHECK_CLIENT_CONFIG, clientProcessor, this.clientManageExecutor);
+
+        this.fastRemotingServer.registerProcessor(RequestCode.HEART_BEAT, clientProcessor, this.heartbeatExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.UNREGISTER_CLIENT, clientProcessor, this.clientManageExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.CHECK_CLIENT_CONFIG, clientProcessor, this.clientManageExecutor);
+
+        /**
+         * ConsumerManageProcessor
+         */
+        ConsumerManageProcessor consumerManageProcessor = new ConsumerManageProcessor(this);
+        this.remotingServer.registerProcessor(RequestCode.GET_CONSUMER_LIST_BY_GROUP, consumerManageProcessor, this.consumerManageExecutor);
+        this.remotingServer.registerProcessor(RequestCode.UPDATE_CONSUMER_OFFSET, consumerManageProcessor, this.consumerManageExecutor);
+        this.remotingServer.registerProcessor(RequestCode.QUERY_CONSUMER_OFFSET, consumerManageProcessor, this.consumerManageExecutor);
+
+        this.fastRemotingServer.registerProcessor(RequestCode.GET_CONSUMER_LIST_BY_GROUP, consumerManageProcessor, this.consumerManageExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.UPDATE_CONSUMER_OFFSET, consumerManageProcessor, this.consumerManageExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.QUERY_CONSUMER_OFFSET, consumerManageProcessor, this.consumerManageExecutor);
+
+        /**
+         * EndTransactionProcessor
+         */
+        this.remotingServer.registerProcessor(RequestCode.END_TRANSACTION, new EndTransactionProcessor(this), this.endTransactionExecutor);
+        this.fastRemotingServer.registerProcessor(RequestCode.END_TRANSACTION, new EndTransactionProcessor(this), this.endTransactionExecutor);
+
+        /**
+         * Default
+         */
+        AdminBrokerProcessor adminProcessor = new AdminBrokerProcessor(this);
+        this.remotingServer.registerDefaultProcessor(adminProcessor, this.adminBrokerExecutor);
+        this.fastRemotingServer.registerDefaultProcessor(adminProcessor, this.adminBrokerExecutor);
+    }
 ```
 
 <strong>5.3.4源码：</strong>[DefaultMessagingProcessor.java · L109–L111](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/proxy/src/main/java/org/apache/rocketmq/proxy/processor/DefaultMessagingProcessor.java#L109-L111)，连续节选。
@@ -7809,94 +11285,213 @@ stateDiagram-v2
 已确认 --> [*]
 ```
 
-<strong>源码对照：</strong>[PopMessageProcessor.java · L675–L759](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L675-L759)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PopMessageProcessor.java · L675–L878](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L675-L878)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-private CompletableFuture<Long> popMsgFromQueue(String topic, String attemptId, boolean isRetry,
-    GetMessageResult getMessageResult,
-    PopMessageRequestHeader requestHeader, int queueId, long restNum, int reviveQid,
-    Channel channel, long popTime, ExpressionMessageFilter messageFilter, StringBuilder startOffsetInfo,
-    StringBuilder msgOffsetInfo, StringBuilder orderCountInfo) {
+    private CompletableFuture<Long> popMsgFromQueue(String topic, String attemptId, boolean isRetry,
+        GetMessageResult getMessageResult,
+        PopMessageRequestHeader requestHeader, int queueId, long restNum, int reviveQid,
+        Channel channel, long popTime, ExpressionMessageFilter messageFilter, StringBuilder startOffsetInfo,
+        StringBuilder msgOffsetInfo, StringBuilder orderCountInfo) {
 
-    String lockKey =
-        topic + PopAckConstants.SPLIT + requestHeader.getConsumerGroup() + PopAckConstants.SPLIT + queueId;
-    boolean isOrder = requestHeader.isOrder();
-    long offset;
-    try {
-        offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
-            false, lockKey, false);
-    } catch (ConsumeQueueException e) {
-        CompletableFuture<Long> failure = new CompletableFuture<>();
-        failure.completeExceptionally(e);
-        return failure;
-    }
-
-    CompletableFuture<Long> future = new CompletableFuture<>();
-    if (!queueLockManager.tryLock(lockKey)) {
+        String lockKey =
+            topic + PopAckConstants.SPLIT + requestHeader.getConsumerGroup() + PopAckConstants.SPLIT + queueId;
+        boolean isOrder = requestHeader.isOrder();
+        long offset;
         try {
-            if (!requestHeader.isOrder()) {
-                restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
+            offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
+                false, lockKey, false);
+        } catch (ConsumeQueueException e) {
+            CompletableFuture<Long> failure = new CompletableFuture<>();
+            failure.completeExceptionally(e);
+            return failure;
+        }
+
+        CompletableFuture<Long> future = new CompletableFuture<>();
+        if (!queueLockManager.tryLock(lockKey)) {
+            try {
+                if (!requestHeader.isOrder()) {
+                    restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
+                }
+                future.complete(restNum);
+            } catch (ConsumeQueueException e) {
+                future.completeExceptionally(e);
             }
-            future.complete(restNum);
-        } catch (ConsumeQueueException e) {
-            future.completeExceptionally(e);
+            return future;
         }
-        return future;
-    }
 
-    future.whenComplete((result, throwable) -> queueLockManager.unLock(lockKey));
-    if (isPopShouldStop(topic, requestHeader.getConsumerGroup(), queueId)) {
-        POP_LOGGER.warn("Too much msgs unacked, then stop popping. topic={}, group={}, queueId={}",
-            topic, requestHeader.getConsumerGroup(), queueId);
+        future.whenComplete((result, throwable) -> queueLockManager.unLock(lockKey));
+        if (isPopShouldStop(topic, requestHeader.getConsumerGroup(), queueId)) {
+            POP_LOGGER.warn("Too much msgs unacked, then stop popping. topic={}, group={}, queueId={}",
+                topic, requestHeader.getConsumerGroup(), queueId);
+            try {
+                restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
+                future.complete(restNum);
+            } catch (ConsumeQueueException e) {
+                future.completeExceptionally(e);
+            }
+            return future;
+        }
+
         try {
-            restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
-            future.complete(restNum);
-        } catch (ConsumeQueueException e) {
-            future.completeExceptionally(e);
-        }
-        return future;
-    }
+            offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
+                true, lockKey, true);
 
-    try {
-        offset = getPopOffset(topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInitMode(),
-            true, lockKey, true);
+            // Current requests would calculate the total number of messages
+            // waiting to be filtered for new message arrival notifications in
+            // the long-polling service, need disregarding the backlog in order
+            // consumption scenario. If rest message num including the blocked
+            // queue accumulation would lead to frequent unnecessary wake-ups
+            // of long-polling requests, resulting unnecessary CPU usage.
+            // When client ack message, long-polling request would be notifications
+            // by AckMessageProcessor.ackOrderly() and message will not be delayed.
+            if (isOrder) {
+                if (brokerController.getConsumerOrderInfoManager().checkBlock(
+                    attemptId, topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInvisibleTime())) {
+                    // should not add accumulation(max offset - consumer offset) here
+                    future.complete(restNum);
+                    return future;
+                }
+                this.brokerController.getPopInflightMessageCounter().clearInFlightMessageNum(
+                    topic, requestHeader.getConsumerGroup(), queueId);
+            }
 
-        // Current requests would calculate the total number of messages
-        // waiting to be filtered for new message arrival notifications in
-        // the long-polling service, need disregarding the backlog in order
-        // consumption scenario. If rest message num including the blocked
-        // queue accumulation would lead to frequent unnecessary wake-ups
-        // of long-polling requests, resulting unnecessary CPU usage.
-        // When client ack message, long-polling request would be notifications
-        // by AckMessageProcessor.ackOrderly() and message will not be delayed.
-        if (isOrder) {
-            if (brokerController.getConsumerOrderInfoManager().checkBlock(
-                attemptId, topic, requestHeader.getConsumerGroup(), queueId, requestHeader.getInvisibleTime())) {
-                // should not add accumulation(max offset - consumer offset) here
+            if (getMessageResult.getMessageMapedList().size() >= requestHeader.getMaxMsgNums()) {
+                restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
                 future.complete(restNum);
                 return future;
             }
-            this.brokerController.getPopInflightMessageCounter().clearInFlightMessageNum(
-                topic, requestHeader.getConsumerGroup(), queueId);
-        }
-
-        if (getMessageResult.getMessageMapedList().size() >= requestHeader.getMaxMsgNums()) {
-            restNum = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - offset + restNum;
+        } catch (Exception e) {
+            POP_LOGGER.error("Exception in popMsgFromQueue", e);
             future.complete(restNum);
             return future;
         }
-    } catch (Exception e) {
-        POP_LOGGER.error("Exception in popMsgFromQueue", e);
-        future.complete(restNum);
-        return future;
-    }
 
-    AtomicLong atomicRestNum = new AtomicLong(restNum);
-    AtomicLong atomicOffset = new AtomicLong(offset);
-    long finalOffset = offset;
-    return this.brokerController.getMessageStore()
-        .getMessageAsync(requestHeader.getConsumerGroup(), topic, queueId, offset,
-            requestHeader.getMaxMsgNums() - getMessageResult.getMessageMapedList().size(), messageFilter)
+        AtomicLong atomicRestNum = new AtomicLong(restNum);
+        AtomicLong atomicOffset = new AtomicLong(offset);
+        long finalOffset = offset;
+        return this.brokerController.getMessageStore()
+            .getMessageAsync(requestHeader.getConsumerGroup(), topic, queueId, offset,
+                requestHeader.getMaxMsgNums() - getMessageResult.getMessageMapedList().size(), messageFilter)
+            .thenCompose(result -> {
+                if (result == null) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                // maybe store offset is not correct.
+                if (GetMessageStatus.OFFSET_TOO_SMALL.equals(result.getStatus())
+                    || GetMessageStatus.OFFSET_OVERFLOW_BADLY.equals(result.getStatus())
+                    || GetMessageStatus.OFFSET_FOUND_NULL.equals(result.getStatus())) {
+                    // commit offset, because the offset is not correct
+                    // If offset in store is greater than cq offset, it will cause duplicate messages,
+                    // because offset in PopBuffer is not committed.
+                    POP_LOGGER.warn("Pop initial offset, because store is no correct, {}, {}->{}",
+                        lockKey, atomicOffset.get(), result.getNextBeginOffset());
+                    this.brokerController.getConsumerOffsetManager().commitOffset(channel.remoteAddress().toString(), requestHeader.getConsumerGroup(), topic,
+                        queueId, result.getNextBeginOffset());
+                    atomicOffset.set(result.getNextBeginOffset());
+                    return this.brokerController.getMessageStore().getMessageAsync(requestHeader.getConsumerGroup(), topic, queueId, atomicOffset.get(),
+                        requestHeader.getMaxMsgNums() - getMessageResult.getMessageMapedList().size(), messageFilter);
+                }
+                return CompletableFuture.completedFuture(result);
+            }).thenApply(result -> {
+                if (result == null) {
+                    try {
+                        atomicRestNum.set(brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId) - atomicOffset.get() + atomicRestNum.get());
+                    } catch (ConsumeQueueException e) {
+                        POP_LOGGER.error("Failed to get max offset in queue", e);
+                    }
+                    return atomicRestNum.get();
+                }
+                if (!result.getMessageMapedList().isEmpty()) {
+                    this.brokerController.getBrokerStatsManager().incBrokerGetNums(requestHeader.getTopic(), result.getMessageCount());
+                    this.brokerController.getBrokerStatsManager().incGroupGetNums(requestHeader.getConsumerGroup(), topic,
+                        result.getMessageCount());
+                    this.brokerController.getBrokerStatsManager().incGroupGetSize(requestHeader.getConsumerGroup(), topic,
+                        result.getBufferTotalSize());
+
+                    Attributes attributes = this.brokerController.getBrokerMetricsManager().newAttributesBuilder()
+                        .put(LABEL_TOPIC, requestHeader.getTopic())
+                        .put(LABEL_CONSUMER_GROUP, requestHeader.getConsumerGroup())
+                        .put(LABEL_IS_SYSTEM, TopicValidator.isSystemTopic(requestHeader.getTopic()) || MixAll.isSysConsumerGroup(requestHeader.getConsumerGroup()))
+                        .put(LABEL_IS_RETRY, isRetry)
+                        .build();
+                    this.brokerController.getBrokerMetricsManager().getMessagesOutTotal().add(result.getMessageCount(), attributes);
+                    this.brokerController.getBrokerMetricsManager().getThroughputOutTotal().add(result.getBufferTotalSize(), attributes);
+
+                    if (isOrder) {
+                        this.brokerController.getConsumerOrderInfoManager().update(requestHeader.getAttemptId(), isRetry, topic,
+                            requestHeader.getConsumerGroup(),
+                            queueId, popTime, requestHeader.getInvisibleTime(), result.getMessageQueueOffset(),
+                            orderCountInfo);
+                        this.brokerController.getConsumerOffsetManager().commitOffset(channel.remoteAddress().toString(),
+                            requestHeader.getConsumerGroup(), topic, queueId, finalOffset);
+                    } else {
+                        if (!appendCheckPoint(requestHeader, topic, reviveQid, queueId, finalOffset, result, popTime, this.brokerController.getBrokerConfig().getBrokerName())) {
+                            return atomicRestNum.get() + result.getMessageCount();
+                        }
+                    }
+                    ExtraInfoUtil.buildStartOffsetInfo(startOffsetInfo, topic, queueId, finalOffset);
+                    ExtraInfoUtil.buildMsgOffsetInfo(msgOffsetInfo, topic, queueId,
+                        result.getMessageQueueOffset());
+                } else if ((GetMessageStatus.NO_MATCHED_MESSAGE.equals(result.getStatus())
+                    || GetMessageStatus.OFFSET_FOUND_NULL.equals(result.getStatus())
+                    || GetMessageStatus.MESSAGE_WAS_REMOVING.equals(result.getStatus())
+                    || GetMessageStatus.NO_MATCHED_LOGIC_QUEUE.equals(result.getStatus()))
+                    && result.getNextBeginOffset() > -1) {
+                    if (isOrder) {
+                        this.brokerController.getConsumerOffsetManager().commitOffset(channel.remoteAddress().toString(), requestHeader.getConsumerGroup(), topic,
+                            queueId, result.getNextBeginOffset());
+                    } else {
+                        popBufferMergeService.addCkMock(requestHeader.getConsumerGroup(), topic, queueId, finalOffset,
+                            requestHeader.getInvisibleTime(), popTime, reviveQid, result.getNextBeginOffset(), brokerController.getBrokerConfig().getBrokerName());
+                    }
+                }
+
+                atomicRestNum.set(result.getMaxOffset() - result.getNextBeginOffset() + atomicRestNum.get());
+                String brokerName = brokerController.getBrokerConfig().getBrokerName();
+                for (SelectMappedBufferResult mapedBuffer : result.getMessageMapedList()) {
+                    // We should not recode buffer when popResponseReturnActualRetryTopic is true or topic is not retry topic
+                    if (brokerController.getBrokerConfig().isPopResponseReturnActualRetryTopic() || !isRetry) {
+                        getMessageResult.addMessage(mapedBuffer);
+                    } else {
+                        List<MessageExt> messageExtList = MessageDecoder.decodesBatch(mapedBuffer.getByteBuffer(),
+                            true, false, true);
+                        mapedBuffer.release();
+                        for (MessageExt messageExt : messageExtList) {
+                            try {
+                                String ckInfo = ExtraInfoUtil.buildExtraInfo(finalOffset, popTime, requestHeader.getInvisibleTime(),
+                                    reviveQid, messageExt.getTopic(), brokerName, messageExt.getQueueId(), messageExt.getQueueOffset());
+                                messageExt.getProperties().putIfAbsent(MessageConst.PROPERTY_POP_CK, ckInfo);
+
+                                // Set retry message topic to origin topic and clear message store size to recode
+                                messageExt.setTopic(requestHeader.getTopic());
+                                messageExt.setStoreSize(0);
+
+                                byte[] encode = MessageDecoder.encode(messageExt, false);
+                                ByteBuffer buffer = ByteBuffer.wrap(encode);
+                                SelectMappedBufferResult tmpResult =
+                                    new SelectMappedBufferResult(mapedBuffer.getStartOffset(), buffer, encode.length, null);
+                                getMessageResult.addMessage(tmpResult);
+                            } catch (Exception e) {
+                                POP_LOGGER.error("Exception in recode retry message buffer, topic={}", topic, e);
+                            }
+                        }
+                    }
+                }
+                this.brokerController.getPopInflightMessageCounter().incrementInFlightMessageNum(
+                    topic,
+                    requestHeader.getConsumerGroup(),
+                    queueId,
+                    result.getMessageCount()
+                );
+                return atomicRestNum.get();
+            }).whenComplete((result, throwable) -> {
+                if (throwable != null) {
+                    POP_LOGGER.error("Pop message error, {}", lockKey, throwable);
+                }
+                queueLockManager.unLock(lockKey);
+            });
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>关注appendCheckPoint、offset更新以及顺序/非顺序分支；图示只画普通非顺序主线。
@@ -7918,104 +11513,133 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[AckMessageProcessor.java · L191–L285](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/AckMessageProcessor.java#L191-L285)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[AckMessageProcessor.java · L191–L314](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/AckMessageProcessor.java#L191-L314)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-private void appendAck(final AckMessageRequestHeader requestHeader, final BatchAck batchAck,
-    final RemotingCommand response, final Channel channel, String brokerName) throws RemotingCommandException {
-    String[] extraInfo;
-    String consumeGroup, topic;
-    int qId, rqId;
-    long startOffset, ackOffset;
-    long popTime, invisibleTime;
-    AckMsg ackMsg;
-    int ackCount = 0;
-    if (batchAck == null) {
-        // single ack
-        extraInfo = ExtraInfoUtil.split(requestHeader.getExtraInfo());
-        brokerName = ExtraInfoUtil.getBrokerName(extraInfo);
-        consumeGroup = requestHeader.getConsumerGroup();
-        topic = requestHeader.getTopic();
-        qId = requestHeader.getQueueId();
-        rqId = ExtraInfoUtil.getReviveQid(extraInfo);
-        startOffset = ExtraInfoUtil.getCkQueueOffset(extraInfo);
-        ackOffset = requestHeader.getOffset();
-        popTime = ExtraInfoUtil.getPopTime(extraInfo);
-        invisibleTime = ExtraInfoUtil.getInvisibleTime(extraInfo);
+    private void appendAck(final AckMessageRequestHeader requestHeader, final BatchAck batchAck,
+        final RemotingCommand response, final Channel channel, String brokerName) throws RemotingCommandException {
+        String[] extraInfo;
+        String consumeGroup, topic;
+        int qId, rqId;
+        long startOffset, ackOffset;
+        long popTime, invisibleTime;
+        AckMsg ackMsg;
+        int ackCount = 0;
+        if (batchAck == null) {
+            // single ack
+            extraInfo = ExtraInfoUtil.split(requestHeader.getExtraInfo());
+            brokerName = ExtraInfoUtil.getBrokerName(extraInfo);
+            consumeGroup = requestHeader.getConsumerGroup();
+            topic = requestHeader.getTopic();
+            qId = requestHeader.getQueueId();
+            rqId = ExtraInfoUtil.getReviveQid(extraInfo);
+            startOffset = ExtraInfoUtil.getCkQueueOffset(extraInfo);
+            ackOffset = requestHeader.getOffset();
+            popTime = ExtraInfoUtil.getPopTime(extraInfo);
+            invisibleTime = ExtraInfoUtil.getInvisibleTime(extraInfo);
 
-        if (rqId == KeyBuilder.POP_ORDER_REVIVE_QUEUE) {
-            ackOrderly(topic, consumeGroup, qId, ackOffset, popTime, invisibleTime, channel, response);
-            return;
-        }
-
-        ackMsg = new AckMsg();
-        ackCount = 1;
-    } else {
-        // batch ack
-        consumeGroup = batchAck.getConsumerGroup();
-        topic = ExtraInfoUtil.getRealTopic(batchAck.getTopic(), batchAck.getConsumerGroup(), batchAck.getRetry());
-        qId = batchAck.getQueueId();
-        rqId = batchAck.getReviveQueueId();
-        startOffset = batchAck.getStartOffset();
-        ackOffset = -1;
-        popTime = batchAck.getPopTime();
-        invisibleTime = batchAck.getInvisibleTime();
-
-        long minOffset = this.brokerController.getMessageStore().getMinOffsetInQueue(topic, qId);
-        long maxOffset;
-        try {
-            maxOffset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, qId);
-        } catch (ConsumeQueueException e) {
-            throw new RemotingCommandException("Failed to get max offset in queue", e);
-        }
-        if (minOffset == -1 || maxOffset == -1) {
-            POP_LOGGER.error("Illegal topic or queue found when batch ack {}", batchAck);
-            return;
-        }
-
-        BatchAckMsg batchAckMsg = new BatchAckMsg();
-        BitSet bitSet = batchAck.getBitSet();
-        for (int i = bitSet.nextSetBit(0); i >= 0; i = bitSet.nextSetBit(i + 1)) {
-            if (i == Integer.MAX_VALUE) {
-                break;
-            }
-            long offset = startOffset + i;
-            if (offset < minOffset || offset > maxOffset) {
-                continue;
-            }
             if (rqId == KeyBuilder.POP_ORDER_REVIVE_QUEUE) {
-                ackOrderly(topic, consumeGroup, qId, offset, popTime, invisibleTime, channel, response);
-            } else {
-                batchAckMsg.getAckOffsetList().add(offset);
+                ackOrderly(topic, consumeGroup, qId, ackOffset, popTime, invisibleTime, channel, response);
+                return;
             }
+
+            ackMsg = new AckMsg();
+            ackCount = 1;
+        } else {
+            // batch ack
+            consumeGroup = batchAck.getConsumerGroup();
+            topic = ExtraInfoUtil.getRealTopic(batchAck.getTopic(), batchAck.getConsumerGroup(), batchAck.getRetry());
+            qId = batchAck.getQueueId();
+            rqId = batchAck.getReviveQueueId();
+            startOffset = batchAck.getStartOffset();
+            ackOffset = -1;
+            popTime = batchAck.getPopTime();
+            invisibleTime = batchAck.getInvisibleTime();
+
+            long minOffset = this.brokerController.getMessageStore().getMinOffsetInQueue(topic, qId);
+            long maxOffset;
+            try {
+                maxOffset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, qId);
+            } catch (ConsumeQueueException e) {
+                throw new RemotingCommandException("Failed to get max offset in queue", e);
+            }
+            if (minOffset == -1 || maxOffset == -1) {
+                POP_LOGGER.error("Illegal topic or queue found when batch ack {}", batchAck);
+                return;
+            }
+
+            BatchAckMsg batchAckMsg = new BatchAckMsg();
+            BitSet bitSet = batchAck.getBitSet();
+            for (int i = bitSet.nextSetBit(0); i >= 0; i = bitSet.nextSetBit(i + 1)) {
+                if (i == Integer.MAX_VALUE) {
+                    break;
+                }
+                long offset = startOffset + i;
+                if (offset < minOffset || offset > maxOffset) {
+                    continue;
+                }
+                if (rqId == KeyBuilder.POP_ORDER_REVIVE_QUEUE) {
+                    ackOrderly(topic, consumeGroup, qId, offset, popTime, invisibleTime, channel, response);
+                } else {
+                    batchAckMsg.getAckOffsetList().add(offset);
+                }
+            }
+            if (rqId == KeyBuilder.POP_ORDER_REVIVE_QUEUE || batchAckMsg.getAckOffsetList().isEmpty()) {
+                return;
+            }
+
+            ackMsg = batchAckMsg;
+            ackCount = batchAckMsg.getAckOffsetList().size();
         }
-        if (rqId == KeyBuilder.POP_ORDER_REVIVE_QUEUE || batchAckMsg.getAckOffsetList().isEmpty()) {
+
+        this.brokerController.getBrokerStatsManager().incBrokerAckNums(ackCount);
+        this.brokerController.getBrokerStatsManager().incGroupAckNums(consumeGroup, topic, ackCount);
+
+        ackMsg.setConsumerGroup(consumeGroup);
+        ackMsg.setTopic(topic);
+        ackMsg.setQueueId(qId);
+        ackMsg.setStartOffset(startOffset);
+        ackMsg.setAckOffset(ackOffset);
+        ackMsg.setPopTime(popTime);
+        ackMsg.setBrokerName(brokerName);
+
+        if (this.brokerController.getPopMessageProcessor().getPopBufferMergeService().addAk(rqId, ackMsg)) {
+            brokerController.getPopInflightMessageCounter().decrementInFlightMessageNum(topic, consumeGroup, popTime, qId, ackCount);
             return;
         }
 
-        ackMsg = batchAckMsg;
-        ackCount = batchAckMsg.getAckOffsetList().size();
+        MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
+        msgInner.setTopic(reviveTopic);
+        msgInner.setBody(JSON.toJSONString(ackMsg).getBytes(StandardCharsets.UTF_8));
+        msgInner.setQueueId(rqId);
+        if (ackMsg instanceof BatchAckMsg) {
+            msgInner.setTags(PopAckConstants.BATCH_ACK_TAG);
+            msgInner.getProperties().put(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX, PopMessageProcessor.genBatchAckUniqueId((BatchAckMsg) ackMsg));
+        } else {
+            msgInner.setTags(PopAckConstants.ACK_TAG);
+            msgInner.getProperties().put(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX, PopMessageProcessor.genAckUniqueId(ackMsg));
+        }
+        msgInner.setBornTimestamp(System.currentTimeMillis());
+        msgInner.setBornHost(this.brokerController.getStoreHost());
+        msgInner.setStoreHost(this.brokerController.getStoreHost());
+        msgInner.setDeliverTimeMs(popTime + invisibleTime);
+        msgInner.getProperties().put(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX, PopMessageProcessor.genAckUniqueId(ackMsg));
+        msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
+        if (brokerController.getBrokerConfig().isAppendAckAsync()) {
+            int finalAckCount = ackCount;
+            this.brokerController.getEscapeBridge().asyncPutMessageToSpecificQueue(msgInner).thenAccept(putMessageResult -> {
+                handlePutMessageResult(putMessageResult, ackMsg, topic, consumeGroup, popTime, qId, finalAckCount);
+            }).exceptionally(throwable -> {
+                handlePutMessageResult(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, null, false),
+                    ackMsg, topic, consumeGroup, popTime, qId, finalAckCount);
+                POP_LOGGER.error("put ack msg error ", throwable);
+                return null;
+            });
+        } else {
+            PutMessageResult putMessageResult = this.brokerController.getEscapeBridge().putMessageToSpecificQueue(msgInner);
+            handlePutMessageResult(putMessageResult, ackMsg, topic, consumeGroup, popTime, qId, ackCount);
+        }
     }
-
-    this.brokerController.getBrokerStatsManager().incBrokerAckNums(ackCount);
-    this.brokerController.getBrokerStatsManager().incGroupAckNums(consumeGroup, topic, ackCount);
-
-    ackMsg.setConsumerGroup(consumeGroup);
-    ackMsg.setTopic(topic);
-    ackMsg.setQueueId(qId);
-    ackMsg.setStartOffset(startOffset);
-    ackMsg.setAckOffset(ackOffset);
-    ackMsg.setPopTime(popTime);
-    ackMsg.setBrokerName(brokerName);
-
-    if (this.brokerController.getPopMessageProcessor().getPopBufferMergeService().addAk(rqId, ackMsg)) {
-        brokerController.getPopInflightMessageCounter().decrementInFlightMessageNum(topic, consumeGroup, popTime, qId, ackCount);
-        return;
-    }
-
-    MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
-    msgInner.setTopic(reviveTopic);
-    msgInner.setBody(JSON.toJSONString(ackMsg).getBytes(StandardCharsets.UTF_8));
 ```
 
 <strong>逐段阅读抓手：</strong>代码还有appendAckNew分支；不要把旧ReviveTopic说成所有POP的唯一持久化后端。
@@ -8323,59 +11947,37 @@ flowchart TB
  R2 --> M
 ```
 
-<strong>源码对照：</strong>[PopConsumerService.java · L326–L415](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerService.java#L326-L415)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[PopConsumerService.java · L326–L433](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerService.java#L326-L433)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public CompletableFuture<PopConsumerContext> popAsync(String clientHost, long popTime, long invisibleTime,
-    String groupId, String topicId, int queueId, int batchSize, boolean fifo, String attemptId, int initMode,
-    MessageFilter filter) {
+    public CompletableFuture<PopConsumerContext> popAsync(String clientHost, long popTime, long invisibleTime,
+        String groupId, String topicId, int queueId, int batchSize, boolean fifo, String attemptId, int initMode,
+        MessageFilter filter) {
 
-    PopConsumerContext popConsumerContext =
-        new PopConsumerContext(clientHost, popTime, invisibleTime, groupId, fifo, initMode, attemptId);
+        PopConsumerContext popConsumerContext =
+            new PopConsumerContext(clientHost, popTime, invisibleTime, groupId, fifo, initMode, attemptId);
 
-    TopicConfig topicConfig = brokerController.getTopicConfigManager().selectTopicConfig(topicId);
-    if (topicConfig == null || !consumerLockService.tryLock(groupId, topicId)) {
-        return CompletableFuture.completedFuture(popConsumerContext);
-    }
-
-    log.debug("PopConsumerService popAsync, groupId={}, topicId={}, queueId={}, " +
-            "batchSize={}, invisibleTime={}, fifo={}, attemptId={}, filter={}",
-        groupId, topicId, queueId, batchSize, invisibleTime, fifo, attemptId, filter);
-
-    String requestKey = groupId + "@" + topicId;
-    String retryTopicV1 = KeyBuilder.buildPopRetryTopicV1(topicId, groupId);
-    String retryTopicV2 = KeyBuilder.buildPopRetryTopicV2(topicId, groupId);
-    long requestCount = Objects.requireNonNull(ConcurrentHashMapUtils.computeIfAbsent(
-        requestCountTable, requestKey, k -> new AtomicLong(0L))).getAndIncrement();
-    boolean preferRetry = requestCount % 5L == 0L;
-
-    CompletableFuture<PopConsumerContext> getMessageFuture =
-        CompletableFuture.completedFuture(popConsumerContext);
-
-    try {
-        if (!fifo && preferRetry) {
-            if (brokerConfig.isRetrieveMessageFromPopRetryTopicV1()) {
-                getMessageFuture = this.getMessageAsync(getMessageFuture, clientHost, groupId,
-                    retryTopicV1, 0, batchSize, filter, PopConsumerRecord.RetryType.RETRY_TOPIC_V1);
-            }
-
-            if (brokerConfig.isEnableRetryTopicV2()) {
-                getMessageFuture = this.getMessageAsync(getMessageFuture, clientHost, groupId,
-                    retryTopicV2, 0, batchSize, filter, PopConsumerRecord.RetryType.RETRY_TOPIC_V2);
-            }
+        TopicConfig topicConfig = brokerController.getTopicConfigManager().selectTopicConfig(topicId);
+        if (topicConfig == null || !consumerLockService.tryLock(groupId, topicId)) {
+            return CompletableFuture.completedFuture(popConsumerContext);
         }
 
-        if (queueId != -1) {
-            getMessageFuture = this.getMessageAsync(getMessageFuture, clientHost, groupId,
-                topicId, queueId, batchSize, filter, PopConsumerRecord.RetryType.NORMAL_TOPIC);
-        } else {
-            for (int i = 0; i < topicConfig.getReadQueueNums(); i++) {
-                int current = (int) ((requestCount + i) % topicConfig.getReadQueueNums());
-                getMessageFuture = this.getMessageAsync(getMessageFuture, clientHost, groupId,
-                    topicId, current, batchSize, filter, PopConsumerRecord.RetryType.NORMAL_TOPIC);
-            }
+        log.debug("PopConsumerService popAsync, groupId={}, topicId={}, queueId={}, " +
+                "batchSize={}, invisibleTime={}, fifo={}, attemptId={}, filter={}",
+            groupId, topicId, queueId, batchSize, invisibleTime, fifo, attemptId, filter);
 
-            if (!fifo && !preferRetry) {
+        String requestKey = groupId + "@" + topicId;
+        String retryTopicV1 = KeyBuilder.buildPopRetryTopicV1(topicId, groupId);
+        String retryTopicV2 = KeyBuilder.buildPopRetryTopicV2(topicId, groupId);
+        long requestCount = Objects.requireNonNull(ConcurrentHashMapUtils.computeIfAbsent(
+            requestCountTable, requestKey, k -> new AtomicLong(0L))).getAndIncrement();
+        boolean preferRetry = requestCount % 5L == 0L;
+
+        CompletableFuture<PopConsumerContext> getMessageFuture =
+            CompletableFuture.completedFuture(popConsumerContext);
+
+        try {
+            if (!fifo && preferRetry) {
                 if (brokerConfig.isRetrieveMessageFromPopRetryTopicV1()) {
                     getMessageFuture = this.getMessageAsync(getMessageFuture, clientHost, groupId,
                         retryTopicV1, 0, batchSize, filter, PopConsumerRecord.RetryType.RETRY_TOPIC_V1);
@@ -8386,36 +11988,76 @@ public CompletableFuture<PopConsumerContext> popAsync(String clientHost, long po
                         retryTopicV2, 0, batchSize, filter, PopConsumerRecord.RetryType.RETRY_TOPIC_V2);
                 }
             }
-        }
 
-        return getMessageFuture.thenCompose(result -> {
-            if (result.isFound() && !result.isFifo()) {
-                if (brokerConfig.isEnablePopBufferMerge() &&
-                    popConsumerCache != null && !popConsumerCache.isCacheFull()) {
-                    this.popConsumerCache.writeRecords(result.getPopConsumerRecordList());
-                } else {
-                    this.popConsumerStore.writeRecords(result.getPopConsumerRecordList());
+            if (queueId != -1) {
+                getMessageFuture = this.getMessageAsync(getMessageFuture, clientHost, groupId,
+                    topicId, queueId, batchSize, filter, PopConsumerRecord.RetryType.NORMAL_TOPIC);
+            } else {
+                for (int i = 0; i < topicConfig.getReadQueueNums(); i++) {
+                    int current = (int) ((requestCount + i) % topicConfig.getReadQueueNums());
+                    getMessageFuture = this.getMessageAsync(getMessageFuture, clientHost, groupId,
+                        topicId, current, batchSize, filter, PopConsumerRecord.RetryType.NORMAL_TOPIC);
                 }
 
-                for (int i = 0; i < result.getGetMessageResultList().size(); i++) {
-                    GetMessageResult getMessageResult = result.getGetMessageResultList().get(i);
-                    PopConsumerRecord popConsumerRecord = result.getPopConsumerRecordList().get(i);
+                if (!fifo && !preferRetry) {
+                    if (brokerConfig.isRetrieveMessageFromPopRetryTopicV1()) {
+                        getMessageFuture = this.getMessageAsync(getMessageFuture, clientHost, groupId,
+                            retryTopicV1, 0, batchSize, filter, PopConsumerRecord.RetryType.RETRY_TOPIC_V1);
+                    }
 
-                    // If the buffer belong retries message, the message needs to be re-encoded.
-                    // The buffer should not be re-encoded when popResponseReturnActualRetryTopic
-                    // is true or the current topic is not a retry topic.
-                    boolean recode = brokerConfig.isPopResponseReturnActualRetryTopic();
-                    if (recode && popConsumerRecord.isRetry()) {
-                        result.getGetMessageResultList().set(i, this.recodeRetryMessage(
-                            getMessageResult, popConsumerRecord.getTopicId(),
-                            popConsumerRecord.getQueueId(), result.getPopTime(), invisibleTime));
+                    if (brokerConfig.isEnableRetryTopicV2()) {
+                        getMessageFuture = this.getMessageAsync(getMessageFuture, clientHost, groupId,
+                            retryTopicV2, 0, batchSize, filter, PopConsumerRecord.RetryType.RETRY_TOPIC_V2);
                     }
                 }
             }
-            return CompletableFuture.completedFuture(result);
-        }).whenComplete((result, throwable) -> {
-            try {
-                if (throwable != null) {
+
+            return getMessageFuture.thenCompose(result -> {
+                if (result.isFound() && !result.isFifo()) {
+                    if (brokerConfig.isEnablePopBufferMerge() &&
+                        popConsumerCache != null && !popConsumerCache.isCacheFull()) {
+                        this.popConsumerCache.writeRecords(result.getPopConsumerRecordList());
+                    } else {
+                        this.popConsumerStore.writeRecords(result.getPopConsumerRecordList());
+                    }
+
+                    for (int i = 0; i < result.getGetMessageResultList().size(); i++) {
+                        GetMessageResult getMessageResult = result.getGetMessageResultList().get(i);
+                        PopConsumerRecord popConsumerRecord = result.getPopConsumerRecordList().get(i);
+
+                        // If the buffer belong retries message, the message needs to be re-encoded.
+                        // The buffer should not be re-encoded when popResponseReturnActualRetryTopic
+                        // is true or the current topic is not a retry topic.
+                        boolean recode = brokerConfig.isPopResponseReturnActualRetryTopic();
+                        if (recode && popConsumerRecord.isRetry()) {
+                            result.getGetMessageResultList().set(i, this.recodeRetryMessage(
+                                getMessageResult, popConsumerRecord.getTopicId(),
+                                popConsumerRecord.getQueueId(), result.getPopTime(), invisibleTime));
+                        }
+                    }
+                }
+                return CompletableFuture.completedFuture(result);
+            }).whenComplete((result, throwable) -> {
+                try {
+                    if (throwable != null) {
+                        log.error("PopConsumerService popAsync get message error",
+                            throwable instanceof CompletionException ? throwable.getCause() : throwable);
+                    }
+                    if (result.getMessageCount() > 0) {
+                        log.debug("PopConsumerService popAsync result, found={}, groupId={}, topicId={}, queueId={}, " +
+                                "batchSize={}, invisibleTime={}, fifo={}, attemptId={}, filter={}", result.getMessageCount(),
+                            groupId, topicId, queueId, batchSize, invisibleTime, fifo, attemptId, filter);
+                    }
+                } finally {
+                    consumerLockService.unlock(groupId, topicId);
+                }
+            });
+        } catch (Throwable t) {
+            log.error("PopConsumerService popAsync error", t);
+        }
+
+        return getMessageFuture;
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>查brokerConfig.isPopConsumerKVServiceEnable与初始化条件；代码存在不代表默认必然启用。
@@ -8561,78 +12203,474 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[RemoteBrokerOffsetStore.java · L114–L144](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L114-L144)，连续节选。
+<strong>4.9.8源码：</strong>[RemoteBrokerOffsetStore.java · L114–L148](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java#L114-L148)，连续节选。
 
 ```java
-@Override
-public void persistAll(Set<MessageQueue> mqs) {
-    if (null == mqs || mqs.isEmpty())
-        return;
+    @Override
+    public void persistAll(Set<MessageQueue> mqs) {
+        if (null == mqs || mqs.isEmpty())
+            return;
 
-    final HashSet<MessageQueue> unusedMQ = new HashSet<MessageQueue>();
+        final HashSet<MessageQueue> unusedMQ = new HashSet<MessageQueue>();
 
-    for (Map.Entry<MessageQueue, AtomicLong> entry : this.offsetTable.entrySet()) {
-        MessageQueue mq = entry.getKey();
-        AtomicLong offset = entry.getValue();
-        if (offset != null) {
-            if (mqs.contains(mq)) {
-                try {
-                    this.updateConsumeOffsetToBroker(mq, offset.get());
-                    log.info("[persistAll] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}",
-                        this.groupName,
-                        this.mQClientFactory.getClientId(),
-                        mq,
-                        offset.get());
-                } catch (Exception e) {
-                    log.error("updateConsumeOffsetToBroker exception, " + mq.toString(), e);
+        for (Map.Entry<MessageQueue, AtomicLong> entry : this.offsetTable.entrySet()) {
+            MessageQueue mq = entry.getKey();
+            AtomicLong offset = entry.getValue();
+            if (offset != null) {
+                if (mqs.contains(mq)) {
+                    try {
+                        this.updateConsumeOffsetToBroker(mq, offset.get());
+                        log.info("[persistAll] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}",
+                            this.groupName,
+                            this.mQClientFactory.getClientId(),
+                            mq,
+                            offset.get());
+                    } catch (Exception e) {
+                        log.error("updateConsumeOffsetToBroker exception, " + mq.toString(), e);
+                    }
+                } else {
+                    unusedMQ.add(mq);
                 }
-            } else {
-                unusedMQ.add(mq);
+            }
+        }
+
+        if (!unusedMQ.isEmpty()) {
+            for (MessageQueue mq : unusedMQ) {
+                this.offsetTable.remove(mq);
+                log.info("remove unused mq, {}, {}", mq, this.groupName);
             }
         }
     }
-
-    if (!unusedMQ.isEmpty()) {
-        for (MessageQueue mq : unusedMQ) {
-            this.offsetTable.remove(mq);
 ```
 
-<strong>5.3.4源码：</strong>[PopMessageProcessor.java · L384–L416](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L384-L416)，连续节选。
+<strong>5.3.4源码：</strong>[PopMessageProcessor.java · L224–L648](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java#L224-L648)，连续节选。
 
 ```java
-if (brokerConfig.isPopConsumerKVServiceEnable()) {
+    @Override
+    public RemotingCommand processRequest(final ChannelHandlerContext ctx, RemotingCommand request)
+        throws RemotingCommandException {
 
-    CompletableFuture<PopConsumerContext> popAsyncFuture = brokerController.getPopConsumerService().popAsync(
-        RemotingHelper.parseChannelRemoteAddr(channel), beginTimeMills, requestHeader.getInvisibleTime(),
-        requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId(),
-        requestHeader.getMaxMsgNums(), requestHeader.isOrder(),
-        requestHeader.getAttemptId(), requestHeader.getInitMode(), messageFilter);
+        final long beginTimeMills = this.brokerController.getMessageStore().now();
 
-    popAsyncFuture.thenApply(result -> {
-        try {
-            if (request.getCallbackList() != null) {
-                request.getCallbackList().forEach(CommandCallback::accept);
-                request.getCallbackList().clear();
-            }
-        } catch (Throwable t) {
-            POP_LOGGER.error("PopProcessor execute callback error", t);
+        Channel channel = ctx.channel();
+        RemotingCommand response = RemotingCommand.createResponseCommand(PopMessageResponseHeader.class);
+        response.setOpaque(request.getOpaque());
+
+        final PopMessageRequestHeader requestHeader =
+            request.decodeCommandCustomHeader(PopMessageRequestHeader.class, true);
+        if (requestHeader.getBornTime() == 0) {
+            request.addExtField(BORN_TIME, String.valueOf(beginTimeMills));
+            requestHeader.setBornTime(beginTimeMills);
+        }
+        final PopMessageResponseHeader responseHeader = (PopMessageResponseHeader) response.readCustomHeader();
+
+        // Pop mode only supports consumption in cluster load balancing mode
+        brokerController.getConsumerManager().compensateBasicConsumerInfo(
+            requestHeader.getConsumerGroup(), ConsumeType.CONSUME_POP, MessageModel.CLUSTERING);
+
+        if (brokerController.getBrokerConfig().isEnablePopLog()) {
+            POP_LOGGER.info("receive PopMessage request command, {}", request);
         }
 
-        if (result.isFound()) {
-            response.setCode(ResponseCode.SUCCESS);
-            getMessageResult.setStatus(GetMessageStatus.FOUND);
-            // recursive processing
-            if (result.getRestCount() > 0) {
-                popLongPollingService.notifyMessageArriving(
-                    requestHeader.getTopic(), requestHeader.getQueueId(), requestHeader.getConsumerGroup(),
-                    null, 0L, null, null);
+        if (requestHeader.isTimeoutTooMuch()) {
+            response.setCode(ResponseCode.POLLING_TIMEOUT);
+            response.setRemark(String.format("the broker[%s] pop message is timeout too much",
+                this.brokerController.getBrokerConfig().getBrokerIP1()));
+            return response;
+        }
+
+        if (!PermName.isReadable(this.brokerController.getBrokerConfig().getBrokerPermission())) {
+            response.setCode(ResponseCode.NO_PERMISSION);
+            response.setRemark(String.format("the broker[%s] pop message is forbidden",
+                this.brokerController.getBrokerConfig().getBrokerIP1()));
+            return response;
+        }
+
+        if (requestHeader.getMaxMsgNums() > 32) {
+            response.setCode(ResponseCode.INVALID_PARAMETER);
+            response.setRemark(String.format("the broker[%s] pop message's num is greater than 32",
+                this.brokerController.getBrokerConfig().getBrokerIP1()));
+            return response;
+        }
+
+        if (!brokerController.getMessageStore().getMessageStoreConfig().isTimerWheelEnable()) {
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark(String.format("the broker[%s] pop message is forbidden because timerWheelEnable is false",
+                this.brokerController.getBrokerConfig().getBrokerIP1()));
+            return response;
+        }
+
+        TopicConfig topicConfig =
+            this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
+        if (null == topicConfig) {
+            POP_LOGGER.error("The topic {} not exist, consumer: {} ", requestHeader.getTopic(),
+                RemotingHelper.parseChannelRemoteAddr(channel));
+            response.setCode(ResponseCode.TOPIC_NOT_EXIST);
+            response.setRemark(String.format("topic[%s] not exist, apply first please! %s", requestHeader.getTopic(),
+                FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL)));
+            return response;
+        }
+
+        if (!PermName.isReadable(topicConfig.getPerm())) {
+            response.setCode(ResponseCode.NO_PERMISSION);
+            response.setRemark("the topic[" + requestHeader.getTopic() + "] peeking message is forbidden");
+            return response;
+        }
+
+        if (requestHeader.getQueueId() >= topicConfig.getReadQueueNums()) {
+            String errorInfo = String.format("queueId[%d] is illegal, topic:[%s] topicConfig.readQueueNums:[%d] " +
+                    "consumer:[%s]",
+                requestHeader.getQueueId(), requestHeader.getTopic(), topicConfig.getReadQueueNums(),
+                channel.remoteAddress());
+            POP_LOGGER.warn(errorInfo);
+            response.setCode(ResponseCode.INVALID_PARAMETER);
+            response.setRemark(errorInfo);
+            return response;
+        }
+
+        SubscriptionGroupConfig subscriptionGroupConfig =
+            this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(requestHeader.getConsumerGroup());
+        if (null == subscriptionGroupConfig) {
+            response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
+            response.setRemark(String.format("subscription group [%s] does not exist, %s",
+                requestHeader.getConsumerGroup(), FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST)));
+            return response;
+        }
+
+        if (!subscriptionGroupConfig.isConsumeEnable()) {
+            response.setCode(ResponseCode.NO_PERMISSION);
+            response.setRemark("subscription group no permission, " + requestHeader.getConsumerGroup());
+            return response;
+        }
+
+        BrokerConfig brokerConfig = brokerController.getBrokerConfig();
+        SubscriptionData subscriptionData = null;
+        ExpressionMessageFilter messageFilter = null;
+        if (requestHeader.getExp() != null && !requestHeader.getExp().isEmpty()) {
+            try {
+                // origin topic
+                subscriptionData = FilterAPI.build(
+                    requestHeader.getTopic(), requestHeader.getExp(), requestHeader.getExpType());
+                brokerController.getConsumerManager().compensateSubscribeData(
+                    requestHeader.getConsumerGroup(), requestHeader.getTopic(), subscriptionData);
+
+                // retry topic
+                String retryTopic = KeyBuilder.buildPopRetryTopic(
+                    requestHeader.getTopic(), requestHeader.getConsumerGroup(), brokerConfig.isEnableRetryTopicV2());
+                SubscriptionData retrySubscriptionData = FilterAPI.build(
+                    retryTopic, SubscriptionData.SUB_ALL, requestHeader.getExpType());
+                brokerController.getConsumerManager().compensateSubscribeData(
+                    requestHeader.getConsumerGroup(), retryTopic, retrySubscriptionData);
+
+                ConsumerFilterData consumerFilterData = null;
+                if (!ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+                    consumerFilterData = ConsumerFilterManager.build(
+                        requestHeader.getTopic(), requestHeader.getConsumerGroup(), requestHeader.getExp(),
+                        requestHeader.getExpType(), System.currentTimeMillis());
+                    if (consumerFilterData == null) {
+                        POP_LOGGER.warn("Parse the consumer's subscription[{}] failed, group: {}",
+                            requestHeader.getExp(), requestHeader.getConsumerGroup());
+                        response.setCode(ResponseCode.SUBSCRIPTION_PARSE_FAILED);
+                        response.setRemark("parse the consumer's subscription failed");
+                        return response;
+                    }
+                }
+                messageFilter = new ExpressionMessageFilter(
+                    subscriptionData, consumerFilterData, brokerController.getConsumerFilterManager());
+            } catch (Exception e) {
+                POP_LOGGER.warn("Parse the consumer's subscription[{}] error, group: {}", requestHeader.getExp(),
+                    requestHeader.getConsumerGroup());
+                response.setCode(ResponseCode.SUBSCRIPTION_PARSE_FAILED);
+                response.setRemark("parse the consumer's subscription failed");
+                return response;
             }
         } else {
-            POP_LOGGER.debug("Processor not found, polling request, popTime={}, restCount={}",
-                result.getPopTime(), result.getRestCount());
+            try {
+                // origin topic
+                subscriptionData = FilterAPI.build(requestHeader.getTopic(), "*", ExpressionType.TAG);
+                brokerController.getConsumerManager().compensateSubscribeData(
+                    requestHeader.getConsumerGroup(), requestHeader.getTopic(), subscriptionData);
 
-            PollingResult pollingResult = popLongPollingService.polling(
-                ctx, request, new PollingHeader(requestHeader), finalSubscriptionData, finalMessageFilter);
+                // retry topic
+                String retryTopic = KeyBuilder.buildPopRetryTopic(
+                    requestHeader.getTopic(), requestHeader.getConsumerGroup(), brokerConfig.isEnableRetryTopicV2());
+                SubscriptionData retrySubscriptionData = FilterAPI.build(retryTopic, "*", ExpressionType.TAG);
+                brokerController.getConsumerManager().compensateSubscribeData(
+                    requestHeader.getConsumerGroup(), retryTopic, retrySubscriptionData);
+            } catch (Exception e) {
+                POP_LOGGER.warn("Build default subscription error, group: {}", requestHeader.getConsumerGroup());
+            }
+        }
+
+        GetMessageResult getMessageResult = new GetMessageResult(requestHeader.getMaxMsgNums());
+        ExpressionMessageFilter finalMessageFilter = messageFilter;
+        SubscriptionData finalSubscriptionData = subscriptionData;
+
+        if (brokerConfig.isPopConsumerKVServiceEnable()) {
+
+            CompletableFuture<PopConsumerContext> popAsyncFuture = brokerController.getPopConsumerService().popAsync(
+                RemotingHelper.parseChannelRemoteAddr(channel), beginTimeMills, requestHeader.getInvisibleTime(),
+                requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId(),
+                requestHeader.getMaxMsgNums(), requestHeader.isOrder(),
+                requestHeader.getAttemptId(), requestHeader.getInitMode(), messageFilter);
+
+            popAsyncFuture.thenApply(result -> {
+                try {
+                    if (request.getCallbackList() != null) {
+                        request.getCallbackList().forEach(CommandCallback::accept);
+                        request.getCallbackList().clear();
+                    }
+                } catch (Throwable t) {
+                    POP_LOGGER.error("PopProcessor execute callback error", t);
+                }
+
+                if (result.isFound()) {
+                    response.setCode(ResponseCode.SUCCESS);
+                    getMessageResult.setStatus(GetMessageStatus.FOUND);
+                    // recursive processing
+                    if (result.getRestCount() > 0) {
+                        popLongPollingService.notifyMessageArriving(
+                            requestHeader.getTopic(), requestHeader.getQueueId(), requestHeader.getConsumerGroup(),
+                            null, 0L, null, null);
+                    }
+                } else {
+                    POP_LOGGER.debug("Processor not found, polling request, popTime={}, restCount={}",
+                        result.getPopTime(), result.getRestCount());
+
+                    PollingResult pollingResult = popLongPollingService.polling(
+                        ctx, request, new PollingHeader(requestHeader), finalSubscriptionData, finalMessageFilter);
+
+                    if (PollingResult.POLLING_SUC == pollingResult) {
+                        // recursive processing
+                        if (result.getRestCount() > 0) {
+                            popLongPollingService.notifyMessageArriving(
+                                requestHeader.getTopic(), requestHeader.getQueueId(), requestHeader.getConsumerGroup(),
+                                null, 0L, null, null);
+                        }
+                        return null;
+                    } else if (PollingResult.POLLING_FULL == pollingResult) {
+                        response.setCode(ResponseCode.POLLING_FULL);
+                    } else {
+                        response.setCode(ResponseCode.POLLING_TIMEOUT);
+                    }
+                    getMessageResult.setStatus(GetMessageStatus.NO_MESSAGE_IN_QUEUE);
+                }
+
+                responseHeader.setPopTime(result.getPopTime());
+                responseHeader.setInvisibleTime(result.getInvisibleTime());
+                responseHeader.setReviveQid(
+                    requestHeader.isOrder() ? KeyBuilder.POP_ORDER_REVIVE_QUEUE : 0);
+                responseHeader.setRestNum(result.getRestCount());
+                responseHeader.setStartOffsetInfo(result.getStartOffsetInfo());
+                responseHeader.setMsgOffsetInfo(result.getMsgOffsetInfo());
+                if (requestHeader.isOrder() && !result.getOrderCountInfo().isEmpty()) {
+                    responseHeader.setOrderCountInfo(result.getOrderCountInfo());
+                }
+
+                response.setRemark(getMessageResult.getStatus().name());
+                if (response.getCode() != ResponseCode.SUCCESS) {
+                    return response;
+                }
+
+                // add message
+                result.getGetMessageResultList().forEach(temp -> {
+                    for (int i = 0; i < temp.getMessageMapedList().size(); i++) {
+                        getMessageResult.addMessage(temp.getMessageMapedList().get(i));
+                    }
+                });
+
+                if (this.brokerController.getBrokerConfig().isTransferMsgByHeap()) {
+                    final byte[] r = this.readGetMessageResult(getMessageResult,
+                        requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId());
+                    this.brokerController.getBrokerStatsManager().incGroupGetLatency(
+                        requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId(),
+                        (int) (this.brokerController.getMessageStore().now() - beginTimeMills));
+                    response.setBody(r);
+                } else {
+                    final GetMessageResult tmpGetMessageResult = getMessageResult;
+                    try {
+                        FileRegion fileRegion = new ManyMessageTransfer(
+                            response.encodeHeader(getMessageResult.getBufferTotalSize()), getMessageResult);
+                        channel.writeAndFlush(fileRegion)
+                            .addListener((ChannelFutureListener) future -> {
+                                tmpGetMessageResult.release();
+                                RemotingMetricsManager remotingMetricsManager = brokerController.getBrokerMetricsManager().getRemotingMetricsManager();
+                                Attributes attributes = remotingMetricsManager.newAttributesBuilder()
+                                    .put(LABEL_REQUEST_CODE, RemotingHelper.getRequestCodeDesc(request.getCode()))
+                                    .put(LABEL_RESPONSE_CODE, RemotingHelper.getResponseCodeDesc(response.getCode()))
+                                    .put(LABEL_RESULT, remotingMetricsManager.getWriteAndFlushResult(future))
+                                    .build();
+                                remotingMetricsManager.getRpcLatency().record(
+                                    request.getProcessTimer().elapsed(TimeUnit.MILLISECONDS), attributes);
+                                if (!future.isSuccess()) {
+                                    POP_LOGGER.error("Fail to transfer messages from page cache to {}",
+                                        channel.remoteAddress(), future.cause());
+                                }
+                            });
+                    } catch (Throwable e) {
+                        POP_LOGGER.error("Error occurred when transferring messages from page cache", e);
+                        getMessageResult.release();
+                    }
+                    return null;
+                }
+                return response;
+            }).thenAccept(result -> NettyRemotingAbstract.writeResponse(channel, request, result, null, brokerController.getBrokerMetricsManager().getRemotingMetricsManager()));
+            return null;
+        }
+
+        int randomQ = random.nextInt(100);
+        int reviveQid;
+        if (requestHeader.isOrder()) {
+            reviveQid = KeyBuilder.POP_ORDER_REVIVE_QUEUE;
+        } else {
+            reviveQid = (int) Math.abs(ckMessageNumber.getAndIncrement() %
+                this.brokerController.getBrokerConfig().getReviveQueueNum());
+        }
+
+        StringBuilder startOffsetInfo = new StringBuilder(64);
+        StringBuilder msgOffsetInfo = new StringBuilder(64);
+        StringBuilder orderCountInfo = requestHeader.isOrder() ? new StringBuilder(64) : null;
+
+        // Due to the design of the fields startOffsetInfo, msgOffsetInfo, and orderCountInfo,
+        // a single POP request could only invoke the popMsgFromQueue method once
+        // for either a normal topic or a retry topic's queue. Retry topics v1 and v2 are
+        // considered the same type because they share the same retry flag in previous fields.
+        // Therefore, needRetryV1 is designed as a subset of needRetry, and within a single request,
+        // only one type of retry topic is able to call popMsgFromQueue.
+        boolean needRetry = randomQ < brokerConfig.getPopFromRetryProbability();
+        boolean needRetryV1 = false;
+        if (brokerConfig.isEnableRetryTopicV2() && brokerConfig.isRetrieveMessageFromPopRetryTopicV1()) {
+            needRetryV1 = randomQ % 2 == 0;
+        }
+        long popTime = System.currentTimeMillis();
+        CompletableFuture<Long> getMessageFuture = CompletableFuture.completedFuture(0L);
+        if (needRetry && !requestHeader.isOrder()) {
+            if (needRetryV1) {
+                String retryTopic = KeyBuilder.buildPopRetryTopicV1(requestHeader.getTopic(), requestHeader.getConsumerGroup());
+                getMessageFuture = popMsgFromTopic(retryTopic, true, getMessageResult, requestHeader, reviveQid, channel,
+                    popTime, finalMessageFilter, startOffsetInfo, msgOffsetInfo, orderCountInfo, randomQ, getMessageFuture);
+            } else {
+                String retryTopic = KeyBuilder.buildPopRetryTopic(requestHeader.getTopic(), requestHeader.getConsumerGroup(), brokerConfig.isEnableRetryTopicV2());
+                getMessageFuture = popMsgFromTopic(retryTopic, true, getMessageResult, requestHeader, reviveQid, channel,
+                    popTime, finalMessageFilter, startOffsetInfo, msgOffsetInfo, orderCountInfo, randomQ, getMessageFuture);
+            }
+        }
+        if (requestHeader.getQueueId() < 0) {
+            // read all queue
+            getMessageFuture = popMsgFromTopic(topicConfig, false, getMessageResult, requestHeader, reviveQid, channel,
+                popTime, finalMessageFilter, startOffsetInfo, msgOffsetInfo, orderCountInfo, randomQ, getMessageFuture);
+        } else {
+            int queueId = requestHeader.getQueueId();
+            getMessageFuture = getMessageFuture.thenCompose(restNum ->
+                popMsgFromQueue(topicConfig.getTopicName(), requestHeader.getAttemptId(), false,
+                    getMessageResult, requestHeader, queueId, restNum, reviveQid, channel, popTime, finalMessageFilter,
+                    startOffsetInfo, msgOffsetInfo, orderCountInfo));
+        }
+        // if not full , fetch retry again
+        if (!needRetry && getMessageResult.getMessageMapedList().size() < requestHeader.getMaxMsgNums() && !requestHeader.isOrder()) {
+            if (needRetryV1) {
+                String retryTopicV1 = KeyBuilder.buildPopRetryTopicV1(requestHeader.getTopic(), requestHeader.getConsumerGroup());
+                getMessageFuture = popMsgFromTopic(retryTopicV1, true, getMessageResult, requestHeader, reviveQid, channel,
+                    popTime, finalMessageFilter, startOffsetInfo, msgOffsetInfo, orderCountInfo, randomQ, getMessageFuture);
+            } else {
+                String retryTopic = KeyBuilder.buildPopRetryTopic(requestHeader.getTopic(), requestHeader.getConsumerGroup(), brokerConfig.isEnableRetryTopicV2());
+                getMessageFuture = popMsgFromTopic(retryTopic, true, getMessageResult, requestHeader, reviveQid, channel,
+                    popTime, finalMessageFilter, startOffsetInfo, msgOffsetInfo, orderCountInfo, randomQ, getMessageFuture);
+            }
+        }
+
+        final RemotingCommand finalResponse = response;
+        getMessageFuture.thenApply(restNum -> {
+            try {
+                if (request.getCallbackList() != null) {
+                    request.getCallbackList().forEach(CommandCallback::accept);
+                    request.getCallbackList().clear();
+                }
+            } catch (Throwable t) {
+                POP_LOGGER.error("PopProcessor execute callback error", t);
+            }
+
+            if (!getMessageResult.getMessageBufferList().isEmpty()) {
+                finalResponse.setCode(ResponseCode.SUCCESS);
+                getMessageResult.setStatus(GetMessageStatus.FOUND);
+                if (restNum > 0) {
+                    // all queue pop can not notify specified queue pop, and vice versa
+                    popLongPollingService.notifyMessageArriving(
+                        requestHeader.getTopic(), requestHeader.getQueueId(), requestHeader.getConsumerGroup(),
+                        null, 0L, null, null);
+                }
+            } else {
+                PollingResult pollingResult = popLongPollingService.polling(
+                    ctx, request, new PollingHeader(requestHeader), finalSubscriptionData, finalMessageFilter);
+                if (PollingResult.POLLING_SUC == pollingResult) {
+                    if (restNum > 0) {
+                        popLongPollingService.notifyMessageArriving(
+                            requestHeader.getTopic(), requestHeader.getQueueId(), requestHeader.getConsumerGroup(),
+                            null, 0L, null, null);
+                    }
+                    return null;
+                } else if (PollingResult.POLLING_FULL == pollingResult) {
+                    finalResponse.setCode(ResponseCode.POLLING_FULL);
+                } else {
+                    finalResponse.setCode(ResponseCode.POLLING_TIMEOUT);
+                }
+                getMessageResult.setStatus(GetMessageStatus.NO_MESSAGE_IN_QUEUE);
+            }
+            responseHeader.setInvisibleTime(requestHeader.getInvisibleTime());
+            responseHeader.setPopTime(popTime);
+            responseHeader.setReviveQid(reviveQid);
+            responseHeader.setRestNum(restNum);
+            responseHeader.setStartOffsetInfo(startOffsetInfo.toString());
+            responseHeader.setMsgOffsetInfo(msgOffsetInfo.toString());
+            if (requestHeader.isOrder() && orderCountInfo != null) {
+                responseHeader.setOrderCountInfo(orderCountInfo.toString());
+            }
+            finalResponse.setRemark(getMessageResult.getStatus().name());
+            switch (finalResponse.getCode()) {
+                case ResponseCode.SUCCESS:
+                    if (this.brokerController.getBrokerConfig().isTransferMsgByHeap()) {
+                        final byte[] r = this.readGetMessageResult(getMessageResult, requestHeader.getConsumerGroup(),
+                            requestHeader.getTopic(), requestHeader.getQueueId());
+                        this.brokerController.getBrokerStatsManager().incGroupGetLatency(requestHeader.getConsumerGroup(),
+                            requestHeader.getTopic(), requestHeader.getQueueId(),
+                            (int) (this.brokerController.getMessageStore().now() - beginTimeMills));
+                        finalResponse.setBody(r);
+                    } else {
+                        final GetMessageResult tmpGetMessageResult = getMessageResult;
+                        try {
+                            FileRegion fileRegion =
+                                new ManyMessageTransfer(finalResponse.encodeHeader(getMessageResult.getBufferTotalSize()),
+                                    getMessageResult);
+                            channel.writeAndFlush(fileRegion)
+                                .addListener((ChannelFutureListener) future -> {
+                                    tmpGetMessageResult.release();
+                                    RemotingMetricsManager remotingMetricsManager = brokerController.getBrokerMetricsManager().getRemotingMetricsManager();
+                                    Attributes attributes = remotingMetricsManager.newAttributesBuilder()
+                                        .put(LABEL_REQUEST_CODE, RemotingHelper.getRequestCodeDesc(request.getCode()))
+                                        .put(LABEL_RESPONSE_CODE, RemotingHelper.getResponseCodeDesc(finalResponse.getCode()))
+                                        .put(LABEL_RESULT, remotingMetricsManager.getWriteAndFlushResult(future))
+                                        .build();
+                                    remotingMetricsManager.getRpcLatency().record(request.getProcessTimer().elapsed(TimeUnit.MILLISECONDS), attributes);
+                                    if (!future.isSuccess()) {
+                                        POP_LOGGER.error("Fail to transfer messages from page cache to {}",
+                                            channel.remoteAddress(), future.cause());
+                                    }
+                                });
+                        } catch (Throwable e) {
+                            POP_LOGGER.error("Error occurred when transferring messages from page cache", e);
+                            getMessageResult.release();
+                        }
+
+                        return null;
+                    }
+                    break;
+                default:
+                    return finalResponse;
+            }
+            return finalResponse;
+        }).thenAccept(result -> NettyRemotingAbstract.writeResponse(channel, request, result, null, brokerController.getBrokerMetricsManager().getRemotingMetricsManager()));
+        return null;
+    }
 ```
 
 <strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
@@ -8799,35 +12837,168 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4
 ```
 
-<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L817–L842](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L817-L842)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[DefaultMQProducerImpl.java · L738–L896](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L738-L896)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-} catch (RemotingException e) {
-    endTimestamp = System.currentTimeMillis();
-    if (this.mqFaultStrategy.isStartDetectorEnable()) {
-        // Set this broker unreachable when detecting schedule task is running for RemotingException.
-        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, false);
-    } else {
-        // Otherwise, isolate this broker.
-        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, true);
+    private SendResult sendDefaultImpl(
+        Message msg,
+        final CommunicationMode communicationMode,
+        final SendCallback sendCallback,
+        final long timeout
+    ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        this.makeSureStateOK();
+        Validators.checkMessage(msg, this.defaultMQProducer);
+        final long invokeID = random.nextLong();
+        long beginTimestampFirst = System.currentTimeMillis();
+        long beginTimestampPrev = beginTimestampFirst;
+        long endTimestamp = beginTimestampFirst;
+        TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
+        if (topicPublishInfo != null && topicPublishInfo.ok()) {
+            boolean callTimeout = false;
+            MessageQueue mq = null;
+            Exception exception = null;
+            SendResult sendResult = null;
+            int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
+            int times = 0;
+            String[] brokersSent = new String[timesTotal];
+            boolean resetIndex = false;
+            for (; times < timesTotal; times++) {
+                String lastBrokerName = null == mq ? null : mq.getBrokerName();
+                if (times > 0) {
+                    resetIndex = true;
+                }
+                MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName, resetIndex);
+                if (mqSelected != null) {
+                    mq = mqSelected;
+                    brokersSent[times] = mq.getBrokerName();
+                    try {
+                        beginTimestampPrev = System.currentTimeMillis();
+                        if (times > 0) {
+                            //Reset topic with namespace during resend.
+                            msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
+                        }
+                        long costTime = beginTimestampPrev - beginTimestampFirst;
+                        if (timeout < costTime) {
+                            callTimeout = true;
+                            break;
+                        }
+                        long curTimeout = timeout - costTime;
+                        // Get the maximum timeout allowed per request
+                        long maxSendTimeoutPerRequest = defaultMQProducer.getSendMsgMaxTimeoutPerRequest();
+                        // Determine if retries are still possible
+                        boolean canRetryAgain = times + 1 < timesTotal;
+                        // If retries are possible, and the current timeout exceeds the max allowed timeout, set the current timeout to the max allowed
+                        if (maxSendTimeoutPerRequest > -1 && canRetryAgain && curTimeout > maxSendTimeoutPerRequest) {
+                            curTimeout = maxSendTimeoutPerRequest;
+                        }
+                        sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, curTimeout);
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false, true);
+                        switch (communicationMode) {
+                            case ASYNC:
+                                return null;
+                            case ONEWAY:
+                                return null;
+                            case SYNC:
+                                if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
+                                    if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
+                                        continue;
+                                    }
+                                }
+
+                                return sendResult;
+                            default:
+                                break;
+                        }
+                    } catch (MQClientException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false, true);
+                        log.warn("sendKernelImpl exception, resend at once, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        exception = e;
+                        continue;
+                    } catch (RemotingException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        if (this.mqFaultStrategy.isStartDetectorEnable()) {
+                            // Set this broker unreachable when detecting schedule task is running for RemotingException.
+                            this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, false);
+                        } else {
+                            // Otherwise, isolate this broker.
+                            this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, true);
+                        }
+                        log.warn("sendKernelImpl exception, resend at once, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        exception = e;
+                        continue;
+                    } catch (MQBrokerException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, false);
+                        log.warn("sendKernelImpl exception, resend at once, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        exception = e;
+                        if (this.defaultMQProducer.getRetryResponseCodes().contains(e.getResponseCode())) {
+                            continue;
+                        } else {
+                            if (sendResult != null) {
+                                return sendResult;
+                            }
+
+                            throw e;
+                        }
+                    } catch (InterruptedException e) {
+                        endTimestamp = System.currentTimeMillis();
+                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false, true);
+                        log.warn("sendKernelImpl exception, throw exception, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg.toString());
+                        }
+                        throw e;
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            if (sendResult != null) {
+                return sendResult;
+            }
+            String info = String.format("Send [%d] times, still failed, cost [%d]ms, Topic: %s, BrokersSent: %s",
+                times,
+                System.currentTimeMillis() - beginTimestampFirst,
+                msg.getTopic(),
+                Arrays.toString(brokersSent));
+
+            info += FAQUrl.suggestTodo(FAQUrl.SEND_MSG_FAILED);
+
+            MQClientException mqClientException = new MQClientException(info, exception);
+            if (callTimeout) {
+                throw new RemotingTooMuchRequestException("sendDefaultImpl call timeout");
+            }
+
+            if (exception instanceof MQBrokerException) {
+                mqClientException.setResponseCode(((MQBrokerException) exception).getResponseCode());
+            } else if (exception instanceof RemotingConnectException) {
+                mqClientException.setResponseCode(ClientErrorCode.CONNECT_BROKER_EXCEPTION);
+            } else if (exception instanceof RemotingTimeoutException) {
+                mqClientException.setResponseCode(ClientErrorCode.ACCESS_BROKER_TIMEOUT);
+            } else if (exception instanceof MQClientException) {
+                mqClientException.setResponseCode(ClientErrorCode.BROKER_NOT_EXIST_EXCEPTION);
+            }
+
+            throw mqClientException;
+        }
+
+        validateNameServerSetting();
+
+        throw new MQClientException("No route info of this topic: " + msg.getTopic() + FAQUrl.suggestTodo(FAQUrl.NO_TOPIC_ROUTE_INFO),
+            null).setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
     }
-    log.warn("sendKernelImpl exception, resend at once, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
-    if (log.isDebugEnabled()) {
-        log.debug(msg.toString());
-    }
-    exception = e;
-    continue;
-} catch (MQBrokerException e) {
-    endTimestamp = System.currentTimeMillis();
-    this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true, false);
-    log.warn("sendKernelImpl exception, resend at once, InvokeID: {}, RT: {}ms, Broker: {}", invokeID, endTimestamp - beginTimestampPrev, mq, e);
-    if (log.isDebugEnabled()) {
-        log.debug(msg.toString());
-    }
-    exception = e;
-    if (this.defaultMQProducer.getRetryResponseCodes().contains(e.getResponseCode())) {
-        continue;
-    } else {
 ```
 
 <strong>逐段阅读抓手：</strong>这段catch进入后更新故障项并继续；它没有向Broker发撤销已追加消息的事务。
@@ -8852,14 +13023,78 @@ MQ-->>C: 对应协议结果
 Note over C,DB: 重投后按稳定事件ID检查，避免重复副作用
 ```
 
-<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L306–L310](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L306-L310)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[ConsumeMessageConcurrentlyService.java · L242–L310](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L242-L310)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-    long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
-    if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
-        this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
+    public void processConsumeResult(
+        final ConsumeConcurrentlyStatus status,
+        final ConsumeConcurrentlyContext context,
+        final ConsumeRequest consumeRequest
+    ) {
+        int ackIndex = context.getAckIndex();
+
+        if (consumeRequest.getMsgs().isEmpty())
+            return;
+
+        switch (status) {
+            case CONSUME_SUCCESS:
+                if (ackIndex >= consumeRequest.getMsgs().size()) {
+                    ackIndex = consumeRequest.getMsgs().size() - 1;
+                }
+                int ok = ackIndex + 1;
+                int failed = consumeRequest.getMsgs().size() - ok;
+                this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), ok);
+                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), failed);
+                break;
+            case RECONSUME_LATER:
+                ackIndex = -1;
+                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(),
+                    consumeRequest.getMsgs().size());
+                break;
+            default:
+                break;
+        }
+
+        switch (this.defaultMQPushConsumer.getMessageModel()) {
+            case BROADCASTING:
+                for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
+                    MessageExt msg = consumeRequest.getMsgs().get(i);
+                    log.warn("BROADCASTING, the message consume failed, drop it, {}", msg.toString());
+                }
+                break;
+            case CLUSTERING:
+                List<MessageExt> msgBackFailed = new ArrayList<>(consumeRequest.getMsgs().size());
+                for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
+                    MessageExt msg = consumeRequest.getMsgs().get(i);
+                    // Maybe message is expired and cleaned, just ignore it.
+                    if (!consumeRequest.getProcessQueue().containsMessage(msg)) {
+                        log.info("Message is not found in its process queue; skip send-back-procedure, topic={}, "
+                                + "brokerName={}, queueId={}, queueOffset={}", msg.getTopic(), msg.getBrokerName(),
+                            msg.getQueueId(), msg.getQueueOffset());
+                        continue;
+                    }
+                    boolean result = this.sendMessageBack(msg, context);
+                    if (!result) {
+                        msg.setReconsumeTimes(msg.getReconsumeTimes() + 1);
+                        msgBackFailed.add(msg);
+                    }
+                }
+
+                if (!msgBackFailed.isEmpty()) {
+                    consumeRequest.getMsgs().removeAll(msgBackFailed);
+
+                    this.submitConsumeRequestLater(msgBackFailed, consumeRequest.getProcessQueue(), consumeRequest.getMessageQueue());
+                }
+                break;
+            default:
+                break;
+        }
+
+        long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
+        if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
+            this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
+        }
     }
-}
 ```
 
 <strong>逐段阅读抓手：</strong>源码只管理ProcessQueue与OffsetStore；业务事务在Listener中，原子性不会自动跨过去。
@@ -8932,24 +13167,145 @@ end
 A -. "比较状态归属 / 确认条件 / 配置" .-> B
 ```
 
-<strong>4.9.8源码：</strong>[ConsumeMessageConcurrentlyService.java · L298–L302](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L298-L302)，连续节选。
+<strong>4.9.8源码：</strong>[ConsumeMessageConcurrentlyService.java · L241–L302](https://github.com/apache/rocketmq/blob/2bdd53ef6694ffa19fd00db0b887e4895444f63e/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L241-L302)，连续节选。
 
 ```java
-    long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
-    if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
-        this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
+    public void processConsumeResult(
+        final ConsumeConcurrentlyStatus status,
+        final ConsumeConcurrentlyContext context,
+        final ConsumeRequest consumeRequest
+    ) {
+        int ackIndex = context.getAckIndex();
+
+        if (consumeRequest.getMsgs().isEmpty())
+            return;
+
+        switch (status) {
+            case CONSUME_SUCCESS:
+                if (ackIndex >= consumeRequest.getMsgs().size()) {
+                    ackIndex = consumeRequest.getMsgs().size() - 1;
+                }
+                int ok = ackIndex + 1;
+                int failed = consumeRequest.getMsgs().size() - ok;
+                this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), ok);
+                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), failed);
+                break;
+            case RECONSUME_LATER:
+                ackIndex = -1;
+                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(),
+                    consumeRequest.getMsgs().size());
+                break;
+            default:
+                break;
+        }
+
+        switch (this.defaultMQPushConsumer.getMessageModel()) {
+            case BROADCASTING:
+                for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
+                    MessageExt msg = consumeRequest.getMsgs().get(i);
+                    log.warn("BROADCASTING, the message consume failed, drop it, {}", msg.toString());
+                }
+                break;
+            case CLUSTERING:
+                List<MessageExt> msgBackFailed = new ArrayList<MessageExt>(consumeRequest.getMsgs().size());
+                for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
+                    MessageExt msg = consumeRequest.getMsgs().get(i);
+                    boolean result = this.sendMessageBack(msg, context);
+                    if (!result) {
+                        msg.setReconsumeTimes(msg.getReconsumeTimes() + 1);
+                        msgBackFailed.add(msg);
+                    }
+                }
+
+                if (!msgBackFailed.isEmpty()) {
+                    consumeRequest.getMsgs().removeAll(msgBackFailed);
+
+                    this.submitConsumeRequestLater(msgBackFailed, consumeRequest.getProcessQueue(), consumeRequest.getMessageQueue());
+                }
+                break;
+            default:
+                break;
+        }
+
+        long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
+        if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
+            this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
+        }
     }
-}
 ```
 
-<strong>5.3.4源码：</strong>[ConsumeMessageConcurrentlyService.java · L306–L310](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L306-L310)，连续节选。
+<strong>5.3.4源码：</strong>[ConsumeMessageConcurrentlyService.java · L242–L310](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java#L242-L310)，连续节选。
 
 ```java
-    long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
-    if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
-        this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
+    public void processConsumeResult(
+        final ConsumeConcurrentlyStatus status,
+        final ConsumeConcurrentlyContext context,
+        final ConsumeRequest consumeRequest
+    ) {
+        int ackIndex = context.getAckIndex();
+
+        if (consumeRequest.getMsgs().isEmpty())
+            return;
+
+        switch (status) {
+            case CONSUME_SUCCESS:
+                if (ackIndex >= consumeRequest.getMsgs().size()) {
+                    ackIndex = consumeRequest.getMsgs().size() - 1;
+                }
+                int ok = ackIndex + 1;
+                int failed = consumeRequest.getMsgs().size() - ok;
+                this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), ok);
+                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), failed);
+                break;
+            case RECONSUME_LATER:
+                ackIndex = -1;
+                this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(),
+                    consumeRequest.getMsgs().size());
+                break;
+            default:
+                break;
+        }
+
+        switch (this.defaultMQPushConsumer.getMessageModel()) {
+            case BROADCASTING:
+                for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
+                    MessageExt msg = consumeRequest.getMsgs().get(i);
+                    log.warn("BROADCASTING, the message consume failed, drop it, {}", msg.toString());
+                }
+                break;
+            case CLUSTERING:
+                List<MessageExt> msgBackFailed = new ArrayList<>(consumeRequest.getMsgs().size());
+                for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
+                    MessageExt msg = consumeRequest.getMsgs().get(i);
+                    // Maybe message is expired and cleaned, just ignore it.
+                    if (!consumeRequest.getProcessQueue().containsMessage(msg)) {
+                        log.info("Message is not found in its process queue; skip send-back-procedure, topic={}, "
+                                + "brokerName={}, queueId={}, queueOffset={}", msg.getTopic(), msg.getBrokerName(),
+                            msg.getQueueId(), msg.getQueueOffset());
+                        continue;
+                    }
+                    boolean result = this.sendMessageBack(msg, context);
+                    if (!result) {
+                        msg.setReconsumeTimes(msg.getReconsumeTimes() + 1);
+                        msgBackFailed.add(msg);
+                    }
+                }
+
+                if (!msgBackFailed.isEmpty()) {
+                    consumeRequest.getMsgs().removeAll(msgBackFailed);
+
+                    this.submitConsumeRequestLater(msgBackFailed, consumeRequest.getProcessQueue(), consumeRequest.getMessageQueue());
+                }
+                break;
+            default:
+                break;
+        }
+
+        long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
+        if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
+            this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
+        }
     }
-}
 ```
 
 <strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。
@@ -9149,75 +13505,99 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-<strong>源码对照：</strong>[MQClientInstance.java · L782–L847](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/factory/MQClientInstance.java#L782-L847)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[MQClientInstance.java · L782–L871](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/client/src/main/java/org/apache/rocketmq/client/impl/factory/MQClientInstance.java#L782-L871)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault,
-    DefaultMQProducer defaultMQProducer) {
-    try {
-        if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
-            try {
-                TopicRouteData topicRouteData;
-                if (isDefault && defaultMQProducer != null) {
-                    topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(clientConfig.getMqClientApiTimeout());
-                    if (topicRouteData != null) {
-                        for (QueueData data : topicRouteData.getQueueDatas()) {
-                            int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums());
-                            data.setReadQueueNums(queueNums);
-                            data.setWriteQueueNums(queueNums);
+    public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault,
+        DefaultMQProducer defaultMQProducer) {
+        try {
+            if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
+                try {
+                    TopicRouteData topicRouteData;
+                    if (isDefault && defaultMQProducer != null) {
+                        topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(clientConfig.getMqClientApiTimeout());
+                        if (topicRouteData != null) {
+                            for (QueueData data : topicRouteData.getQueueDatas()) {
+                                int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums());
+                                data.setReadQueueNums(queueNums);
+                                data.setWriteQueueNums(queueNums);
+                            }
                         }
-                    }
-                } else {
-                    topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, clientConfig.getMqClientApiTimeout());
-                }
-                if (topicRouteData != null) {
-                    TopicRouteData old = this.topicRouteTable.get(topic);
-                    boolean changed = topicRouteData.topicRouteDataChanged(old);
-                    if (!changed) {
-                        changed = this.isNeedUpdateTopicRouteInfo(topic);
                     } else {
-                        log.info("the topic[{}] route info changed, old[{}] ,new[{}]", topic, old, topicRouteData);
+                        topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, clientConfig.getMqClientApiTimeout());
                     }
-
-                    if (changed) {
-
-                        for (BrokerData bd : topicRouteData.getBrokerDatas()) {
-                            this.brokerAddrTable.put(bd.getBrokerName(), bd.getBrokerAddrs());
+                    if (topicRouteData != null) {
+                        TopicRouteData old = this.topicRouteTable.get(topic);
+                        boolean changed = topicRouteData.topicRouteDataChanged(old);
+                        if (!changed) {
+                            changed = this.isNeedUpdateTopicRouteInfo(topic);
+                        } else {
+                            log.info("the topic[{}] route info changed, old[{}] ,new[{}]", topic, old, topicRouteData);
                         }
 
-                        // Update endpoint map
-                        {
-                            ConcurrentMap<MessageQueue, String> mqEndPoints = topicRouteData2EndpointsForStaticTopic(topic, topicRouteData);
-                            if (!mqEndPoints.isEmpty()) {
-                                topicEndPointsTable.put(topic, mqEndPoints);
+                        if (changed) {
+
+                            for (BrokerData bd : topicRouteData.getBrokerDatas()) {
+                                this.brokerAddrTable.put(bd.getBrokerName(), bd.getBrokerAddrs());
                             }
-                        }
 
-                        // Update Pub info
-                        {
-                            TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
-                            publishInfo.setHaveTopicRouterInfo(true);
-                            for (Entry<String, MQProducerInner> entry : this.producerTable.entrySet()) {
-                                MQProducerInner impl = entry.getValue();
-                                if (impl != null) {
-                                    impl.updateTopicPublishInfo(topic, publishInfo);
+                            // Update endpoint map
+                            {
+                                ConcurrentMap<MessageQueue, String> mqEndPoints = topicRouteData2EndpointsForStaticTopic(topic, topicRouteData);
+                                if (!mqEndPoints.isEmpty()) {
+                                    topicEndPointsTable.put(topic, mqEndPoints);
                                 }
                             }
-                        }
 
-                        // Update sub info
-                        if (!consumerTable.isEmpty()) {
-                            Set<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
-                            for (Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
-                                MQConsumerInner impl = entry.getValue();
-                                if (impl != null) {
-                                    impl.updateTopicSubscribeInfo(topic, subscribeInfo);
+                            // Update Pub info
+                            {
+                                TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
+                                publishInfo.setHaveTopicRouterInfo(true);
+                                for (Entry<String, MQProducerInner> entry : this.producerTable.entrySet()) {
+                                    MQProducerInner impl = entry.getValue();
+                                    if (impl != null) {
+                                        impl.updateTopicPublishInfo(topic, publishInfo);
+                                    }
                                 }
                             }
+
+                            // Update sub info
+                            if (!consumerTable.isEmpty()) {
+                                Set<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
+                                for (Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
+                                    MQConsumerInner impl = entry.getValue();
+                                    if (impl != null) {
+                                        impl.updateTopicSubscribeInfo(topic, subscribeInfo);
+                                    }
+                                }
+                            }
+                            TopicRouteData cloneTopicRouteData = new TopicRouteData(topicRouteData);
+                            log.info("topicRouteTable.put. Topic = {}, TopicRouteData[{}]", topic, cloneTopicRouteData);
+                            this.topicRouteTable.put(topic, cloneTopicRouteData);
+                            return true;
                         }
-                        TopicRouteData cloneTopicRouteData = new TopicRouteData(topicRouteData);
-                        log.info("topicRouteTable.put. Topic = {}, TopicRouteData[{}]", topic, cloneTopicRouteData);
-                        this.topicRouteTable.put(topic, cloneTopicRouteData);
+                    } else {
+                        log.warn("updateTopicRouteInfoFromNameServer, getTopicRouteInfoFromNameServer return null, Topic: {}. [{}]", topic, this.clientId);
+                    }
+                } catch (MQClientException e) {
+                    if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX) && !topic.equals(TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC)) {
+                        log.warn("updateTopicRouteInfoFromNameServer Exception", e);
+                    }
+                } catch (RemotingException e) {
+                    log.error("updateTopicRouteInfoFromNameServer Exception", e);
+                    throw new IllegalStateException(e);
+                } finally {
+                    this.lockNamesrv.unlock();
+                }
+            } else {
+                log.warn("updateTopicRouteInfoFromNameServer tryLock timeout {}ms. [{}]", LOCK_TIMEOUT_MILLIS, this.clientId);
+            }
+        } catch (InterruptedException e) {
+            log.warn("updateTopicRouteInfoFromNameServer Exception", e);
+        }
+
+        return false;
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>路由刷新会更新Broker地址与发布/订阅信息；它不是每条消息都强制执行的步骤。
@@ -9240,37 +13620,45 @@ flowchart LR
     N0 --> N1 --> N2 --> N3 --> N4 --> N5
 ```
 
-<strong>源码对照：</strong>[TransactionalMessageServiceImpl.java · L596–L623](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L596-L623)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[TransactionalMessageServiceImpl.java · L596–L631](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L596-L631)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-@Override
-public boolean deletePrepareMessage(MessageExt messageExt) {
-    Integer queueId = messageExt.getQueueId();
-    MessageQueueOpContext mqContext = deleteContext.get(queueId);
-    if (mqContext == null) {
-        mqContext = new MessageQueueOpContext(System.currentTimeMillis(), 20000);
-        MessageQueueOpContext old = deleteContext.putIfAbsent(queueId, mqContext);
-        if (old != null) {
-            mqContext = old;
+    @Override
+    public boolean deletePrepareMessage(MessageExt messageExt) {
+        Integer queueId = messageExt.getQueueId();
+        MessageQueueOpContext mqContext = deleteContext.get(queueId);
+        if (mqContext == null) {
+            mqContext = new MessageQueueOpContext(System.currentTimeMillis(), 20000);
+            MessageQueueOpContext old = deleteContext.putIfAbsent(queueId, mqContext);
+            if (old != null) {
+                mqContext = old;
+            }
         }
-    }
 
-    String data = messageExt.getQueueOffset() + TransactionalMessageUtil.OFFSET_SEPARATOR;
-    try {
-        boolean res = mqContext.getContextQueue().offer(data, 100, TimeUnit.MILLISECONDS);
-        if (res) {
-            int totalSize = mqContext.getTotalSize().addAndGet(data.length());
-            if (totalSize > transactionalMessageBridge.getBrokerController().getBrokerConfig().getTransactionOpMsgMaxSize()) {
+        String data = messageExt.getQueueOffset() + TransactionalMessageUtil.OFFSET_SEPARATOR;
+        try {
+            boolean res = mqContext.getContextQueue().offer(data, 100, TimeUnit.MILLISECONDS);
+            if (res) {
+                int totalSize = mqContext.getTotalSize().addAndGet(data.length());
+                if (totalSize > transactionalMessageBridge.getBrokerController().getBrokerConfig().getTransactionOpMsgMaxSize()) {
+                    this.transactionalOpBatchService.wakeup();
+                }
+                return true;
+            } else {
                 this.transactionalOpBatchService.wakeup();
             }
+        } catch (InterruptedException ignore) {
+        }
+
+        Message msg = getOpMessage(queueId, data);
+        if (this.transactionalMessageBridge.writeOp(queueId, msg)) {
+            log.warn("Force add remove op data. queueId={}", queueId);
             return true;
         } else {
-            this.transactionalOpBatchService.wakeup();
+            log.error("Transaction op message write failed. messageId is {}, queueId is {}", messageExt.getMsgId(), messageExt.getQueueId());
+            return false;
         }
-    } catch (InterruptedException ignore) {
     }
-
-    Message msg = getOpMessage(queueId, data);
 ```
 
 <strong>逐段阅读抓手：</strong>deletePrepareMessage通过桥接层记录op；名字中的delete不是立即删除CommitLog字节。
@@ -9392,40 +13780,111 @@ flowchart LR
     N0 --> N1 --> N2 --> N3
 ```
 
-<strong>源码对照：</strong>[RouteInfoManager.java · L700–L730](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L730)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
+<strong>源码对照：</strong>[RouteInfoManager.java · L700–L801](https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java#L700-L801)。以下为连续节选，可能止于方法中间；仅统一缩进，完整方法与调用方见链接。
 
 ```java
-public TopicRouteData pickupTopicRouteData(final String topic) {
-    TopicRouteData topicRouteData = new TopicRouteData();
-    boolean foundQueueData = false;
-    boolean foundBrokerData = false;
-    List<BrokerData> brokerDataList = new LinkedList<>();
-    topicRouteData.setBrokerDatas(brokerDataList);
+    public TopicRouteData pickupTopicRouteData(final String topic) {
+        TopicRouteData topicRouteData = new TopicRouteData();
+        boolean foundQueueData = false;
+        boolean foundBrokerData = false;
+        List<BrokerData> brokerDataList = new LinkedList<>();
+        topicRouteData.setBrokerDatas(brokerDataList);
 
-    HashMap<String, List<String>> filterServerMap = new HashMap<>();
-    topicRouteData.setFilterServerTable(filterServerMap);
+        HashMap<String, List<String>> filterServerMap = new HashMap<>();
+        topicRouteData.setFilterServerTable(filterServerMap);
 
-    try {
-        this.lock.readLock().lockInterruptibly();
-        Map<String, QueueData> queueDataMap = this.topicQueueTable.get(topic);
-        if (queueDataMap != null) {
-            topicRouteData.setQueueDatas(new ArrayList<>(queueDataMap.values()));
-            foundQueueData = true;
+        try {
+            this.lock.readLock().lockInterruptibly();
+            Map<String, QueueData> queueDataMap = this.topicQueueTable.get(topic);
+            if (queueDataMap != null) {
+                topicRouteData.setQueueDatas(new ArrayList<>(queueDataMap.values()));
+                foundQueueData = true;
 
-            Set<String> brokerNameSet = new HashSet<>(queueDataMap.keySet());
+                Set<String> brokerNameSet = new HashSet<>(queueDataMap.keySet());
 
-            for (String brokerName : brokerNameSet) {
-                BrokerData brokerData = this.brokerAddrTable.get(brokerName);
-                if (null == brokerData) {
+                for (String brokerName : brokerNameSet) {
+                    BrokerData brokerData = this.brokerAddrTable.get(brokerName);
+                    if (null == brokerData) {
+                        continue;
+                    }
+                    BrokerData brokerDataClone = new BrokerData(brokerData);
+
+                    brokerDataList.add(brokerDataClone);
+                    foundBrokerData = true;
+                    if (filterServerTable.isEmpty()) {
+                        continue;
+                    }
+                    for (final String brokerAddr : brokerDataClone.getBrokerAddrs().values()) {
+                        BrokerAddrInfo brokerAddrInfo = new BrokerAddrInfo(brokerDataClone.getCluster(), brokerAddr);
+                        List<String> filterServerList = this.filterServerTable.get(brokerAddrInfo);
+                        filterServerMap.put(brokerAddr, filterServerList);
+                    }
+
+                }
+            }
+        } catch (Exception e) {
+            log.error("pickupTopicRouteData Exception", e);
+        } finally {
+            this.lock.readLock().unlock();
+        }
+
+        log.debug("pickupTopicRouteData {} {}", topic, topicRouteData);
+
+        if (foundBrokerData && foundQueueData) {
+
+            topicRouteData.setTopicQueueMappingByBroker(this.topicQueueMappingInfoTable.get(topic));
+
+            if (!namesrvConfig.isSupportActingMaster()) {
+                return topicRouteData;
+            }
+
+            if (topic.startsWith(TopicValidator.SYNC_BROKER_MEMBER_GROUP_PREFIX)) {
+                return topicRouteData;
+            }
+
+            if (topicRouteData.getBrokerDatas().size() == 0 || topicRouteData.getQueueDatas().size() == 0) {
+                return topicRouteData;
+            }
+
+            boolean needActingMaster = false;
+
+            for (final BrokerData brokerData : topicRouteData.getBrokerDatas()) {
+                if (brokerData.getBrokerAddrs().size() != 0
+                    && !brokerData.getBrokerAddrs().containsKey(MixAll.MASTER_ID)) {
+                    needActingMaster = true;
+                    break;
+                }
+            }
+
+            if (!needActingMaster) {
+                return topicRouteData;
+            }
+
+            for (final BrokerData brokerData : topicRouteData.getBrokerDatas()) {
+                final HashMap<Long, String> brokerAddrs = brokerData.getBrokerAddrs();
+                if (brokerAddrs.size() == 0 || brokerAddrs.containsKey(MixAll.MASTER_ID) || !brokerData.isEnableActingMaster()) {
                     continue;
                 }
-                BrokerData brokerDataClone = new BrokerData(brokerData);
 
-                brokerDataList.add(brokerDataClone);
-                foundBrokerData = true;
-                if (filterServerTable.isEmpty()) {
-                    continue;
+                // No master
+                for (final QueueData queueData : topicRouteData.getQueueDatas()) {
+                    if (queueData.getBrokerName().equals(brokerData.getBrokerName())) {
+                        if (!PermName.isWriteable(queueData.getPerm())) {
+                            final Long minBrokerId = Collections.min(brokerAddrs.keySet());
+                            final String actingMasterAddr = brokerAddrs.remove(minBrokerId);
+                            brokerAddrs.put(MixAll.MASTER_ID, actingMasterAddr);
+                        }
+                        break;
+                    }
                 }
+
+            }
+
+            return topicRouteData;
+        }
+
+        return null;
+    }
 ```
 
 <strong>逐段阅读抓手：</strong>返回QueueData/BrokerData等结构；消息Body并不从这里转发。

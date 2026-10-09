@@ -1,3 +1,15 @@
+    /**
+     * Save config file and update md5 value in cache.
+     *
+     * @param dataId         dataId string value.
+     * @param group          group string value.
+     * @param tenant         tenant string value.
+     * @param content        content string value.
+     * @param md5            md5 of persist.
+     * @param lastModifiedTs lastModifiedTs.
+     * @param type           file type.
+     * @return dumpChange success or not.
+     */
     public static boolean dumpWithMd5(String dataId, String group, String tenant, String content,
         String md5,
         long lastModifiedTs, String type, String encryptedDataKey) {

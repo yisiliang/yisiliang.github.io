@@ -97,18 +97,19 @@ flowchart TD
 #### 源码1：private final char value[];
 
 
-**String·[L114–L120](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L114-L120)**
+**String·[L113–L120](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/String.java#L113-L120)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-private final char value[];
+    /** The value is used for character storage. */
+    private final char value[];
 
-/** Cache the hash code for the string */
-private int hash; // Default to 0
+    /** Cache the hash code for the string */
+    private int hash; // Default to 0
 
-/** use serialVersionUID from JDK 1.0.2 for interoperability */
-private static final long serialVersionUID = -6849794470754667710L;
+    /** use serialVersionUID from JDK 1.0.2 for interoperability */
+    private static final long serialVersionUID = -6849794470754667710L;
 ```
 
 value是内部表示，hash是缓存，不是字符串的逻辑内容。一个Unicode字符可能需要两个char表示，因此length统计UTF-16代码单元。不要把char[]说成按字符编码后的byte数组。
@@ -465,35 +466,46 @@ flowchart TD
 #### 源码1：private static class IntegerCache
 
 
-**Integer·[L780–L803](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Integer.java#L780-L803)**
+**Integer·[L769–L803](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/Integer.java#L769-L803)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-private static class IntegerCache {
-    static final int low = -128;
-    static final int high;
-    static final Integer cache[];
+    /**
+     * Cache to support the object identity semantics of autoboxing for values between
+     * -128 and 127 (inclusive) as required by JLS.
+     *
+     * The cache is initialized on first usage.  The size of the cache
+     * may be controlled by the {@code -XX:AutoBoxCacheMax=<size>} option.
+     * During VM initialization, java.lang.Integer.IntegerCache.high property
+     * may be set and saved in the private system properties in the
+     * sun.misc.VM class.
+     */
 
-    static {
-        // high value may be configured by property
-        int h = 127;
-        String integerCacheHighPropValue =
-            sun.misc.VM.getSavedProperty("java.lang.Integer.IntegerCache.high");
-        if (integerCacheHighPropValue != null) {
-            try {
-                int i = parseInt(integerCacheHighPropValue);
-                i = Math.max(i, 127);
-                // Maximum array size is Integer.MAX_VALUE
-                h = Math.min(i, Integer.MAX_VALUE - (-low) -1);
-            } catch( NumberFormatException nfe) {
-                // If the property cannot be parsed into an int, ignore it.
+    private static class IntegerCache {
+        static final int low = -128;
+        static final int high;
+        static final Integer cache[];
+
+        static {
+            // high value may be configured by property
+            int h = 127;
+            String integerCacheHighPropValue =
+                sun.misc.VM.getSavedProperty("java.lang.Integer.IntegerCache.high");
+            if (integerCacheHighPropValue != null) {
+                try {
+                    int i = parseInt(integerCacheHighPropValue);
+                    i = Math.max(i, 127);
+                    // Maximum array size is Integer.MAX_VALUE
+                    h = Math.min(i, Integer.MAX_VALUE - (-low) -1);
+                } catch( NumberFormatException nfe) {
+                    // If the property cannot be parsed into an int, ignore it.
+                }
             }
-        }
-        high = h;
+            high = h;
 
-        cache = new Integer[(high - low) + 1];
-        int j = low;
+            cache = new Integer[(high - low) + 1];
+            int j = low;
 ```
 
 默认上界127，下界-128；本实现允许通过保存的属性提高上界。不要把大于127一律“不可能缓存”当规范。
@@ -1073,32 +1085,34 @@ public E pollFirst() {
 初始参数17通常先调整为32。第一次分配后，默认负载因子0.75使阈值为24。不要把构造完成时threshold=32理解成“可以存32项再扩容”。
 
 
-**HashMap·[L439–L459](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L439-L459)**
+**HashMap·[L437–L459](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L437-L459)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Constructs an empty <tt>HashMap</tt> with the specified initial
- * capacity and load factor.
- *
- * @param  initialCapacity the initial capacity
- * @param  loadFactor      the load factor
- * @throws IllegalArgumentException if the initial capacity is negative
- *         or the load factor is nonpositive
- */
-public HashMap(int initialCapacity, float loadFactor) {
-    if (initialCapacity < 0)
-        throw new IllegalArgumentException("Illegal initial capacity: " +
-                                           initialCapacity);
-    if (initialCapacity > MAXIMUM_CAPACITY)
-        initialCapacity = MAXIMUM_CAPACITY;
-    if (loadFactor <= 0 || Float.isNaN(loadFactor))
-        throw new IllegalArgumentException("Illegal load factor: " +
-                                           loadFactor);
-    this.loadFactor = loadFactor;
-    this.threshold = tableSizeFor(initialCapacity);
-}
+    /* ---------------- Public operations -------------- */
+
+    /**
+     * Constructs an empty <tt>HashMap</tt> with the specified initial
+     * capacity and load factor.
+     *
+     * @param  initialCapacity the initial capacity
+     * @param  loadFactor      the load factor
+     * @throws IllegalArgumentException if the initial capacity is negative
+     *         or the load factor is nonpositive
+     */
+    public HashMap(int initialCapacity, float loadFactor) {
+        if (initialCapacity < 0)
+            throw new IllegalArgumentException("Illegal initial capacity: " +
+                                               initialCapacity);
+        if (initialCapacity > MAXIMUM_CAPACITY)
+            initialCapacity = MAXIMUM_CAPACITY;
+        if (loadFactor <= 0 || Float.isNaN(loadFactor))
+            throw new IllegalArgumentException("Illegal load factor: " +
+                                               loadFactor);
+        this.loadFactor = loadFactor;
+        this.threshold = tableSizeFor(initialCapacity);
+    }
 ```
 
 构造器只验证参数、保存loadFactor与threshold，没有new Node数组。
@@ -1264,31 +1278,33 @@ flowchart TD
 #### 源码1：static final int hash(Object key)
 
 
-**HashMap·[L322–L341](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L322-L341)**
+**HashMap·[L320–L341](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L320-L341)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Computes key.hashCode() and spreads (XORs) higher bits of hash
- * to lower.  Because the table uses power-of-two masking, sets of
- * hashes that vary only in bits above the current mask will
- * always collide. (Among known examples are sets of Float keys
- * holding consecutive whole numbers in small tables.)  So we
- * apply a transform that spreads the impact of higher bits
- * downward. There is a tradeoff between speed, utility, and
- * quality of bit-spreading. Because many common sets of hashes
- * are already reasonably distributed (so don't benefit from
- * spreading), and because we use trees to handle large sets of
- * collisions in bins, we just XOR some shifted bits in the
- * cheapest possible way to reduce systematic lossage, as well as
- * to incorporate impact of the highest bits that would otherwise
- * never be used in index calculations because of table bounds.
- */
-static final int hash(Object key) {
-    int h;
-    return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
-}
+    /* ---------------- Static utilities -------------- */
+
+    /**
+     * Computes key.hashCode() and spreads (XORs) higher bits of hash
+     * to lower.  Because the table uses power-of-two masking, sets of
+     * hashes that vary only in bits above the current mask will
+     * always collide. (Among known examples are sets of Float keys
+     * holding consecutive whole numbers in small tables.)  So we
+     * apply a transform that spreads the impact of higher bits
+     * downward. There is a tradeoff between speed, utility, and
+     * quality of bit-spreading. Because many common sets of hashes
+     * are already reasonably distributed (so don't benefit from
+     * spreading), and because we use trees to handle large sets of
+     * collisions in bins, we just XOR some shifted bits in the
+     * cheapest possible way to reduce systematic lossage, as well as
+     * to incorporate impact of the highest bits that would otherwise
+     * never be used in index calculations because of table bounds.
+     */
+    static final int hash(Object key) {
+        int h;
+        return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+    }
 ```
 
 null键的hash为0；非null键使用h^(h>>>16)。Node的hash字段记录扰动后的结果，供扩容和节点比较复用；普通get和put仍会计算本次传入key的hash。
@@ -1297,55 +1313,63 @@ null键的hash为0；非null键使用h^(h>>>16)。Node的hash字段记录扰动�
 #### 源码2：final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
 
 
-**HashMap·[L616–L659](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L616-L659)**
+**HashMap·[L616–L667](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L616-L667)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Implements Map.put and related methods.
- *
- * @param hash hash for key
- * @param key the key
- * @param value the value to put
- * @param onlyIfAbsent if true, don't change existing value
- * @param evict if false, the table is in creation mode.
- * @return previous value, or null if none
- */
-final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
-               boolean evict) {
-    Node<K,V>[] tab; Node<K,V> p; int n, i;
-    if ((tab = table) == null || (n = tab.length) == 0)
-        n = (tab = resize()).length;
-    if ((p = tab[i = (n - 1) & hash]) == null)
-        tab[i] = newNode(hash, key, value, null);
-    else {
-        Node<K,V> e; K k;
-        if (p.hash == hash &&
-            ((k = p.key) == key || (key != null && key.equals(k))))
-            e = p;
-        else if (p instanceof TreeNode)
-            e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+    /**
+     * Implements Map.put and related methods.
+     *
+     * @param hash hash for key
+     * @param key the key
+     * @param value the value to put
+     * @param onlyIfAbsent if true, don't change existing value
+     * @param evict if false, the table is in creation mode.
+     * @return previous value, or null if none
+     */
+    final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
+                   boolean evict) {
+        Node<K,V>[] tab; Node<K,V> p; int n, i;
+        if ((tab = table) == null || (n = tab.length) == 0)
+            n = (tab = resize()).length;
+        if ((p = tab[i = (n - 1) & hash]) == null)
+            tab[i] = newNode(hash, key, value, null);
         else {
-            for (int binCount = 0; ; ++binCount) {
-                if ((e = p.next) == null) {
-                    p.next = newNode(hash, key, value, null);
-                    if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
-                        treeifyBin(tab, hash);
-                    break;
+            Node<K,V> e; K k;
+            if (p.hash == hash &&
+                ((k = p.key) == key || (key != null && key.equals(k))))
+                e = p;
+            else if (p instanceof TreeNode)
+                e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+            else {
+                for (int binCount = 0; ; ++binCount) {
+                    if ((e = p.next) == null) {
+                        p.next = newNode(hash, key, value, null);
+                        if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
+                            treeifyBin(tab, hash);
+                        break;
+                    }
+                    if (e.hash == hash &&
+                        ((k = e.key) == key || (key != null && key.equals(k))))
+                        break;
+                    p = e;
                 }
-                if (e.hash == hash &&
-                    ((k = e.key) == key || (key != null && key.equals(k))))
-                    break;
-                p = e;
+            }
+            if (e != null) { // existing mapping for key
+                V oldValue = e.value;
+                if (!onlyIfAbsent || oldValue == null)
+                    e.value = value;
+                afterNodeAccess(e);
+                return oldValue;
             }
         }
-        if (e != null) { // existing mapping for key
-            V oldValue = e.value;
-            if (!onlyIfAbsent || oldValue == null)
-                e.value = value;
-            afterNodeAccess(e);
-            return oldValue;
+        ++modCount;
+        if (++size > threshold)
+            resize();
+        afterNodeInsertion(evict);
+        return null;
+    }
 ```
 
 先确保table存在，然后处理空桶、首节点相等、树节点和普通链表。相等判断是hash相等且引用相同或equals成立。
@@ -1354,15 +1378,63 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
 #### 源码3：if (++size > threshold)
 
 
-**HashMap·[L663–L666](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L663-L666)**
+**HashMap·[L616–L667](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L616-L667)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-if (++size > threshold)
-    resize();
-afterNodeInsertion(evict);
-return null;
+    /**
+     * Implements Map.put and related methods.
+     *
+     * @param hash hash for key
+     * @param key the key
+     * @param value the value to put
+     * @param onlyIfAbsent if true, don't change existing value
+     * @param evict if false, the table is in creation mode.
+     * @return previous value, or null if none
+     */
+    final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
+                   boolean evict) {
+        Node<K,V>[] tab; Node<K,V> p; int n, i;
+        if ((tab = table) == null || (n = tab.length) == 0)
+            n = (tab = resize()).length;
+        if ((p = tab[i = (n - 1) & hash]) == null)
+            tab[i] = newNode(hash, key, value, null);
+        else {
+            Node<K,V> e; K k;
+            if (p.hash == hash &&
+                ((k = p.key) == key || (key != null && key.equals(k))))
+                e = p;
+            else if (p instanceof TreeNode)
+                e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+            else {
+                for (int binCount = 0; ; ++binCount) {
+                    if ((e = p.next) == null) {
+                        p.next = newNode(hash, key, value, null);
+                        if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
+                            treeifyBin(tab, hash);
+                        break;
+                    }
+                    if (e.hash == hash &&
+                        ((k = e.key) == key || (key != null && key.equals(k))))
+                        break;
+                    p = e;
+                }
+            }
+            if (e != null) { // existing mapping for key
+                V oldValue = e.value;
+                if (!onlyIfAbsent || oldValue == null)
+                    e.value = value;
+                afterNodeAccess(e);
+                return oldValue;
+            }
+        }
+        ++modCount;
+        if (++size > threshold)
+            resize();
+        afterNodeInsertion(evict);
+        return null;
+    }
 ```
 
 只有新增条目才走size增加，替换已有键的value不增加条目数。先插入再判断是否超过threshold；loadFactor不是“桶里能容纳几个节点”。
@@ -1544,49 +1616,93 @@ flowchart TD
 #### 源码1：final Node<K,V>[] resize()
 
 
-**HashMap·[L669–L706](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L669-L706)**
+**HashMap·[L669–L750](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L669-L750)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Initializes or doubles table size.  If null, allocates in
- * accord with initial capacity target held in field threshold.
- * Otherwise, because we are using power-of-two expansion, the
- * elements from each bin must either stay at same index, or move
- * with a power of two offset in the new table.
- *
- * @return the table
- */
-final Node<K,V>[] resize() {
-    Node<K,V>[] oldTab = table;
-    int oldCap = (oldTab == null) ? 0 : oldTab.length;
-    int oldThr = threshold;
-    int newCap, newThr = 0;
-    if (oldCap > 0) {
-        if (oldCap >= MAXIMUM_CAPACITY) {
-            threshold = Integer.MAX_VALUE;
-            return oldTab;
+    /**
+     * Initializes or doubles table size.  If null, allocates in
+     * accord with initial capacity target held in field threshold.
+     * Otherwise, because we are using power-of-two expansion, the
+     * elements from each bin must either stay at same index, or move
+     * with a power of two offset in the new table.
+     *
+     * @return the table
+     */
+    final Node<K,V>[] resize() {
+        Node<K,V>[] oldTab = table;
+        int oldCap = (oldTab == null) ? 0 : oldTab.length;
+        int oldThr = threshold;
+        int newCap, newThr = 0;
+        if (oldCap > 0) {
+            if (oldCap >= MAXIMUM_CAPACITY) {
+                threshold = Integer.MAX_VALUE;
+                return oldTab;
+            }
+            else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
+                     oldCap >= DEFAULT_INITIAL_CAPACITY)
+                newThr = oldThr << 1; // double threshold
         }
-        else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
-                 oldCap >= DEFAULT_INITIAL_CAPACITY)
-            newThr = oldThr << 1; // double threshold
+        else if (oldThr > 0) // initial capacity was placed in threshold
+            newCap = oldThr;
+        else {               // zero initial threshold signifies using defaults
+            newCap = DEFAULT_INITIAL_CAPACITY;
+            newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
+        }
+        if (newThr == 0) {
+            float ft = (float)newCap * loadFactor;
+            newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
+                      (int)ft : Integer.MAX_VALUE);
+        }
+        threshold = newThr;
+        @SuppressWarnings({"rawtypes","unchecked"})
+        Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
+        table = newTab;
+        if (oldTab != null) {
+            for (int j = 0; j < oldCap; ++j) {
+                Node<K,V> e;
+                if ((e = oldTab[j]) != null) {
+                    oldTab[j] = null;
+                    if (e.next == null)
+                        newTab[e.hash & (newCap - 1)] = e;
+                    else if (e instanceof TreeNode)
+                        ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
+                    else { // preserve order
+                        Node<K,V> loHead = null, loTail = null;
+                        Node<K,V> hiHead = null, hiTail = null;
+                        Node<K,V> next;
+                        do {
+                            next = e.next;
+                            if ((e.hash & oldCap) == 0) {
+                                if (loTail == null)
+                                    loHead = e;
+                                else
+                                    loTail.next = e;
+                                loTail = e;
+                            }
+                            else {
+                                if (hiTail == null)
+                                    hiHead = e;
+                                else
+                                    hiTail.next = e;
+                                hiTail = e;
+                            }
+                        } while ((e = next) != null);
+                        if (loTail != null) {
+                            loTail.next = null;
+                            newTab[j] = loHead;
+                        }
+                        if (hiTail != null) {
+                            hiTail.next = null;
+                            newTab[j + oldCap] = hiHead;
+                        }
+                    }
+                }
+            }
+        }
+        return newTab;
     }
-    else if (oldThr > 0) // initial capacity was placed in threshold
-        newCap = oldThr;
-    else {               // zero initial threshold signifies using defaults
-        newCap = DEFAULT_INITIAL_CAPACITY;
-        newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
-    }
-    if (newThr == 0) {
-        float ft = (float)newCap * loadFactor;
-        newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
-                  (int)ft : Integer.MAX_VALUE);
-    }
-    threshold = newThr;
-    @SuppressWarnings({"rawtypes","unchecked"})
-    Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
-    table = newTab;
 ```
 
 读取旧容量与阈值，区分已存在table、预设threshold与默认初始化。达到最大容量时不能继续常规翻倍。
@@ -1595,41 +1711,93 @@ final Node<K,V>[] resize() {
 #### 源码2：Node<K,V> loHead = null, loTail = null;
 
 
-**HashMap·[L717–L746](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L717-L746)**
+**HashMap·[L669–L750](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L669-L750)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-        Node<K,V> loHead = null, loTail = null;
-        Node<K,V> hiHead = null, hiTail = null;
-        Node<K,V> next;
-        do {
-            next = e.next;
-            if ((e.hash & oldCap) == 0) {
-                if (loTail == null)
-                    loHead = e;
-                else
-                    loTail.next = e;
-                loTail = e;
+    /**
+     * Initializes or doubles table size.  If null, allocates in
+     * accord with initial capacity target held in field threshold.
+     * Otherwise, because we are using power-of-two expansion, the
+     * elements from each bin must either stay at same index, or move
+     * with a power of two offset in the new table.
+     *
+     * @return the table
+     */
+    final Node<K,V>[] resize() {
+        Node<K,V>[] oldTab = table;
+        int oldCap = (oldTab == null) ? 0 : oldTab.length;
+        int oldThr = threshold;
+        int newCap, newThr = 0;
+        if (oldCap > 0) {
+            if (oldCap >= MAXIMUM_CAPACITY) {
+                threshold = Integer.MAX_VALUE;
+                return oldTab;
             }
-            else {
-                if (hiTail == null)
-                    hiHead = e;
-                else
-                    hiTail.next = e;
-                hiTail = e;
+            else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
+                     oldCap >= DEFAULT_INITIAL_CAPACITY)
+                newThr = oldThr << 1; // double threshold
+        }
+        else if (oldThr > 0) // initial capacity was placed in threshold
+            newCap = oldThr;
+        else {               // zero initial threshold signifies using defaults
+            newCap = DEFAULT_INITIAL_CAPACITY;
+            newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
+        }
+        if (newThr == 0) {
+            float ft = (float)newCap * loadFactor;
+            newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
+                      (int)ft : Integer.MAX_VALUE);
+        }
+        threshold = newThr;
+        @SuppressWarnings({"rawtypes","unchecked"})
+        Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
+        table = newTab;
+        if (oldTab != null) {
+            for (int j = 0; j < oldCap; ++j) {
+                Node<K,V> e;
+                if ((e = oldTab[j]) != null) {
+                    oldTab[j] = null;
+                    if (e.next == null)
+                        newTab[e.hash & (newCap - 1)] = e;
+                    else if (e instanceof TreeNode)
+                        ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
+                    else { // preserve order
+                        Node<K,V> loHead = null, loTail = null;
+                        Node<K,V> hiHead = null, hiTail = null;
+                        Node<K,V> next;
+                        do {
+                            next = e.next;
+                            if ((e.hash & oldCap) == 0) {
+                                if (loTail == null)
+                                    loHead = e;
+                                else
+                                    loTail.next = e;
+                                loTail = e;
+                            }
+                            else {
+                                if (hiTail == null)
+                                    hiHead = e;
+                                else
+                                    hiTail.next = e;
+                                hiTail = e;
+                            }
+                        } while ((e = next) != null);
+                        if (loTail != null) {
+                            loTail.next = null;
+                            newTab[j] = loHead;
+                        }
+                        if (hiTail != null) {
+                            hiTail.next = null;
+                            newTab[j + oldCap] = hiHead;
+                        }
+                    }
+                }
             }
-        } while ((e = next) != null);
-        if (loTail != null) {
-            loTail.next = null;
-            newTab[j] = loHead;
         }
-        if (hiTail != null) {
-            hiTail.next = null;
-            newTab[j + oldCap] = hiHead;
-        }
+        return newTab;
     }
-}
 ```
 
 遍历链时按hash&oldCap拆分，同时维持每条子链的原相对顺序。两个tail只在尾部追加。
@@ -1638,21 +1806,93 @@ final Node<K,V>[] resize() {
 #### 源码3：if (loTail != null)
 
 
-**HashMap·[L737–L746](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L737-L746)**
+**HashMap·[L669–L750](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L669-L750)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-        if (loTail != null) {
-            loTail.next = null;
-            newTab[j] = loHead;
+    /**
+     * Initializes or doubles table size.  If null, allocates in
+     * accord with initial capacity target held in field threshold.
+     * Otherwise, because we are using power-of-two expansion, the
+     * elements from each bin must either stay at same index, or move
+     * with a power of two offset in the new table.
+     *
+     * @return the table
+     */
+    final Node<K,V>[] resize() {
+        Node<K,V>[] oldTab = table;
+        int oldCap = (oldTab == null) ? 0 : oldTab.length;
+        int oldThr = threshold;
+        int newCap, newThr = 0;
+        if (oldCap > 0) {
+            if (oldCap >= MAXIMUM_CAPACITY) {
+                threshold = Integer.MAX_VALUE;
+                return oldTab;
+            }
+            else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
+                     oldCap >= DEFAULT_INITIAL_CAPACITY)
+                newThr = oldThr << 1; // double threshold
         }
-        if (hiTail != null) {
-            hiTail.next = null;
-            newTab[j + oldCap] = hiHead;
+        else if (oldThr > 0) // initial capacity was placed in threshold
+            newCap = oldThr;
+        else {               // zero initial threshold signifies using defaults
+            newCap = DEFAULT_INITIAL_CAPACITY;
+            newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
         }
+        if (newThr == 0) {
+            float ft = (float)newCap * loadFactor;
+            newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
+                      (int)ft : Integer.MAX_VALUE);
+        }
+        threshold = newThr;
+        @SuppressWarnings({"rawtypes","unchecked"})
+        Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
+        table = newTab;
+        if (oldTab != null) {
+            for (int j = 0; j < oldCap; ++j) {
+                Node<K,V> e;
+                if ((e = oldTab[j]) != null) {
+                    oldTab[j] = null;
+                    if (e.next == null)
+                        newTab[e.hash & (newCap - 1)] = e;
+                    else if (e instanceof TreeNode)
+                        ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
+                    else { // preserve order
+                        Node<K,V> loHead = null, loTail = null;
+                        Node<K,V> hiHead = null, hiTail = null;
+                        Node<K,V> next;
+                        do {
+                            next = e.next;
+                            if ((e.hash & oldCap) == 0) {
+                                if (loTail == null)
+                                    loHead = e;
+                                else
+                                    loTail.next = e;
+                                loTail = e;
+                            }
+                            else {
+                                if (hiTail == null)
+                                    hiHead = e;
+                                else
+                                    hiTail.next = e;
+                                hiTail = e;
+                            }
+                        } while ((e = next) != null);
+                        if (loTail != null) {
+                            loTail.next = null;
+                            newTab[j] = loHead;
+                        }
+                        if (hiTail != null) {
+                            hiTail.next = null;
+                            newTab[j + oldCap] = hiHead;
+                        }
+                    }
+                }
+            }
+        }
+        return newTab;
     }
-}
 ```
 
 尾节点next必须置null，避免低链与高链残留旧链接。新位置一条在j，一条在j+oldCap。树桶的split另走树结构逻辑。
@@ -1725,16 +1965,63 @@ flowchart TD
 #### 源码1：if (binCount >= TREEIFY_THRESHOLD - 1)
 
 
-**HashMap·[L644–L648](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L644-L648)**
+**HashMap·[L616–L667](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L616-L667)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-    if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
-        treeifyBin(tab, hash);
-    break;
-}
-if (e.hash == hash &&
+    /**
+     * Implements Map.put and related methods.
+     *
+     * @param hash hash for key
+     * @param key the key
+     * @param value the value to put
+     * @param onlyIfAbsent if true, don't change existing value
+     * @param evict if false, the table is in creation mode.
+     * @return previous value, or null if none
+     */
+    final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
+                   boolean evict) {
+        Node<K,V>[] tab; Node<K,V> p; int n, i;
+        if ((tab = table) == null || (n = tab.length) == 0)
+            n = (tab = resize()).length;
+        if ((p = tab[i = (n - 1) & hash]) == null)
+            tab[i] = newNode(hash, key, value, null);
+        else {
+            Node<K,V> e; K k;
+            if (p.hash == hash &&
+                ((k = p.key) == key || (key != null && key.equals(k))))
+                e = p;
+            else if (p instanceof TreeNode)
+                e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+            else {
+                for (int binCount = 0; ; ++binCount) {
+                    if ((e = p.next) == null) {
+                        p.next = newNode(hash, key, value, null);
+                        if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
+                            treeifyBin(tab, hash);
+                        break;
+                    }
+                    if (e.hash == hash &&
+                        ((k = e.key) == key || (key != null && key.equals(k))))
+                        break;
+                    p = e;
+                }
+            }
+            if (e != null) { // existing mapping for key
+                V oldValue = e.value;
+                if (!onlyIfAbsent || oldValue == null)
+                    e.value = value;
+                afterNodeAccess(e);
+                return oldValue;
+            }
+        }
+        ++modCount;
+        if (++size > threshold)
+            resize();
+        afterNodeInsertion(evict);
+        return null;
+    }
 ```
 
 binCount从桶首开始计数，遇到链尾并追加后才判断。普通put逐个累积到原已有8个节点时，再加入第9个节点触发这个分支。
@@ -2032,47 +2319,118 @@ node定位目标，p在普通链中保留前驱。删除分支区分树节点、
 
 
 
-**HashMap·[L2044–L2079](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L2044-L2079)**
+**HashMap·[L2044–L2150](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L2044-L2150)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Removes the given node, that must be present before this call.
- * This is messier than typical red-black deletion code because we
- * cannot swap the contents of an interior node with a leaf
- * successor that is pinned by "next" pointers that are accessible
- * independently during traversal. So instead we swap the tree
- * linkages. If the current tree appears to have too few nodes,
- * the bin is converted back to a plain bin. (The test triggers
- * somewhere between 2 and 6 nodes, depending on tree structure).
- */
-final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab,
-                          boolean movable) {
-    int n;
-    if (tab == null || (n = tab.length) == 0)
-        return;
-    int index = (n - 1) & hash;
-    TreeNode<K,V> first = (TreeNode<K,V>)tab[index], root = first, rl;
-    TreeNode<K,V> succ = (TreeNode<K,V>)next, pred = prev;
-    if (pred == null)
-        tab[index] = first = succ;
-    else
-        pred.next = succ;
-    if (succ != null)
-        succ.prev = pred;
-    if (first == null)
-        return;
-    if (root.parent != null)
-        root = root.root();
-    if (root == null
-        || (movable
-            && (root.right == null
-                || (rl = root.left) == null
-                || rl.left == null))) {
-        tab[index] = first.untreeify(map);  // too small
-        return;
-    }
+        /**
+         * Removes the given node, that must be present before this call.
+         * This is messier than typical red-black deletion code because we
+         * cannot swap the contents of an interior node with a leaf
+         * successor that is pinned by "next" pointers that are accessible
+         * independently during traversal. So instead we swap the tree
+         * linkages. If the current tree appears to have too few nodes,
+         * the bin is converted back to a plain bin. (The test triggers
+         * somewhere between 2 and 6 nodes, depending on tree structure).
+         */
+        final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab,
+                                  boolean movable) {
+            int n;
+            if (tab == null || (n = tab.length) == 0)
+                return;
+            int index = (n - 1) & hash;
+            TreeNode<K,V> first = (TreeNode<K,V>)tab[index], root = first, rl;
+            TreeNode<K,V> succ = (TreeNode<K,V>)next, pred = prev;
+            if (pred == null)
+                tab[index] = first = succ;
+            else
+                pred.next = succ;
+            if (succ != null)
+                succ.prev = pred;
+            if (first == null)
+                return;
+            if (root.parent != null)
+                root = root.root();
+            if (root == null
+                || (movable
+                    && (root.right == null
+                        || (rl = root.left) == null
+                        || rl.left == null))) {
+                tab[index] = first.untreeify(map);  // too small
+                return;
+            }
+            TreeNode<K,V> p = this, pl = left, pr = right, replacement;
+            if (pl != null && pr != null) {
+                TreeNode<K,V> s = pr, sl;
+                while ((sl = s.left) != null) // find successor
+                    s = sl;
+                boolean c = s.red; s.red = p.red; p.red = c; // swap colors
+                TreeNode<K,V> sr = s.right;
+                TreeNode<K,V> pp = p.parent;
+                if (s == pr) { // p was s's direct parent
+                    p.parent = s;
+                    s.right = p;
+                }
+                else {
+                    TreeNode<K,V> sp = s.parent;
+                    if ((p.parent = sp) != null) {
+                        if (s == sp.left)
+                            sp.left = p;
+                        else
+                            sp.right = p;
+                    }
+                    if ((s.right = pr) != null)
+                        pr.parent = s;
+                }
+                p.left = null;
+                if ((p.right = sr) != null)
+                    sr.parent = p;
+                if ((s.left = pl) != null)
+                    pl.parent = s;
+                if ((s.parent = pp) == null)
+                    root = s;
+                else if (p == pp.left)
+                    pp.left = s;
+                else
+                    pp.right = s;
+                if (sr != null)
+                    replacement = sr;
+                else
+                    replacement = p;
+            }
+            else if (pl != null)
+                replacement = pl;
+            else if (pr != null)
+                replacement = pr;
+            else
+                replacement = p;
+            if (replacement != p) {
+                TreeNode<K,V> pp = replacement.parent = p.parent;
+                if (pp == null)
+                    (root = replacement).red = false;
+                else if (p == pp.left)
+                    pp.left = replacement;
+                else
+                    pp.right = replacement;
+                p.left = p.right = p.parent = null;
+            }
+
+            TreeNode<K,V> r = p.red ? root : balanceDeletion(root, replacement);
+
+            if (replacement == p) {  // detach
+                TreeNode<K,V> pp = p.parent;
+                p.parent = null;
+                if (pp != null) {
+                    if (p == pp.left)
+                        pp.left = null;
+                    else if (p == pp.right)
+                        pp.right = null;
+                }
+            }
+            if (movable)
+                moveRootToFront(tab, r);
+        }
 ```
 
 这里的退化条件检查root.right、root.left与其left等树形信息，同时受movable控制；不是简单数节点后统一判断≤6。扩容split才明确使用UNTREEIFY_THRESHOLD进行各侧数量判断。
@@ -2101,34 +2459,46 @@ flowchart TD
 **遍历成本：**HashMap遍历通常需要扫桶数组与节点，约与capacity+size有关。把初始容量设置得极大即使少扩容，也会增加稀疏桶扫描与数组内存。选择容量是在增长成本与常驻成本之间权衡。
 
 
-**HashMap·[L1445–L1467](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L1445-L1467)**
+**HashMap·[L1442–L1476](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/HashMap.java#L1442-L1476)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-abstract class HashIterator {
-    Node<K,V> next;        // next entry to return
-    Node<K,V> current;     // current entry
-    int expectedModCount;  // for fast-fail
-    int index;             // current slot
+    /* ------------------------------------------------------------ */
+    // iterators
 
-    HashIterator() {
-        expectedModCount = modCount;
-        Node<K,V>[] t = table;
-        current = next = null;
-        index = 0;
-        if (t != null && size > 0) { // advance to first entry
-            do {} while (index < t.length && (next = t[index++]) == null);
+    abstract class HashIterator {
+        Node<K,V> next;        // next entry to return
+        Node<K,V> current;     // current entry
+        int expectedModCount;  // for fast-fail
+        int index;             // current slot
+
+        HashIterator() {
+            expectedModCount = modCount;
+            Node<K,V>[] t = table;
+            current = next = null;
+            index = 0;
+            if (t != null && size > 0) { // advance to first entry
+                do {} while (index < t.length && (next = t[index++]) == null);
+            }
         }
-    }
 
-    public final boolean hasNext() {
-        return next != null;
-    }
+        public final boolean hasNext() {
+            return next != null;
+        }
 
-    final Node<K,V> nextNode() {
-        Node<K,V>[] t;
-        Node<K,V> e = next;
+        final Node<K,V> nextNode() {
+            Node<K,V>[] t;
+            Node<K,V> e = next;
+            if (modCount != expectedModCount)
+                throw new ConcurrentModificationException();
+            if (e == null)
+                throw new NoSuchElementException();
+            if ((next = (current = e).next) == null && (t = table) != null) {
+                do {} while (index < t.length && (next = t[index++]) == null);
+            }
+            return e;
+        }
 ```
 
 迭代器保存expectedModCount与当前桶索引，通过table逐桶寻找next。读这段可以直接看到为什么稀疏的大table仍影响遍历。
@@ -2417,63 +2787,81 @@ flowchart TD
 #### 源码1：public V put(K key, V value)
 
 
-**TreeMap·[L517–L568](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/TreeMap.java#L517-L568)**
+**TreeMap·[L517–L586](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/TreeMap.java#L517-L586)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Associates the specified value with the specified key in this map.
- * If the map previously contained a mapping for the key, the old
- * value is replaced.
- *
- * @param key key with which the specified value is to be associated
- * @param value value to be associated with the specified key
- *
- * @return the previous value associated with {@code key}, or
- *         {@code null} if there was no mapping for {@code key}.
- *         (A {@code null} return can also indicate that the map
- *         previously associated {@code null} with {@code key}.)
- * @throws ClassCastException if the specified key cannot be compared
- *         with the keys currently in the map
- * @throws NullPointerException if the specified key is null
- *         and this map uses natural ordering, or its comparator
- *         does not permit null keys
- */
-public V put(K key, V value) {
-    Entry<K,V> t = root;
-    if (t == null) {
-        compare(key, key); // type (and possibly null) check
+    /**
+     * Associates the specified value with the specified key in this map.
+     * If the map previously contained a mapping for the key, the old
+     * value is replaced.
+     *
+     * @param key key with which the specified value is to be associated
+     * @param value value to be associated with the specified key
+     *
+     * @return the previous value associated with {@code key}, or
+     *         {@code null} if there was no mapping for {@code key}.
+     *         (A {@code null} return can also indicate that the map
+     *         previously associated {@code null} with {@code key}.)
+     * @throws ClassCastException if the specified key cannot be compared
+     *         with the keys currently in the map
+     * @throws NullPointerException if the specified key is null
+     *         and this map uses natural ordering, or its comparator
+     *         does not permit null keys
+     */
+    public V put(K key, V value) {
+        Entry<K,V> t = root;
+        if (t == null) {
+            compare(key, key); // type (and possibly null) check
 
-        root = new Entry<>(key, value, null);
-        size = 1;
+            root = new Entry<>(key, value, null);
+            size = 1;
+            modCount++;
+            return null;
+        }
+        int cmp;
+        Entry<K,V> parent;
+        // split comparator and comparable paths
+        Comparator<? super K> cpr = comparator;
+        if (cpr != null) {
+            do {
+                parent = t;
+                cmp = cpr.compare(key, t.key);
+                if (cmp < 0)
+                    t = t.left;
+                else if (cmp > 0)
+                    t = t.right;
+                else
+                    return t.setValue(value);
+            } while (t != null);
+        }
+        else {
+            if (key == null)
+                throw new NullPointerException();
+            @SuppressWarnings("unchecked")
+                Comparable<? super K> k = (Comparable<? super K>) key;
+            do {
+                parent = t;
+                cmp = k.compareTo(t.key);
+                if (cmp < 0)
+                    t = t.left;
+                else if (cmp > 0)
+                    t = t.right;
+                else
+                    return t.setValue(value);
+            } while (t != null);
+        }
+        Entry<K,V> e = new Entry<>(key, value, parent);
+        if (cmp < 0)
+            parent.left = e;
+        else
+            parent.right = e;
+        fixAfterInsertion(e);
+        size++;
         modCount++;
         return null;
     }
-    int cmp;
-    Entry<K,V> parent;
-    // split comparator and comparable paths
-    Comparator<? super K> cpr = comparator;
-    if (cpr != null) {
-        do {
-            parent = t;
-            cmp = cpr.compare(key, t.key);
-            if (cmp < 0)
-                t = t.left;
-            else if (cmp > 0)
-                t = t.right;
-            else
-                return t.setValue(value);
-        } while (t != null);
-    }
-    else {
-        if (key == null)
-            throw new NullPointerException();
-        @SuppressWarnings("unchecked")
-            Comparable<? super K> k = (Comparable<? super K>) key;
-        do {
-            parent = t;
-            cmp = k.compareTo(t.key);
 ```
 
 比较结果为0时替换原value，不再新增键。TreeMap键身份取决于比较关系，与HashMap的hash/equals路径不同。
@@ -2496,47 +2884,52 @@ TreeMap查找与插入都沿Comparator或Comparable结果走左右子树，比�
 红黑树维护颜色与黑高度约束。插入新节点时可能把父与叔重新染色，也可能围绕祖父旋转；目的是修复红父红子等违例，而不是每次插入都重建整棵树。能讲清触发条件和不变量即可，旋转细节可继续读fixAfterInsertion。
 
 
-**TreeMap·[L2256–L2291](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/TreeMap.java#L2256-L2291)**
+**TreeMap·[L2256–L2296](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/TreeMap.java#L2256-L2296)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/** From CLR */
-private void fixAfterInsertion(Entry<K,V> x) {
-    x.color = RED;
+    /** From CLR */
+    private void fixAfterInsertion(Entry<K,V> x) {
+        x.color = RED;
 
-    while (x != null && x != root && x.parent.color == RED) {
-        if (parentOf(x) == leftOf(parentOf(parentOf(x)))) {
-            Entry<K,V> y = rightOf(parentOf(parentOf(x)));
-            if (colorOf(y) == RED) {
-                setColor(parentOf(x), BLACK);
-                setColor(y, BLACK);
-                setColor(parentOf(parentOf(x)), RED);
-                x = parentOf(parentOf(x));
-            } else {
-                if (x == rightOf(parentOf(x))) {
-                    x = parentOf(x);
-                    rotateLeft(x);
+        while (x != null && x != root && x.parent.color == RED) {
+            if (parentOf(x) == leftOf(parentOf(parentOf(x)))) {
+                Entry<K,V> y = rightOf(parentOf(parentOf(x)));
+                if (colorOf(y) == RED) {
+                    setColor(parentOf(x), BLACK);
+                    setColor(y, BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    x = parentOf(parentOf(x));
+                } else {
+                    if (x == rightOf(parentOf(x))) {
+                        x = parentOf(x);
+                        rotateLeft(x);
+                    }
+                    setColor(parentOf(x), BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    rotateRight(parentOf(parentOf(x)));
                 }
-                setColor(parentOf(x), BLACK);
-                setColor(parentOf(parentOf(x)), RED);
-                rotateRight(parentOf(parentOf(x)));
+            } else {
+                Entry<K,V> y = leftOf(parentOf(parentOf(x)));
+                if (colorOf(y) == RED) {
+                    setColor(parentOf(x), BLACK);
+                    setColor(y, BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    x = parentOf(parentOf(x));
+                } else {
+                    if (x == leftOf(parentOf(x))) {
+                        x = parentOf(x);
+                        rotateRight(x);
+                    }
+                    setColor(parentOf(x), BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    rotateLeft(parentOf(parentOf(x)));
+                }
             }
-        } else {
-            Entry<K,V> y = leftOf(parentOf(parentOf(x)));
-            if (colorOf(y) == RED) {
-                setColor(parentOf(x), BLACK);
-                setColor(y, BLACK);
-                setColor(parentOf(parentOf(x)), RED);
-                x = parentOf(parentOf(x));
-            } else {
-                if (x == leftOf(parentOf(x))) {
-                    x = parentOf(x);
-                    rotateRight(x);
-                }
-                setColor(parentOf(x), BLACK);
-                setColor(parentOf(parentOf(x)), RED);
-                rotateLeft(parentOf(parentOf(x)));
+        }
+        root.color = BLACK;
+    }
 ```
 
 新节点先染红；父为红才进入修复。叔红时改变颜色并上推，其他分支通过旋转调整局部结构。
@@ -2751,15 +3144,18 @@ private final Node<K,V>[] initTable() {
 
 
 
-**ConcurrentHashMap·[L594–L597](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L594-L597)**
+**ConcurrentHashMap·[L591–L597](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L591-L597)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-static final int MOVED     = -1; // hash for forwarding nodes
-static final int TREEBIN   = -2; // hash for roots of trees
-static final int RESERVED  = -3; // hash for transient reservations
-static final int HASH_BITS = 0x7fffffff; // usable bits of normal node hash
+    /*
+     * Encodings for Node hash fields. See above for explanation.
+     */
+    static final int MOVED     = -1; // hash for forwarding nodes
+    static final int TREEBIN   = -2; // hash for roots of trees
+    static final int RESERVED  = -3; // hash for transient reservations
+    static final int HASH_BITS = 0x7fffffff; // usable bits of normal node hash
 ```
 
 这些负值区分控制节点。HASH_BITS保证普通hash留在非负范围。
@@ -2800,31 +3196,33 @@ flowchart TD
 #### 源码1：static final <K,V> Node<K,V> tabAt(
 
 
-**ConcurrentHashMap·[L737–L756](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L737-L756)**
+**ConcurrentHashMap·[L735–L756](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L735-L756)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/*
- * Volatile access methods are used for table elements as well as
- * elements of in-progress next table while resizing.  All uses of
- * the tab arguments must be null checked by callers.  All callers
- * also paranoically precheck that tab's length is not zero (or an
- * equivalent check), thus ensuring that any index argument taking
- * the form of a hash value anded with (length - 1) is a valid
- * index.  Note that, to be correct wrt arbitrary concurrency
- * errors by users, these checks must operate on local variables,
- * which accounts for some odd-looking inline assignments below.
- * Note that calls to setTabAt always occur within locked regions,
- * and so in principle require only release ordering, not
- * full volatile semantics, but are currently coded as volatile
- * writes to be conservative.
- */
+    /* ---------------- Table element access -------------- */
 
-@SuppressWarnings("unchecked")
-static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
-    return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
-}
+    /*
+     * Volatile access methods are used for table elements as well as
+     * elements of in-progress next table while resizing.  All uses of
+     * the tab arguments must be null checked by callers.  All callers
+     * also paranoically precheck that tab's length is not zero (or an
+     * equivalent check), thus ensuring that any index argument taking
+     * the form of a hash value anded with (length - 1) is a valid
+     * index.  Note that, to be correct wrt arbitrary concurrency
+     * errors by users, these checks must operate on local variables,
+     * which accounts for some odd-looking inline assignments below.
+     * Note that calls to setTabAt always occur within locked regions,
+     * and so in principle require only release ordering, not
+     * full volatile semantics, but are currently coded as volatile
+     * writes to be conservative.
+     */
+
+    @SuppressWarnings("unchecked")
+    static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
+        return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
+    }
 ```
 
 tabAt与casTabAt通过Unsafe访问数组槽位，提供相应的内存语义。数组引用是volatile不意味着每个普通数组元素访问自动volatile。
@@ -2980,44 +3378,49 @@ sequenceDiagram
 ```
 
 
-**ConcurrentHashMap·[L2163–L2195](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2163-L2195)**
+**ConcurrentHashMap·[L2158–L2195](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2158-L2195)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-static final class ForwardingNode<K,V> extends Node<K,V> {
-    final Node<K,V>[] nextTable;
-    ForwardingNode(Node<K,V>[] tab) {
-        super(MOVED, null, null, null);
-        this.nextTable = tab;
-    }
+    /* ---------------- Special Nodes -------------- */
 
-    Node<K,V> find(int h, Object k) {
-        // loop to avoid arbitrarily deep recursion on forwarding nodes
-        outer: for (Node<K,V>[] tab = nextTable;;) {
-            Node<K,V> e; int n;
-            if (k == null || tab == null || (n = tab.length) == 0 ||
-                (e = tabAt(tab, (n - 1) & h)) == null)
-                return null;
-            for (;;) {
-                int eh; K ek;
-                if ((eh = e.hash) == h &&
-                    ((ek = e.key) == k || (ek != null && k.equals(ek))))
-                    return e;
-                if (eh < 0) {
-                    if (e instanceof ForwardingNode) {
-                        tab = ((ForwardingNode<K,V>)e).nextTable;
-                        continue outer;
-                    }
-                    else
-                        return e.find(h, k);
-                }
-                if ((e = e.next) == null)
+    /**
+     * A node inserted at head of bins during transfer operations.
+     */
+    static final class ForwardingNode<K,V> extends Node<K,V> {
+        final Node<K,V>[] nextTable;
+        ForwardingNode(Node<K,V>[] tab) {
+            super(MOVED, null, null, null);
+            this.nextTable = tab;
+        }
+
+        Node<K,V> find(int h, Object k) {
+            // loop to avoid arbitrarily deep recursion on forwarding nodes
+            outer: for (Node<K,V>[] tab = nextTable;;) {
+                Node<K,V> e; int n;
+                if (k == null || tab == null || (n = tab.length) == 0 ||
+                    (e = tabAt(tab, (n - 1) & h)) == null)
                     return null;
+                for (;;) {
+                    int eh; K ek;
+                    if ((eh = e.hash) == h &&
+                        ((ek = e.key) == k || (ek != null && k.equals(ek))))
+                        return e;
+                    if (eh < 0) {
+                        if (e instanceof ForwardingNode) {
+                            tab = ((ForwardingNode<K,V>)e).nextTable;
+                            continue outer;
+                        }
+                        else
+                            return e.find(h, k);
+                    }
+                    if ((e = e.next) == null)
+                        return null;
+                }
             }
         }
     }
-}
 ```
 
 转发节点保存nextTable；find可以沿新表继续处理后续转发，支持读者在表切换期间查找。
@@ -3058,45 +3461,147 @@ flowchart TD
 #### 源码1：private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab)
 
 
-**ConcurrentHashMap·[L2361–L2394](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2361-L2394)**
+**ConcurrentHashMap·[L2361–L2496](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2361-L2496)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Moves and/or copies the nodes in each bin to new table. See
- * above for explanation.
- */
-private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
-    int n = tab.length, stride;
-    if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
-        stride = MIN_TRANSFER_STRIDE; // subdivide range
-    if (nextTab == null) {            // initiating
-        try {
-            @SuppressWarnings("unchecked")
-            Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n << 1];
-            nextTab = nt;
-        } catch (Throwable ex) {      // try to cope with OOME
-            sizeCtl = Integer.MAX_VALUE;
-            return;
-        }
-        nextTable = nextTab;
-        transferIndex = n;
-    }
-    int nextn = nextTab.length;
-    ForwardingNode<K,V> fwd = new ForwardingNode<K,V>(nextTab);
-    boolean advance = true;
-    boolean finishing = false; // to ensure sweep before committing nextTab
-    for (int i = 0, bound = 0;;) {
-        Node<K,V> f; int fh;
-        while (advance) {
-            int nextIndex, nextBound;
-            if (--i >= bound || finishing)
-                advance = false;
-            else if ((nextIndex = transferIndex) <= 0) {
-                i = -1;
-                advance = false;
+    /**
+     * Moves and/or copies the nodes in each bin to new table. See
+     * above for explanation.
+     */
+    private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
+        int n = tab.length, stride;
+        if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
+            stride = MIN_TRANSFER_STRIDE; // subdivide range
+        if (nextTab == null) {            // initiating
+            try {
+                @SuppressWarnings("unchecked")
+                Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n << 1];
+                nextTab = nt;
+            } catch (Throwable ex) {      // try to cope with OOME
+                sizeCtl = Integer.MAX_VALUE;
+                return;
             }
+            nextTable = nextTab;
+            transferIndex = n;
+        }
+        int nextn = nextTab.length;
+        ForwardingNode<K,V> fwd = new ForwardingNode<K,V>(nextTab);
+        boolean advance = true;
+        boolean finishing = false; // to ensure sweep before committing nextTab
+        for (int i = 0, bound = 0;;) {
+            Node<K,V> f; int fh;
+            while (advance) {
+                int nextIndex, nextBound;
+                if (--i >= bound || finishing)
+                    advance = false;
+                else if ((nextIndex = transferIndex) <= 0) {
+                    i = -1;
+                    advance = false;
+                }
+                else if (U.compareAndSwapInt
+                         (this, TRANSFERINDEX, nextIndex,
+                          nextBound = (nextIndex > stride ?
+                                       nextIndex - stride : 0))) {
+                    bound = nextBound;
+                    i = nextIndex - 1;
+                    advance = false;
+                }
+            }
+            if (i < 0 || i >= n || i + n >= nextn) {
+                int sc;
+                if (finishing) {
+                    nextTable = null;
+                    table = nextTab;
+                    sizeCtl = (n << 1) - (n >>> 1);
+                    return;
+                }
+                if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
+                    if ((sc - 2) != resizeStamp(n) << RESIZE_STAMP_SHIFT)
+                        return;
+                    finishing = advance = true;
+                    i = n; // recheck before commit
+                }
+            }
+            else if ((f = tabAt(tab, i)) == null)
+                advance = casTabAt(tab, i, null, fwd);
+            else if ((fh = f.hash) == MOVED)
+                advance = true; // already processed
+            else {
+                synchronized (f) {
+                    if (tabAt(tab, i) == f) {
+                        Node<K,V> ln, hn;
+                        if (fh >= 0) {
+                            int runBit = fh & n;
+                            Node<K,V> lastRun = f;
+                            for (Node<K,V> p = f.next; p != null; p = p.next) {
+                                int b = p.hash & n;
+                                if (b != runBit) {
+                                    runBit = b;
+                                    lastRun = p;
+                                }
+                            }
+                            if (runBit == 0) {
+                                ln = lastRun;
+                                hn = null;
+                            }
+                            else {
+                                hn = lastRun;
+                                ln = null;
+                            }
+                            for (Node<K,V> p = f; p != lastRun; p = p.next) {
+                                int ph = p.hash; K pk = p.key; V pv = p.val;
+                                if ((ph & n) == 0)
+                                    ln = new Node<K,V>(ph, pk, pv, ln);
+                                else
+                                    hn = new Node<K,V>(ph, pk, pv, hn);
+                            }
+                            setTabAt(nextTab, i, ln);
+                            setTabAt(nextTab, i + n, hn);
+                            setTabAt(tab, i, fwd);
+                            advance = true;
+                        }
+                        else if (f instanceof TreeBin) {
+                            TreeBin<K,V> t = (TreeBin<K,V>)f;
+                            TreeNode<K,V> lo = null, loTail = null;
+                            TreeNode<K,V> hi = null, hiTail = null;
+                            int lc = 0, hc = 0;
+                            for (Node<K,V> e = t.first; e != null; e = e.next) {
+                                int h = e.hash;
+                                TreeNode<K,V> p = new TreeNode<K,V>
+                                    (h, e.key, e.val, null, null);
+                                if ((h & n) == 0) {
+                                    if ((p.prev = loTail) == null)
+                                        lo = p;
+                                    else
+                                        loTail.next = p;
+                                    loTail = p;
+                                    ++lc;
+                                }
+                                else {
+                                    if ((p.prev = hiTail) == null)
+                                        hi = p;
+                                    else
+                                        hiTail.next = p;
+                                    hiTail = p;
+                                    ++hc;
+                                }
+                            }
+                            ln = (lc <= UNTREEIFY_THRESHOLD) ? untreeify(lo) :
+                                (hc != 0) ? new TreeBin<K,V>(lo) : t;
+                            hn = (hc <= UNTREEIFY_THRESHOLD) ? untreeify(hi) :
+                                (lc != 0) ? new TreeBin<K,V>(hi) : t;
+                            setTabAt(nextTab, i, ln);
+                            setTabAt(nextTab, i + n, hn);
+                            setTabAt(tab, i, fwd);
+                            advance = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
 ```
 
 首次分配新表，计算迁移步长。每个线程不是盲目遍历所有桶，而是领取区间；分配失败有退出保护。
@@ -3105,29 +3610,147 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
 #### 源码2：else if ((f = tabAt(tab, i)) == null)
 
 
-**ConcurrentHashMap·[L2419–L2436](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2419-L2436)**
+**ConcurrentHashMap·[L2361–L2496](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2361-L2496)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-else if ((f = tabAt(tab, i)) == null)
-    advance = casTabAt(tab, i, null, fwd);
-else if ((fh = f.hash) == MOVED)
-    advance = true; // already processed
-else {
-    synchronized (f) {
-        if (tabAt(tab, i) == f) {
-            Node<K,V> ln, hn;
-            if (fh >= 0) {
-                int runBit = fh & n;
-                Node<K,V> lastRun = f;
-                for (Node<K,V> p = f.next; p != null; p = p.next) {
-                    int b = p.hash & n;
-                    if (b != runBit) {
-                        runBit = b;
-                        lastRun = p;
+    /**
+     * Moves and/or copies the nodes in each bin to new table. See
+     * above for explanation.
+     */
+    private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
+        int n = tab.length, stride;
+        if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
+            stride = MIN_TRANSFER_STRIDE; // subdivide range
+        if (nextTab == null) {            // initiating
+            try {
+                @SuppressWarnings("unchecked")
+                Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n << 1];
+                nextTab = nt;
+            } catch (Throwable ex) {      // try to cope with OOME
+                sizeCtl = Integer.MAX_VALUE;
+                return;
+            }
+            nextTable = nextTab;
+            transferIndex = n;
+        }
+        int nextn = nextTab.length;
+        ForwardingNode<K,V> fwd = new ForwardingNode<K,V>(nextTab);
+        boolean advance = true;
+        boolean finishing = false; // to ensure sweep before committing nextTab
+        for (int i = 0, bound = 0;;) {
+            Node<K,V> f; int fh;
+            while (advance) {
+                int nextIndex, nextBound;
+                if (--i >= bound || finishing)
+                    advance = false;
+                else if ((nextIndex = transferIndex) <= 0) {
+                    i = -1;
+                    advance = false;
+                }
+                else if (U.compareAndSwapInt
+                         (this, TRANSFERINDEX, nextIndex,
+                          nextBound = (nextIndex > stride ?
+                                       nextIndex - stride : 0))) {
+                    bound = nextBound;
+                    i = nextIndex - 1;
+                    advance = false;
+                }
+            }
+            if (i < 0 || i >= n || i + n >= nextn) {
+                int sc;
+                if (finishing) {
+                    nextTable = null;
+                    table = nextTab;
+                    sizeCtl = (n << 1) - (n >>> 1);
+                    return;
+                }
+                if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
+                    if ((sc - 2) != resizeStamp(n) << RESIZE_STAMP_SHIFT)
+                        return;
+                    finishing = advance = true;
+                    i = n; // recheck before commit
+                }
+            }
+            else if ((f = tabAt(tab, i)) == null)
+                advance = casTabAt(tab, i, null, fwd);
+            else if ((fh = f.hash) == MOVED)
+                advance = true; // already processed
+            else {
+                synchronized (f) {
+                    if (tabAt(tab, i) == f) {
+                        Node<K,V> ln, hn;
+                        if (fh >= 0) {
+                            int runBit = fh & n;
+                            Node<K,V> lastRun = f;
+                            for (Node<K,V> p = f.next; p != null; p = p.next) {
+                                int b = p.hash & n;
+                                if (b != runBit) {
+                                    runBit = b;
+                                    lastRun = p;
+                                }
+                            }
+                            if (runBit == 0) {
+                                ln = lastRun;
+                                hn = null;
+                            }
+                            else {
+                                hn = lastRun;
+                                ln = null;
+                            }
+                            for (Node<K,V> p = f; p != lastRun; p = p.next) {
+                                int ph = p.hash; K pk = p.key; V pv = p.val;
+                                if ((ph & n) == 0)
+                                    ln = new Node<K,V>(ph, pk, pv, ln);
+                                else
+                                    hn = new Node<K,V>(ph, pk, pv, hn);
+                            }
+                            setTabAt(nextTab, i, ln);
+                            setTabAt(nextTab, i + n, hn);
+                            setTabAt(tab, i, fwd);
+                            advance = true;
+                        }
+                        else if (f instanceof TreeBin) {
+                            TreeBin<K,V> t = (TreeBin<K,V>)f;
+                            TreeNode<K,V> lo = null, loTail = null;
+                            TreeNode<K,V> hi = null, hiTail = null;
+                            int lc = 0, hc = 0;
+                            for (Node<K,V> e = t.first; e != null; e = e.next) {
+                                int h = e.hash;
+                                TreeNode<K,V> p = new TreeNode<K,V>
+                                    (h, e.key, e.val, null, null);
+                                if ((h & n) == 0) {
+                                    if ((p.prev = loTail) == null)
+                                        lo = p;
+                                    else
+                                        loTail.next = p;
+                                    loTail = p;
+                                    ++lc;
+                                }
+                                else {
+                                    if ((p.prev = hiTail) == null)
+                                        hi = p;
+                                    else
+                                        hiTail.next = p;
+                                    hiTail = p;
+                                    ++hc;
+                                }
+                            }
+                            ln = (lc <= UNTREEIFY_THRESHOLD) ? untreeify(lo) :
+                                (hc != 0) ? new TreeBin<K,V>(lo) : t;
+                            hn = (hc <= UNTREEIFY_THRESHOLD) ? untreeify(hi) :
+                                (lc != 0) ? new TreeBin<K,V>(hi) : t;
+                            setTabAt(nextTab, i, ln);
+                            setTabAt(nextTab, i + n, hn);
+                            setTabAt(tab, i, fwd);
+                            advance = true;
+                        }
                     }
                 }
+            }
+        }
+    }
 ```
 
 空桶也要CAS装上转发节点，建立已迁移标记；已有MOVED可跳过；非空桶进入同步与桶头复查。
@@ -3186,19 +3809,147 @@ final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
 每个迁移桶先在新表建立相应结构，再把旧槽变转发节点。这个顺序让旧表读者遇到标记时已有可用目标。transfer中的lastRun优化可以复用部分原链节点，其他部分建立新节点；不能概括为每个Node都原地移动或全部复制。
 
 
-**ConcurrentHashMap·[L2406–L2413](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2406-L2413)**
+**ConcurrentHashMap·[L2361–L2496](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2361-L2496)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-if (finishing) {
-    nextTable = null;
-    table = nextTab;
-    sizeCtl = (n << 1) - (n >>> 1);
-    return;
-}
-if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
-    if ((sc - 2) != resizeStamp(n) << RESIZE_STAMP_SHIFT)
+    /**
+     * Moves and/or copies the nodes in each bin to new table. See
+     * above for explanation.
+     */
+    private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
+        int n = tab.length, stride;
+        if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
+            stride = MIN_TRANSFER_STRIDE; // subdivide range
+        if (nextTab == null) {            // initiating
+            try {
+                @SuppressWarnings("unchecked")
+                Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n << 1];
+                nextTab = nt;
+            } catch (Throwable ex) {      // try to cope with OOME
+                sizeCtl = Integer.MAX_VALUE;
+                return;
+            }
+            nextTable = nextTab;
+            transferIndex = n;
+        }
+        int nextn = nextTab.length;
+        ForwardingNode<K,V> fwd = new ForwardingNode<K,V>(nextTab);
+        boolean advance = true;
+        boolean finishing = false; // to ensure sweep before committing nextTab
+        for (int i = 0, bound = 0;;) {
+            Node<K,V> f; int fh;
+            while (advance) {
+                int nextIndex, nextBound;
+                if (--i >= bound || finishing)
+                    advance = false;
+                else if ((nextIndex = transferIndex) <= 0) {
+                    i = -1;
+                    advance = false;
+                }
+                else if (U.compareAndSwapInt
+                         (this, TRANSFERINDEX, nextIndex,
+                          nextBound = (nextIndex > stride ?
+                                       nextIndex - stride : 0))) {
+                    bound = nextBound;
+                    i = nextIndex - 1;
+                    advance = false;
+                }
+            }
+            if (i < 0 || i >= n || i + n >= nextn) {
+                int sc;
+                if (finishing) {
+                    nextTable = null;
+                    table = nextTab;
+                    sizeCtl = (n << 1) - (n >>> 1);
+                    return;
+                }
+                if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
+                    if ((sc - 2) != resizeStamp(n) << RESIZE_STAMP_SHIFT)
+                        return;
+                    finishing = advance = true;
+                    i = n; // recheck before commit
+                }
+            }
+            else if ((f = tabAt(tab, i)) == null)
+                advance = casTabAt(tab, i, null, fwd);
+            else if ((fh = f.hash) == MOVED)
+                advance = true; // already processed
+            else {
+                synchronized (f) {
+                    if (tabAt(tab, i) == f) {
+                        Node<K,V> ln, hn;
+                        if (fh >= 0) {
+                            int runBit = fh & n;
+                            Node<K,V> lastRun = f;
+                            for (Node<K,V> p = f.next; p != null; p = p.next) {
+                                int b = p.hash & n;
+                                if (b != runBit) {
+                                    runBit = b;
+                                    lastRun = p;
+                                }
+                            }
+                            if (runBit == 0) {
+                                ln = lastRun;
+                                hn = null;
+                            }
+                            else {
+                                hn = lastRun;
+                                ln = null;
+                            }
+                            for (Node<K,V> p = f; p != lastRun; p = p.next) {
+                                int ph = p.hash; K pk = p.key; V pv = p.val;
+                                if ((ph & n) == 0)
+                                    ln = new Node<K,V>(ph, pk, pv, ln);
+                                else
+                                    hn = new Node<K,V>(ph, pk, pv, hn);
+                            }
+                            setTabAt(nextTab, i, ln);
+                            setTabAt(nextTab, i + n, hn);
+                            setTabAt(tab, i, fwd);
+                            advance = true;
+                        }
+                        else if (f instanceof TreeBin) {
+                            TreeBin<K,V> t = (TreeBin<K,V>)f;
+                            TreeNode<K,V> lo = null, loTail = null;
+                            TreeNode<K,V> hi = null, hiTail = null;
+                            int lc = 0, hc = 0;
+                            for (Node<K,V> e = t.first; e != null; e = e.next) {
+                                int h = e.hash;
+                                TreeNode<K,V> p = new TreeNode<K,V>
+                                    (h, e.key, e.val, null, null);
+                                if ((h & n) == 0) {
+                                    if ((p.prev = loTail) == null)
+                                        lo = p;
+                                    else
+                                        loTail.next = p;
+                                    loTail = p;
+                                    ++lc;
+                                }
+                                else {
+                                    if ((p.prev = hiTail) == null)
+                                        hi = p;
+                                    else
+                                        hiTail.next = p;
+                                    hiTail = p;
+                                    ++hc;
+                                }
+                            }
+                            ln = (lc <= UNTREEIFY_THRESHOLD) ? untreeify(lo) :
+                                (hc != 0) ? new TreeBin<K,V>(lo) : t;
+                            hn = (hc <= UNTREEIFY_THRESHOLD) ? untreeify(hi) :
+                                (lc != 0) ? new TreeBin<K,V>(hi) : t;
+                            setTabAt(nextTab, i, ln);
+                            setTabAt(nextTab, i + n, hn);
+                            setTabAt(tab, i, fwd);
+                            advance = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
 ```
 
 这一窗口显示最终提交的几项字段变化。它只能由满足完成协议的路径执行，其他搬完自身区间的线程不能直接提交全表。
@@ -3262,66 +4013,113 @@ final long sumCount() {
 #### 源码2：public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction)
 
 
-**ConcurrentHashMap·[L1621–L1675](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L1621-L1675)**
+**ConcurrentHashMap·[L1621–L1722](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L1621-L1722)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * If the specified key is not already associated with a value,
- * attempts to compute its value using the given mapping function
- * and enters it into this map unless {@code null}.  The entire
- * method invocation is performed atomically, so the function is
- * applied at most once per key.  Some attempted update operations
- * on this map by other threads may be blocked while computation
- * is in progress, so the computation should be short and simple,
- * and must not attempt to update any other mappings of this map.
- *
- * @param key key with which the specified value is to be associated
- * @param mappingFunction the function to compute a value
- * @return the current (existing or computed) value associated with
- *         the specified key, or null if the computed value is null
- * @throws NullPointerException if the specified key or mappingFunction
- *         is null
- * @throws IllegalStateException if the computation detectably
- *         attempts a recursive update to this map that would
- *         otherwise never complete
- * @throws RuntimeException or Error if the mappingFunction does so,
- *         in which case the mapping is left unestablished
- */
-public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
-    if (key == null || mappingFunction == null)
-        throw new NullPointerException();
-    int h = spread(key.hashCode());
-    V val = null;
-    int binCount = 0;
-    for (Node<K,V>[] tab = table;;) {
-        Node<K,V> f; int n, i, fh;
-        if (tab == null || (n = tab.length) == 0)
-            tab = initTable();
-        else if ((f = tabAt(tab, i = (n - 1) & h)) == null) {
-            Node<K,V> r = new ReservationNode<K,V>();
-            synchronized (r) {
-                if (casTabAt(tab, i, null, r)) {
-                    binCount = 1;
-                    Node<K,V> node = null;
-                    try {
-                        if ((val = mappingFunction.apply(key)) != null)
-                            node = new Node<K,V>(h, key, val, null);
-                    } finally {
-                        setTabAt(tab, i, node);
+    /**
+     * If the specified key is not already associated with a value,
+     * attempts to compute its value using the given mapping function
+     * and enters it into this map unless {@code null}.  The entire
+     * method invocation is performed atomically, so the function is
+     * applied at most once per key.  Some attempted update operations
+     * on this map by other threads may be blocked while computation
+     * is in progress, so the computation should be short and simple,
+     * and must not attempt to update any other mappings of this map.
+     *
+     * @param key key with which the specified value is to be associated
+     * @param mappingFunction the function to compute a value
+     * @return the current (existing or computed) value associated with
+     *         the specified key, or null if the computed value is null
+     * @throws NullPointerException if the specified key or mappingFunction
+     *         is null
+     * @throws IllegalStateException if the computation detectably
+     *         attempts a recursive update to this map that would
+     *         otherwise never complete
+     * @throws RuntimeException or Error if the mappingFunction does so,
+     *         in which case the mapping is left unestablished
+     */
+    public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+        if (key == null || mappingFunction == null)
+            throw new NullPointerException();
+        int h = spread(key.hashCode());
+        V val = null;
+        int binCount = 0;
+        for (Node<K,V>[] tab = table;;) {
+            Node<K,V> f; int n, i, fh;
+            if (tab == null || (n = tab.length) == 0)
+                tab = initTable();
+            else if ((f = tabAt(tab, i = (n - 1) & h)) == null) {
+                Node<K,V> r = new ReservationNode<K,V>();
+                synchronized (r) {
+                    if (casTabAt(tab, i, null, r)) {
+                        binCount = 1;
+                        Node<K,V> node = null;
+                        try {
+                            if ((val = mappingFunction.apply(key)) != null)
+                                node = new Node<K,V>(h, key, val, null);
+                        } finally {
+                            setTabAt(tab, i, node);
+                        }
                     }
                 }
+                if (binCount != 0)
+                    break;
             }
-            if (binCount != 0)
-                break;
+            else if ((fh = f.hash) == MOVED)
+                tab = helpTransfer(tab, f);
+            else {
+                boolean added = false;
+                synchronized (f) {
+                    if (tabAt(tab, i) == f) {
+                        if (fh >= 0) {
+                            binCount = 1;
+                            for (Node<K,V> e = f;; ++binCount) {
+                                K ek; V ev;
+                                if (e.hash == h &&
+                                    ((ek = e.key) == key ||
+                                     (ek != null && key.equals(ek)))) {
+                                    val = e.val;
+                                    break;
+                                }
+                                Node<K,V> pred = e;
+                                if ((e = e.next) == null) {
+                                    if ((val = mappingFunction.apply(key)) != null) {
+                                        added = true;
+                                        pred.next = new Node<K,V>(h, key, val, null);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        else if (f instanceof TreeBin) {
+                            binCount = 2;
+                            TreeBin<K,V> t = (TreeBin<K,V>)f;
+                            TreeNode<K,V> r, p;
+                            if ((r = t.root) != null &&
+                                (p = r.findTreeNode(h, key, null)) != null)
+                                val = p.val;
+                            else if ((val = mappingFunction.apply(key)) != null) {
+                                added = true;
+                                t.putTreeVal(h, key, val);
+                            }
+                        }
+                    }
+                }
+                if (binCount != 0) {
+                    if (binCount >= TREEIFY_THRESHOLD)
+                        treeifyBin(tab, i);
+                    if (!added)
+                        return val;
+                    break;
+                }
+            }
         }
-        else if ((fh = f.hash) == MOVED)
-            tab = helpTransfer(tab, f);
-        else {
-            boolean added = false;
-            synchronized (f) {
-                if (tabAt(tab, i) == f) {
+        if (val != null)
+            addCount(1L, binCount);
+        return val;
+    }
 ```
 
 空桶路径放ReservationNode并在同步区域执行映射函数，finally发布计算得到的节点或空结果。异常也要解除占位。
@@ -3330,48 +4128,56 @@ public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction
 #### 源码3：private final void addCount(long x, int check)
 
 
-**ConcurrentHashMap·[L2246–L2282](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2246-L2282)**
+**ConcurrentHashMap·[L2246–L2290](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2246-L2290)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Adds to count, and if table is too small and not already
- * resizing, initiates transfer. If already resizing, helps
- * perform transfer if work is available.  Rechecks occupancy
- * after a transfer to see if another resize is already needed
- * because resizings are lagging additions.
- *
- * @param x the count to add
- * @param check if <0, don't check resize, if <= 1 only check if uncontended
- */
-private final void addCount(long x, int check) {
-    CounterCell[] as; long b, s;
-    if ((as = counterCells) != null ||
-        !U.compareAndSwapLong(this, BASECOUNT, b = baseCount, s = b + x)) {
-        CounterCell a; long v; int m;
-        boolean uncontended = true;
-        if (as == null || (m = as.length - 1) < 0 ||
-            (a = as[ThreadLocalRandom.getProbe() & m]) == null ||
-            !(uncontended =
-              U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))) {
-            fullAddCount(x, uncontended);
-            return;
+    /**
+     * Adds to count, and if table is too small and not already
+     * resizing, initiates transfer. If already resizing, helps
+     * perform transfer if work is available.  Rechecks occupancy
+     * after a transfer to see if another resize is already needed
+     * because resizings are lagging additions.
+     *
+     * @param x the count to add
+     * @param check if <0, don't check resize, if <= 1 only check if uncontended
+     */
+    private final void addCount(long x, int check) {
+        CounterCell[] as; long b, s;
+        if ((as = counterCells) != null ||
+            !U.compareAndSwapLong(this, BASECOUNT, b = baseCount, s = b + x)) {
+            CounterCell a; long v; int m;
+            boolean uncontended = true;
+            if (as == null || (m = as.length - 1) < 0 ||
+                (a = as[ThreadLocalRandom.getProbe() & m]) == null ||
+                !(uncontended =
+                  U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))) {
+                fullAddCount(x, uncontended);
+                return;
+            }
+            if (check <= 1)
+                return;
+            s = sumCount();
         }
-        if (check <= 1)
-            return;
-        s = sumCount();
+        if (check >= 0) {
+            Node<K,V>[] tab, nt; int n, sc;
+            while (s >= (long)(sc = sizeCtl) && (tab = table) != null &&
+                   (n = tab.length) < MAXIMUM_CAPACITY) {
+                int rs = resizeStamp(n) << RESIZE_STAMP_SHIFT;
+                if (sc < 0) {
+                    if (sc == rs + MAX_RESIZERS || sc == rs + 1 ||
+                        (nt = nextTable) == null || transferIndex <= 0)
+                        break;
+                    if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))
+                        transfer(tab, nt);
+                }
+                else if (U.compareAndSwapInt(this, SIZECTL, sc, rs + 2))
+                    transfer(tab, null);
+                s = sumCount();
+            }
+        }
     }
-    if (check >= 0) {
-        Node<K,V>[] tab, nt; int n, sc;
-        while (s >= (long)(sc = sizeCtl) && (tab = table) != null &&
-               (n = tab.length) < MAXIMUM_CAPACITY) {
-            int rs = resizeStamp(n) << RESIZE_STAMP_SHIFT;
-            if (sc < 0) {
-                if (sc == rs + MAX_RESIZERS || sc == rs + 1 ||
-                    (nt = nextTable) == null || transferIndex <= 0)
-                    break;
-                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))
 ```
 
 低竞争先尝试baseCount，失败进入计数单元路径；是否检查扩容还受check影响。容器逻辑正确性不能依赖计数一直精确呈现每一步。
@@ -3618,32 +4424,36 @@ public Iterator<E> iterator() {
 #### 源码3：static final class COWIterator<E>
 
 
-**CopyOnWriteArrayList·[L1135–L1155](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java#L1135-L1155)**
+**CopyOnWriteArrayList·[L1135–L1159](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java#L1135-L1159)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-static final class COWIterator<E> implements ListIterator<E> {
-    /** Snapshot of the array */
-    private final Object[] snapshot;
-    /** Index of element to be returned by subsequent call to next.  */
-    private int cursor;
+    static final class COWIterator<E> implements ListIterator<E> {
+        /** Snapshot of the array */
+        private final Object[] snapshot;
+        /** Index of element to be returned by subsequent call to next.  */
+        private int cursor;
 
-    private COWIterator(Object[] elements, int initialCursor) {
-        cursor = initialCursor;
-        snapshot = elements;
-    }
+        private COWIterator(Object[] elements, int initialCursor) {
+            cursor = initialCursor;
+            snapshot = elements;
+        }
 
-    public boolean hasNext() {
-        return cursor < snapshot.length;
-    }
+        public boolean hasNext() {
+            return cursor < snapshot.length;
+        }
 
-    public boolean hasPrevious() {
-        return cursor > 0;
-    }
+        public boolean hasPrevious() {
+            return cursor > 0;
+        }
 
-    @SuppressWarnings("unchecked")
-    public E next() {
+        @SuppressWarnings("unchecked")
+        public E next() {
+            if (! hasNext())
+                throw new NoSuchElementException();
+            return (E) snapshot[cursor++];
+        }
 ```
 
 snapshot为final数组引用，cursor只在这个快照中移动。它不靠ArrayList那种modCount失败检查维护视图。
@@ -3730,45 +4540,46 @@ flowchart TD
 #### 源码1：public boolean offer(E e)
 
 
-**ConcurrentLinkedQueue·[L319–L353](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java#L319-L353)**
+**ConcurrentLinkedQueue·[L319–L354](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java#L319-L354)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Inserts the specified element at the tail of this queue.
- * As the queue is unbounded, this method will never return {@code false}.
- *
- * @return {@code true} (as specified by {@link Queue#offer})
- * @throws NullPointerException if the specified element is null
- */
-public boolean offer(E e) {
-    checkNotNull(e);
-    final Node<E> newNode = new Node<E>(e);
+    /**
+     * Inserts the specified element at the tail of this queue.
+     * As the queue is unbounded, this method will never return {@code false}.
+     *
+     * @return {@code true} (as specified by {@link Queue#offer})
+     * @throws NullPointerException if the specified element is null
+     */
+    public boolean offer(E e) {
+        checkNotNull(e);
+        final Node<E> newNode = new Node<E>(e);
 
-    for (Node<E> t = tail, p = t;;) {
-        Node<E> q = p.next;
-        if (q == null) {
-            // p is last node
-            if (p.casNext(null, newNode)) {
-                // Successful CAS is the linearization point
-                // for e to become an element of this queue,
-                // and for newNode to become "live".
-                if (p != t) // hop two nodes at a time
-                    casTail(t, newNode);  // Failure is OK.
-                return true;
+        for (Node<E> t = tail, p = t;;) {
+            Node<E> q = p.next;
+            if (q == null) {
+                // p is last node
+                if (p.casNext(null, newNode)) {
+                    // Successful CAS is the linearization point
+                    // for e to become an element of this queue,
+                    // and for newNode to become "live".
+                    if (p != t) // hop two nodes at a time
+                        casTail(t, newNode);  // Failure is OK.
+                    return true;
+                }
+                // Lost CAS race to another thread; re-read next
             }
-            // Lost CAS race to another thread; re-read next
+            else if (p == q)
+                // We have fallen off list.  If tail is unchanged, it
+                // will also be off-list, in which case we need to
+                // jump to head, from which all live nodes are always
+                // reachable.  Else the new tail is a better bet.
+                p = (t != (t = tail)) ? t : head;
+            else
+                // Check for tail updates after two hops.
+                p = (p != t && t != (t = tail)) ? t : q;
         }
-        else if (p == q)
-            // We have fallen off list.  If tail is unchanged, it
-            // will also be off-list, in which case we need to
-            // jump to head, from which all live nodes are always
-            // reachable.  Else the new tail is a better bet.
-            p = (t != (t = tail)) ? t : head;
-        else
-            // Check for tail updates after two hops.
-            p = (p != t && t != (t = tail)) ? t : q;
     }
 ```
 
@@ -3948,20 +4759,28 @@ public T get() {
 #### 源码2：static class Entry extends WeakReference<ThreadLocal<?>>
 
 
-**ThreadLocal·[L329–L337](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L329-L337)**
+**ThreadLocal·[L321–L337](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L321-L337)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-static class Entry extends WeakReference<ThreadLocal<?>> {
-    /** The value associated with this ThreadLocal. */
-    Object value;
+        /**
+         * The entries in this hash map extend WeakReference, using
+         * its main ref field as the key (which is always a
+         * ThreadLocal object).  Note that null keys (i.e. entry.get()
+         * == null) mean that the key is no longer referenced, so the
+         * entry can be expunged from table.  Such entries are referred to
+         * as "stale entries" in the code that follows.
+         */
+        static class Entry extends WeakReference<ThreadLocal<?>> {
+            /** The value associated with this ThreadLocal. */
+            Object value;
 
-    Entry(ThreadLocal<?> k, Object v) {
-        super(k);
-        value = v;
-    }
-}
+            Entry(ThreadLocal<?> k, Object v) {
+                super(k);
+                value = v;
+            }
+        }
 ```
 
 继承WeakReference只削弱key引用；value仍是普通Object字段。Thread活着、Map活着、Entry未清理时value仍可被保留。
@@ -4022,28 +4841,30 @@ get找到Entry时直接返回其value，哪怕value为null。只有Entry未找�
 initialValue通常默认返回null，但子类或withInitial工厂可以自定义。一次初始化不表示多个线程共享同一个初始结果。
 
 
-**ThreadLocal·[L188–L205](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L188-L205)**
+**ThreadLocal·[L188–L207](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L188-L207)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Variant of set() to establish initialValue. Used instead
- * of set() in case user has overridden the set() method.
- *
- * @return the initial value
- */
-private T setInitialValue() {
-    T value = initialValue();
-    Thread t = Thread.currentThread();
-    ThreadLocalMap map = getMap(t);
-    if (map != null) {
-        map.set(this, value);
-    } else {
-        createMap(t, value);
-    }
-    if (this instanceof TerminatingThreadLocal) {
-        TerminatingThreadLocal.register((TerminatingThreadLocal<?>) this);
+    /**
+     * Variant of set() to establish initialValue. Used instead
+     * of set() in case user has overridden the set() method.
+     *
+     * @return the initial value
+     */
+    private T setInitialValue() {
+        T value = initialValue();
+        Thread t = Thread.currentThread();
+        ThreadLocalMap map = getMap(t);
+        if (map != null) {
+            map.set(this, value);
+        } else {
+            createMap(t, value);
+        }
+        if (this instanceof TerminatingThreadLocal) {
+            TerminatingThreadLocal.register((TerminatingThreadLocal<?>) this);
+        }
+        return value;
     }
 ```
 
@@ -4475,65 +5296,67 @@ flowchart TD
 
 ThreadLocalMap初始容量为16，维护阈值通常是容量的2/3。达到触发条件不等于立即把所有条目复制到双倍数组：rehash先全表清陈旧项，再以较低判断阈值决定是否resize。不要把HashMap的0.75负载因子和树化规则套到ThreadLocalMap。
 
-**ThreadLocal·[L686–L739](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L686-L739)**
+**ThreadLocal·[L686–L741](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ThreadLocal.java#L686-L741)**
 
 > 连续原文窗口；仅统一展示缩进，完整函数及调用方见固定链接。
 
 ```java
-/**
- * Re-pack and/or re-size the table. First scan the entire
- * table removing stale entries. If this doesn't sufficiently
- * shrink the size of the table, double the table size.
- */
-private void rehash() {
-    expungeStaleEntries();
+        /**
+         * Re-pack and/or re-size the table. First scan the entire
+         * table removing stale entries. If this doesn't sufficiently
+         * shrink the size of the table, double the table size.
+         */
+        private void rehash() {
+            expungeStaleEntries();
 
-    // Use lower threshold for doubling to avoid hysteresis
-    if (size >= threshold - threshold / 4)
-        resize();
-}
+            // Use lower threshold for doubling to avoid hysteresis
+            if (size >= threshold - threshold / 4)
+                resize();
+        }
 
-/**
- * Double the capacity of the table.
- */
-private void resize() {
-    Entry[] oldTab = table;
-    int oldLen = oldTab.length;
-    int newLen = oldLen * 2;
-    Entry[] newTab = new Entry[newLen];
-    int count = 0;
+        /**
+         * Double the capacity of the table.
+         */
+        private void resize() {
+            Entry[] oldTab = table;
+            int oldLen = oldTab.length;
+            int newLen = oldLen * 2;
+            Entry[] newTab = new Entry[newLen];
+            int count = 0;
 
-    for (int j = 0; j < oldLen; ++j) {
-        Entry e = oldTab[j];
-        if (e != null) {
-            ThreadLocal<?> k = e.get();
-            if (k == null) {
-                e.value = null; // Help the GC
-            } else {
-                int h = k.threadLocalHashCode & (newLen - 1);
-                while (newTab[h] != null)
-                    h = nextIndex(h, newLen);
-                newTab[h] = e;
-                count++;
+            for (int j = 0; j < oldLen; ++j) {
+                Entry e = oldTab[j];
+                if (e != null) {
+                    ThreadLocal<?> k = e.get();
+                    if (k == null) {
+                        e.value = null; // Help the GC
+                    } else {
+                        int h = k.threadLocalHashCode & (newLen - 1);
+                        while (newTab[h] != null)
+                            h = nextIndex(h, newLen);
+                        newTab[h] = e;
+                        count++;
+                    }
+                }
+            }
+
+            setThreshold(newLen);
+            size = count;
+            table = newTab;
+        }
+
+        /**
+         * Expunge all stale entries in the table.
+         */
+        private void expungeStaleEntries() {
+            Entry[] tab = table;
+            int len = tab.length;
+            for (int j = 0; j < len; j++) {
+                Entry e = tab[j];
+                if (e != null && e.get() == null)
+                    expungeStaleEntry(j);
             }
         }
-    }
-
-    setThreshold(newLen);
-    size = count;
-    table = newTab;
-}
-
-/**
- * Expunge all stale entries in the table.
- */
-private void expungeStaleEntries() {
-    Entry[] tab = table;
-    int len = tab.length;
-    for (int j = 0; j < len; j++) {
-        Entry e = tab[j];
-        if (e != null && e.get() == null)
-            expungeStaleEntry(j);
 ```
 
 ```mermaid
@@ -4669,29 +5492,32 @@ public final int updateAndGet(IntUnaryOperator updateFunction) {
 #### 源码3：public final int getAndAddInt(Object o, long offset, int delta)
 
 
-**Unsafe·[L1020–L1037](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/sun/misc/Unsafe.java#L1020-L1037)**
+**Unsafe·[L1017–L1037](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/sun/misc/Unsafe.java#L1017-L1037)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Atomically adds the given value to the current value of a field
- * or array element within the given object <code>o</code>
- * at the given <code>offset</code>.
- *
- * @param o object/array to update the field/element in
- * @param offset field/element offset
- * @param delta the value to add
- * @return the previous value
- * @since 1.8
- */
-public final int getAndAddInt(Object o, long offset, int delta) {
-    int v;
-    do {
-        v = getIntVolatile(o, offset);
-    } while (!compareAndSwapInt(o, offset, v, v + delta));
-    return v;
-}
+    // The following contain CAS-based Java implementations used on
+    // platforms not supporting native instructions
+
+    /**
+     * Atomically adds the given value to the current value of a field
+     * or array element within the given object <code>o</code>
+     * at the given <code>offset</code>.
+     *
+     * @param o object/array to update the field/element in
+     * @param offset field/element offset
+     * @param delta the value to add
+     * @return the previous value
+     * @since 1.8
+     */
+    public final int getAndAddInt(Object o, long offset, int delta) {
+        int v;
+        do {
+            v = getIntVolatile(o, offset);
+        } while (!compareAndSwapInt(o, offset, v, v + delta));
+        return v;
+    }
 ```
 
 这里的Java包装用getIntVolatile加compareAndSwapInt循环。compareAndSwapInt本身跨到VM/native实现；不能从这个包装推断某平台的具体汇编。
@@ -4842,52 +5668,103 @@ public long sum() {
 #### 源码3：final void longAccumulate(long x, LongBinaryOperator fn,
 
 
-**Striped64·[L202–L242](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/Striped64.java#L202-L242)**
+**Striped64·[L202–L293](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/atomic/Striped64.java#L202-L293)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Handles cases of updates involving initialization, resizing,
- * creating new Cells, and/or contention. See above for
- * explanation. This method suffers the usual non-modularity
- * problems of optimistic retry code, relying on rechecked sets of
- * reads.
- *
- * @param x the value
- * @param fn the update function, or null for add (this convention
- * avoids the need for an extra field or function in LongAdder).
- * @param wasUncontended false if CAS failed before call
- */
-final void longAccumulate(long x, LongBinaryOperator fn,
-                          boolean wasUncontended) {
-    int h;
-    if ((h = getProbe()) == 0) {
-        ThreadLocalRandom.current(); // force initialization
-        h = getProbe();
-        wasUncontended = true;
-    }
-    boolean collide = false;                // True if last slot nonempty
-    for (;;) {
-        Cell[] as; Cell a; int n; long v;
-        if ((as = cells) != null && (n = as.length) > 0) {
-            if ((a = as[(n - 1) & h]) == null) {
-                if (cellsBusy == 0) {       // Try to attach new Cell
-                    Cell r = new Cell(x);   // Optimistically create
-                    if (cellsBusy == 0 && casCellsBusy()) {
-                        boolean created = false;
-                        try {               // Recheck under lock
-                            Cell[] rs; int m, j;
-                            if ((rs = cells) != null &&
-                                (m = rs.length) > 0 &&
-                                rs[j = (m - 1) & h] == null) {
-                                rs[j] = r;
-                                created = true;
+    /**
+     * Handles cases of updates involving initialization, resizing,
+     * creating new Cells, and/or contention. See above for
+     * explanation. This method suffers the usual non-modularity
+     * problems of optimistic retry code, relying on rechecked sets of
+     * reads.
+     *
+     * @param x the value
+     * @param fn the update function, or null for add (this convention
+     * avoids the need for an extra field or function in LongAdder).
+     * @param wasUncontended false if CAS failed before call
+     */
+    final void longAccumulate(long x, LongBinaryOperator fn,
+                              boolean wasUncontended) {
+        int h;
+        if ((h = getProbe()) == 0) {
+            ThreadLocalRandom.current(); // force initialization
+            h = getProbe();
+            wasUncontended = true;
+        }
+        boolean collide = false;                // True if last slot nonempty
+        for (;;) {
+            Cell[] as; Cell a; int n; long v;
+            if ((as = cells) != null && (n = as.length) > 0) {
+                if ((a = as[(n - 1) & h]) == null) {
+                    if (cellsBusy == 0) {       // Try to attach new Cell
+                        Cell r = new Cell(x);   // Optimistically create
+                        if (cellsBusy == 0 && casCellsBusy()) {
+                            boolean created = false;
+                            try {               // Recheck under lock
+                                Cell[] rs; int m, j;
+                                if ((rs = cells) != null &&
+                                    (m = rs.length) > 0 &&
+                                    rs[j = (m - 1) & h] == null) {
+                                    rs[j] = r;
+                                    created = true;
+                                }
+                            } finally {
+                                cellsBusy = 0;
                             }
-                        } finally {
-                            cellsBusy = 0;
+                            if (created)
+                                break;
+                            continue;           // Slot is now non-empty
                         }
-                        if (created)
+                    }
+                    collide = false;
+                }
+                else if (!wasUncontended)       // CAS already known to fail
+                    wasUncontended = true;      // Continue after rehash
+                else if (a.cas(v = a.value, ((fn == null) ? v + x :
+                                             fn.applyAsLong(v, x))))
+                    break;
+                else if (n >= NCPU || cells != as)
+                    collide = false;            // At max size or stale
+                else if (!collide)
+                    collide = true;
+                else if (cellsBusy == 0 && casCellsBusy()) {
+                    try {
+                        if (cells == as) {      // Expand table unless stale
+                            Cell[] rs = new Cell[n << 1];
+                            for (int i = 0; i < n; ++i)
+                                rs[i] = as[i];
+                            cells = rs;
+                        }
+                    } finally {
+                        cellsBusy = 0;
+                    }
+                    collide = false;
+                    continue;                   // Retry with expanded table
+                }
+                h = advanceProbe(h);
+            }
+            else if (cellsBusy == 0 && cells == as && casCellsBusy()) {
+                boolean init = false;
+                try {                           // Initialize table
+                    if (cells == as) {
+                        Cell[] rs = new Cell[2];
+                        rs[h & 1] = new Cell(x);
+                        cells = rs;
+                        init = true;
+                    }
+                } finally {
+                    cellsBusy = 0;
+                }
+                if (init)
+                    break;
+            }
+            else if (casBase(v = base, ((fn == null) ? v + x :
+                                        fn.applyAsLong(v, x))))
+                break;                          // Fall back on using base
+        }
+    }
 ```
 
 处理初始化Cell、空槽安置、竞争与扩展等路径。cellsBusy协调结构变化，不能把整个实现概括成“完全不使用任何互斥控制”。
@@ -5167,40 +6044,49 @@ public final void acquire(int arg) {
 #### 源码2：final boolean acquireQueued(final Node node, int arg)
 
 
-**AbstractQueuedSynchronizer·[L849–L877](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L849-L877)**
+**AbstractQueuedSynchronizer·[L840–L877](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L840-L877)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Acquires in exclusive uninterruptible mode for thread already in
- * queue. Used by condition wait methods as well as acquire.
- *
- * @param node the node
- * @param arg the acquire argument
- * @return {@code true} if interrupted while waiting
- */
-final boolean acquireQueued(final Node node, int arg) {
-    boolean failed = true;
-    try {
-        boolean interrupted = false;
-        for (;;) {
-            final Node p = node.predecessor();
-            if (p == head && tryAcquire(arg)) {
-                setHead(node);
-                p.next = null; // help GC
-                failed = false;
-                return interrupted;
+    /*
+     * Various flavors of acquire, varying in exclusive/shared and
+     * control modes.  Each is mostly the same, but annoyingly
+     * different.  Only a little bit of factoring is possible due to
+     * interactions of exception mechanics (including ensuring that we
+     * cancel if tryAcquire throws exception) and other control, at
+     * least not without hurting performance too much.
+     */
+
+    /**
+     * Acquires in exclusive uninterruptible mode for thread already in
+     * queue. Used by condition wait methods as well as acquire.
+     *
+     * @param node the node
+     * @param arg the acquire argument
+     * @return {@code true} if interrupted while waiting
+     */
+    final boolean acquireQueued(final Node node, int arg) {
+        boolean failed = true;
+        try {
+            boolean interrupted = false;
+            for (;;) {
+                final Node p = node.predecessor();
+                if (p == head && tryAcquire(arg)) {
+                    setHead(node);
+                    p.next = null; // help GC
+                    failed = false;
+                    return interrupted;
+                }
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    parkAndCheckInterrupt())
+                    interrupted = true;
             }
-            if (shouldParkAfterFailedAcquire(p, node) &&
-                parkAndCheckInterrupt())
-                interrupted = true;
+        } finally {
+            if (failed)
+                cancelAcquire(node);
         }
-    } finally {
-        if (failed)
-            cancelAcquire(node);
     }
-}
 ```
 
 只有前驱为head时才在这条路径尝试获取；成功后setHead并断开旧头。failed/finally保证异常时取消节点。
@@ -5209,44 +6095,47 @@ final boolean acquireQueued(final Node node, int arg) {
 #### 源码3：private static boolean shouldParkAfterFailedAcquire(Node pred, Node node)
 
 
-**AbstractQueuedSynchronizer·[L786–L818](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L786-L818)**
+**AbstractQueuedSynchronizer·[L786–L821](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L786-L821)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Checks and updates status for a node that failed to acquire.
- * Returns true if thread should block. This is the main signal
- * control in all acquire loops.  Requires that pred == node.prev.
- *
- * @param pred node's predecessor holding status
- * @param node the node
- * @return {@code true} if thread should block
- */
-private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
-    int ws = pred.waitStatus;
-    if (ws == Node.SIGNAL)
-        /*
-         * This node has already set status asking a release
-         * to signal it, so it can safely park.
-         */
-        return true;
-    if (ws > 0) {
-        /*
-         * Predecessor was cancelled. Skip over predecessors and
-         * indicate retry.
-         */
-        do {
-            node.prev = pred = pred.prev;
-        } while (pred.waitStatus > 0);
-        pred.next = node;
-    } else {
-        /*
-         * waitStatus must be 0 or PROPAGATE.  Indicate that we
-         * need a signal, but don't park yet.  Caller will need to
-         * retry to make sure it cannot acquire before parking.
-         */
-        compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+    /**
+     * Checks and updates status for a node that failed to acquire.
+     * Returns true if thread should block. This is the main signal
+     * control in all acquire loops.  Requires that pred == node.prev.
+     *
+     * @param pred node's predecessor holding status
+     * @param node the node
+     * @return {@code true} if thread should block
+     */
+    private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+        int ws = pred.waitStatus;
+        if (ws == Node.SIGNAL)
+            /*
+             * This node has already set status asking a release
+             * to signal it, so it can safely park.
+             */
+            return true;
+        if (ws > 0) {
+            /*
+             * Predecessor was cancelled. Skip over predecessors and
+             * indicate retry.
+             */
+            do {
+                node.prev = pred = pred.prev;
+            } while (pred.waitStatus > 0);
+            pred.next = node;
+        } else {
+            /*
+             * waitStatus must be 0 or PROPAGATE.  Indicate that we
+             * need a signal, but don't park yet.  Caller will need to
+             * retry to make sure it cannot acquire before parking.
+             */
+            compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+        }
+        return false;
+    }
 ```
 
 前驱为SIGNAL才允许park；取消前驱需要跳过；其他情况先CAS前驱状态，再循环重试。先建立唤醒责任，再停车，避免漏掉状态变化。
@@ -5460,42 +6349,45 @@ Latch初始3，三次countDown使3→2→1→0，所有等待者可继续。Sema
 Latch到0后，所有等待者可继续；Semaphore每次成功可能消费若干许可。它们共用传播框架，但资源是否耗尽由各自tryAcquireShared定义。
 
 
-**AbstractQueuedSynchronizer·[L665–L695](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L665-L695)**
+**AbstractQueuedSynchronizer·[L665–L698](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L665-L698)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Release action for shared mode -- signals successor and ensures
- * propagation. (Note: For exclusive mode, release just amounts
- * to calling unparkSuccessor of head if it needs signal.)
- */
-private void doReleaseShared() {
-    /*
-     * Ensure that a release propagates, even if there are other
-     * in-progress acquires/releases.  This proceeds in the usual
-     * way of trying to unparkSuccessor of head if it needs
-     * signal. But if it does not, status is set to PROPAGATE to
-     * ensure that upon release, propagation continues.
-     * Additionally, we must loop in case a new node is added
-     * while we are doing this. Also, unlike other uses of
-     * unparkSuccessor, we need to know if CAS to reset status
-     * fails, if so rechecking.
+    /**
+     * Release action for shared mode -- signals successor and ensures
+     * propagation. (Note: For exclusive mode, release just amounts
+     * to calling unparkSuccessor of head if it needs signal.)
      */
-    for (;;) {
-        Node h = head;
-        if (h != null && h != tail) {
-            int ws = h.waitStatus;
-            if (ws == Node.SIGNAL) {
-                if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0))
-                    continue;            // loop to recheck cases
-                unparkSuccessor(h);
+    private void doReleaseShared() {
+        /*
+         * Ensure that a release propagates, even if there are other
+         * in-progress acquires/releases.  This proceeds in the usual
+         * way of trying to unparkSuccessor of head if it needs
+         * signal. But if it does not, status is set to PROPAGATE to
+         * ensure that upon release, propagation continues.
+         * Additionally, we must loop in case a new node is added
+         * while we are doing this. Also, unlike other uses of
+         * unparkSuccessor, we need to know if CAS to reset status
+         * fails, if so rechecking.
+         */
+        for (;;) {
+            Node h = head;
+            if (h != null && h != tail) {
+                int ws = h.waitStatus;
+                if (ws == Node.SIGNAL) {
+                    if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0))
+                        continue;            // loop to recheck cases
+                    unparkSuccessor(h);
+                }
+                else if (ws == 0 &&
+                         !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))
+                    continue;                // loop on failed CAS
             }
-            else if (ws == 0 &&
-                     !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))
-                continue;                // loop on failed CAS
+            if (h == head)                   // loop if head changed
+                break;
         }
-        if (h == head)                   // loop if head changed
+    }
 ```
 
 SIGNAL分支会把head状态CAS回0并唤醒后继；零状态可能转PROPAGATE。循环还处理head在传播期间改变的情况。
@@ -5617,26 +6509,28 @@ final boolean transferForSignal(Node node) {
 #### 源码3：public final void signal()
 
 
-**AbstractQueuedSynchronizer·[L1929–L1943](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1929-L1943)**
+**AbstractQueuedSynchronizer·[L1927–L1943](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1927-L1943)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Moves the longest-waiting thread, if one exists, from the
- * wait queue for this condition to the wait queue for the
- * owning lock.
- *
- * @throws IllegalMonitorStateException if {@link #isHeldExclusively}
- *         returns {@code false}
- */
-public final void signal() {
-    if (!isHeldExclusively())
-        throw new IllegalMonitorStateException();
-    Node first = firstWaiter;
-    if (first != null)
-        doSignal(first);
-}
+        // public methods
+
+        /**
+         * Moves the longest-waiting thread, if one exists, from the
+         * wait queue for this condition to the wait queue for the
+         * owning lock.
+         *
+         * @throws IllegalMonitorStateException if {@link #isHeldExclusively}
+         *         returns {@code false}
+         */
+        public final void signal() {
+            if (!isHeldExclusively())
+                throw new IllegalMonitorStateException();
+            Node first = firstWaiter;
+            if (first != null)
+                doSignal(first);
+        }
 ```
 
 要求当前线程isHeldExclusively，选择首条件节点执行doSignal。signal只进行通知转移，业务状态本身仍由调用者修改。
@@ -5801,19 +6695,34 @@ protected final boolean tryRelease(int releases) {
 #### 源码3：if (!hasQueuedPredecessors() &&
 
 
-**ReentrantLock·[L235–L242](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java#L235-L242)**
+**ReentrantLock·[L227–L249](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java#L227-L249)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-    if (!hasQueuedPredecessors() &&
-        compareAndSetState(0, acquires)) {
-        setExclusiveOwnerThread(current);
-        return true;
-    }
-}
-else if (current == getExclusiveOwnerThread()) {
-    int nextc = c + acquires;
+        /**
+         * Fair version of tryAcquire.  Don't grant access unless
+         * recursive call or no waiters or is first.
+         */
+        protected final boolean tryAcquire(int acquires) {
+            final Thread current = Thread.currentThread();
+            int c = getState();
+            if (c == 0) {
+                if (!hasQueuedPredecessors() &&
+                    compareAndSetState(0, acquires)) {
+                    setExclusiveOwnerThread(current);
+                    return true;
+                }
+            }
+            else if (current == getExclusiveOwnerThread()) {
+                int nextc = c + acquires;
+                if (nextc < 0)
+                    throw new Error("Maximum lock count exceeded");
+                setState(nextc);
+                return true;
+            }
+            return false;
+        }
 ```
 
 这是公平获取路径的附加条件。无参tryLock走非公平尝试，即便锁由公平构造器创建；不能把所有API一概说成公平。
@@ -5921,20 +6830,27 @@ flowchart TD
 #### 源码1：static final int SHARED_SHIFT
 
 
-**ReentrantReadWriteLock·[L262–L270](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java#L262-L270)**
+**ReentrantReadWriteLock·[L255–L270](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java#L255-L270)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-static final int SHARED_SHIFT   = 16;
-static final int SHARED_UNIT    = (1 << SHARED_SHIFT);
-static final int MAX_COUNT      = (1 << SHARED_SHIFT) - 1;
-static final int EXCLUSIVE_MASK = (1 << SHARED_SHIFT) - 1;
+        /*
+         * Read vs write count extraction constants and functions.
+         * Lock state is logically divided into two unsigned shorts:
+         * The lower one representing the exclusive (writer) lock hold count,
+         * and the upper the shared (reader) hold count.
+         */
 
-/** Returns the number of shared holds represented in count  */
-static int sharedCount(int c)    { return c >>> SHARED_SHIFT; }
-/** Returns the number of exclusive holds represented in count  */
-static int exclusiveCount(int c) { return c & EXCLUSIVE_MASK; }
+        static final int SHARED_SHIFT   = 16;
+        static final int SHARED_UNIT    = (1 << SHARED_SHIFT);
+        static final int MAX_COUNT      = (1 << SHARED_SHIFT) - 1;
+        static final int EXCLUSIVE_MASK = (1 << SHARED_SHIFT) - 1;
+
+        /** Returns the number of shared holds represented in count  */
+        static int sharedCount(int c)    { return c >>> SHARED_SHIFT; }
+        /** Returns the number of exclusive holds represented in count  */
+        static int exclusiveCount(int c) { return c & EXCLUSIVE_MASK; }
 ```
 
 SHARED_UNIT是1<<16，两部分通过掩码和移位提取。计数有MAX_COUNT限制，不是无限重入。
@@ -5943,38 +6859,42 @@ SHARED_UNIT是1<<16，两部分通过掩码和移位提取。计数有MAX_COUNT�
 #### 源码2：protected final boolean tryAcquire(int acquires)
 
 
-**ReentrantReadWriteLock·[L380–L406](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java#L380-L406)**
+**ReentrantReadWriteLock·[L380–L410](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java#L380-L410)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-protected final boolean tryAcquire(int acquires) {
-    /*
-     * Walkthrough:
-     * 1. If read count nonzero or write count nonzero
-     *    and owner is a different thread, fail.
-     * 2. If count would saturate, fail. (This can only
-     *    happen if count is already nonzero.)
-     * 3. Otherwise, this thread is eligible for lock if
-     *    it is either a reentrant acquire or
-     *    queue policy allows it. If so, update state
-     *    and set owner.
-     */
-    Thread current = Thread.currentThread();
-    int c = getState();
-    int w = exclusiveCount(c);
-    if (c != 0) {
-        // (Note: if c != 0 and w == 0 then shared count != 0)
-        if (w == 0 || current != getExclusiveOwnerThread())
-            return false;
-        if (w + exclusiveCount(acquires) > MAX_COUNT)
-            throw new Error("Maximum lock count exceeded");
-        // Reentrant acquire
-        setState(c + acquires);
-        return true;
-    }
-    if (writerShouldBlock() ||
-        !compareAndSetState(c, c + acquires))
+        protected final boolean tryAcquire(int acquires) {
+            /*
+             * Walkthrough:
+             * 1. If read count nonzero or write count nonzero
+             *    and owner is a different thread, fail.
+             * 2. If count would saturate, fail. (This can only
+             *    happen if count is already nonzero.)
+             * 3. Otherwise, this thread is eligible for lock if
+             *    it is either a reentrant acquire or
+             *    queue policy allows it. If so, update state
+             *    and set owner.
+             */
+            Thread current = Thread.currentThread();
+            int c = getState();
+            int w = exclusiveCount(c);
+            if (c != 0) {
+                // (Note: if c != 0 and w == 0 then shared count != 0)
+                if (w == 0 || current != getExclusiveOwnerThread())
+                    return false;
+                if (w + exclusiveCount(acquires) > MAX_COUNT)
+                    throw new Error("Maximum lock count exceeded");
+                // Reentrant acquire
+                setState(c + acquires);
+                return true;
+            }
+            if (writerShouldBlock() ||
+                !compareAndSetState(c, c + acquires))
+                return false;
+            setExclusiveOwnerThread(current);
+            return true;
+        }
 ```
 
 state非0时只有已有写owner可继续重入；存在其他读者时写获取失败。空闲时还要看writerShouldBlock与CAS。
@@ -5983,39 +6903,53 @@ state非0时只有已有写owner可继续重入；存在其他读者时写获取
 #### 源码3：protected final int tryAcquireShared(int unused)
 
 
-**ReentrantReadWriteLock·[L448–L475](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java#L448-L475)**
+**ReentrantReadWriteLock·[L448–L489](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java#L448-L489)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-protected final int tryAcquireShared(int unused) {
-    /*
-     * Walkthrough:
-     * 1. If write lock held by another thread, fail.
-     * 2. Otherwise, this thread is eligible for
-     *    lock wrt state, so ask if it should block
-     *    because of queue policy. If not, try
-     *    to grant by CASing state and updating count.
-     *    Note that step does not check for reentrant
-     *    acquires, which is postponed to full version
-     *    to avoid having to check hold count in
-     *    the more typical non-reentrant case.
-     * 3. If step 2 fails either because thread
-     *    apparently not eligible or CAS fails or count
-     *    saturated, chain to version with full retry loop.
-     */
-    Thread current = Thread.currentThread();
-    int c = getState();
-    if (exclusiveCount(c) != 0 &&
-        getExclusiveOwnerThread() != current)
-        return -1;
-    int r = sharedCount(c);
-    if (!readerShouldBlock() &&
-        r < MAX_COUNT &&
-        compareAndSetState(c, c + SHARED_UNIT)) {
-        if (r == 0) {
-            firstReader = current;
-            firstReaderHoldCount = 1;
+        protected final int tryAcquireShared(int unused) {
+            /*
+             * Walkthrough:
+             * 1. If write lock held by another thread, fail.
+             * 2. Otherwise, this thread is eligible for
+             *    lock wrt state, so ask if it should block
+             *    because of queue policy. If not, try
+             *    to grant by CASing state and updating count.
+             *    Note that step does not check for reentrant
+             *    acquires, which is postponed to full version
+             *    to avoid having to check hold count in
+             *    the more typical non-reentrant case.
+             * 3. If step 2 fails either because thread
+             *    apparently not eligible or CAS fails or count
+             *    saturated, chain to version with full retry loop.
+             */
+            Thread current = Thread.currentThread();
+            int c = getState();
+            if (exclusiveCount(c) != 0 &&
+                getExclusiveOwnerThread() != current)
+                return -1;
+            int r = sharedCount(c);
+            if (!readerShouldBlock() &&
+                r < MAX_COUNT &&
+                compareAndSetState(c, c + SHARED_UNIT)) {
+                if (r == 0) {
+                    firstReader = current;
+                    firstReaderHoldCount = 1;
+                } else if (firstReader == current) {
+                    firstReaderHoldCount++;
+                } else {
+                    HoldCounter rh = cachedHoldCounter;
+                    if (rh == null || rh.tid != getThreadId(current))
+                        cachedHoldCounter = rh = readHolds.get();
+                    else if (rh.count == 0)
+                        readHolds.set(rh);
+                    rh.count++;
+                }
+                return 1;
+            }
+            return fullTryAcquireShared(current);
+        }
 ```
 
 存在其他线程的写锁就失败；否则走读者策略与CAS增加共享计数，跟踪读持有者。更复杂重入情况交给fullTryAcquireShared。
@@ -6156,24 +7090,25 @@ private E dequeue() {
 put与take在一把锁下保护数组、索引和count，两条Condition让等待线程释放锁而非持锁忙等。offer不满足容量条件时可以立即返回false；put则循环await。线程池提交用的是offer，所以满队列下一步是扩线程或拒绝，不是自动阻塞提交者。
 
 
-**ArrayBlockingQueue·[L153–L165](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java#L153-L165)**
+**ArrayBlockingQueue·[L153–L166](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java#L153-L166)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Inserts element at current put position, advances, and signals.
- * Call only when holding lock.
- */
-private void enqueue(E x) {
-    // assert lock.getHoldCount() == 1;
-    // assert items[putIndex] == null;
-    final Object[] items = this.items;
-    items[putIndex] = x;
-    if (++putIndex == items.length)
-        putIndex = 0;
-    count++;
-    notEmpty.signal();
+    /**
+     * Inserts element at current put position, advances, and signals.
+     * Call only when holding lock.
+     */
+    private void enqueue(E x) {
+        // assert lock.getHoldCount() == 1;
+        // assert items[putIndex] == null;
+        final Object[] items = this.items;
+        items[putIndex] = x;
+        if (++putIndex == items.length)
+            putIndex = 0;
+        count++;
+        notEmpty.signal();
+    }
 ```
 
 写putIndex槽、环绕索引、增加count并signal notEmpty。队列等待的业务条件与LockSupport permit是不同层。
@@ -6241,47 +7176,49 @@ flowchart TD
 #### 源码1：public void put(E e) throws InterruptedException
 
 
-**LinkedBlockingQueue·[L324–L359](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java#L324-L359)**
+**LinkedBlockingQueue·[L324–L361](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java#L324-L361)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Inserts the specified element at the tail of this queue, waiting if
- * necessary for space to become available.
- *
- * @throws InterruptedException {@inheritDoc}
- * @throws NullPointerException {@inheritDoc}
- */
-public void put(E e) throws InterruptedException {
-    if (e == null) throw new NullPointerException();
-    // Note: convention in all put/take/etc is to preset local var
-    // holding count negative to indicate failure unless set.
-    int c = -1;
-    Node<E> node = new Node<E>(e);
-    final ReentrantLock putLock = this.putLock;
-    final AtomicInteger count = this.count;
-    putLock.lockInterruptibly();
-    try {
-        /*
-         * Note that count is used in wait guard even though it is
-         * not protected by lock. This works because count can
-         * only decrease at this point (all other puts are shut
-         * out by lock), and we (or some other waiting put) are
-         * signalled if it ever changes from capacity. Similarly
-         * for all other uses of count in other wait guards.
-         */
-        while (count.get() == capacity) {
-            notFull.await();
+    /**
+     * Inserts the specified element at the tail of this queue, waiting if
+     * necessary for space to become available.
+     *
+     * @throws InterruptedException {@inheritDoc}
+     * @throws NullPointerException {@inheritDoc}
+     */
+    public void put(E e) throws InterruptedException {
+        if (e == null) throw new NullPointerException();
+        // Note: convention in all put/take/etc is to preset local var
+        // holding count negative to indicate failure unless set.
+        int c = -1;
+        Node<E> node = new Node<E>(e);
+        final ReentrantLock putLock = this.putLock;
+        final AtomicInteger count = this.count;
+        putLock.lockInterruptibly();
+        try {
+            /*
+             * Note that count is used in wait guard even though it is
+             * not protected by lock. This works because count can
+             * only decrease at this point (all other puts are shut
+             * out by lock), and we (or some other waiting put) are
+             * signalled if it ever changes from capacity. Similarly
+             * for all other uses of count in other wait guards.
+             */
+            while (count.get() == capacity) {
+                notFull.await();
+            }
+            enqueue(node);
+            c = count.getAndIncrement();
+            if (c + 1 < capacity)
+                notFull.signal();
+        } finally {
+            putLock.unlock();
         }
-        enqueue(node);
-        c = count.getAndIncrement();
-        if (c + 1 < capacity)
-            notFull.signal();
-    } finally {
-        putLock.unlock();
+        if (c == 0)
+            signalNotEmpty();
     }
-    if (c == 0)
 ```
 
 生产者主要拿putLock，在原count为0的边界通过signalNotEmpty协调消费者；不能说两个锁之间完全无相互联系。
@@ -6310,25 +7247,27 @@ putLock保护尾部连接，takeLock保护头部取出；AtomicInteger count使�
 头部有哨兵角色，dequeue取的是head.next，将其item清空并把它推进为新head。Node清理与链表结构必须一起看。
 
 
-**LinkedBlockingQueue·[L204–L217](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java#L204-L217)**
+**LinkedBlockingQueue·[L204–L219](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java#L204-L219)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Removes a node from head of queue.
- *
- * @return the node
- */
-private E dequeue() {
-    // assert takeLock.isHeldByCurrentThread();
-    // assert head.item == null;
-    Node<E> h = head;
-    Node<E> first = h.next;
-    h.next = h; // help GC
-    head = first;
-    E x = first.item;
-    first.item = null;
+    /**
+     * Removes a node from head of queue.
+     *
+     * @return the node
+     */
+    private E dequeue() {
+        // assert takeLock.isHeldByCurrentThread();
+        // assert head.item == null;
+        Node<E> h = head;
+        Node<E> first = h.next;
+        h.next = h; // help GC
+        head = first;
+        E x = first.item;
+        first.item = null;
+        return x;
+    }
 ```
 
 旧head自链接辅助GC，first推进为新head，取出item后将其置null。哨兵角色是随出队变化的。
@@ -6547,49 +7486,51 @@ flowchart TD
 #### 源码1：public E take() throws InterruptedException
 
 
-**DelayQueue·[L197–L234](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/DelayQueue.java#L197-L234)**
+**DelayQueue·[L197–L236](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/DelayQueue.java#L197-L236)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Retrieves and removes the head of this queue, waiting if necessary
- * until an element with an expired delay is available on this queue.
- *
- * @return the head of this queue
- * @throws InterruptedException {@inheritDoc}
- */
-public E take() throws InterruptedException {
-    final ReentrantLock lock = this.lock;
-    lock.lockInterruptibly();
-    try {
-        for (;;) {
-            E first = q.peek();
-            if (first == null)
-                available.await();
-            else {
-                long delay = first.getDelay(NANOSECONDS);
-                if (delay <= 0)
-                    return q.poll();
-                first = null; // don't retain ref while waiting
-                if (leader != null)
+    /**
+     * Retrieves and removes the head of this queue, waiting if necessary
+     * until an element with an expired delay is available on this queue.
+     *
+     * @return the head of this queue
+     * @throws InterruptedException {@inheritDoc}
+     */
+    public E take() throws InterruptedException {
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            for (;;) {
+                E first = q.peek();
+                if (first == null)
                     available.await();
                 else {
-                    Thread thisThread = Thread.currentThread();
-                    leader = thisThread;
-                    try {
-                        available.awaitNanos(delay);
-                    } finally {
-                        if (leader == thisThread)
-                            leader = null;
+                    long delay = first.getDelay(NANOSECONDS);
+                    if (delay <= 0)
+                        return q.poll();
+                    first = null; // don't retain ref while waiting
+                    if (leader != null)
+                        available.await();
+                    else {
+                        Thread thisThread = Thread.currentThread();
+                        leader = thisThread;
+                        try {
+                            available.awaitNanos(delay);
+                        } finally {
+                            if (leader == thisThread)
+                                leader = null;
+                        }
                     }
                 }
             }
+        } finally {
+            if (leader == null && q.peek() != null)
+                available.signal();
+            lock.unlock();
         }
-    } finally {
-        if (leader == null && q.peek() != null)
-            available.signal();
-        lock.unlock();
+    }
 ```
 
 队列空等待；队头到期返回；未到期时一个leader限时等待，其他线程等待通知，降低同时精确计时的竞争。
@@ -6612,30 +7553,31 @@ public E take() throws InterruptedException {
 DelayQueue本身不执行元素代表的任务，只控制何时可取。ScheduledThreadPoolExecutor在队列之外还需要worker真正run任务。把“到期可取”与“已经执行完”分开，才能理解定时任务积压。
 
 
-**DelayQueue·[L129–L148](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/DelayQueue.java#L129-L148)**
+**DelayQueue·[L129–L149](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/DelayQueue.java#L129-L149)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Inserts the specified element into this delay queue.
- *
- * @param e the element to add
- * @return {@code true}
- * @throws NullPointerException if the specified element is null
- */
-public boolean offer(E e) {
-    final ReentrantLock lock = this.lock;
-    lock.lock();
-    try {
-        q.offer(e);
-        if (q.peek() == e) {
-            leader = null;
-            available.signal();
+    /**
+     * Inserts the specified element into this delay queue.
+     *
+     * @param e the element to add
+     * @return {@code true}
+     * @throws NullPointerException if the specified element is null
+     */
+    public boolean offer(E e) {
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            q.offer(e);
+            if (q.peek() == e) {
+                leader = null;
+                available.signal();
+            }
+            return true;
+        } finally {
+            lock.unlock();
         }
-        return true;
-    } finally {
-        lock.unlock();
     }
 ```
 
@@ -6754,67 +7696,107 @@ public void execute(Runnable command) {
 #### 源码2：private boolean addWorker(Runnable firstTask, boolean core)
 
 
-**ThreadPoolExecutor·[L875–L930](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L875-L930)**
+**ThreadPoolExecutor·[L871–L966](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L871-L966)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Checks if a new worker can be added with respect to current
- * pool state and the given bound (either core or maximum). If so,
- * the worker count is adjusted accordingly, and, if possible, a
- * new worker is created and started, running firstTask as its
- * first task. This method returns false if the pool is stopped or
- * eligible to shut down. It also returns false if the thread
- * factory fails to create a thread when asked.  If the thread
- * creation fails, either due to the thread factory returning
- * null, or due to an exception (typically OutOfMemoryError in
- * Thread.start()), we roll back cleanly.
- *
- * @param firstTask the task the new thread should run first (or
- * null if none). Workers are created with an initial first task
- * (in method execute()) to bypass queuing when there are fewer
- * than corePoolSize threads (in which case we always start one),
- * or when the queue is full (in which case we must bypass queue).
- * Initially idle threads are usually created via
- * prestartCoreThread or to replace other dying workers.
- *
- * @param core if true use corePoolSize as bound, else
- * maximumPoolSize. (A boolean indicator is used here rather than a
- * value to ensure reads of fresh values after checking other pool
- * state).
- * @return true if successful
- */
-private boolean addWorker(Runnable firstTask, boolean core) {
-    retry:
-    for (;;) {
-        int c = ctl.get();
-        int rs = runStateOf(c);
+    /*
+     * Methods for creating, running and cleaning up after workers
+     */
 
-        // Check if queue empty only if necessary.
-        if (rs >= SHUTDOWN &&
-            ! (rs == SHUTDOWN &&
-               firstTask == null &&
-               ! workQueue.isEmpty()))
-            return false;
-
+    /**
+     * Checks if a new worker can be added with respect to current
+     * pool state and the given bound (either core or maximum). If so,
+     * the worker count is adjusted accordingly, and, if possible, a
+     * new worker is created and started, running firstTask as its
+     * first task. This method returns false if the pool is stopped or
+     * eligible to shut down. It also returns false if the thread
+     * factory fails to create a thread when asked.  If the thread
+     * creation fails, either due to the thread factory returning
+     * null, or due to an exception (typically OutOfMemoryError in
+     * Thread.start()), we roll back cleanly.
+     *
+     * @param firstTask the task the new thread should run first (or
+     * null if none). Workers are created with an initial first task
+     * (in method execute()) to bypass queuing when there are fewer
+     * than corePoolSize threads (in which case we always start one),
+     * or when the queue is full (in which case we must bypass queue).
+     * Initially idle threads are usually created via
+     * prestartCoreThread or to replace other dying workers.
+     *
+     * @param core if true use corePoolSize as bound, else
+     * maximumPoolSize. (A boolean indicator is used here rather than a
+     * value to ensure reads of fresh values after checking other pool
+     * state).
+     * @return true if successful
+     */
+    private boolean addWorker(Runnable firstTask, boolean core) {
+        retry:
         for (;;) {
-            int wc = workerCountOf(c);
-            if (wc >= CAPACITY ||
-                wc >= (core ? corePoolSize : maximumPoolSize))
-                return false;
-            if (compareAndIncrementWorkerCount(c))
-                break retry;
-            c = ctl.get();  // Re-read ctl
-            if (runStateOf(c) != rs)
-                continue retry;
-            // else CAS failed due to workerCount change; retry inner loop
-        }
-    }
+            int c = ctl.get();
+            int rs = runStateOf(c);
 
-    boolean workerStarted = false;
-    boolean workerAdded = false;
-    Worker w = null;
+            // Check if queue empty only if necessary.
+            if (rs >= SHUTDOWN &&
+                ! (rs == SHUTDOWN &&
+                   firstTask == null &&
+                   ! workQueue.isEmpty()))
+                return false;
+
+            for (;;) {
+                int wc = workerCountOf(c);
+                if (wc >= CAPACITY ||
+                    wc >= (core ? corePoolSize : maximumPoolSize))
+                    return false;
+                if (compareAndIncrementWorkerCount(c))
+                    break retry;
+                c = ctl.get();  // Re-read ctl
+                if (runStateOf(c) != rs)
+                    continue retry;
+                // else CAS failed due to workerCount change; retry inner loop
+            }
+        }
+
+        boolean workerStarted = false;
+        boolean workerAdded = false;
+        Worker w = null;
+        try {
+            w = new Worker(firstTask);
+            final Thread t = w.thread;
+            if (t != null) {
+                final ReentrantLock mainLock = this.mainLock;
+                mainLock.lock();
+                try {
+                    // Recheck while holding lock.
+                    // Back out on ThreadFactory failure or if
+                    // shut down before lock acquired.
+                    int rs = runStateOf(ctl.get());
+
+                    if (rs < SHUTDOWN ||
+                        (rs == SHUTDOWN && firstTask == null)) {
+                        if (t.isAlive()) // precheck that t is startable
+                            throw new IllegalThreadStateException();
+                        workers.add(w);
+                        int s = workers.size();
+                        if (s > largestPoolSize)
+                            largestPoolSize = s;
+                        workerAdded = true;
+                    }
+                } finally {
+                    mainLock.unlock();
+                }
+                if (workerAdded) {
+                    t.start();
+                    workerStarted = true;
+                }
+            }
+        } finally {
+            if (! workerStarted)
+                addWorkerFailed(w);
+        }
+        return workerStarted;
+    }
 ```
 
 CAS预占workerCount，检查运行状态与core或max上限；后面还会在mainLock下建立并启动Worker，失败要回滚。
@@ -6823,18 +7805,23 @@ CAS预占workerCount，检查运行状态与core或max上限；后面还会在ma
 #### 源码3：final void reject(Runnable command)
 
 
-**ThreadPoolExecutor·[L825–L831](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L825-L831)**
+**ThreadPoolExecutor·[L820–L831](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L820-L831)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Invokes the rejected execution handler for the given command.
- * Package-protected for use by ScheduledThreadPoolExecutor.
- */
-final void reject(Runnable command) {
-    handler.rejectedExecution(command, this);
-}
+    /*
+     * Misc utilities, most of which are also exported to
+     * ScheduledThreadPoolExecutor
+     */
+
+    /**
+     * Invokes the rejected execution handler for the given command.
+     * Package-protected for use by ScheduledThreadPoolExecutor.
+     */
+    final void reject(Runnable command) {
+        handler.rejectedExecution(command, this);
+    }
 ```
 
 拒绝行为由handler决定，不一定抛异常，也可能在调用者线程执行或丢弃。业务要知道具体策略。
@@ -6903,39 +7890,96 @@ flowchart TD
 #### 源码1：private final AtomicInteger ctl
 
 
-**ThreadPoolExecutor·[L381–L408](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L381-L408)**
+**ThreadPoolExecutor·[L324–L408](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L324-L408)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
-private static final int COUNT_BITS = Integer.SIZE - 3;
-private static final int CAPACITY   = (1 << COUNT_BITS) - 1;
+    /**
+     * The main pool control state, ctl, is an atomic integer packing
+     * two conceptual fields
+     *   workerCount, indicating the effective number of threads
+     *   runState,    indicating whether running, shutting down etc
+     *
+     * In order to pack them into one int, we limit workerCount to
+     * (2^29)-1 (about 500 million) threads rather than (2^31)-1 (2
+     * billion) otherwise representable. If this is ever an issue in
+     * the future, the variable can be changed to be an AtomicLong,
+     * and the shift/mask constants below adjusted. But until the need
+     * arises, this code is a bit faster and simpler using an int.
+     *
+     * The workerCount is the number of workers that have been
+     * permitted to start and not permitted to stop.  The value may be
+     * transiently different from the actual number of live threads,
+     * for example when a ThreadFactory fails to create a thread when
+     * asked, and when exiting threads are still performing
+     * bookkeeping before terminating. The user-visible pool size is
+     * reported as the current size of the workers set.
+     *
+     * The runState provides the main lifecycle control, taking on values:
+     *
+     *   RUNNING:  Accept new tasks and process queued tasks
+     *   SHUTDOWN: Don't accept new tasks, but process queued tasks
+     *   STOP:     Don't accept new tasks, don't process queued tasks,
+     *             and interrupt in-progress tasks
+     *   TIDYING:  All tasks have terminated, workerCount is zero,
+     *             the thread transitioning to state TIDYING
+     *             will run the terminated() hook method
+     *   TERMINATED: terminated() has completed
+     *
+     * The numerical order among these values matters, to allow
+     * ordered comparisons. The runState monotonically increases over
+     * time, but need not hit each state. The transitions are:
+     *
+     * RUNNING -> SHUTDOWN
+     *    On invocation of shutdown(), perhaps implicitly in finalize()
+     * (RUNNING or SHUTDOWN) -> STOP
+     *    On invocation of shutdownNow()
+     * SHUTDOWN -> TIDYING
+     *    When both queue and pool are empty
+     * STOP -> TIDYING
+     *    When pool is empty
+     * TIDYING -> TERMINATED
+     *    When the terminated() hook method has completed
+     *
+     * Threads waiting in awaitTermination() will return when the
+     * state reaches TERMINATED.
+     *
+     * Detecting the transition from SHUTDOWN to TIDYING is less
+     * straightforward than you'd like because the queue may become
+     * empty after non-empty and vice versa during SHUTDOWN state, but
+     * we can only terminate if, after seeing that it is empty, we see
+     * that workerCount is 0 (which sometimes entails a recheck -- see
+     * below).
+     */
+    private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+    private static final int COUNT_BITS = Integer.SIZE - 3;
+    private static final int CAPACITY   = (1 << COUNT_BITS) - 1;
 
-// runState is stored in the high-order bits
-private static final int RUNNING    = -1 << COUNT_BITS;
-private static final int SHUTDOWN   =  0 << COUNT_BITS;
-private static final int STOP       =  1 << COUNT_BITS;
-private static final int TIDYING    =  2 << COUNT_BITS;
-private static final int TERMINATED =  3 << COUNT_BITS;
+    // runState is stored in the high-order bits
+    private static final int RUNNING    = -1 << COUNT_BITS;
+    private static final int SHUTDOWN   =  0 << COUNT_BITS;
+    private static final int STOP       =  1 << COUNT_BITS;
+    private static final int TIDYING    =  2 << COUNT_BITS;
+    private static final int TERMINATED =  3 << COUNT_BITS;
 
-// Packing and unpacking ctl
-private static int runStateOf(int c)     { return c & ~CAPACITY; }
-private static int workerCountOf(int c)  { return c & CAPACITY; }
-private static int ctlOf(int rs, int wc) { return rs | wc; }
+    // Packing and unpacking ctl
+    private static int runStateOf(int c)     { return c & ~CAPACITY; }
+    private static int workerCountOf(int c)  { return c & CAPACITY; }
+    private static int ctlOf(int rs, int wc) { return rs | wc; }
 
-/*
- * Bit field accessors that don't require unpacking ctl.
- * These depend on the bit layout and on workerCount being never negative.
- */
+    /*
+     * Bit field accessors that don't require unpacking ctl.
+     * These depend on the bit layout and on workerCount being never negative.
+     */
 
-private static boolean runStateLessThan(int c, int s) {
-    return c < s;
-}
+    private static boolean runStateLessThan(int c, int s) {
+        return c < s;
+    }
 
-private static boolean runStateAtLeast(int c, int s) {
-    return c >= s;
-}
+    private static boolean runStateAtLeast(int c, int s) {
+        return c >= s;
+    }
 ```
 
 RUNNING是负编码，其余状态按序递增。workerCount不是workers集合的实时size替代，创建/退出的中间阶段由协议协调。
@@ -7336,29 +8380,37 @@ public List<Runnable> shutdownNow() {
 #### 源码3：public static class CallerRunsPolicy
 
 
-**ThreadPoolExecutor·[L2023–L2040](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L2023-L2040)**
+**ThreadPoolExecutor·[L2015–L2040](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L2015-L2040)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-public static class CallerRunsPolicy implements RejectedExecutionHandler {
-    /**
-     * Creates a {@code CallerRunsPolicy}.
-     */
-    public CallerRunsPolicy() { }
+    /* Predefined RejectedExecutionHandlers */
 
     /**
-     * Executes task r in the caller's thread, unless the executor
-     * has been shut down, in which case the task is discarded.
-     *
-     * @param r the runnable task requested to be executed
-     * @param e the executor attempting to execute this task
+     * A handler for rejected tasks that runs the rejected task
+     * directly in the calling thread of the {@code execute} method,
+     * unless the executor has been shut down, in which case the task
+     * is discarded.
      */
-    public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
-        if (!e.isShutdown()) {
-            r.run();
+    public static class CallerRunsPolicy implements RejectedExecutionHandler {
+        /**
+         * Creates a {@code CallerRunsPolicy}.
+         */
+        public CallerRunsPolicy() { }
+
+        /**
+         * Executes task r in the caller's thread, unless the executor
+         * has been shut down, in which case the task is discarded.
+         *
+         * @param r the runnable task requested to be executed
+         * @param e the executor attempting to execute this task
+         */
+        public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
+            if (!e.isShutdown()) {
+                r.run();
+            }
         }
-    }
 ```
 
 非shutdown时在提交者线程run；已shutdown时不运行。它改变任务执行上下文与提交延迟，不能当无条件兜底成功。
@@ -7389,11 +8441,16 @@ DiscardOldest的“oldest”是队列poll的头，不是普遍意义上的最早
 关闭池与取消Future也没有自动一一对应关系。shutdownNow排出的Runnable列表可能含FutureTask，但仅排出并不把每个state都改成取消。应用若承诺所有提交结果最终有终态，需要设计明确的完成/取消处理。
 
 
-**ThreadPoolExecutor·[L2092–L2114](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L2092-L2114)**
+**ThreadPoolExecutor·[L2087–L2114](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L2087-L2114)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+    /**
+     * A handler for rejected tasks that discards the oldest unhandled
+     * request and then retries {@code execute}, unless the executor
+     * is shut down, in which case the task is discarded.
+     */
     public static class DiscardOldestPolicy implements RejectedExecutionHandler {
         /**
          * Creates a {@code DiscardOldestPolicy} for the given executor.
@@ -7469,21 +8526,49 @@ flowchart TD
 #### 源码1：private volatile int state;
 
 
-**FutureTask·[L92–L101](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/FutureTask.java#L92-L101)**
+**FutureTask·[L64–L101](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/FutureTask.java#L64-L101)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-private volatile int state;
-private static final int NEW          = 0;
-private static final int COMPLETING   = 1;
-private static final int NORMAL       = 2;
-private static final int EXCEPTIONAL  = 3;
-private static final int CANCELLED    = 4;
-private static final int INTERRUPTING = 5;
-private static final int INTERRUPTED  = 6;
+    /*
+     * Revision notes: This differs from previous versions of this
+     * class that relied on AbstractQueuedSynchronizer, mainly to
+     * avoid surprising users about retaining interrupt status during
+     * cancellation races. Sync control in the current design relies
+     * on a "state" field updated via CAS to track completion, along
+     * with a simple Treiber stack to hold waiting threads.
+     *
+     * Style note: As usual, we bypass overhead of using
+     * AtomicXFieldUpdaters and instead directly use Unsafe intrinsics.
+     */
 
-/** The underlying callable; nulled out after running */
+    /**
+     * The run state of this task, initially NEW.  The run state
+     * transitions to a terminal state only in methods set,
+     * setException, and cancel.  During completion, state may take on
+     * transient values of COMPLETING (while outcome is being set) or
+     * INTERRUPTING (only while interrupting the runner to satisfy a
+     * cancel(true)). Transitions from these intermediate to final
+     * states use cheaper ordered/lazy writes because values are unique
+     * and cannot be further modified.
+     *
+     * Possible state transitions:
+     * NEW -> COMPLETING -> NORMAL
+     * NEW -> COMPLETING -> EXCEPTIONAL
+     * NEW -> CANCELLED
+     * NEW -> INTERRUPTING -> INTERRUPTED
+     */
+    private volatile int state;
+    private static final int NEW          = 0;
+    private static final int COMPLETING   = 1;
+    private static final int NORMAL       = 2;
+    private static final int EXCEPTIONAL  = 3;
+    private static final int CANCELLED    = 4;
+    private static final int INTERRUPTING = 5;
+    private static final int INTERRUPTED  = 6;
+
+    /** The underlying callable; nulled out after running */
 ```
 
 COMPLETING是结果发布的中间状态，get会继续等待；NORMAL或EXCEPTIONAL是不同的完成结果。取消状态也算isDone；本实现isDone以state!=NEW判断，短暂COMPLETING期间也可为true，此时get仍会等待结果发布。
@@ -7492,41 +8577,42 @@ COMPLETING是结果发布的中间状态，get会继续等待；NORMAL或EXCEPTI
 #### 源码2：public void run()
 
 
-**FutureTask·[L255–L285](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/FutureTask.java#L255-L285)**
+**FutureTask·[L255–L286](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/FutureTask.java#L255-L286)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-public void run() {
-    if (state != NEW ||
-        !UNSAFE.compareAndSwapObject(this, runnerOffset,
-                                     null, Thread.currentThread()))
-        return;
-    try {
-        Callable<V> c = callable;
-        if (c != null && state == NEW) {
-            V result;
-            boolean ran;
-            try {
-                result = c.call();
-                ran = true;
-            } catch (Throwable ex) {
-                result = null;
-                ran = false;
-                setException(ex);
+    public void run() {
+        if (state != NEW ||
+            !UNSAFE.compareAndSwapObject(this, runnerOffset,
+                                         null, Thread.currentThread()))
+            return;
+        try {
+            Callable<V> c = callable;
+            if (c != null && state == NEW) {
+                V result;
+                boolean ran;
+                try {
+                    result = c.call();
+                    ran = true;
+                } catch (Throwable ex) {
+                    result = null;
+                    ran = false;
+                    setException(ex);
+                }
+                if (ran)
+                    set(result);
             }
-            if (ran)
-                set(result);
+        } finally {
+            // runner must be non-null until state is settled to
+            // prevent concurrent calls to run()
+            runner = null;
+            // state must be re-read after nulling runner to prevent
+            // leaked interrupts
+            int s = state;
+            if (s >= INTERRUPTING)
+                handlePossibleCancellationInterrupt(s);
         }
-    } finally {
-        // runner must be non-null until state is settled to
-        // prevent concurrent calls to run()
-        runner = null;
-        // state must be re-read after nulling runner to prevent
-        // leaked interrupts
-        int s = state;
-        if (s >= INTERRUPTING)
-            handlePossibleCancellationInterrupt(s);
     }
 ```
 
@@ -7866,53 +8952,59 @@ private <V> CompletableFuture<V> uniComposeStage(
 CompletableFuture.cancel把本Future异常完成为取消状态并推进后继，mayInterruptIfRunning在这里不用于中断底层执行线程。这与FutureTask持有runner并尝试interrupt的机制不同。若需要停止实际工作，必须另外建立任务取消协作与资源管理。
 
 
-**CompletableFuture·[L400–L411](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L400-L411)**
+**CompletableFuture·[L396–L411](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L396-L411)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-private static final Executor asyncPool = useCommonPool ?
-    ForkJoinPool.commonPool() : new ThreadPerTaskExecutor();
+    /**
+     * Default executor -- ForkJoinPool.commonPool() unless it cannot
+     * support parallelism.
+     */
+    private static final Executor asyncPool = useCommonPool ?
+        ForkJoinPool.commonPool() : new ThreadPerTaskExecutor();
 
-/** Fallback if ForkJoinPool.commonPool() cannot support parallelism */
-static final class ThreadPerTaskExecutor implements Executor {
-    public void execute(Runnable r) { new Thread(r).start(); }
-}
+    /** Fallback if ForkJoinPool.commonPool() cannot support parallelism */
+    static final class ThreadPerTaskExecutor implements Executor {
+        public void execute(Runnable r) { new Thread(r).start(); }
+    }
 
-/**
- * Null-checks user executor argument, and translates uses of
- * commonPool to asyncPool in case parallelism disabled.
- */
+    /**
+     * Null-checks user executor argument, and translates uses of
+     * commonPool to asyncPool in case parallelism disabled.
+     */
 ```
 
 默认公共池与每任务新线程回退都出现在这组定义中，避免把所有JDK8默认Async情况一概说成公共池。
 
 
 
-**CompletableFuture·[L2262–L2280](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L2262-L2280)**
+**CompletableFuture·[L2260–L2280](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/concurrent/CompletableFuture.java#L2260-L2280)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * If not already completed, completes this CompletableFuture with
- * a {@link CancellationException}. Dependent CompletableFutures
- * that have not already completed will also complete
- * exceptionally, with a {@link CompletionException} caused by
- * this {@code CancellationException}.
- *
- * @param mayInterruptIfRunning this value has no effect in this
- * implementation because interrupts are not used to control
- * processing.
- *
- * @return {@code true} if this task is now cancelled
- */
-public boolean cancel(boolean mayInterruptIfRunning) {
-    boolean cancelled = (result == null) &&
-        internalComplete(new AltResult(new CancellationException()));
-    postComplete();
-    return cancelled || isCancelled();
-}
+    /* ------------- Control and status methods -------------- */
+
+    /**
+     * If not already completed, completes this CompletableFuture with
+     * a {@link CancellationException}. Dependent CompletableFutures
+     * that have not already completed will also complete
+     * exceptionally, with a {@link CompletionException} caused by
+     * this {@code CancellationException}.
+     *
+     * @param mayInterruptIfRunning this value has no effect in this
+     * implementation because interrupts are not used to control
+     * processing.
+     *
+     * @return {@code true} if this task is now cancelled
+     */
+    public boolean cancel(boolean mayInterruptIfRunning) {
+        boolean cancelled = (result == null) &&
+            internalComplete(new AltResult(new CancellationException()));
+        postComplete();
+        return cancelled || isCancelled();
+    }
 ```
 
 设置取消异常result并postComplete；代码没有像FutureTask那样从runner取Thread并interrupt。
@@ -8585,11 +9677,13 @@ flowchart TD
 #### 源码1：Direct$Type$Buffer$RW$(int cap)
 
 
-**DirectBufferTemplate（构建模板原文，保留占位符）·[L117–L149](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Direct-X-Buffer.java.template#L117-L149)**
+**DirectBufferTemplate（构建模板原文，保留占位符）·[L115–L156](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Direct-X-Buffer.java.template#L115-L156)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
+    // Primary constructor
+    //
     Direct$Type$Buffer$RW$(int cap) {                   // package-private
 #if[rw]
         super(-1, 0, cap, cap);
@@ -8623,6 +9717,13 @@ flowchart TD
 
     // Invoked to construct a direct ByteBuffer referring to the block of
     // memory. A given arbitrary object may also be attached to the buffer.
+    //
+    Direct$Type$Buffer(long addr, int cap, Object ob) {
+        super(-1, 0, cap, cap);
+        address = addr;
+        cleaner = null;
+        att = ob;
+    }
 ```
 
 这段是模板原文而非生成后的Java文件。构造中计算size、reserveMemory、allocateMemory，并在失败时撤销预留；页面保留模板占位符帮助识别来源。
@@ -8653,26 +9754,27 @@ Deallocator清理动作调用freeMemory，然后unreserveMemory。address置0避
 #### 源码3：private static boolean tryReserveMemory(long size, int cap)
 
 
-**Bits·[L705–L719](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Bits.java#L705-L719)**
+**Bits·[L705–L720](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Bits.java#L705-L720)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-private static boolean tryReserveMemory(long size, int cap) {
+    private static boolean tryReserveMemory(long size, int cap) {
 
-    // -XX:MaxDirectMemorySize limits the total capacity rather than the
-    // actual memory usage, which will differ when buffers are page
-    // aligned.
-    long totalCap;
-    while (cap <= maxMemory - (totalCap = totalCapacity.get())) {
-        if (totalCapacity.compareAndSet(totalCap, totalCap + cap)) {
-            reservedMemory.addAndGet(size);
-            count.incrementAndGet();
-            return true;
+        // -XX:MaxDirectMemorySize limits the total capacity rather than the
+        // actual memory usage, which will differ when buffers are page
+        // aligned.
+        long totalCap;
+        while (cap <= maxMemory - (totalCap = totalCapacity.get())) {
+            if (totalCapacity.compareAndSet(totalCap, totalCap + cap)) {
+                reservedMemory.addAndGet(size);
+                count.incrementAndGet();
+                return true;
+            }
         }
-    }
 
-    return false;
+        return false;
+    }
 ```
 
 MaxDirectMemorySize相关限制检查totalCapacity，也就是逻辑容量总和；reservedMemory记录实际分配字节，二者可能因页对齐不同。
@@ -8698,42 +9800,74 @@ totalCapacity记录逻辑容量，reservedMemory记录实际native字节，count
 直接缓冲的Java对象被GC发现不可达后，还需清理机制执行Deallocator才能freeMemory。业务不应拿“对象引用设null”当作native内存立即释放的证据。
 
 
-**Bits·[L641–L671](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Bits.java#L641-L671)**
+**Bits·[L641–L703](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/nio/Bits.java#L641-L703)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-// These methods should be called whenever direct memory is allocated or
-// freed.  They allow the user to control the amount of direct memory
-// which a process may access.  All sizes are specified in bytes.
-static void reserveMemory(long size, int cap) {
+    // These methods should be called whenever direct memory is allocated or
+    // freed.  They allow the user to control the amount of direct memory
+    // which a process may access.  All sizes are specified in bytes.
+    static void reserveMemory(long size, int cap) {
 
-    if (!memoryLimitSet && VM.isBooted()) {
-        maxMemory = VM.maxDirectMemory();
-        memoryLimitSet = true;
-    }
+        if (!memoryLimitSet && VM.isBooted()) {
+            maxMemory = VM.maxDirectMemory();
+            memoryLimitSet = true;
+        }
 
-    // optimist!
-    if (tryReserveMemory(size, cap)) {
-        return;
-    }
-
-    final JavaLangRefAccess jlra = SharedSecrets.getJavaLangRefAccess();
-
-    // retry while helping enqueue pending Reference objects
-    // which includes executing pending Cleaner(s) which includes
-    // Cleaner(s) that free direct buffer memory
-    while (jlra.tryHandlePendingReference()) {
+        // optimist!
         if (tryReserveMemory(size, cap)) {
             return;
         }
+
+        final JavaLangRefAccess jlra = SharedSecrets.getJavaLangRefAccess();
+
+        // retry while helping enqueue pending Reference objects
+        // which includes executing pending Cleaner(s) which includes
+        // Cleaner(s) that free direct buffer memory
+        while (jlra.tryHandlePendingReference()) {
+            if (tryReserveMemory(size, cap)) {
+                return;
+            }
+        }
+
+        // trigger VM's Reference processing
+        System.gc();
+
+        // a retry loop with exponential back-off delays
+        // (this gives VM some time to do it's job)
+        boolean interrupted = false;
+        try {
+            long sleepTime = 1;
+            int sleeps = 0;
+            while (true) {
+                if (tryReserveMemory(size, cap)) {
+                    return;
+                }
+                if (sleeps >= MAX_SLEEPS) {
+                    break;
+                }
+                if (!jlra.tryHandlePendingReference()) {
+                    try {
+                        Thread.sleep(sleepTime);
+                        sleepTime <<= 1;
+                        sleeps++;
+                    } catch (InterruptedException e) {
+                        interrupted = true;
+                    }
+                }
+            }
+
+            // no luck
+            throw new OutOfMemoryError("Direct buffer memory");
+
+        } finally {
+            if (interrupted) {
+                // don't swallow interrupts
+                Thread.currentThread().interrupt();
+            }
+        }
     }
-
-    // trigger VM's Reference processing
-    System.gc();
-
-    // a retry loop with exponential back-off delays
-    // (this gives VM some time to do it's job)
 ```
 
 先直接预留，失败后协助引用处理并请求GC，后面的完整方法还有退避、重试和恢复中断标记等处理。
@@ -8779,32 +9913,33 @@ flowchart TD
 #### 源码1：public final Stream<P_OUT> filter(
 
 
-**ReferencePipeline·[L159–L179](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/ReferencePipeline.java#L159-L179)**
+**ReferencePipeline·[L159–L180](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/ReferencePipeline.java#L159-L180)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-@Override
-public final Stream<P_OUT> filter(Predicate<? super P_OUT> predicate) {
-    Objects.requireNonNull(predicate);
-    return new StatelessOp<P_OUT, P_OUT>(this, StreamShape.REFERENCE,
-                                 StreamOpFlag.NOT_SIZED) {
-        @Override
-        Sink<P_OUT> opWrapSink(int flags, Sink<P_OUT> sink) {
-            return new Sink.ChainedReference<P_OUT, P_OUT>(sink) {
-                @Override
-                public void begin(long size) {
-                    downstream.begin(-1);
-                }
+    @Override
+    public final Stream<P_OUT> filter(Predicate<? super P_OUT> predicate) {
+        Objects.requireNonNull(predicate);
+        return new StatelessOp<P_OUT, P_OUT>(this, StreamShape.REFERENCE,
+                                     StreamOpFlag.NOT_SIZED) {
+            @Override
+            Sink<P_OUT> opWrapSink(int flags, Sink<P_OUT> sink) {
+                return new Sink.ChainedReference<P_OUT, P_OUT>(sink) {
+                    @Override
+                    public void begin(long size) {
+                        downstream.begin(-1);
+                    }
 
-                @Override
-                public void accept(P_OUT u) {
-                    if (predicate.test(u))
-                        downstream.accept(u);
-                }
-            };
-        }
-    };
+                    @Override
+                    public void accept(P_OUT u) {
+                        if (predicate.test(u))
+                            downstream.accept(u);
+                    }
+                };
+            }
+        };
+    }
 ```
 
 filter返回StatelessOp并包装下游Sink；accept只在predicate通过时把元素交给下游。创建阶段主要描述操作，不是立即过滤所有源数据。
@@ -8813,28 +9948,30 @@ filter返回StatelessOp并包装下游Sink；accept只在predicate通过时把�
 #### 源码2：final <R> R evaluate(TerminalOp<E_OUT, R> terminalOp)
 
 
-**AbstractPipeline·[L219–L235](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L219-L235)**
+**AbstractPipeline·[L217–L235](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/util/stream/AbstractPipeline.java#L217-L235)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Evaluate the pipeline with a terminal operation to produce a result.
- *
- * @param <R> the type of result
- * @param terminalOp the terminal operation to be applied to the pipeline.
- * @return the result
- */
-final <R> R evaluate(TerminalOp<E_OUT, R> terminalOp) {
-    assert getOutputShape() == terminalOp.inputShape();
-    if (linkedOrConsumed)
-        throw new IllegalStateException(MSG_STREAM_LINKED);
-    linkedOrConsumed = true;
+    // Terminal evaluation methods
 
-    return isParallel()
-           ? terminalOp.evaluateParallel(this, sourceSpliterator(terminalOp.getOpFlags()))
-           : terminalOp.evaluateSequential(this, sourceSpliterator(terminalOp.getOpFlags()));
-}
+    /**
+     * Evaluate the pipeline with a terminal operation to produce a result.
+     *
+     * @param <R> the type of result
+     * @param terminalOp the terminal operation to be applied to the pipeline.
+     * @return the result
+     */
+    final <R> R evaluate(TerminalOp<E_OUT, R> terminalOp) {
+        assert getOutputShape() == terminalOp.inputShape();
+        if (linkedOrConsumed)
+            throw new IllegalStateException(MSG_STREAM_LINKED);
+        linkedOrConsumed = true;
+
+        return isParallel()
+               ? terminalOp.evaluateParallel(this, sourceSpliterator(terminalOp.getOpFlags()))
+               : terminalOp.evaluateSequential(this, sourceSpliterator(terminalOp.getOpFlags()));
+    }
 ```
 
 linkedOrConsumed禁止已链接或消费的流再次作为独立输入使用；再根据parallel选择顺序或并行评估。
@@ -9229,38 +10366,113 @@ newProxyInstance先查找或生成代理Class，再调用接收InvocationHandler
 本期Java入口能证明取得Class与构造实例的流程；生成方法的具体字节码需要继续读ProxyGenerator，不能凭入口节选补写为“所有方法通过反射直接调用目标”。handler甚至可以不持有任何真实目标对象。
 
 
-**Proxy·[L557–L583](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/reflect/Proxy.java#L557-L583)**
+**Proxy·[L553–L654](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/reflect/Proxy.java#L553-L654)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-private static final class ProxyClassFactory
-    implements BiFunction<ClassLoader, Class<?>[], Class<?>>
-{
-    // prefix for all proxy class names
-    private static final String proxyClassNamePrefix = "$Proxy";
+    /**
+     * A factory function that generates, defines and returns the proxy class given
+     * the ClassLoader and array of interfaces.
+     */
+    private static final class ProxyClassFactory
+        implements BiFunction<ClassLoader, Class<?>[], Class<?>>
+    {
+        // prefix for all proxy class names
+        private static final String proxyClassNamePrefix = "$Proxy";
 
-    // next number to use for generation of unique proxy class names
-    private static final AtomicLong nextUniqueNumber = new AtomicLong();
+        // next number to use for generation of unique proxy class names
+        private static final AtomicLong nextUniqueNumber = new AtomicLong();
 
-    @Override
-    public Class<?> apply(ClassLoader loader, Class<?>[] interfaces) {
+        @Override
+        public Class<?> apply(ClassLoader loader, Class<?>[] interfaces) {
 
-        Map<Class<?>, Boolean> interfaceSet = new IdentityHashMap<>(interfaces.length);
-        for (Class<?> intf : interfaces) {
+            Map<Class<?>, Boolean> interfaceSet = new IdentityHashMap<>(interfaces.length);
+            for (Class<?> intf : interfaces) {
+                /*
+                 * Verify that the class loader resolves the name of this
+                 * interface to the same Class object.
+                 */
+                Class<?> interfaceClass = null;
+                try {
+                    interfaceClass = Class.forName(intf.getName(), false, loader);
+                } catch (ClassNotFoundException e) {
+                }
+                if (interfaceClass != intf) {
+                    throw new IllegalArgumentException(
+                        intf + " is not visible from class loader: " + loader);
+                }
+                /*
+                 * Verify that the Class object actually represents an
+                 * interface.
+                 */
+                if (!interfaceClass.isInterface()) {
+                    throw new IllegalArgumentException(
+                        interfaceClass.getName() + " is not an interface");
+                }
+                /*
+                 * Verify that this interface is not a duplicate.
+                 */
+                if (interfaceSet.put(interfaceClass, Boolean.TRUE) != null) {
+                    throw new IllegalArgumentException(
+                        "repeated interface: " + interfaceClass.getName());
+                }
+            }
+
+            String proxyPkg = null;     // package to define proxy class in
+            int accessFlags = Modifier.PUBLIC | Modifier.FINAL;
+
             /*
-             * Verify that the class loader resolves the name of this
-             * interface to the same Class object.
+             * Record the package of a non-public proxy interface so that the
+             * proxy class will be defined in the same package.  Verify that
+             * all non-public proxy interfaces are in the same package.
              */
-            Class<?> interfaceClass = null;
+            for (Class<?> intf : interfaces) {
+                int flags = intf.getModifiers();
+                if (!Modifier.isPublic(flags)) {
+                    accessFlags = Modifier.FINAL;
+                    String name = intf.getName();
+                    int n = name.lastIndexOf('.');
+                    String pkg = ((n == -1) ? "" : name.substring(0, n + 1));
+                    if (proxyPkg == null) {
+                        proxyPkg = pkg;
+                    } else if (!pkg.equals(proxyPkg)) {
+                        throw new IllegalArgumentException(
+                            "non-public interfaces from different packages");
+                    }
+                }
+            }
+
+            if (proxyPkg == null) {
+                // if no non-public proxy interfaces, use com.sun.proxy package
+                proxyPkg = ReflectUtil.PROXY_PACKAGE + ".";
+            }
+
+            /*
+             * Choose a name for the proxy class to generate.
+             */
+            long num = nextUniqueNumber.getAndIncrement();
+            String proxyName = proxyPkg + proxyClassNamePrefix + num;
+
+            /*
+             * Generate the specified proxy class.
+             */
+            byte[] proxyClassFile = ProxyGenerator.generateProxyClass(
+                proxyName, interfaces, accessFlags);
             try {
-                interfaceClass = Class.forName(intf.getName(), false, loader);
-            } catch (ClassNotFoundException e) {
+                return defineClass0(loader, proxyName,
+                                    proxyClassFile, 0, proxyClassFile.length);
+            } catch (ClassFormatError e) {
+                /*
+                 * A ClassFormatError here means that (barring bugs in the
+                 * proxy class generation code) there was some other
+                 * invalid aspect of the arguments supplied to the proxy
+                 * class creation (such as virtual machine limitations
+                 * exceeded).
+                 */
+                throw new IllegalArgumentException(e.toString());
             }
-            if (interfaceClass != intf) {
-                throw new IllegalArgumentException(
-                    intf + " is not visible from class loader: " + loader);
-            }
+        }
 ```
 
 工厂开始校验接口类型、名称可见性与重复接口等条件；完整生成与定义还在后续代码中。
@@ -9306,86 +10518,89 @@ flowchart TD
 #### 源码1：protected Class<?> loadClass(String name, boolean resolve)
 
 
-**ClassLoader·[L354–L428](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ClassLoader.java#L354-L428)**
+**ClassLoader·[L354–L431](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ClassLoader.java#L354-L431)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Loads the class with the specified <a href="#name">binary name</a>.  The
- * default implementation of this method searches for classes in the
- * following order:
- *
- * <ol>
- *
- *   <li><p> Invoke {@link #findLoadedClass(String)} to check if the class
- *   has already been loaded.  </p></li>
- *
- *   <li><p> Invoke the {@link #loadClass(String) <tt>loadClass</tt>} method
- *   on the parent class loader.  If the parent is <tt>null</tt> the class
- *   loader built-in to the virtual machine is used, instead.  </p></li>
- *
- *   <li><p> Invoke the {@link #findClass(String)} method to find the
- *   class.  </p></li>
- *
- * </ol>
- *
- * <p> If the class was found using the above steps, and the
- * <tt>resolve</tt> flag is true, this method will then invoke the {@link
- * #resolveClass(Class)} method on the resulting <tt>Class</tt> object.
- *
- * <p> Subclasses of <tt>ClassLoader</tt> are encouraged to override {@link
- * #findClass(String)}, rather than this method.  </p>
- *
- * <p> Unless overridden, this method synchronizes on the result of
- * {@link #getClassLoadingLock <tt>getClassLoadingLock</tt>} method
- * during the entire class loading process.
- *
- * @param  name
- *         The <a href="#name">binary name</a> of the class
- *
- * @param  resolve
- *         If <tt>true</tt> then resolve the class
- *
- * @return  The resulting <tt>Class</tt> object
- *
- * @throws  ClassNotFoundException
- *          If the class could not be found
- */
-protected Class<?> loadClass(String name, boolean resolve)
-    throws ClassNotFoundException
-{
-    synchronized (getClassLoadingLock(name)) {
-        // First, check if the class has already been loaded
-        Class<?> c = findLoadedClass(name);
-        if (c == null) {
-            long t0 = System.nanoTime();
-            try {
-                if (parent != null) {
-                    c = parent.loadClass(name, false);
-                } else {
-                    c = findBootstrapClassOrNull(name);
-                }
-            } catch (ClassNotFoundException e) {
-                // ClassNotFoundException thrown if class not found
-                // from the non-null parent class loader
-            }
-
+    /**
+     * Loads the class with the specified <a href="#name">binary name</a>.  The
+     * default implementation of this method searches for classes in the
+     * following order:
+     *
+     * <ol>
+     *
+     *   <li><p> Invoke {@link #findLoadedClass(String)} to check if the class
+     *   has already been loaded.  </p></li>
+     *
+     *   <li><p> Invoke the {@link #loadClass(String) <tt>loadClass</tt>} method
+     *   on the parent class loader.  If the parent is <tt>null</tt> the class
+     *   loader built-in to the virtual machine is used, instead.  </p></li>
+     *
+     *   <li><p> Invoke the {@link #findClass(String)} method to find the
+     *   class.  </p></li>
+     *
+     * </ol>
+     *
+     * <p> If the class was found using the above steps, and the
+     * <tt>resolve</tt> flag is true, this method will then invoke the {@link
+     * #resolveClass(Class)} method on the resulting <tt>Class</tt> object.
+     *
+     * <p> Subclasses of <tt>ClassLoader</tt> are encouraged to override {@link
+     * #findClass(String)}, rather than this method.  </p>
+     *
+     * <p> Unless overridden, this method synchronizes on the result of
+     * {@link #getClassLoadingLock <tt>getClassLoadingLock</tt>} method
+     * during the entire class loading process.
+     *
+     * @param  name
+     *         The <a href="#name">binary name</a> of the class
+     *
+     * @param  resolve
+     *         If <tt>true</tt> then resolve the class
+     *
+     * @return  The resulting <tt>Class</tt> object
+     *
+     * @throws  ClassNotFoundException
+     *          If the class could not be found
+     */
+    protected Class<?> loadClass(String name, boolean resolve)
+        throws ClassNotFoundException
+    {
+        synchronized (getClassLoadingLock(name)) {
+            // First, check if the class has already been loaded
+            Class<?> c = findLoadedClass(name);
             if (c == null) {
-                // If still not found, then invoke findClass in order
-                // to find the class.
-                long t1 = System.nanoTime();
-                c = findClass(name);
+                long t0 = System.nanoTime();
+                try {
+                    if (parent != null) {
+                        c = parent.loadClass(name, false);
+                    } else {
+                        c = findBootstrapClassOrNull(name);
+                    }
+                } catch (ClassNotFoundException e) {
+                    // ClassNotFoundException thrown if class not found
+                    // from the non-null parent class loader
+                }
 
-                // this is the defining class loader; record the stats
-                sun.misc.PerfCounter.getParentDelegationTime().addTime(t1 - t0);
-                sun.misc.PerfCounter.getFindClassTime().addElapsedTimeFrom(t1);
-                sun.misc.PerfCounter.getFindClasses().increment();
+                if (c == null) {
+                    // If still not found, then invoke findClass in order
+                    // to find the class.
+                    long t1 = System.nanoTime();
+                    c = findClass(name);
+
+                    // this is the defining class loader; record the stats
+                    sun.misc.PerfCounter.getParentDelegationTime().addTime(t1 - t0);
+                    sun.misc.PerfCounter.getFindClassTime().addElapsedTimeFrom(t1);
+                    sun.misc.PerfCounter.getFindClasses().increment();
+                }
             }
+            if (resolve) {
+                resolveClass(c);
+            }
+            return c;
         }
-        if (resolve) {
-            resolveClass(c);
-        }
+    }
 ```
 
 先findLoadedClass，再父委托或bootstrap查找，失败后findClass；resolve控制是否链接解析。类加载器可覆盖策略，双亲委派是常见实现机制而非永不可改的规则。
@@ -9394,39 +10609,41 @@ protected Class<?> loadClass(String name, boolean resolve)
 #### 源码2：protected Object getClassLoadingLock(String className)
 
 
-**ClassLoader·[L433–L461](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ClassLoader.java#L433-L461)**
+**ClassLoader·[L433–L463](https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/jdk/src/share/classes/java/lang/ClassLoader.java#L433-L463)**
 
 > 连续节选；窗口可能止于方法中间，完整实现请看链接。未省改算法，缩进作了统一处理。
 
 ```java
-/**
- * Returns the lock object for class loading operations.
- * For backward compatibility, the default implementation of this method
- * behaves as follows. If this ClassLoader object is registered as
- * parallel capable, the method returns a dedicated object associated
- * with the specified class name. Otherwise, the method returns this
- * ClassLoader object.
- *
- * @param  className
- *         The name of the to-be-loaded class
- *
- * @return the lock for class loading operations
- *
- * @throws NullPointerException
- *         If registered as parallel capable and <tt>className</tt> is null
- *
- * @see #loadClass(String, boolean)
- *
- * @since  1.7
- */
-protected Object getClassLoadingLock(String className) {
-    Object lock = this;
-    if (parallelLockMap != null) {
-        Object newLock = new Object();
-        lock = parallelLockMap.putIfAbsent(className, newLock);
-        if (lock == null) {
-            lock = newLock;
+    /**
+     * Returns the lock object for class loading operations.
+     * For backward compatibility, the default implementation of this method
+     * behaves as follows. If this ClassLoader object is registered as
+     * parallel capable, the method returns a dedicated object associated
+     * with the specified class name. Otherwise, the method returns this
+     * ClassLoader object.
+     *
+     * @param  className
+     *         The name of the to-be-loaded class
+     *
+     * @return the lock for class loading operations
+     *
+     * @throws NullPointerException
+     *         If registered as parallel capable and <tt>className</tt> is null
+     *
+     * @see #loadClass(String, boolean)
+     *
+     * @since  1.7
+     */
+    protected Object getClassLoadingLock(String className) {
+        Object lock = this;
+        if (parallelLockMap != null) {
+            Object newLock = new Object();
+            lock = parallelLockMap.putIfAbsent(className, newLock);
+            if (lock == null) {
+                lock = newLock;
+            }
         }
+        return lock;
     }
 ```
 

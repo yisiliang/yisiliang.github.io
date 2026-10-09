@@ -57,11 +57,14 @@ def refresh(source,offline):
         fragment=f'<{tag} id="{label}">{content}</{tag}>'
         if re.search(pattern,source,re.S):source=re.sub(pattern,lambda _:fragment,source,flags=re.S)
         else:source=source.replace('</head>' if tag=='style' or label=='reader-theme' else '</body>',fragment+('</head>' if tag=='style' or label=='reader-theme' else '</body>'),1)
+    # Full reading includes answers and source/version notes on first load.
+    source=re.sub(r"<details\b([^>]*)>", lambda m: m[0] if 'class="chapter-nav"' in m[1] or re.search(r"\bopen\b", m[1]) else "<details"+m[1]+" open>", source)
     source=html_wording(source)
     source=re.sub(r'(<div class="reader-downloads">)(.*?)(</div>)',lambda m:m[1]+m[2].replace(' · ','')+m[3],source,flags=re.S)
     if offline:
         source=re.sub(r'<script\b[^>]*src="https://cloud\.umami\.is/script\.js"[^>]*></script>','',source)
         source=source.replace('href="../"','href="https://yisiliang.github.io/"')
+        source=source.replace('href="/"','href="https://yisiliang.github.io/"')
         source=re.sub(r'href="\.\./([a-z][a-z-]*)/([^" ]*)"',r'href="https://yisiliang.github.io/\1/\2"',source)
         source=re.sub(r'<a\b[^>]*href="[^" ]*offline[^" ]*\.zip"[^>]*>.*?</a>','',source,flags=re.S)
     return source
@@ -162,9 +165,10 @@ def source_title(source,node):return esc(text(source[node['inner']:node['close']
 def main():
     for name in BOOKS:
         folder=ROOT/'docs'/name
+        public=transform((folder/'index.html').read_text(),name,False)
         for page in [folder/'index.html',folder/'offline.html',folder/'offline-index.html']:
             if page.exists():
-                old=page.read_text();new=transform(old,name,page.name!='index.html')
+                old=page.read_text();new=public if page.name=='index.html' else transform(public,name,True)
                 if new!=old:page.write_text(new)
         for archive in folder.glob('*offline*.zip'):
             with zipfile.ZipFile(archive) as z:entries=[(info,z.read(info.filename)) for info in z.infolist()]
@@ -172,7 +176,7 @@ def main():
             rebuilt=[];changed=False
             for info,data in entries:
                 if info.filename.endswith('.html'):
-                    new=transform(data.decode(),name,True).encode();changed|=new!=data;data=new
+                    new=transform(public if info.filename==index else data.decode(),name,True).encode();changed|=new!=data;data=new
                 elif not info.is_dir():
                     local=folder/Path(info.filename).relative_to(Path(index).parent)
                     if local.is_file():

@@ -64,18 +64,26 @@
     makeToc();
   }
   function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function selectChapter(article) {
+    active=article;
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();
+  }
+  function scrollToTarget(target) {
+    const margin=window.innerWidth<=760?115:90;
+    window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top+window.scrollY-margin),behavior:'instant'});
+  }
   function navigate(hash, scroll=true) {
     let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
-    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)$('#review-route').scrollIntoView({block:'start'});closeDrawer();return;}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)scrollToTarget($('#review-route'));closeDrawer();return;}
     root.classList.remove('show-route');
     const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
     if(!article)return;
     active=article;
     if(id.includes('-quick-') && mode!=='quick')setMode('quick');
     else if(id.includes('-s') && mode!=='study')setMode('study');
-    chapters.forEach(c=>c.classList.toggle('active',c===active));
-    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
-    highlight(active);makeToc();closeDrawer();
+    selectChapter(article);closeDrawer();
     let target=document.getElementById(id) || active;
     if(target.closest('.study') && mode==='quick')target=active;
     if(scroll) {
@@ -83,16 +91,22 @@
       // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
       const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
       for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
-      requestAnimationFrame(()=>{target.scrollIntoView({block:'start'});if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();});
+      scrollToTarget(target);if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();
     }
-    updateReading();
+    updateReading(false);
   }
-  function updateReading() {
+  function updateReading(trackChapter=true) {
     ticking=false;if(!active)return;
-    const margin=window.innerWidth<=760?115:90;const box=active.getBoundingClientRect();
+    const margin=window.innerWidth<=760?115:90;
+    let currentChapter=chapters[0];
+    for(const chapter of chapters){if(chapter.getBoundingClientRect().top<=margin+30)currentChapter=chapter;else break;}
+    const first=chapters[0].getBoundingClientRect(),last=chapters[chapters.length-1].getBoundingClientRect();
+    const box={top:first.top,bottom:last.bottom,height:last.bottom-first.top};
     const length=Math.max(1,box.height-(innerHeight-margin));
     let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
     if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(progress===100)currentChapter=chapters[chapters.length-1];
+    if(trackChapter && currentChapter!==active)selectChapter(currentChapter);
     if(root.classList.contains('show-route'))progress=0;
     $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
     let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}

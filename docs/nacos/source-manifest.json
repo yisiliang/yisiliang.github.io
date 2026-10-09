@@ -37,22 +37,22 @@
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "core/src/main/java/com/alibaba/nacos/core/remote/ConnectionManager.java",
-    "start": 104,
+    "start": 98,
     "end": 131,
     "file": "excerpts/connection.txt",
-    "sha256": "83caa8ac221c21e2028ffac373847edc766b03b75b268a46b62a73542422512b",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/remote/ConnectionManager.java#L104-L131"
+    "sha256": "ddf4290047268c517197592cfc0b74d5dd30b1fd977c0e6977514cc70ef7436d",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/remote/ConnectionManager.java#L98-L131"
   },
   {
     "id": "rpc-state",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "common/src/main/java/com/alibaba/nacos/common/remote/client/RpcClient.java",
-    "start": 488,
+    "start": 485,
     "end": 607,
     "file": "excerpts/rpc-state.txt",
-    "sha256": "855ab5114a2c68f937265568bedeaa5d2f4f67a18573af1cf58a3d7d5b128fec",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/common/src/main/java/com/alibaba/nacos/common/remote/client/RpcClient.java#L488-L607"
+    "sha256": "e0709f4eaadf118a520bfc823ba4b5fea6b22e1db2ec7f77a5301aedffc5cef4",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/common/src/main/java/com/alibaba/nacos/common/remote/client/RpcClient.java#L485-L607"
   },
   {
     "id": "register",
@@ -70,11 +70,11 @@
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/EphemeralClientOperationServiceImpl.java",
-    "start": 56,
+    "start": 55,
     "end": 78,
     "file": "excerpts/register-state.txt",
-    "sha256": "aa6ec46694616e61564f44ffd89daa0f902857f78f280a0026d7dbefd36dbe56",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/EphemeralClientOperationServiceImpl.java#L56-L78"
+    "sha256": "748aa6628987f11ea8fb7417eb3662f19a4fc2c26c385fff8b9ae003ede99da5",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/EphemeralClientOperationServiceImpl.java#L55-L78"
   },
   {
     "id": "indexes",
@@ -92,44 +92,44 @@
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/NamingPushRequestHandler.java",
-    "start": 41,
+    "start": 40,
     "end": 48,
     "file": "excerpts/push-cache.txt",
-    "sha256": "1b00188d53a70b24661197474c37575503b8af15d320a841f8d4010f49b8a630",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/NamingPushRequestHandler.java#L41-L48"
+    "sha256": "fe199a36d774f29825e37535f06eb63ced3d70522e9ced4a6bcc9d9aeda57d00",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/NamingPushRequestHandler.java#L40-L48"
   },
   {
     "id": "empty-protect",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "client/src/main/java/com/alibaba/nacos/client/naming/cache/ServiceInfoHolder.java",
-    "start": 129,
+    "start": 123,
     "end": 173,
     "file": "excerpts/empty-protect.txt",
-    "sha256": "75363a2da9a421992ee255bcc0cf55bcec5d8a06ba75dedb4d0a7cbf3a2a11aa",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/cache/ServiceInfoHolder.java#L129-L173"
+    "sha256": "0a5276bbd246c9145d36428121b1e1aed1f0284a900a07d2951a4b5d96f51ce7",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/cache/ServiceInfoHolder.java#L123-L173"
   },
   {
     "id": "disconnect",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "naming/src/main/java/com/alibaba/nacos/naming/core/v2/client/manager/impl/ConnectionBasedClientManager.java",
-    "start": 105,
+    "start": 104,
     "end": 118,
     "file": "excerpts/disconnect.txt",
-    "sha256": "756c2d77f8b7083d5e53adc8bc45e6c471770bed722a31d8a73ba63469217c1a",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/client/manager/impl/ConnectionBasedClientManager.java#L105-L118"
+    "sha256": "187ed4059902522b70af9010e70bbe1d605bba2d4ac768e7aff1663afaff377f",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/client/manager/impl/ConnectionBasedClientManager.java#L104-L118"
   },
   {
     "id": "redo",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/redo/NamingGrpcRedoService.java",
-    "start": 105,
+    "start": 104,
     "end": 120,
     "file": "excerpts/redo.txt",
-    "sha256": "1639cb1bc27f4337b1ef2f656196c419673f4aeb62870ec8af97063d55b4797d",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/redo/NamingGrpcRedoService.java#L105-L120"
+    "sha256": "eed31d4355569c74dd590e675b57aff48aac21166b675847a8e5a8b778aa6f07",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/redo/NamingGrpcRedoService.java#L104-L120"
   },
   {
     "id": "distro-owner",
@@ -147,11 +147,11 @@
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "core/src/main/java/com/alibaba/nacos/core/distributed/distro/DistroProtocol.java",
-    "start": 132,
+    "start": 124,
     "end": 143,
     "file": "excerpts/distro-task.txt",
-    "sha256": "2b5daac6bd0d27e74153dc0343cc23b05910e5e165f6167a45249fa4f138822d",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/distributed/distro/DistroProtocol.java#L132-L143"
+    "sha256": "5b5a678c56878c10082bf61e7122d4d33e0ec8ece1695f7edecd9c3258fa51e4",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/distributed/distro/DistroProtocol.java#L124-L143"
   },
   {
     "id": "distro-apply",
@@ -180,77 +180,77 @@
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java",
-    "start": 107,
+    "start": 106,
     "end": 131,
     "file": "excerpts/persistent.txt",
-    "sha256": "0d6136e38795ffe4f00a8b2f487097af692d2b7f4f2860ca67384e1242b36349",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java#L107-L131"
+    "sha256": "2d3ebbfa8306273ec79fcd8f357a165595db5054063947d357d9727c490b6c19",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java#L106-L131"
   },
   {
     "id": "raft-apply",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java",
-    "start": 201,
+    "start": 200,
     "end": 235,
     "file": "excerpts/raft-apply.txt",
-    "sha256": "b88bd2d14dc0fcb5f4fd9d41cb40bf30e4f88e832d17fea14fc0995ce2317cf4",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java#L201-L235"
+    "sha256": "a6fb484c6ef791b685c07aeec39a9d8cf93ba1001903a9b82a6dca2a504a41d9",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java#L200-L235"
   },
   {
     "id": "config-publish",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "config/src/main/java/com/alibaba/nacos/config/server/service/ConfigOperationService.java",
-    "start": 88,
+    "start": 83,
     "end": 191,
     "file": "excerpts/config-publish.txt",
-    "sha256": "0ae397d3491f5806bf708c65da9dafe7dac3b4caae4cd9276885b2b4c74a0bf7",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/ConfigOperationService.java#L88-L191"
+    "sha256": "350bfb0b9848ed2d4b675ee6df0a3beeb765e3b3d1bfe244ccf0e1af527848bb",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/ConfigOperationService.java#L83-L191"
   },
   {
     "id": "external-db",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "config/src/main/java/com/alibaba/nacos/config/server/service/repository/extrnal/ExternalConfigInfoPersistServiceImpl.java",
-    "start": 595,
+    "start": 594,
     "end": 644,
     "file": "excerpts/external-db.txt",
-    "sha256": "f36a4fafcecece3353cfffdefa781694108768a93bf657efcdd0a57b2d0791c9",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/repository/extrnal/ExternalConfigInfoPersistServiceImpl.java#L595-L644"
+    "sha256": "8befbc47c78b1e426e0f8d0a8ced130201628e65273c366212c400407773302e",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/repository/extrnal/ExternalConfigInfoPersistServiceImpl.java#L594-L644"
   },
   {
     "id": "embedded-db",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "core/src/main/java/com/alibaba/nacos/core/persistence/DistributedDatabaseOperateImpl.java",
-    "start": 455,
+    "start": 454,
     "end": 498,
     "file": "excerpts/embedded-db.txt",
-    "sha256": "e8a6b5e01214400c8a8a430888b1d4693951df822390a230904f4407f79badd8",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/persistence/DistributedDatabaseOperateImpl.java#L455-L498"
+    "sha256": "58b2dc612bfad1e4aaf4bf710c8974fd2c288561c76b713f69077241b1ab179a",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/persistence/DistributedDatabaseOperateImpl.java#L454-L498"
   },
   {
     "id": "dump",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "config/src/main/java/com/alibaba/nacos/config/server/service/ConfigCacheService.java",
-    "start": 84,
+    "start": 72,
     "end": 164,
     "file": "excerpts/dump.txt",
-    "sha256": "5d8415ccfa09ee7594bfd9521822f568606e98671aeb62b9b4fc8d896566aa4f",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/ConfigCacheService.java#L84-L164"
+    "sha256": "1c9368b48ee0a77a6262503ae0988c28f9ea09033880854f79743fcdad4bbe70",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/service/ConfigCacheService.java#L72-L164"
   },
   {
     "id": "listen-server",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "config/src/main/java/com/alibaba/nacos/config/server/remote/ConfigChangeBatchListenRequestHandler.java",
-    "start": 60,
+    "start": 55,
     "end": 97,
     "file": "excerpts/listen-server.txt",
-    "sha256": "a768055ebcbc73d1fcdf48004fb4478ac236ce9220878d912a3b6709907b904d",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/remote/ConfigChangeBatchListenRequestHandler.java#L60-L97"
+    "sha256": "f643e8d86e0e8dd346bb8a6096fc5b21da3ca1ada3f9f7c5ab5bd5d56e00c6d3",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/remote/ConfigChangeBatchListenRequestHandler.java#L55-L97"
   },
   {
     "id": "listen-client",
@@ -279,44 +279,44 @@
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "core/src/main/java/com/alibaba/nacos/core/distributed/raft/auth/JRaftAuthUpgradeCoordinator.java",
-    "start": 115,
+    "start": 109,
     "end": 134,
     "file": "excerpts/auth-upgrade.txt",
-    "sha256": "57cefbc635dc4a5580d560ad3c76e5d40f0c9b99005ba2d8f675092155d0c744",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/distributed/raft/auth/JRaftAuthUpgradeCoordinator.java#L115-L134"
+    "sha256": "41e8415c8ee59633c81e946664986f02aa5643f88f6170d13920b340e391d9c6",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/distributed/raft/auth/JRaftAuthUpgradeCoordinator.java#L109-L134"
   },
   {
     "id": "mcp-a2a",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "ai/src/main/java/com/alibaba/nacos/ai/service/McpServerOperationService.java",
-    "start": 372,
+    "start": 361,
     "end": 448,
     "file": "excerpts/mcp-a2a.txt",
-    "sha256": "a1ccd4b63e2abf6cd24b182658622182a631dc4198c0ed199fd9c944642ac9cd",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/McpServerOperationService.java#L372-L448"
+    "sha256": "31b1b75166babb7d2b9fb1a1f254c4953ec7009f6c9bb12dab2547e45b1ab11c",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/McpServerOperationService.java#L361-L448"
   },
   {
     "id": "prompt-skill",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "ai/src/main/java/com/alibaba/nacos/ai/service/prompt/PromptOperationServiceImpl.java",
-    "start": 812,
+    "start": 809,
     "end": 836,
     "file": "excerpts/prompt-skill.txt",
-    "sha256": "95a597e4d312f56fa46e4a5224983d4e9e34e6ecd761eab68657b924e7008a43",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/prompt/PromptOperationServiceImpl.java#L812-L836"
+    "sha256": "15492a6cfe7dfbb2f33d6512c098d02176974dcf8282561d6040f180b658364c",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/prompt/PromptOperationServiceImpl.java#L809-L836"
   },
   {
     "id": "identity-equals",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "naming/src/main/java/com/alibaba/nacos/naming/core/v2/pojo/Service.java",
-    "start": 107,
+    "start": 106,
     "end": 117,
     "file": "excerpts/identity-equals.txt",
-    "sha256": "785fa45b05e6c24b2ca05bacd907c0468bba4e66a039e957d5b484a754ea64d3",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/pojo/Service.java#L107-L117"
+    "sha256": "9c5428b2a866762d705f9cd439f5a09aa10477c71e4d3d9bd236cb54e35c9ebb",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/naming/src/main/java/com/alibaba/nacos/naming/core/v2/pojo/Service.java#L106-L117"
   },
   {
     "id": "distro-filter",
@@ -334,55 +334,55 @@
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "ai/src/main/java/com/alibaba/nacos/ai/service/a2a/A2aServerOperationService.java",
-    "start": 97,
+    "start": 91,
     "end": 129,
     "file": "excerpts/a2a-register.txt",
-    "sha256": "6f65da68c8ca24f2b32d5de4ed3096744c41cf43b44ab63ae6581ecbb400ccfa",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/a2a/A2aServerOperationService.java#L97-L129"
+    "sha256": "678f54cc5404ff3a662039ad15b74106ede50083bbe6a1160d410faa2388bd46",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/a2a/A2aServerOperationService.java#L91-L129"
   },
   {
     "id": "skill-query",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "ai/src/main/java/com/alibaba/nacos/ai/service/skills/SkillOperationServiceImpl.java",
-    "start": 1108,
+    "start": 1103,
     "end": 1144,
     "file": "excerpts/skill-query.txt",
-    "sha256": "56edd2fc2e73f5641639e3c0b799759a9efb5d2188ce9bbc56939dbf7a6ea34f",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/skills/SkillOperationServiceImpl.java#L1108-L1144"
+    "sha256": "537bc76281d74c6c272aa7bd87e9ef0039632576e741e8f5ca60b932e2170651",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/ai/src/main/java/com/alibaba/nacos/ai/service/skills/SkillOperationServiceImpl.java#L1103-L1144"
   },
   {
     "id": "rpc-auth",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "core/src/main/java/com/alibaba/nacos/core/auth/RemoteRequestAuthFilter.java",
-    "start": 68,
+    "start": 67,
     "end": 142,
     "file": "excerpts/rpc-auth.txt",
-    "sha256": "23d7cc29eb2da43527103b094865c0370e22472c4fcc8874d82d251f85ed0e5e",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/auth/RemoteRequestAuthFilter.java#L68-L142"
+    "sha256": "575fc561675f4f56722bff69644a0b6108fc79052538c0687f77135202f1a56e",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/core/src/main/java/com/alibaba/nacos/core/auth/RemoteRequestAuthFilter.java#L67-L142"
   },
   {
     "id": "config-notifier",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "config/src/main/java/com/alibaba/nacos/config/server/remote/RpcConfigChangeNotifier.java",
-    "start": 87,
+    "start": 82,
     "end": 117,
     "file": "excerpts/config-notifier.txt",
-    "sha256": "c10f31c0c5942c3aca9e557bc068e072f93e6dfbfe4f69fd89682d4727b77b20",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/remote/RpcConfigChangeNotifier.java#L87-L117"
+    "sha256": "f6809411921f358b56f7e262fccfa36ae242f59a0ee3fab203bf394cdd462e08",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/config/src/main/java/com/alibaba/nacos/config/server/remote/RpcConfigChangeNotifier.java#L82-L117"
   },
   {
     "id": "config-reconnect",
     "version": "3.2.4",
     "sha": "2c587c04891d532df1544ae95b906b677ac8eeff",
     "path": "client/src/main/java/com/alibaba/nacos/client/config/impl/ClientWorker.java",
-    "start": 825,
+    "start": 824,
     "end": 833,
     "file": "excerpts/config-reconnect.txt",
-    "sha256": "7313d2fbae99463875fdcd22a3edf0c7480a8f34c18dfef08c4dc645c0dfbbde",
-    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/config/impl/ClientWorker.java#L825-L833"
+    "sha256": "8a0af62c3f0453d87450158cf0f666665b785e769fcc4aad5fd736db22584959",
+    "url": "https://github.com/alibaba/nacos/blob/2c587c04891d532df1544ae95b906b677ac8eeff/client/src/main/java/com/alibaba/nacos/client/config/impl/ClientWorker.java#L824-L833"
   },
   {
     "id": "config-pull",

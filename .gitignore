@@ -13,3 +13,5 @@
 /docs/nginx/offline-index.html
 
 .playwright-cli/
+# Generated browser regression screenshots
+/output/playwright/

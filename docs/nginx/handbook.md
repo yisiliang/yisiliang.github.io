@@ -62,9 +62,10 @@ NGINX1.28.0是本书的固定阅读基线，不是对最新发行版的声明。
 
 ![机制图01：先画清责任，再进入函数](./diagrams/01.svg)
 
-**真实源码：**[src/os/unix/ngx_process_cycle.c · L699—L721](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L699-L721)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/os/unix/ngx_process_cycle.c · L698—L749](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L698-L749)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static void
 ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 {
     ngx_int_t worker = (intptr_t) data;
@@ -88,6 +89,34 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
         ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "worker cycle");
 
         ngx_process_events_and_timers(cycle);
+
+        if (ngx_terminate) {
+            ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "exiting");
+            ngx_worker_process_exit(cycle);
+        }
+
+        if (ngx_quit) {
+            ngx_quit = 0;
+            ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0,
+                          "gracefully shutting down");
+            ngx_setproctitle("worker process is shutting down");
+
+            if (!ngx_exiting) {
+                ngx_exiting = 1;
+                ngx_set_shutdown_timer(cycle);
+                ngx_close_listening_sockets(cycle);
+                ngx_close_idle_connections(cycle);
+                ngx_event_process_posted(cycle, &ngx_posted_events);
+            }
+        }
+
+        if (ngx_reopen) {
+            ngx_reopen = 0;
+            ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "reopening logs");
+            ngx_reopen_files(cycle, -1);
+        }
+    }
+}
 ```
 
 **读代码：**初始化后没有“一连接一线程”的创建循环。`ngx_process_events_and_timers`接管每轮工作；主事件循环通常在worker主线程上执行，thread pool是特定异步文件任务的补充。第三方模块调用阻塞库，会阻塞该worker上的其他连接。
@@ -112,9 +141,99 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 
 ![机制图02：指令表把文本编译成运行期结构](./diagrams/02.svg)
 
-**真实源码：**[src/core/ngx_conf_file.c · L445—L470](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_conf_file.c#L445-L470)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/core/ngx_conf_file.c · L355—L499](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_conf_file.c#L355-L499)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static ngx_int_t
+ngx_conf_handler(ngx_conf_t *cf, ngx_int_t last)
+{
+    char           *rv;
+    void           *conf, **confp;
+    ngx_uint_t      i, found;
+    ngx_str_t      *name;
+    ngx_command_t  *cmd;
+
+    name = cf->args->elts;
+
+    found = 0;
+
+    for (i = 0; cf->cycle->modules[i]; i++) {
+
+        cmd = cf->cycle->modules[i]->commands;
+        if (cmd == NULL) {
+            continue;
+        }
+
+        for ( /* void */ ; cmd->name.len; cmd++) {
+
+            if (name->len != cmd->name.len) {
+                continue;
+            }
+
+            if (ngx_strcmp(name->data, cmd->name.data) != 0) {
+                continue;
+            }
+
+            found = 1;
+
+            if (cf->cycle->modules[i]->type != NGX_CONF_MODULE
+                && cf->cycle->modules[i]->type != cf->module_type)
+            {
+                continue;
+            }
+
+            /* is the directive's location right ? */
+
+            if (!(cmd->type & cf->cmd_type)) {
+                continue;
+            }
+
+            if (!(cmd->type & NGX_CONF_BLOCK) && last != NGX_OK) {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                  "directive \"%s\" is not terminated by \";\"",
+                                  name->data);
+                return NGX_ERROR;
+            }
+
+            if ((cmd->type & NGX_CONF_BLOCK) && last != NGX_CONF_BLOCK_START) {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                   "directive \"%s\" has no opening \"{\"",
+                                   name->data);
+                return NGX_ERROR;
+            }
+
+            /* is the directive's argument count right ? */
+
+            if (!(cmd->type & NGX_CONF_ANY)) {
+
+                if (cmd->type & NGX_CONF_FLAG) {
+
+                    if (cf->args->nelts != 2) {
+                        goto invalid;
+                    }
+
+                } else if (cmd->type & NGX_CONF_1MORE) {
+
+                    if (cf->args->nelts < 2) {
+                        goto invalid;
+                    }
+
+                } else if (cmd->type & NGX_CONF_2MORE) {
+
+                    if (cf->args->nelts < 3) {
+                        goto invalid;
+                    }
+
+                } else if (cf->args->nelts > NGX_CONF_MAX_ARGS) {
+
+                    goto invalid;
+
+                } else if (!(cmd->type & argument_number[cf->args->nelts - 1]))
+                {
+                    goto invalid;
+                }
+            }
+
             /* set up the directive's configuration context */
 
             conf = NULL;
@@ -141,6 +260,35 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 
             if (rv == NGX_CONF_ERROR) {
                 return NGX_ERROR;
+            }
+
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                               "\"%s\" directive %s", name->data, rv);
+
+            return NGX_ERROR;
+        }
+    }
+
+    if (found) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "\"%s\" directive is not allowed here", name->data);
+
+        return NGX_ERROR;
+    }
+
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                       "unknown directive \"%s\"", name->data);
+
+    return NGX_ERROR;
+
+invalid:
+
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                       "invalid number of arguments in \"%s\" directive",
+                       name->data);
+
+    return NGX_ERROR;
+}
 ```
 
 **字段变化：**解析前字段常设为`NGX_CONF_UNSET`；setter写入配置值，merge阶段填缺省或继承上级值，初始化阶段构造hash、location树与phase数组。随后请求通过`r->main_conf / srv_conf / loc_conf`读取对应结构。
@@ -165,9 +313,39 @@ worker接到QUIT后设置`ngx_exiting`，关闭监听socket和空闲连接，处
 
 ![机制图03：信号设置意图，主循环执行生命周期操作](./diagrams/03.svg)
 
-**真实源码：**[src/os/unix/ngx_process_cycle.c · L728—L740](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L728-L740)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/os/unix/ngx_process_cycle.c · L698—L749](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L698-L749)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static void
+ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
+{
+    ngx_int_t worker = (intptr_t) data;
+
+    ngx_process = NGX_PROCESS_WORKER;
+    ngx_worker = worker;
+
+    ngx_worker_process_init(cycle, worker);
+
+    ngx_setproctitle("worker process");
+
+    for ( ;; ) {
+
+        if (ngx_exiting) {
+            if (ngx_event_no_timers_left() == NGX_OK) {
+                ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "exiting");
+                ngx_worker_process_exit(cycle);
+            }
+        }
+
+        ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "worker cycle");
+
+        ngx_process_events_and_timers(cycle);
+
+        if (ngx_terminate) {
+            ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "exiting");
+            ngx_worker_process_exit(cycle);
+        }
+
         if (ngx_quit) {
             ngx_quit = 0;
             ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0,
@@ -181,6 +359,15 @@ worker接到QUIT后设置`ngx_exiting`，关闭监听socket和空闲连接，处
                 ngx_close_idle_connections(cycle);
                 ngx_event_process_posted(cycle, &ngx_posted_events);
             }
+        }
+
+        if (ngx_reopen) {
+            ngx_reopen = 0;
+            ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "reopening logs");
+            ngx_reopen_files(cycle, -1);
+        }
+    }
+}
 ```
 
 **调用与状态：**`ngx_signal_handler → ngx_quit=1 → ngx_worker_process_cycle → ngx_exiting=1 → ngx_close_listening_sockets / ngx_close_idle_connections`。对象销毁要在回调仍可能触达它之前建立正确的退出条件，不能只看收到信号的时间。
@@ -205,9 +392,159 @@ USR2另走`ngx_exec_new_binary`：把监听fd编码到`NGINX`环境变量，启�
 
 ![机制图04：两代配置可以重叠，状态迁移有边界](./diagrams/04.svg)
 
-**真实源码：**[src/os/unix/ngx_process_cycle.c · L223—L243](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L223-L243)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/os/unix/ngx_process_cycle.c · L73—L275](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_process_cycle.c#L73-L275)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+void
+ngx_master_process_cycle(ngx_cycle_t *cycle)
+{
+    char              *title;
+    u_char            *p;
+    size_t             size;
+    ngx_int_t          i;
+    ngx_uint_t         sigio;
+    sigset_t           set;
+    struct itimerval   itv;
+    ngx_uint_t         live;
+    ngx_msec_t         delay;
+    ngx_core_conf_t   *ccf;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGCHLD);
+    sigaddset(&set, SIGALRM);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, ngx_signal_value(NGX_RECONFIGURE_SIGNAL));
+    sigaddset(&set, ngx_signal_value(NGX_REOPEN_SIGNAL));
+    sigaddset(&set, ngx_signal_value(NGX_NOACCEPT_SIGNAL));
+    sigaddset(&set, ngx_signal_value(NGX_TERMINATE_SIGNAL));
+    sigaddset(&set, ngx_signal_value(NGX_SHUTDOWN_SIGNAL));
+    sigaddset(&set, ngx_signal_value(NGX_CHANGEBIN_SIGNAL));
+
+    if (sigprocmask(SIG_BLOCK, &set, NULL) == -1) {
+        ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
+                      "sigprocmask() failed");
+    }
+
+    sigemptyset(&set);
+
+
+    size = sizeof(master_process);
+
+    for (i = 0; i < ngx_argc; i++) {
+        size += ngx_strlen(ngx_argv[i]) + 1;
+    }
+
+    title = ngx_pnalloc(cycle->pool, size);
+    if (title == NULL) {
+        /* fatal */
+        exit(2);
+    }
+
+    p = ngx_cpymem(title, master_process, sizeof(master_process) - 1);
+    for (i = 0; i < ngx_argc; i++) {
+        *p++ = ' ';
+        p = ngx_cpystrn(p, (u_char *) ngx_argv[i], size);
+    }
+
+    ngx_setproctitle(title);
+
+
+    ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
+
+    ngx_start_worker_processes(cycle, ccf->worker_processes,
+                               NGX_PROCESS_RESPAWN);
+    ngx_start_cache_manager_processes(cycle, 0);
+
+    ngx_new_binary = 0;
+    delay = 0;
+    sigio = 0;
+    live = 1;
+
+    for ( ;; ) {
+        if (delay) {
+            if (ngx_sigalrm) {
+                sigio = 0;
+                delay *= 2;
+                ngx_sigalrm = 0;
+            }
+
+            ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
+                           "termination cycle: %M", delay);
+
+            itv.it_interval.tv_sec = 0;
+            itv.it_interval.tv_usec = 0;
+            itv.it_value.tv_sec = delay / 1000;
+            itv.it_value.tv_usec = (delay % 1000 ) * 1000;
+
+            if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
+                ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
+                              "setitimer() failed");
+            }
+        }
+
+        ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "sigsuspend");
+
+        sigsuspend(&set);
+
+        ngx_time_update();
+
+        ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
+                       "wake up, sigio %i", sigio);
+
+        if (ngx_reap) {
+            ngx_reap = 0;
+            ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "reap children");
+
+            live = ngx_reap_children(cycle);
+        }
+
+        if (!live && (ngx_terminate || ngx_quit)) {
+            ngx_master_process_exit(cycle);
+        }
+
+        if (ngx_terminate) {
+            if (delay == 0) {
+                delay = 50;
+            }
+
+            if (sigio) {
+                sigio--;
+                continue;
+            }
+
+            sigio = ccf->worker_processes + 2 /* cache processes */;
+
+            if (delay > 1000) {
+                ngx_signal_worker_processes(cycle, SIGKILL);
+            } else {
+                ngx_signal_worker_processes(cycle,
+                                       ngx_signal_value(NGX_TERMINATE_SIGNAL));
+            }
+
+            continue;
+        }
+
+        if (ngx_quit) {
+            ngx_signal_worker_processes(cycle,
+                                        ngx_signal_value(NGX_SHUTDOWN_SIGNAL));
+            ngx_close_listening_sockets(cycle);
+
+            continue;
+        }
+
+        if (ngx_reconfigure) {
+            ngx_reconfigure = 0;
+
+            if (ngx_new_binary) {
+                ngx_start_worker_processes(cycle, ccf->worker_processes,
+                                           NGX_PROCESS_RESPAWN);
+                ngx_start_cache_manager_processes(cycle, 0);
+                ngx_noaccepting = 0;
+
+                continue;
+            }
+
             ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "reconfiguring");
 
             cycle = ngx_init_cycle(cycle);
@@ -229,6 +566,38 @@ USR2另走`ngx_exec_new_binary`：把监听fd编码到`NGINX`环境变量，启�
             live = 1;
             ngx_signal_worker_processes(cycle,
                                         ngx_signal_value(NGX_SHUTDOWN_SIGNAL));
+        }
+
+        if (ngx_restart) {
+            ngx_restart = 0;
+            ngx_start_worker_processes(cycle, ccf->worker_processes,
+                                       NGX_PROCESS_RESPAWN);
+            ngx_start_cache_manager_processes(cycle, 0);
+            live = 1;
+        }
+
+        if (ngx_reopen) {
+            ngx_reopen = 0;
+            ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "reopening logs");
+            ngx_reopen_files(cycle, ccf->user);
+            ngx_signal_worker_processes(cycle,
+                                        ngx_signal_value(NGX_REOPEN_SIGNAL));
+        }
+
+        if (ngx_change_binary) {
+            ngx_change_binary = 0;
+            ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "changing binary");
+            ngx_new_binary = ngx_exec_new_binary(cycle, ngx_argv);
+        }
+
+        if (ngx_noaccept) {
+            ngx_noaccept = 0;
+            ngx_noaccepting = 1;
+            ngx_signal_worker_processes(cycle,
+                                        ngx_signal_value(NGX_SHUTDOWN_SIGNAL));
+        }
+    }
+}
 ```
 
 **第二证据：**[`ngx_exec_new_binary · L728–L740`](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/nginx.c#L728-L740)逐个收集监听fd。可执行文件升级是独立机制，不能用一次`-s reload`替代。
@@ -253,9 +622,61 @@ USR2另走`ngx_exec_new_binary`：把监听fd编码到`NGINX`环境变量，启�
 
 ![机制图05：一个循环有明确的调度顺序](./diagrams/05.svg)
 
-**真实源码：**[src/event/ngx_event.c · L246—L263](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event.c#L246-L263)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/event/ngx_event.c · L194—L264](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event.c#L194-L264)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+void
+ngx_process_events_and_timers(ngx_cycle_t *cycle)
+{
+    ngx_uint_t  flags;
+    ngx_msec_t  timer, delta;
+
+    if (ngx_timer_resolution) {
+        timer = NGX_TIMER_INFINITE;
+        flags = 0;
+
+    } else {
+        timer = ngx_event_find_timer();
+        flags = NGX_UPDATE_TIME;
+
+#if (NGX_WIN32)
+
+        /* handle signals from master in case of network inactivity */
+
+        if (timer == NGX_TIMER_INFINITE || timer > 500) {
+            timer = 500;
+        }
+
+#endif
+    }
+
+    if (ngx_use_accept_mutex) {
+        if (ngx_accept_disabled > 0) {
+            ngx_accept_disabled--;
+
+        } else {
+            if (ngx_trylock_accept_mutex(cycle) == NGX_ERROR) {
+                return;
+            }
+
+            if (ngx_accept_mutex_held) {
+                flags |= NGX_POST_EVENTS;
+
+            } else {
+                if (timer == NGX_TIMER_INFINITE
+                    || timer > ngx_accept_mutex_delay)
+                {
+                    timer = ngx_accept_mutex_delay;
+                }
+            }
+        }
+    }
+
+    if (!ngx_queue_empty(&ngx_posted_next_events)) {
+        ngx_event_move_posted_next(cycle);
+        timer = 0;
+    }
+
     delta = ngx_current_msec;
 
     (void) ngx_process_events(cycle, timer, flags);
@@ -274,6 +695,7 @@ USR2另走`ngx_exec_new_binary`：把监听fd编码到`NGINX`环境变量，启�
     ngx_event_expire_timers();
 
     ngx_event_process_posted(cycle, &ngx_posted_events);
+}
 ```
 
 **完整链：**`worker loop → find_timer → ngx_process_events → epoll/kqueue handler → posted_accept → expire_timers → posted_events`。框图是调度顺序，并不意味着每轮所有分支都有工作。
@@ -298,9 +720,62 @@ BSD/macOS的kqueue后端用`kevent`、EV_CLEAR等flag，也能提供EOF和可用
 
 ![机制图06：平台适配共享事件抽象](./diagrams/06.svg)
 
-**真实源码：**[src/event/modules/ngx_epoll_module.c · L836—L854](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/modules/ngx_epoll_module.c#L836-L854)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/event/modules/ngx_epoll_module.c · L783—L936](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/modules/ngx_epoll_module.c#L783-L936)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static ngx_int_t
+ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
+{
+    int                events;
+    uint32_t           revents;
+    ngx_int_t          instance, i;
+    ngx_uint_t         level;
+    ngx_err_t          err;
+    ngx_event_t       *rev, *wev;
+    ngx_queue_t       *queue;
+    ngx_connection_t  *c;
+
+    /* NGX_TIMER_INFINITE == INFTIM */
+
+    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
+                   "epoll timer: %M", timer);
+
+    events = epoll_wait(ep, event_list, (int) nevents, timer);
+
+    err = (events == -1) ? ngx_errno : 0;
+
+    if (flags & NGX_UPDATE_TIME || ngx_event_timer_alarm) {
+        ngx_time_update();
+    }
+
+    if (err) {
+        if (err == NGX_EINTR) {
+
+            if (ngx_event_timer_alarm) {
+                ngx_event_timer_alarm = 0;
+                return NGX_OK;
+            }
+
+            level = NGX_LOG_INFO;
+
+        } else {
+            level = NGX_LOG_ALERT;
+        }
+
+        ngx_log_error(level, cycle->log, err, "epoll_wait() failed");
+        return NGX_ERROR;
+    }
+
+    if (events == 0) {
+        if (timer != NGX_TIMER_INFINITE) {
+            return NGX_OK;
+        }
+
+        ngx_log_error(NGX_LOG_ALERT, cycle->log, 0,
+                      "epoll_wait() returned no events without timeout");
+        return NGX_ERROR;
+    }
+
     for (i = 0; i < events; i++) {
         c = event_list[i].data.ptr;
 
@@ -320,6 +795,88 @@ BSD/macOS的kqueue后端用`kevent`、EV_CLEAR等flag，也能提供EOF和可用
                            "epoll: stale event %p", c);
             continue;
         }
+
+        revents = event_list[i].events;
+
+        ngx_log_debug3(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
+                       "epoll: fd:%d ev:%04XD d:%p",
+                       c->fd, revents, event_list[i].data.ptr);
+
+        if (revents & (EPOLLERR|EPOLLHUP)) {
+            ngx_log_debug2(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
+                           "epoll_wait() error on fd:%d ev:%04XD",
+                           c->fd, revents);
+
+            /*
+             * if the error events were returned, add EPOLLIN and EPOLLOUT
+             * to handle the events at least in one active handler
+             */
+
+            revents |= EPOLLIN|EPOLLOUT;
+        }
+
+#if 0
+        if (revents & ~(EPOLLIN|EPOLLOUT|EPOLLERR|EPOLLHUP)) {
+            ngx_log_error(NGX_LOG_ALERT, cycle->log, 0,
+                          "strange epoll_wait() events fd:%d ev:%04XD",
+                          c->fd, revents);
+        }
+#endif
+
+        if ((revents & EPOLLIN) && rev->active) {
+
+#if (NGX_HAVE_EPOLLRDHUP)
+            if (revents & EPOLLRDHUP) {
+                rev->pending_eof = 1;
+            }
+#endif
+
+            rev->ready = 1;
+            rev->available = -1;
+
+            if (flags & NGX_POST_EVENTS) {
+                queue = rev->accept ? &ngx_posted_accept_events
+                                    : &ngx_posted_events;
+
+                ngx_post_event(rev, queue);
+
+            } else {
+                rev->handler(rev);
+            }
+        }
+
+        wev = c->write;
+
+        if ((revents & EPOLLOUT) && wev->active) {
+
+            if (c->fd == -1 || wev->instance != instance) {
+
+                /*
+                 * the stale event from a file descriptor
+                 * that was just closed in this iteration
+                 */
+
+                ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
+                               "epoll: stale event %p", c);
+                continue;
+            }
+
+            wev->ready = 1;
+#if (NGX_THREADS)
+            wev->complete = 1;
+#endif
+
+            if (flags & NGX_POST_EVENTS) {
+                ngx_post_event(wev, &ngx_posted_events);
+
+            } else {
+                wev->handler(wev);
+            }
+        }
+    }
+
+    return NGX_OK;
+}
 ```
 
 **状态推进：**epoll通知后设置`rev->ready=1`，调用或投递handler；recv遇EAGAIN将ready清零并等待未来通知。这是“就绪驱动”，不像完成端口直接宣布某个提交的读操作已完成。
@@ -344,9 +901,24 @@ BSD/macOS的kqueue后端用`kevent`、EV_CLEAR等flag，也能提供EOF和可用
 
 ![机制图07：timeout是事件间隔，触发仍靠循环](./diagrams/07.svg)
 
-**真实源码：**[src/event/ngx_event_timer.c · L68—L94](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_timer.c#L68-L94)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/event/ngx_event_timer.c · L53—L96](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_timer.c#L53-L96)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+void
+ngx_event_expire_timers(void)
+{
+    ngx_event_t        *ev;
+    ngx_rbtree_node_t  *node, *root, *sentinel;
+
+    sentinel = ngx_event_timer_rbtree.sentinel;
+
+    for ( ;; ) {
+        root = ngx_event_timer_rbtree.root;
+
+        if (root == sentinel) {
+            return;
+        }
+
         node = ngx_rbtree_min(root, sentinel);
 
         /* node->key > ngx_current_msec */
@@ -374,6 +946,8 @@ BSD/macOS的kqueue后端用`kevent`、EV_CLEAR等flag，也能提供EOF和可用
         ev->timedout = 1;
 
         ev->handler(ev);
+    }
+}
 ```
 
 **完整链：**上游header/body handler或客户端writer添加timer → 事件循环使用最近截止 → expire_timers设`timedout` → 相应handler选择504、断连或其他清理。错误码是具体协议分支的决定，不是timer统一返回504。
@@ -398,9 +972,47 @@ worker继承监听socket，内核新连接进入监听队列后触发accept hand
 
 ![机制图08：监听竞争与连接容量分别治理](./diagrams/08.svg)
 
-**真实源码：**[src/event/ngx_event_accept.c · L58—L78](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_accept.c#L58-L78)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/event/ngx_event_accept.c · L20—L324](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_accept.c#L20-L324)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+void
+ngx_event_accept(ngx_event_t *ev)
+{
+    socklen_t          socklen;
+    ngx_err_t          err;
+    ngx_log_t         *log;
+    ngx_uint_t         level;
+    ngx_socket_t       s;
+    ngx_event_t       *rev, *wev;
+    ngx_sockaddr_t     sa;
+    ngx_listening_t   *ls;
+    ngx_connection_t  *c, *lc;
+    ngx_event_conf_t  *ecf;
+#if (NGX_HAVE_ACCEPT4)
+    static ngx_uint_t  use_accept4 = 1;
+#endif
+
+    if (ev->timedout) {
+        if (ngx_enable_accept_events((ngx_cycle_t *) ngx_cycle) != NGX_OK) {
+            return;
+        }
+
+        ev->timedout = 0;
+    }
+
+    ecf = ngx_event_get_conf(ngx_cycle->conf_ctx, ngx_event_core_module);
+
+    if (!(ngx_event_flags & NGX_USE_KQUEUE_EVENT)) {
+        ev->available = ecf->multi_accept;
+    }
+
+    lc = ev->data;
+    ls = lc->listening;
+    ev->ready = 0;
+
+    ngx_log_debug2(NGX_LOG_DEBUG_EVENT, ev->log, 0,
+                   "accept on %V, ready: %d", &ls->addr_text, ev->available);
+
     do {
         socklen = sizeof(ngx_sockaddr_t);
 
@@ -422,6 +1034,252 @@ worker继承监听socket，内核新连接进入监听队列后触发accept hand
                                "accept() not ready");
                 return;
             }
+
+            level = NGX_LOG_ALERT;
+
+            if (err == NGX_ECONNABORTED) {
+                level = NGX_LOG_ERR;
+
+            } else if (err == NGX_EMFILE || err == NGX_ENFILE) {
+                level = NGX_LOG_CRIT;
+            }
+
+#if (NGX_HAVE_ACCEPT4)
+            ngx_log_error(level, ev->log, err,
+                          use_accept4 ? "accept4() failed" : "accept() failed");
+
+            if (use_accept4 && err == NGX_ENOSYS) {
+                use_accept4 = 0;
+                ngx_inherited_nonblocking = 0;
+                continue;
+            }
+#else
+            ngx_log_error(level, ev->log, err, "accept() failed");
+#endif
+
+            if (err == NGX_ECONNABORTED) {
+                if (ngx_event_flags & NGX_USE_KQUEUE_EVENT) {
+                    ev->available--;
+                }
+
+                if (ev->available) {
+                    continue;
+                }
+            }
+
+            if (err == NGX_EMFILE || err == NGX_ENFILE) {
+                if (ngx_disable_accept_events((ngx_cycle_t *) ngx_cycle, 1)
+                    != NGX_OK)
+                {
+                    return;
+                }
+
+                if (ngx_use_accept_mutex) {
+                    if (ngx_accept_mutex_held) {
+                        ngx_shmtx_unlock(&ngx_accept_mutex);
+                        ngx_accept_mutex_held = 0;
+                    }
+
+                    ngx_accept_disabled = 1;
+
+                } else {
+                    ngx_add_timer(ev, ecf->accept_mutex_delay);
+                }
+            }
+
+            return;
+        }
+
+#if (NGX_STAT_STUB)
+        (void) ngx_atomic_fetch_add(ngx_stat_accepted, 1);
+#endif
+
+        ngx_accept_disabled = ngx_cycle->connection_n / 8
+                              - ngx_cycle->free_connection_n;
+
+        c = ngx_get_connection(s, ev->log);
+
+        if (c == NULL) {
+            if (ngx_close_socket(s) == -1) {
+                ngx_log_error(NGX_LOG_ALERT, ev->log, ngx_socket_errno,
+                              ngx_close_socket_n " failed");
+            }
+
+            return;
+        }
+
+        c->type = SOCK_STREAM;
+
+#if (NGX_STAT_STUB)
+        (void) ngx_atomic_fetch_add(ngx_stat_active, 1);
+#endif
+
+        c->pool = ngx_create_pool(ls->pool_size, ev->log);
+        if (c->pool == NULL) {
+            ngx_close_accepted_connection(c);
+            return;
+        }
+
+        if (socklen > (socklen_t) sizeof(ngx_sockaddr_t)) {
+            socklen = sizeof(ngx_sockaddr_t);
+        }
+
+        c->sockaddr = ngx_palloc(c->pool, socklen);
+        if (c->sockaddr == NULL) {
+            ngx_close_accepted_connection(c);
+            return;
+        }
+
+        ngx_memcpy(c->sockaddr, &sa, socklen);
+
+        log = ngx_palloc(c->pool, sizeof(ngx_log_t));
+        if (log == NULL) {
+            ngx_close_accepted_connection(c);
+            return;
+        }
+
+        /* set a blocking mode for iocp and non-blocking mode for others */
+
+        if (ngx_inherited_nonblocking) {
+            if (ngx_event_flags & NGX_USE_IOCP_EVENT) {
+                if (ngx_blocking(s) == -1) {
+                    ngx_log_error(NGX_LOG_ALERT, ev->log, ngx_socket_errno,
+                                  ngx_blocking_n " failed");
+                    ngx_close_accepted_connection(c);
+                    return;
+                }
+            }
+
+        } else {
+            if (!(ngx_event_flags & NGX_USE_IOCP_EVENT)) {
+                if (ngx_nonblocking(s) == -1) {
+                    ngx_log_error(NGX_LOG_ALERT, ev->log, ngx_socket_errno,
+                                  ngx_nonblocking_n " failed");
+                    ngx_close_accepted_connection(c);
+                    return;
+                }
+            }
+        }
+
+        *log = ls->log;
+
+        c->recv = ngx_recv;
+        c->send = ngx_send;
+        c->recv_chain = ngx_recv_chain;
+        c->send_chain = ngx_send_chain;
+
+        c->log = log;
+        c->pool->log = log;
+
+        c->socklen = socklen;
+        c->listening = ls;
+        c->local_sockaddr = ls->sockaddr;
+        c->local_socklen = ls->socklen;
+
+#if (NGX_HAVE_UNIX_DOMAIN)
+        if (c->sockaddr->sa_family == AF_UNIX) {
+            c->tcp_nopush = NGX_TCP_NOPUSH_DISABLED;
+            c->tcp_nodelay = NGX_TCP_NODELAY_DISABLED;
+#if (NGX_SOLARIS)
+            /* Solaris's sendfilev() supports AF_NCA, AF_INET, and AF_INET6 */
+            c->sendfile = 0;
+#endif
+        }
+#endif
+
+        rev = c->read;
+        wev = c->write;
+
+        wev->ready = 1;
+
+        if (ngx_event_flags & NGX_USE_IOCP_EVENT) {
+            rev->ready = 1;
+        }
+
+        if (ev->deferred_accept) {
+            rev->ready = 1;
+#if (NGX_HAVE_KQUEUE || NGX_HAVE_EPOLLRDHUP)
+            rev->available = 1;
+#endif
+        }
+
+        rev->log = log;
+        wev->log = log;
+
+        /*
+         * TODO: MT: - ngx_atomic_fetch_add()
+         *             or protection by critical section or light mutex
+         *
+         * TODO: MP: - allocated in a shared memory
+         *           - ngx_atomic_fetch_add()
+         *             or protection by critical section or light mutex
+         */
+
+        c->number = ngx_atomic_fetch_add(ngx_connection_counter, 1);
+
+        c->start_time = ngx_current_msec;
+
+#if (NGX_STAT_STUB)
+        (void) ngx_atomic_fetch_add(ngx_stat_handled, 1);
+#endif
+
+        if (ls->addr_ntop) {
+            c->addr_text.data = ngx_pnalloc(c->pool, ls->addr_text_max_len);
+            if (c->addr_text.data == NULL) {
+                ngx_close_accepted_connection(c);
+                return;
+            }
+
+            c->addr_text.len = ngx_sock_ntop(c->sockaddr, c->socklen,
+                                             c->addr_text.data,
+                                             ls->addr_text_max_len, 0);
+            if (c->addr_text.len == 0) {
+                ngx_close_accepted_connection(c);
+                return;
+            }
+        }
+
+#if (NGX_DEBUG)
+        {
+        ngx_str_t  addr;
+        u_char     text[NGX_SOCKADDR_STRLEN];
+
+        ngx_debug_accepted_connection(ecf, c);
+
+        if (log->log_level & NGX_LOG_DEBUG_EVENT) {
+            addr.data = text;
+            addr.len = ngx_sock_ntop(c->sockaddr, c->socklen, text,
+                                     NGX_SOCKADDR_STRLEN, 1);
+
+            ngx_log_debug3(NGX_LOG_DEBUG_EVENT, log, 0,
+                           "*%uA accept: %V fd:%d", c->number, &addr, s);
+        }
+
+        }
+#endif
+
+        if (ngx_add_conn && (ngx_event_flags & NGX_USE_EPOLL_EVENT) == 0) {
+            if (ngx_add_conn(c) == NGX_ERROR) {
+                ngx_close_accepted_connection(c);
+                return;
+            }
+        }
+
+        log->data = NULL;
+        log->handler = NULL;
+
+        ls->handler(c);
+
+        if (ngx_event_flags & NGX_USE_KQUEUE_EVENT) {
+            ev->available--;
+        }
+
+    } while (ev->available);
+
+#if (NGX_HAVE_EPOLLEXCLUSIVE)
+    ngx_reorder_accept_events(ls);
+#endif
+}
 ```
 
 **失败路径：**fd耗尽时禁用accept事件，使用mutex或timer路径等待恢复；connection槽位耗尽时新socket可能关闭。监听backlog、系统fd limit、worker_connections是不同层的上限，不能以一个配置覆盖全部。
@@ -446,9 +1304,28 @@ worker_connections给的是每worker连接对象容量，worker_rlimit_nofile与
 
 ![机制图09：槽位复用与fd生命周期联动](./diagrams/09.svg)
 
-**真实源码：**[src/core/ngx_connection.c · L1193—L1226](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_connection.c#L1193-L1226)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/core/ngx_connection.c · L1174—L1237](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_connection.c#L1174-L1237)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+ngx_connection_t *
+ngx_get_connection(ngx_socket_t s, ngx_log_t *log)
+{
+    ngx_uint_t         instance;
+    ngx_event_t       *rev, *wev;
+    ngx_connection_t  *c;
+
+    /* disable warning: Win32 SOCKET is u_int while UNIX socket is int */
+
+    if (ngx_cycle->files && (ngx_uint_t) s >= ngx_cycle->files_n) {
+        ngx_log_error(NGX_LOG_ALERT, log, 0,
+                      "the new socket has number %d, "
+                      "but only %ui files are available",
+                      s, ngx_cycle->files_n);
+        return NULL;
+    }
+
+    ngx_drain_connections((ngx_cycle_t *) ngx_cycle);
+
     c = ngx_cycle->free_connections;
 
     if (c == NULL) {
@@ -483,6 +1360,17 @@ worker_connections给的是每worker连接对象容量，worker_rlimit_nofile与
 
     rev->instance = !instance;
     wev->instance = !instance;
+
+    rev->index = NGX_INVALID_INDEX;
+    wev->index = NGX_INVALID_INDEX;
+
+    rev->data = c;
+    wev->data = c;
+
+    wev->write = 1;
+
+    return c;
+}
 ```
 
 **失败后果：**日志`worker_connections are not enough`发生在槽位分配，EMFILE发生在系统fd创建，二者应分别处理。加大连接数组可能提高内存常驻，并不会增加上游可用连接。
@@ -507,9 +1395,15 @@ NGINX小对象频繁分配但多以请求为生命周期。`ngx_palloc_small`从
 
 ![机制图10：内存会集中释放，数据进度单独推进](./diagrams/10.svg)
 
-**真实源码：**[src/core/ngx_palloc.c · L154—L173](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_palloc.c#L154-L173)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/core/ngx_palloc.c · L148—L174](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/core/ngx_palloc.c#L148-L174)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static ngx_inline void *
+ngx_palloc_small(ngx_pool_t *pool, size_t size, ngx_uint_t align)
+{
+    u_char      *m;
+    ngx_pool_t  *p;
+
     p = pool->current;
 
     do {
@@ -530,6 +1424,7 @@ NGINX小对象频繁分配但多以请求为生命周期。`ngx_palloc_small`从
     } while (p);
 
     return ngx_palloc_block(pool, size);
+}
 ```
 
 **调用链：**request创建pool → 模块palloc生成buffer/chain → filter保留未发送链 → 后续write恢复 → request引用计数归零 → pool cleanup。池销毁是生命周期终点，不能因为某个handler返回便认定内存可释放。
@@ -554,9 +1449,43 @@ buffer不够时调用者尝试large header buffer；请求行过大、header fie
 
 ![机制图11：TCP没有一请求一包的边界](./diagrams/11.svg)
 
-**真实源码：**[src/http/ngx_http_parse.c · L135—L155](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_parse.c#L135-L155)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/ngx_http_parse.c · L101—L812](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_parse.c#L101-L812)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+/* gcc, icc, msvc and others compile these switches as an jump table */
+
+ngx_int_t
+ngx_http_parse_request_line(ngx_http_request_t *r, ngx_buf_t *b)
+{
+    u_char  c, ch, *p, *m;
+    enum {
+        sw_start = 0,
+        sw_method,
+        sw_spaces_before_uri,
+        sw_schema,
+        sw_schema_slash,
+        sw_schema_slash_slash,
+        sw_host_start,
+        sw_host,
+        sw_host_end,
+        sw_host_ip_literal,
+        sw_port,
+        sw_after_slash_in_uri,
+        sw_check_uri,
+        sw_uri,
+        sw_http_09,
+        sw_http_H,
+        sw_http_HT,
+        sw_http_HTT,
+        sw_http_HTTP,
+        sw_first_major_digit,
+        sw_major_digit,
+        sw_first_minor_digit,
+        sw_minor_digit,
+        sw_spaces_after_digit,
+        sw_almost_done
+    } state;
+
     state = r->state;
 
     for (p = b->pos; p < b->last; p++) {
@@ -578,6 +1507,663 @@ buffer不够时调用者尝试large header buffer；请求行过大、header fie
 
             state = sw_method;
             break;
+
+        case sw_method:
+            if (ch == ' ') {
+                r->method_end = p - 1;
+                m = r->request_start;
+
+                switch (p - m) {
+
+                case 3:
+                    if (ngx_str3_cmp(m, 'G', 'E', 'T', ' ')) {
+                        r->method = NGX_HTTP_GET;
+                        break;
+                    }
+
+                    if (ngx_str3_cmp(m, 'P', 'U', 'T', ' ')) {
+                        r->method = NGX_HTTP_PUT;
+                        break;
+                    }
+
+                    break;
+
+                case 4:
+                    if (m[1] == 'O') {
+
+                        if (ngx_str3Ocmp(m, 'P', 'O', 'S', 'T')) {
+                            r->method = NGX_HTTP_POST;
+                            break;
+                        }
+
+                        if (ngx_str3Ocmp(m, 'C', 'O', 'P', 'Y')) {
+                            r->method = NGX_HTTP_COPY;
+                            break;
+                        }
+
+                        if (ngx_str3Ocmp(m, 'M', 'O', 'V', 'E')) {
+                            r->method = NGX_HTTP_MOVE;
+                            break;
+                        }
+
+                        if (ngx_str3Ocmp(m, 'L', 'O', 'C', 'K')) {
+                            r->method = NGX_HTTP_LOCK;
+                            break;
+                        }
+
+                    } else {
+
+                        if (ngx_str4cmp(m, 'H', 'E', 'A', 'D')) {
+                            r->method = NGX_HTTP_HEAD;
+                            break;
+                        }
+                    }
+
+                    break;
+
+                case 5:
+                    if (ngx_str5cmp(m, 'M', 'K', 'C', 'O', 'L')) {
+                        r->method = NGX_HTTP_MKCOL;
+                        break;
+                    }
+
+                    if (ngx_str5cmp(m, 'P', 'A', 'T', 'C', 'H')) {
+                        r->method = NGX_HTTP_PATCH;
+                        break;
+                    }
+
+                    if (ngx_str5cmp(m, 'T', 'R', 'A', 'C', 'E')) {
+                        r->method = NGX_HTTP_TRACE;
+                        break;
+                    }
+
+                    break;
+
+                case 6:
+                    if (ngx_str6cmp(m, 'D', 'E', 'L', 'E', 'T', 'E')) {
+                        r->method = NGX_HTTP_DELETE;
+                        break;
+                    }
+
+                    if (ngx_str6cmp(m, 'U', 'N', 'L', 'O', 'C', 'K')) {
+                        r->method = NGX_HTTP_UNLOCK;
+                        break;
+                    }
+
+                    break;
+
+                case 7:
+                    if (ngx_str7_cmp(m, 'O', 'P', 'T', 'I', 'O', 'N', 'S', ' '))
+                    {
+                        r->method = NGX_HTTP_OPTIONS;
+                    }
+
+                    if (ngx_str7_cmp(m, 'C', 'O', 'N', 'N', 'E', 'C', 'T', ' '))
+                    {
+                        r->method = NGX_HTTP_CONNECT;
+                    }
+
+                    break;
+
+                case 8:
+                    if (ngx_str8cmp(m, 'P', 'R', 'O', 'P', 'F', 'I', 'N', 'D'))
+                    {
+                        r->method = NGX_HTTP_PROPFIND;
+                    }
+
+                    break;
+
+                case 9:
+                    if (ngx_str9cmp(m,
+                            'P', 'R', 'O', 'P', 'P', 'A', 'T', 'C', 'H'))
+                    {
+                        r->method = NGX_HTTP_PROPPATCH;
+                    }
+
+                    break;
+                }
+
+                state = sw_spaces_before_uri;
+                break;
+            }
+
+            if ((ch < 'A' || ch > 'Z') && ch != '_' && ch != '-') {
+                return NGX_HTTP_PARSE_INVALID_METHOD;
+            }
+
+            break;
+
+        /* space* before URI */
+        case sw_spaces_before_uri:
+
+            if (ch == '/') {
+                r->uri_start = p;
+                state = sw_after_slash_in_uri;
+                break;
+            }
+
+            c = (u_char) (ch | 0x20);
+            if (c >= 'a' && c <= 'z') {
+                r->schema_start = p;
+                state = sw_schema;
+                break;
+            }
+
+            switch (ch) {
+            case ' ':
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        case sw_schema:
+
+            c = (u_char) (ch | 0x20);
+            if (c >= 'a' && c <= 'z') {
+                break;
+            }
+
+            if ((ch >= '0' && ch <= '9') || ch == '+' || ch == '-' || ch == '.')
+            {
+                break;
+            }
+
+            switch (ch) {
+            case ':':
+                r->schema_end = p;
+                state = sw_schema_slash;
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        case sw_schema_slash:
+            switch (ch) {
+            case '/':
+                state = sw_schema_slash_slash;
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        case sw_schema_slash_slash:
+            switch (ch) {
+            case '/':
+                state = sw_host_start;
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        case sw_host_start:
+
+            r->host_start = p;
+
+            if (ch == '[') {
+                state = sw_host_ip_literal;
+                break;
+            }
+
+            state = sw_host;
+
+            /* fall through */
+
+        case sw_host:
+
+            c = (u_char) (ch | 0x20);
+            if (c >= 'a' && c <= 'z') {
+                break;
+            }
+
+            if ((ch >= '0' && ch <= '9') || ch == '.' || ch == '-') {
+                break;
+            }
+
+            /* fall through */
+
+        case sw_host_end:
+
+            r->host_end = p;
+
+            switch (ch) {
+            case ':':
+                state = sw_port;
+                break;
+            case '/':
+                r->uri_start = p;
+                state = sw_after_slash_in_uri;
+                break;
+            case '?':
+                r->uri_start = p;
+                r->args_start = p + 1;
+                r->empty_path_in_uri = 1;
+                state = sw_uri;
+                break;
+            case ' ':
+                /*
+                 * use single "/" from request line to preserve pointers,
+                 * if request line will be copied to large client buffer
+                 */
+                r->uri_start = r->schema_end + 1;
+                r->uri_end = r->schema_end + 2;
+                state = sw_http_09;
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        case sw_host_ip_literal:
+
+            if (ch >= '0' && ch <= '9') {
+                break;
+            }
+
+            c = (u_char) (ch | 0x20);
+            if (c >= 'a' && c <= 'z') {
+                break;
+            }
+
+            switch (ch) {
+            case ':':
+                break;
+            case ']':
+                state = sw_host_end;
+                break;
+            case '-':
+            case '.':
+            case '_':
+            case '~':
+                /* unreserved */
+                break;
+            case '!':
+            case '$':
+            case '&':
+            case '\'':
+            case '(':
+            case ')':
+            case '*':
+            case '+':
+            case ',':
+            case ';':
+            case '=':
+                /* sub-delims */
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        case sw_port:
+            if (ch >= '0' && ch <= '9') {
+                break;
+            }
+
+            switch (ch) {
+            case '/':
+                r->uri_start = p;
+                state = sw_after_slash_in_uri;
+                break;
+            case '?':
+                r->uri_start = p;
+                r->args_start = p + 1;
+                r->empty_path_in_uri = 1;
+                state = sw_uri;
+                break;
+            case ' ':
+                /*
+                 * use single "/" from request line to preserve pointers,
+                 * if request line will be copied to large client buffer
+                 */
+                r->uri_start = r->schema_end + 1;
+                r->uri_end = r->schema_end + 2;
+                state = sw_http_09;
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        /* check "/.", "//", "%", and "\" (Win32) in URI */
+        case sw_after_slash_in_uri:
+
+            if (usual[ch >> 5] & (1U << (ch & 0x1f))) {
+                state = sw_check_uri;
+                break;
+            }
+
+            switch (ch) {
+            case ' ':
+                r->uri_end = p;
+                state = sw_http_09;
+                break;
+            case CR:
+                r->uri_end = p;
+                r->http_minor = 9;
+                state = sw_almost_done;
+                break;
+            case LF:
+                r->uri_end = p;
+                r->http_minor = 9;
+                goto done;
+            case '.':
+                r->complex_uri = 1;
+                state = sw_uri;
+                break;
+            case '%':
+                r->quoted_uri = 1;
+                state = sw_uri;
+                break;
+            case '/':
+                r->complex_uri = 1;
+                state = sw_uri;
+                break;
+#if (NGX_WIN32)
+            case '\\':
+                r->complex_uri = 1;
+                state = sw_uri;
+                break;
+#endif
+            case '?':
+                r->args_start = p + 1;
+                state = sw_uri;
+                break;
+            case '#':
+                r->complex_uri = 1;
+                state = sw_uri;
+                break;
+            case '+':
+                r->plus_in_uri = 1;
+                break;
+            default:
+                if (ch < 0x20 || ch == 0x7f) {
+                    return NGX_HTTP_PARSE_INVALID_REQUEST;
+                }
+                state = sw_check_uri;
+                break;
+            }
+            break;
+
+        /* check "/", "%" and "\" (Win32) in URI */
+        case sw_check_uri:
+
+            if (usual[ch >> 5] & (1U << (ch & 0x1f))) {
+                break;
+            }
+
+            switch (ch) {
+            case '/':
+#if (NGX_WIN32)
+                if (r->uri_ext == p) {
+                    r->complex_uri = 1;
+                    state = sw_uri;
+                    break;
+                }
+#endif
+                r->uri_ext = NULL;
+                state = sw_after_slash_in_uri;
+                break;
+            case '.':
+                r->uri_ext = p + 1;
+                break;
+            case ' ':
+                r->uri_end = p;
+                state = sw_http_09;
+                break;
+            case CR:
+                r->uri_end = p;
+                r->http_minor = 9;
+                state = sw_almost_done;
+                break;
+            case LF:
+                r->uri_end = p;
+                r->http_minor = 9;
+                goto done;
+#if (NGX_WIN32)
+            case '\\':
+                r->complex_uri = 1;
+                state = sw_after_slash_in_uri;
+                break;
+#endif
+            case '%':
+                r->quoted_uri = 1;
+                state = sw_uri;
+                break;
+            case '?':
+                r->args_start = p + 1;
+                state = sw_uri;
+                break;
+            case '#':
+                r->complex_uri = 1;
+                state = sw_uri;
+                break;
+            case '+':
+                r->plus_in_uri = 1;
+                break;
+            default:
+                if (ch < 0x20 || ch == 0x7f) {
+                    return NGX_HTTP_PARSE_INVALID_REQUEST;
+                }
+                break;
+            }
+            break;
+
+        /* URI */
+        case sw_uri:
+
+            if (usual[ch >> 5] & (1U << (ch & 0x1f))) {
+                break;
+            }
+
+            switch (ch) {
+            case ' ':
+                r->uri_end = p;
+                state = sw_http_09;
+                break;
+            case CR:
+                r->uri_end = p;
+                r->http_minor = 9;
+                state = sw_almost_done;
+                break;
+            case LF:
+                r->uri_end = p;
+                r->http_minor = 9;
+                goto done;
+            case '#':
+                r->complex_uri = 1;
+                break;
+            default:
+                if (ch < 0x20 || ch == 0x7f) {
+                    return NGX_HTTP_PARSE_INVALID_REQUEST;
+                }
+                break;
+            }
+            break;
+
+        /* space+ after URI */
+        case sw_http_09:
+            switch (ch) {
+            case ' ':
+                break;
+            case CR:
+                r->http_minor = 9;
+                state = sw_almost_done;
+                break;
+            case LF:
+                r->http_minor = 9;
+                goto done;
+            case 'H':
+                r->http_protocol.data = p;
+                state = sw_http_H;
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        case sw_http_H:
+            switch (ch) {
+            case 'T':
+                state = sw_http_HT;
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        case sw_http_HT:
+            switch (ch) {
+            case 'T':
+                state = sw_http_HTT;
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        case sw_http_HTT:
+            switch (ch) {
+            case 'P':
+                state = sw_http_HTTP;
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        case sw_http_HTTP:
+            switch (ch) {
+            case '/':
+                state = sw_first_major_digit;
+                break;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        /* first digit of major HTTP version */
+        case sw_first_major_digit:
+            if (ch < '1' || ch > '9') {
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+
+            r->http_major = ch - '0';
+
+            if (r->http_major > 1) {
+                return NGX_HTTP_PARSE_INVALID_VERSION;
+            }
+
+            state = sw_major_digit;
+            break;
+
+        /* major HTTP version or dot */
+        case sw_major_digit:
+            if (ch == '.') {
+                state = sw_first_minor_digit;
+                break;
+            }
+
+            if (ch < '0' || ch > '9') {
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+
+            r->http_major = r->http_major * 10 + (ch - '0');
+
+            if (r->http_major > 1) {
+                return NGX_HTTP_PARSE_INVALID_VERSION;
+            }
+
+            break;
+
+        /* first digit of minor HTTP version */
+        case sw_first_minor_digit:
+            if (ch < '0' || ch > '9') {
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+
+            r->http_minor = ch - '0';
+            state = sw_minor_digit;
+            break;
+
+        /* minor HTTP version or end of request line */
+        case sw_minor_digit:
+            if (ch == CR) {
+                state = sw_almost_done;
+                break;
+            }
+
+            if (ch == LF) {
+                goto done;
+            }
+
+            if (ch == ' ') {
+                state = sw_spaces_after_digit;
+                break;
+            }
+
+            if (ch < '0' || ch > '9') {
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+
+            if (r->http_minor > 99) {
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+
+            r->http_minor = r->http_minor * 10 + (ch - '0');
+            break;
+
+        case sw_spaces_after_digit:
+            switch (ch) {
+            case ' ':
+                break;
+            case CR:
+                state = sw_almost_done;
+                break;
+            case LF:
+                goto done;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+            break;
+
+        /* end of request line */
+        case sw_almost_done:
+            r->request_end = p - 1;
+            switch (ch) {
+            case LF:
+                goto done;
+            default:
+                return NGX_HTTP_PARSE_INVALID_REQUEST;
+            }
+        }
+    }
+
+    b->pos = p;
+    r->state = state;
+
+    return NGX_AGAIN;
+
+done:
+
+    b->pos = p + 1;
+
+    if (r->request_end == NULL) {
+        r->request_end = p;
+    }
+
+    r->http_version = r->http_major * 1000 + r->http_minor;
+    r->state = sw_start;
+
+    if (r->http_version == 9 && r->method != NGX_HTTP_GET) {
+        return NGX_HTTP_PARSE_INVALID_09_METHOD;
+    }
+
+    return NGX_OK;
+}
 ```
 
 **完整链：**`ngx_http_wait_request_handler → create_request → process_request_line → read_request_header → parse_request_line → process_request_uri → process_request_headers → process_request`。成功只意味着该阶段完成；body未必已读，上游也尚未连接。
@@ -602,9 +2188,30 @@ buffer不够时调用者尝试large header buffer；请求行过大、header fie
 
 ![机制图12：静态树、正则数组和嵌套递归](./diagrams/12.svg)
 
-**真实源码：**[src/http/ngx_http_core_module.c · L1415—L1434](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L1415-L1434)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/ngx_http_core_module.c · L1394—L1469](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L1394-L1469)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+/*
+ * NGX_OK       - exact or regex match
+ * NGX_DONE     - auto redirect
+ * NGX_AGAIN    - inclusive match
+ * NGX_ERROR    - regex error
+ * NGX_DECLINED - no match
+ */
+
+static ngx_int_t
+ngx_http_core_find_location(ngx_http_request_t *r)
+{
+    ngx_int_t                  rc;
+    ngx_http_core_loc_conf_t  *pclcf;
+#if (NGX_PCRE)
+    ngx_int_t                  n;
+    ngx_uint_t                 noregex;
+    ngx_http_core_loc_conf_t  *clcf, **clcfp;
+
+    noregex = 0;
+#endif
+
     pclcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
 
     rc = ngx_http_core_find_static_location(r, pclcf->static_locations);
@@ -625,6 +2232,41 @@ buffer不够时调用者尝试large header buffer；请求行过大、header fie
     if (rc == NGX_OK || rc == NGX_DONE) {
         return rc;
     }
+
+    /* rc == NGX_DECLINED or rc == NGX_AGAIN in nested location */
+
+#if (NGX_PCRE)
+
+    if (noregex == 0 && pclcf->regex_locations) {
+
+        for (clcfp = pclcf->regex_locations; *clcfp; clcfp++) {
+
+            ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                           "test location: ~ \"%V\"", &(*clcfp)->name);
+
+            n = ngx_http_regex_exec(r, (*clcfp)->regex, &r->uri);
+
+            if (n == NGX_OK) {
+                r->loc_conf = (*clcfp)->loc_conf;
+
+                /* look up nested locations */
+
+                rc = ngx_http_core_find_location(r);
+
+                return (rc == NGX_ERROR) ? rc : NGX_OK;
+            }
+
+            if (n == NGX_DECLINED) {
+                continue;
+            }
+
+            return NGX_ERROR;
+        }
+    }
+#endif
+
+    return rc;
+}
 ```
 
 **第二证据：**[`regex loop · L1440–L1456`](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L1440-L1456)表明正则检查与配置指针切换；完整函数保留嵌套关系。
@@ -649,9 +2291,22 @@ content handler可以由location直接指定，如proxy模块；filters是另一
 
 ![机制图13：checker控制流程，handler处理业务](./diagrams/13.svg)
 
-**真实源码：**[src/http/ngx_http_core_module.c · L904—L923](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L904-L923)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/ngx_http_core_module.c · L891—L925](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L891-L925)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+ngx_int_t
+ngx_http_core_generic_phase(ngx_http_request_t *r, ngx_http_phase_handler_t *ph)
+{
+    ngx_int_t  rc;
+
+    /*
+     * generic phase checker,
+     * used by the post read and pre-access phases
+     */
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "generic phase: %ui", r->phase_handler);
+
     rc = ph->handler(r);
 
     if (rc == NGX_OK) {
@@ -672,6 +2327,8 @@ content handler可以由location直接指定，如proxy模块；filters是另一
 
     ngx_http_finalize_request(r, rc);
 
+    return NGX_OK;
+}
 ```
 
 **状态链：**handler保存异步上下文并返回AGAIN → checker返回OK停止本轮phase loop → 未来事件handler恢复 → phase_handler继续。使用NGX_DONE的模块还必须遵守请求引用计数/最终化约定；状态推进错误会重复执行handler或泄漏请求。
@@ -696,9 +2353,33 @@ post rewrite checker看`r->uri_changed`，未变化则继续；变化后递减`u
 
 ![机制图14：URI改写要同步配置上下文](./diagrams/14.svg)
 
-**真实源码：**[src/http/ngx_http_core_module.c · L1074—L1090](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L1074-L1090)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/ngx_http_core_module.c · L1050—L1091](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_core_module.c#L1050-L1091)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+ngx_int_t
+ngx_http_core_post_rewrite_phase(ngx_http_request_t *r,
+    ngx_http_phase_handler_t *ph)
+{
+    ngx_http_core_srv_conf_t  *cscf;
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "post rewrite phase: %ui", r->phase_handler);
+
+    if (!r->uri_changed) {
+        r->phase_handler++;
+        return NGX_AGAIN;
+    }
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "uri changes: %d", r->uri_changes);
+
+    /*
+     * gcc before 3.3 compiles the broken code for
+     *     if (r->uri_changes-- == 0)
+     * if the r->uri_changes is defined as
+     *     unsigned  uri_changes:4
+     */
+
     r->uri_changes--;
 
     if (r->uri_changes == 0) {
@@ -716,6 +2397,7 @@ post rewrite checker看`r->uri_changed`，未变化则继续；变化后递减`u
     r->loc_conf = cscf->ctx->loc_conf;
 
     return NGX_AGAIN;
+}
 ```
 
 **失败推演：**`/a → /b → /a`内部循环耗尽预算，日志明确记录“rewrite or internal redirection cycle”，最终500。正则性能不佳则可能在worker事件线程上消耗CPU，HTTP并发下降但未必马上报错。
@@ -740,9 +2422,88 @@ proxy handler创建`r->upstream`、绑定请求生成器和响应解析回调，
 
 ![机制图15：读请求体是异步任务，完成靠回调](./diagrams/15.svg)
 
-**真实源码：**[src/http/modules/ngx_http_proxy_module.c · L1033—L1049](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_proxy_module.c#L1033-L1049)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/modules/ngx_http_proxy_module.c · L954—L1050](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_proxy_module.c#L954-L1050)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static ngx_int_t
+ngx_http_proxy_handler(ngx_http_request_t *r)
+{
+    ngx_int_t                    rc;
+    ngx_http_upstream_t         *u;
+    ngx_http_proxy_ctx_t        *ctx;
+    ngx_http_proxy_loc_conf_t   *plcf;
+#if (NGX_HTTP_CACHE)
+    ngx_http_proxy_main_conf_t  *pmcf;
+#endif
+
+    if (ngx_http_upstream_create(r) != NGX_OK) {
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_proxy_ctx_t));
+    if (ctx == NULL) {
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    ngx_http_set_ctx(r, ctx, ngx_http_proxy_module);
+
+    plcf = ngx_http_get_module_loc_conf(r, ngx_http_proxy_module);
+
+    u = r->upstream;
+
+    if (plcf->proxy_lengths == NULL) {
+        ctx->vars = plcf->vars;
+        u->schema = plcf->vars.schema;
+#if (NGX_HTTP_SSL)
+        u->ssl = plcf->ssl;
+#endif
+
+    } else {
+        if (ngx_http_proxy_eval(r, ctx, plcf) != NGX_OK) {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+    }
+
+    u->output.tag = (ngx_buf_tag_t) &ngx_http_proxy_module;
+
+    u->conf = &plcf->upstream;
+
+#if (NGX_HTTP_CACHE)
+    pmcf = ngx_http_get_module_main_conf(r, ngx_http_proxy_module);
+
+    u->caches = &pmcf->caches;
+    u->create_key = ngx_http_proxy_create_key;
+#endif
+
+    u->create_request = ngx_http_proxy_create_request;
+    u->reinit_request = ngx_http_proxy_reinit_request;
+    u->process_header = ngx_http_proxy_process_status_line;
+    u->abort_request = ngx_http_proxy_abort_request;
+    u->finalize_request = ngx_http_proxy_finalize_request;
+    r->state = 0;
+
+    if (plcf->redirects) {
+        u->rewrite_redirect = ngx_http_proxy_rewrite_redirect;
+    }
+
+    if (plcf->cookie_domains || plcf->cookie_paths || plcf->cookie_flags) {
+        u->rewrite_cookie = ngx_http_proxy_rewrite_cookie;
+    }
+
+    u->buffering = plcf->upstream.buffering;
+
+    u->pipe = ngx_pcalloc(r->pool, sizeof(ngx_event_pipe_t));
+    if (u->pipe == NULL) {
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    u->pipe->input_filter = ngx_http_proxy_copy_filter;
+    u->pipe->input_ctx = r;
+
+    u->input_filter_init = ngx_http_proxy_input_filter_init;
+    u->input_filter = ngx_http_proxy_non_buffered_copy_filter;
+    u->input_filter_ctx = r;
+
     u->accel = 1;
 
     if (!plcf->upstream.request_buffering
@@ -760,6 +2521,7 @@ proxy handler创建`r->upstream`、绑定请求生成器和响应解析回调，
     }
 
     return NGX_DONE;
+}
 ```
 
 **完整链：**proxy handler → read_client_request_body → read-event/body filters → post_handler(upstream_init) → create_request → connect/send。chunked decoding、HTTP/2/3 body路径不同，但共用“完成/异步进度不能混淆”的原则。
@@ -784,9 +2546,83 @@ proxy模块通过`u->create_request、reinit_request、process_header、abort_re
 
 ![机制图16：连接、发送、读头和读体各有回调](./diagrams/16.svg)
 
-**真实源码：**[src/http/ngx_http_upstream.c · L1623—L1636](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L1623-L1636)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/ngx_http_upstream.c · L1549—L1721](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L1549-L1721)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static void
+ngx_http_upstream_connect(ngx_http_request_t *r, ngx_http_upstream_t *u)
+{
+    ngx_int_t                  rc;
+    ngx_connection_t          *c;
+    ngx_http_core_loc_conf_t  *clcf;
+
+    r->connection->log->action = "connecting to upstream";
+
+    if (u->state && u->state->response_time == (ngx_msec_t) -1) {
+        u->state->response_time = ngx_current_msec - u->start_time;
+    }
+
+    u->state = ngx_array_push(r->upstream_states);
+    if (u->state == NULL) {
+        ngx_http_upstream_finalize_request(r, u,
+                                           NGX_HTTP_INTERNAL_SERVER_ERROR);
+        return;
+    }
+
+    ngx_memzero(u->state, sizeof(ngx_http_upstream_state_t));
+
+    u->start_time = ngx_current_msec;
+
+    u->state->response_time = (ngx_msec_t) -1;
+    u->state->connect_time = (ngx_msec_t) -1;
+    u->state->header_time = (ngx_msec_t) -1;
+
+    rc = ngx_event_connect_peer(&u->peer);
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "http upstream connect: %i", rc);
+
+    if (rc == NGX_ERROR) {
+        ngx_http_upstream_finalize_request(r, u,
+                                           NGX_HTTP_INTERNAL_SERVER_ERROR);
+        return;
+    }
+
+    u->state->peer = u->peer.name;
+
+#if (NGX_HTTP_UPSTREAM_ZONE)
+    if (u->upstream && u->upstream->shm_zone
+        && (u->upstream->flags & NGX_HTTP_UPSTREAM_MODIFY))
+    {
+        u->state->peer = ngx_palloc(r->pool,
+                                    sizeof(ngx_str_t) + u->peer.name->len);
+        if (u->state->peer == NULL) {
+            ngx_http_upstream_finalize_request(r, u,
+                                               NGX_HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+
+        u->state->peer->len = u->peer.name->len;
+        u->state->peer->data = (u_char *) (u->state->peer + 1);
+        ngx_memcpy(u->state->peer->data, u->peer.name->data, u->peer.name->len);
+
+        u->peer.name = u->state->peer;
+    }
+#endif
+
+    if (rc == NGX_BUSY) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "no live upstreams");
+        ngx_http_upstream_next(r, u, NGX_HTTP_UPSTREAM_FT_NOLIVE);
+        return;
+    }
+
+    if (rc == NGX_DECLINED) {
+        ngx_http_upstream_next(r, u, NGX_HTTP_UPSTREAM_FT_ERROR);
+        return;
+    }
+
+    /* rc == NGX_OK || rc == NGX_AGAIN || rc == NGX_DONE */
+
     c = u->peer.connection;
 
     c->requests++;
@@ -801,6 +2637,91 @@ proxy模块通过`u->create_request、reinit_request、process_header、abort_re
 
     c->sendfile &= r->connection->sendfile;
     u->output.sendfile = c->sendfile;
+
+    if (r->connection->tcp_nopush == NGX_TCP_NOPUSH_DISABLED) {
+        c->tcp_nopush = NGX_TCP_NOPUSH_DISABLED;
+    }
+
+    if (c->pool == NULL) {
+
+        /* we need separate pool here to be able to cache SSL connections */
+
+        c->pool = ngx_create_pool(128, r->connection->log);
+        if (c->pool == NULL) {
+            ngx_http_upstream_finalize_request(r, u,
+                                               NGX_HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+    }
+
+    c->log = r->connection->log;
+    c->pool->log = c->log;
+    c->read->log = c->log;
+    c->write->log = c->log;
+
+    /* init or reinit the ngx_output_chain() and ngx_chain_writer() contexts */
+
+    clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+
+    u->writer.out = NULL;
+    u->writer.last = &u->writer.out;
+    u->writer.connection = c;
+    u->writer.limit = clcf->sendfile_max_chunk;
+
+    if (u->request_sent) {
+        if (ngx_http_upstream_reinit(r, u) != NGX_OK) {
+            ngx_http_upstream_finalize_request(r, u,
+                                               NGX_HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+    }
+
+    if (r->request_body
+        && r->request_body->buf
+        && r->request_body->temp_file
+        && r == r->main)
+    {
+        /*
+         * the r->request_body->buf can be reused for one request only,
+         * the subrequests should allocate their own temporary bufs
+         */
+
+        u->output.free = ngx_alloc_chain_link(r->pool);
+        if (u->output.free == NULL) {
+            ngx_http_upstream_finalize_request(r, u,
+                                               NGX_HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+
+        u->output.free->buf = r->request_body->buf;
+        u->output.free->next = NULL;
+        u->output.allocated = 1;
+
+        r->request_body->buf->pos = r->request_body->buf->start;
+        r->request_body->buf->last = r->request_body->buf->start;
+        r->request_body->buf->tag = u->output.tag;
+    }
+
+    u->request_sent = 0;
+    u->request_body_sent = 0;
+    u->request_body_blocked = 0;
+
+    if (rc == NGX_AGAIN) {
+        ngx_add_timer(c->write, u->conf->connect_timeout);
+        return;
+    }
+
+#if (NGX_HTTP_SSL)
+
+    if (u->ssl && c->ssl == NULL) {
+        ngx_http_upstream_ssl_init_connection(r, u, c);
+        return;
+    }
+
+#endif
+
+    ngx_http_upstream_send_request(r, u, 1);
+}
 ```
 
 **完整链：**proxy handler → upstream_init → upstream_init_request → connect_peer → peer.get → connect → send_request → process_header → process_headers → send_response → body callbacks → finalize。cache hit、upgrade、非缓冲等分支会跳过或替换部分步骤。
@@ -825,9 +2746,49 @@ proxy模块通过`u->create_request、reinit_request、process_header、abort_re
 
 ![机制图17：不是按权重机械复制列表](./diagrams/17.svg)
 
-**真实源码：**[src/http/ngx_http_upstream_round_robin.c · L743—L758](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream_round_robin.c#L743-L758)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/ngx_http_upstream_round_robin.c · L703—L779](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream_round_robin.c#L703-L779)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static ngx_http_upstream_rr_peer_t *
+ngx_http_upstream_get_peer(ngx_http_upstream_rr_peer_data_t *rrp)
+{
+    time_t                        now;
+    uintptr_t                     m;
+    ngx_int_t                     total;
+    ngx_uint_t                    i, n, p;
+    ngx_http_upstream_rr_peer_t  *peer, *best;
+
+    now = ngx_time();
+
+    best = NULL;
+    total = 0;
+
+#if (NGX_SUPPRESS_WARN)
+    p = 0;
+#endif
+
+    for (peer = rrp->peers->peer, i = 0;
+         peer;
+         peer = peer->next, i++)
+    {
+        n = i / (8 * sizeof(uintptr_t));
+        m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
+
+        if (rrp->tried[n] & m) {
+            continue;
+        }
+
+        if (peer->down) {
+            continue;
+        }
+
+        if (peer->max_fails
+            && peer->fails >= peer->max_fails
+            && now - peer->checked <= peer->fail_timeout)
+        {
+            continue;
+        }
+
         if (peer->max_conns && peer->conns >= peer->max_conns) {
             continue;
         }
@@ -844,6 +2805,27 @@ proxy模块通过`u->create_request、reinit_request、process_header、abort_re
             p = i;
         }
     }
+
+    if (best == NULL) {
+        return NULL;
+    }
+
+    rrp->current = best;
+    ngx_http_upstream_rr_peer_ref(rrp->peers, best);
+
+    n = p / (8 * sizeof(uintptr_t));
+    m = (uintptr_t) 1 << p % (8 * sizeof(uintptr_t));
+
+    rrp->tried[n] |= m;
+
+    best->current_weight -= total;
+
+    if (now - best->checked > best->fail_timeout) {
+        best->checked = now;
+    }
+
+    return best;
+}
 ```
 
 **纸面推演：**A权重2，B权重1，初始current=0；第一次加到2/1选A并减3得-1/1；第二次加到1/2选B得1/-1；第三次加到3/0选A得0/0。三次A/B/A，下一周期重复。这是假设候选可用且effective=weight的精简推演。
@@ -868,9 +2850,92 @@ proxy模块通过`u->create_request、reinit_request、process_header、abort_re
 
 ![机制图18：next_upstream是条件集合，不是保证](./diagrams/18.svg)
 
-**真实源码：**[src/http/ngx_http_upstream.c · L4462—L4474](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L4462-L4474)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/ngx_http_upstream.c · L4379—L4532](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L4379-L4532)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static void
+ngx_http_upstream_next(ngx_http_request_t *r, ngx_http_upstream_t *u,
+    ngx_uint_t ft_type)
+{
+    ngx_msec_t  timeout;
+    ngx_uint_t  status, state;
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "http next upstream, %xi", ft_type);
+
+    if (u->peer.sockaddr) {
+
+        if (u->peer.connection) {
+            u->state->bytes_sent = u->peer.connection->sent;
+        }
+
+        if (ft_type == NGX_HTTP_UPSTREAM_FT_HTTP_403
+            || ft_type == NGX_HTTP_UPSTREAM_FT_HTTP_404)
+        {
+            state = NGX_PEER_NEXT;
+
+        } else {
+            state = NGX_PEER_FAILED;
+        }
+
+        u->peer.free(&u->peer, u->peer.data, state);
+        u->peer.sockaddr = NULL;
+    }
+
+    if (ft_type == NGX_HTTP_UPSTREAM_FT_TIMEOUT) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, NGX_ETIMEDOUT,
+                      "upstream timed out");
+    }
+
+    if (u->peer.cached && ft_type == NGX_HTTP_UPSTREAM_FT_ERROR) {
+        /* TODO: inform balancer instead */
+        u->peer.tries++;
+    }
+
+    switch (ft_type) {
+
+    case NGX_HTTP_UPSTREAM_FT_TIMEOUT:
+    case NGX_HTTP_UPSTREAM_FT_HTTP_504:
+        status = NGX_HTTP_GATEWAY_TIME_OUT;
+        break;
+
+    case NGX_HTTP_UPSTREAM_FT_HTTP_500:
+        status = NGX_HTTP_INTERNAL_SERVER_ERROR;
+        break;
+
+    case NGX_HTTP_UPSTREAM_FT_HTTP_503:
+        status = NGX_HTTP_SERVICE_UNAVAILABLE;
+        break;
+
+    case NGX_HTTP_UPSTREAM_FT_HTTP_403:
+        status = NGX_HTTP_FORBIDDEN;
+        break;
+
+    case NGX_HTTP_UPSTREAM_FT_HTTP_404:
+        status = NGX_HTTP_NOT_FOUND;
+        break;
+
+    case NGX_HTTP_UPSTREAM_FT_HTTP_429:
+        status = NGX_HTTP_TOO_MANY_REQUESTS;
+        break;
+
+    /*
+     * NGX_HTTP_UPSTREAM_FT_BUSY_LOCK and NGX_HTTP_UPSTREAM_FT_MAX_WAITING
+     * never reach here
+     */
+
+    default:
+        status = NGX_HTTP_BAD_GATEWAY;
+    }
+
+    if (r->connection->error) {
+        ngx_http_upstream_finalize_request(r, u,
+                                           NGX_HTTP_CLIENT_CLOSED_REQUEST);
+        return;
+    }
+
+    u->state->status = status;
+
     timeout = u->conf->next_upstream_timeout;
 
     if (u->request_sent
@@ -884,6 +2949,64 @@ proxy模块通过`u->create_request、reinit_request、process_header、abort_re
         || (u->request_sent && r->request_body_no_buffering)
         || (timeout && ngx_current_msec - u->peer.start_time >= timeout))
     {
+#if (NGX_HTTP_CACHE)
+
+        if (u->cache_status == NGX_HTTP_CACHE_EXPIRED
+            && ((u->conf->cache_use_stale & ft_type) || r->cache->stale_error))
+        {
+            ngx_int_t  rc;
+
+            rc = u->reinit_request(r);
+
+            if (rc != NGX_OK) {
+                ngx_http_upstream_finalize_request(r, u, rc);
+                return;
+            }
+
+            u->cache_status = NGX_HTTP_CACHE_STALE;
+            rc = ngx_http_upstream_cache_send(r, u);
+
+            if (rc == NGX_DONE) {
+                return;
+            }
+
+            if (rc == NGX_HTTP_UPSTREAM_INVALID_HEADER) {
+                rc = NGX_HTTP_INTERNAL_SERVER_ERROR;
+            }
+
+            ngx_http_upstream_finalize_request(r, u, rc);
+            return;
+        }
+#endif
+
+        ngx_http_upstream_finalize_request(r, u, status);
+        return;
+    }
+
+    if (u->peer.connection) {
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "close http upstream connection: %d",
+                       u->peer.connection->fd);
+#if (NGX_HTTP_SSL)
+
+        if (u->peer.connection->ssl) {
+            u->peer.connection->ssl->no_wait_shutdown = 1;
+            u->peer.connection->ssl->no_send_shutdown = 1;
+
+            (void) ngx_ssl_shutdown(u->peer.connection);
+        }
+#endif
+
+        if (u->peer.connection->pool) {
+            ngx_destroy_pool(u->peer.connection->pool);
+        }
+
+        ngx_close_connection(u->peer.connection);
+        u->peer.connection = NULL;
+    }
+
+    ngx_http_upstream_connect(r, u);
+}
 ```
 
 **失败推演：**后端已写入订单但连接在响应前断开，代理只知道“未得到成功响应”。允许重试可能产生第二次提交；禁止重试也不能断言第一次失败。业务需要幂等键与查询补偿来确定结果。
@@ -908,9 +3031,59 @@ upstream keepalive模块包装原来的peer get/free回调。先进行负载选�
 
 ![机制图19：连接缓存通常在每个worker内部](./diagrams/19.svg)
 
-**真实源码：**[src/http/modules/ngx_http_upstream_keepalive_module.c · L285—L300](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_upstream_keepalive_module.c#L285-L300)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/modules/ngx_http_upstream_keepalive_module.c · L235—L301](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_upstream_keepalive_module.c#L235-L301)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static ngx_int_t
+ngx_http_upstream_get_keepalive_peer(ngx_peer_connection_t *pc, void *data)
+{
+    ngx_http_upstream_keepalive_peer_data_t  *kp = data;
+    ngx_http_upstream_keepalive_cache_t      *item;
+
+    ngx_int_t          rc;
+    ngx_queue_t       *q, *cache;
+    ngx_connection_t  *c;
+
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, pc->log, 0,
+                   "get keepalive peer");
+
+    /* ask balancer */
+
+    rc = kp->original_get_peer(pc, kp->data);
+
+    if (rc != NGX_OK) {
+        return rc;
+    }
+
+    /* search cache for suitable connection */
+
+    cache = &kp->conf->cache;
+
+    for (q = ngx_queue_head(cache);
+         q != ngx_queue_sentinel(cache);
+         q = ngx_queue_next(q))
+    {
+        item = ngx_queue_data(q, ngx_http_upstream_keepalive_cache_t, queue);
+        c = item->connection;
+
+        if (ngx_memn2cmp((u_char *) &item->sockaddr, (u_char *) pc->sockaddr,
+                         item->socklen, pc->socklen)
+            == 0)
+        {
+            ngx_queue_remove(q);
+            ngx_queue_insert_head(&kp->conf->free, q);
+
+            goto found;
+        }
+    }
+
+    return NGX_OK;
+
+found:
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0,
+                   "get keepalive peer: using connection %p", c);
+
     c->idle = 0;
     c->sent = 0;
     c->data = NULL;
@@ -927,6 +3100,7 @@ upstream keepalive模块包装原来的peer get/free回调。先进行负载选�
     pc->cached = 1;
 
     return NGX_DONE;
+}
 ```
 
 **失败后果：**后端先关闭了空闲socket，而代理刚准备复用，可能第一次发送遇到错误然后进入重试。大量idle连接会占fd和connection槽，连接缓存大小必须和上游容量、worker数一起预算。
@@ -951,9 +3125,78 @@ upstream keepalive模块包装原来的peer get/free回调。先进行负载选�
 
 ![机制图20：响应缓冲和请求缓冲是两套开关](./diagrams/20.svg)
 
-**真实源码：**[src/http/ngx_http_upstream.c · L3125—L3136](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L3125-L3136)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/ngx_http_upstream.c · L3056—L3396](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream.c#L3056-L3396)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static void
+ngx_http_upstream_send_response(ngx_http_request_t *r, ngx_http_upstream_t *u)
+{
+    ssize_t                    n;
+    ngx_int_t                  rc;
+    ngx_event_pipe_t          *p;
+    ngx_connection_t          *c;
+    ngx_http_core_loc_conf_t  *clcf;
+
+    rc = ngx_http_send_header(r);
+
+    if (rc == NGX_ERROR || rc > NGX_OK || r->post_action) {
+        ngx_http_upstream_finalize_request(r, u, rc);
+        return;
+    }
+
+    u->header_sent = 1;
+
+    if (u->upgrade) {
+
+#if (NGX_HTTP_CACHE)
+
+        if (r->cache) {
+            ngx_http_file_cache_free(r->cache, u->pipe->temp_file);
+        }
+
+#endif
+
+        ngx_http_upstream_upgrade(r, u);
+        return;
+    }
+
+    c = r->connection;
+
+    if (r->header_only) {
+
+        if (!u->buffering) {
+            ngx_http_upstream_finalize_request(r, u, rc);
+            return;
+        }
+
+        if (!u->cacheable && !u->store) {
+            ngx_http_upstream_finalize_request(r, u, rc);
+            return;
+        }
+
+        u->pipe->downstream_error = 1;
+    }
+
+    if (r->request_body && r->request_body->temp_file
+        && r == r->main && !r->preserve_body
+        && !u->conf->preserve_output)
+    {
+        ngx_pool_run_cleanup_file(r->pool, r->request_body->temp_file->file.fd);
+        r->request_body->temp_file->file.fd = NGX_INVALID_FILE;
+    }
+
+    clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+
+    if (!u->buffering) {
+
+#if (NGX_HTTP_CACHE)
+
+        if (r->cache) {
+            ngx_http_file_cache_free(r->cache, u->pipe->temp_file);
+        }
+
+#endif
+
         if (u->input_filter == NULL) {
             u->input_filter_init = ngx_http_upstream_non_buffered_filter_init;
             u->input_filter = ngx_http_upstream_non_buffered_filter;
@@ -966,6 +3209,266 @@ upstream keepalive模块包装原来的peer get/free回调。先进行负载选�
 
         r->limit_rate = 0;
         r->limit_rate_set = 1;
+
+        if (u->input_filter_init(u->input_filter_ctx) == NGX_ERROR) {
+            ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
+            return;
+        }
+
+        if (clcf->tcp_nodelay && ngx_tcp_nodelay(c) != NGX_OK) {
+            ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
+            return;
+        }
+
+        n = u->buffer.last - u->buffer.pos;
+
+        if (n) {
+            u->buffer.last = u->buffer.pos;
+
+            u->state->response_length += n;
+
+            if (u->input_filter(u->input_filter_ctx, n) == NGX_ERROR) {
+                ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
+                return;
+            }
+
+            ngx_http_upstream_process_non_buffered_downstream(r);
+
+        } else {
+            u->buffer.pos = u->buffer.start;
+            u->buffer.last = u->buffer.start;
+
+            if (ngx_http_send_special(r, NGX_HTTP_FLUSH) == NGX_ERROR) {
+                ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
+                return;
+            }
+
+            ngx_http_upstream_process_non_buffered_upstream(r, u);
+        }
+
+        return;
+    }
+
+    /* TODO: preallocate event_pipe bufs, look "Content-Length" */
+
+#if (NGX_HTTP_CACHE)
+
+    if (r->cache && r->cache->file.fd != NGX_INVALID_FILE) {
+        ngx_pool_run_cleanup_file(r->pool, r->cache->file.fd);
+        r->cache->file.fd = NGX_INVALID_FILE;
+    }
+
+    switch (ngx_http_test_predicates(r, u->conf->no_cache)) {
+
+    case NGX_ERROR:
+        ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
+        return;
+
+    case NGX_DECLINED:
+        u->cacheable = 0;
+        break;
+
+    default: /* NGX_OK */
+
+        if (u->cache_status == NGX_HTTP_CACHE_BYPASS) {
+
+            /* create cache if previously bypassed */
+
+            if (ngx_http_file_cache_create(r) != NGX_OK) {
+                ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
+                return;
+            }
+        }
+
+        break;
+    }
+
+    if (u->cacheable) {
+        time_t  now, valid;
+
+        now = ngx_time();
+
+        valid = r->cache->valid_sec;
+
+        if (valid == 0) {
+            valid = ngx_http_file_cache_valid(u->conf->cache_valid,
+                                              u->headers_in.status_n);
+            if (valid) {
+                r->cache->valid_sec = now + valid;
+            }
+        }
+
+        if (valid) {
+            r->cache->date = now;
+            r->cache->body_start = (u_short) (u->buffer.pos - u->buffer.start);
+
+            if (u->headers_in.status_n == NGX_HTTP_OK
+                || u->headers_in.status_n == NGX_HTTP_PARTIAL_CONTENT)
+            {
+                r->cache->last_modified = u->headers_in.last_modified_time;
+
+                if (u->headers_in.etag) {
+                    r->cache->etag = u->headers_in.etag->value;
+
+                } else {
+                    ngx_str_null(&r->cache->etag);
+                }
+
+            } else {
+                r->cache->last_modified = -1;
+                ngx_str_null(&r->cache->etag);
+            }
+
+            if (ngx_http_file_cache_set_header(r, u->buffer.start) != NGX_OK) {
+                ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
+                return;
+            }
+
+        } else {
+            u->cacheable = 0;
+        }
+    }
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, c->log, 0,
+                   "http cacheable: %d", u->cacheable);
+
+    if (u->cacheable == 0 && r->cache) {
+        ngx_http_file_cache_free(r->cache, u->pipe->temp_file);
+    }
+
+    if (r->header_only && !u->cacheable && !u->store) {
+        ngx_http_upstream_finalize_request(r, u, 0);
+        return;
+    }
+
+#endif
+
+    p = u->pipe;
+
+    p->output_filter = ngx_http_upstream_output_filter;
+    p->output_ctx = r;
+    p->tag = u->output.tag;
+    p->bufs = u->conf->bufs;
+    p->busy_size = u->conf->busy_buffers_size;
+    p->upstream = u->peer.connection;
+    p->downstream = c;
+    p->pool = r->pool;
+    p->log = c->log;
+    p->limit_rate = ngx_http_complex_value_size(r, u->conf->limit_rate, 0);
+    p->start_sec = ngx_time();
+
+    p->cacheable = u->cacheable || u->store;
+
+    p->temp_file = ngx_pcalloc(r->pool, sizeof(ngx_temp_file_t));
+    if (p->temp_file == NULL) {
+        ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
+        return;
+    }
+
+    p->temp_file->file.fd = NGX_INVALID_FILE;
+    p->temp_file->file.log = c->log;
+    p->temp_file->path = u->conf->temp_path;
+    p->temp_file->pool = r->pool;
+
+    if (p->cacheable) {
+        p->temp_file->persistent = 1;
+
+#if (NGX_HTTP_CACHE)
+        if (r->cache && !r->cache->file_cache->use_temp_path) {
+            p->temp_file->path = r->cache->file_cache->path;
+            p->temp_file->file.name = r->cache->file.name;
+        }
+#endif
+
+    } else {
+        p->temp_file->log_level = NGX_LOG_WARN;
+        p->temp_file->warn = "an upstream response is buffered "
+                             "to a temporary file";
+    }
+
+    p->max_temp_file_size = u->conf->max_temp_file_size;
+    p->temp_file_write_size = u->conf->temp_file_write_size;
+
+#if (NGX_THREADS)
+    if (clcf->aio == NGX_HTTP_AIO_THREADS && clcf->aio_write) {
+        p->thread_handler = ngx_http_upstream_thread_handler;
+        p->thread_ctx = r;
+    }
+#endif
+
+    p->preread_bufs = ngx_alloc_chain_link(r->pool);
+    if (p->preread_bufs == NULL) {
+        ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
+        return;
+    }
+
+    p->preread_bufs->buf = &u->buffer;
+    p->preread_bufs->next = NULL;
+    u->buffer.recycled = 1;
+
+    p->preread_size = u->buffer.last - u->buffer.pos;
+
+    if (u->cacheable) {
+
+        p->buf_to_file = ngx_calloc_buf(r->pool);
+        if (p->buf_to_file == NULL) {
+            ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
+            return;
+        }
+
+        p->buf_to_file->start = u->buffer.start;
+        p->buf_to_file->pos = u->buffer.start;
+        p->buf_to_file->last = u->buffer.pos;
+        p->buf_to_file->temporary = 1;
+    }
+
+    if (ngx_event_flags & NGX_USE_IOCP_EVENT) {
+        /* the posted aio operation may corrupt a shadow buffer */
+        p->single_buf = 1;
+    }
+
+    /* TODO: p->free_bufs = 0 if use ngx_create_chain_of_bufs() */
+    p->free_bufs = 1;
+
+    /*
+     * event_pipe would do u->buffer.last += p->preread_size
+     * as though these bytes were read
+     */
+    u->buffer.last = u->buffer.pos;
+
+    if (u->conf->cyclic_temp_file) {
+
+        /*
+         * we need to disable the use of sendfile() if we use cyclic temp file
+         * because the writing a new data may interfere with sendfile()
+         * that uses the same kernel file pages (at least on FreeBSD)
+         */
+
+        p->cyclic_temp_file = 1;
+        c->sendfile = 0;
+
+    } else {
+        p->cyclic_temp_file = 0;
+    }
+
+    p->read_timeout = u->conf->read_timeout;
+    p->send_timeout = clcf->send_timeout;
+    p->send_lowat = clcf->send_lowat;
+
+    p->length = -1;
+
+    if (u->input_filter_init
+        && u->input_filter_init(p->input_ctx) != NGX_OK)
+    {
+        ngx_http_upstream_finalize_request(r, u, NGX_ERROR);
+        return;
+    }
+
+    u->read_event_handler = ngx_http_upstream_process_upstream;
+    r->write_event_handler = ngx_http_upstream_process_downstream;
+
+    ngx_http_upstream_process_upstream(r, u);
+}
 ```
 
 **链路对照：**buffered：上游event → event_pipe_read_upstream → buffer/temp → write_to_downstream → output filters；non-buffered：process_non_buffered_upstream/downstream → shared progress → output filters。两套路径都遵循NGX_AGAIN恢复与引用清理。
@@ -990,9 +3493,256 @@ write filter收集`r->out`，检查flush/last/缓冲标志，计算limit与sendf
 
 ![机制图21：返回成功不代表客户端已收到全部](./diagrams/21.svg)
 
-**真实源码：**[src/http/ngx_http_write_filter_module.c · L294—L307](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_write_filter_module.c#L294-L307)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/ngx_http_write_filter_module.c · L47—L362](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_write_filter_module.c#L47-L362)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+ngx_int_t
+ngx_http_write_filter(ngx_http_request_t *r, ngx_chain_t *in)
+{
+    off_t                      size, sent, nsent, limit;
+    ngx_uint_t                 last, flush, sync;
+    ngx_msec_t                 delay;
+    ngx_chain_t               *cl, *ln, **ll, *chain;
+    ngx_connection_t          *c;
+    ngx_http_core_loc_conf_t  *clcf;
+
+    c = r->connection;
+
+    if (c->error) {
+        return NGX_ERROR;
+    }
+
+    size = 0;
+    flush = 0;
+    sync = 0;
+    last = 0;
+    ll = &r->out;
+
+    /* find the size, the flush point and the last link of the saved chain */
+
+    for (cl = r->out; cl; cl = cl->next) {
+        ll = &cl->next;
+
+        ngx_log_debug7(NGX_LOG_DEBUG_EVENT, c->log, 0,
+                       "write old buf t:%d f:%d %p, pos %p, size: %z "
+                       "file: %O, size: %O",
+                       cl->buf->temporary, cl->buf->in_file,
+                       cl->buf->start, cl->buf->pos,
+                       cl->buf->last - cl->buf->pos,
+                       cl->buf->file_pos,
+                       cl->buf->file_last - cl->buf->file_pos);
+
+        if (ngx_buf_size(cl->buf) == 0 && !ngx_buf_special(cl->buf)) {
+            ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+                          "zero size buf in writer "
+                          "t:%d r:%d f:%d %p %p-%p %p %O-%O",
+                          cl->buf->temporary,
+                          cl->buf->recycled,
+                          cl->buf->in_file,
+                          cl->buf->start,
+                          cl->buf->pos,
+                          cl->buf->last,
+                          cl->buf->file,
+                          cl->buf->file_pos,
+                          cl->buf->file_last);
+
+            ngx_debug_point();
+            return NGX_ERROR;
+        }
+
+        if (ngx_buf_size(cl->buf) < 0) {
+            ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+                          "negative size buf in writer "
+                          "t:%d r:%d f:%d %p %p-%p %p %O-%O",
+                          cl->buf->temporary,
+                          cl->buf->recycled,
+                          cl->buf->in_file,
+                          cl->buf->start,
+                          cl->buf->pos,
+                          cl->buf->last,
+                          cl->buf->file,
+                          cl->buf->file_pos,
+                          cl->buf->file_last);
+
+            ngx_debug_point();
+            return NGX_ERROR;
+        }
+
+        size += ngx_buf_size(cl->buf);
+
+        if (cl->buf->flush || cl->buf->recycled) {
+            flush = 1;
+        }
+
+        if (cl->buf->sync) {
+            sync = 1;
+        }
+
+        if (cl->buf->last_buf) {
+            last = 1;
+        }
+    }
+
+    /* add the new chain to the existent one */
+
+    for (ln = in; ln; ln = ln->next) {
+        cl = ngx_alloc_chain_link(r->pool);
+        if (cl == NULL) {
+            return NGX_ERROR;
+        }
+
+        cl->buf = ln->buf;
+        *ll = cl;
+        ll = &cl->next;
+
+        ngx_log_debug7(NGX_LOG_DEBUG_EVENT, c->log, 0,
+                       "write new buf t:%d f:%d %p, pos %p, size: %z "
+                       "file: %O, size: %O",
+                       cl->buf->temporary, cl->buf->in_file,
+                       cl->buf->start, cl->buf->pos,
+                       cl->buf->last - cl->buf->pos,
+                       cl->buf->file_pos,
+                       cl->buf->file_last - cl->buf->file_pos);
+
+        if (ngx_buf_size(cl->buf) == 0 && !ngx_buf_special(cl->buf)) {
+            ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+                          "zero size buf in writer "
+                          "t:%d r:%d f:%d %p %p-%p %p %O-%O",
+                          cl->buf->temporary,
+                          cl->buf->recycled,
+                          cl->buf->in_file,
+                          cl->buf->start,
+                          cl->buf->pos,
+                          cl->buf->last,
+                          cl->buf->file,
+                          cl->buf->file_pos,
+                          cl->buf->file_last);
+
+            ngx_debug_point();
+            return NGX_ERROR;
+        }
+
+        if (ngx_buf_size(cl->buf) < 0) {
+            ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+                          "negative size buf in writer "
+                          "t:%d r:%d f:%d %p %p-%p %p %O-%O",
+                          cl->buf->temporary,
+                          cl->buf->recycled,
+                          cl->buf->in_file,
+                          cl->buf->start,
+                          cl->buf->pos,
+                          cl->buf->last,
+                          cl->buf->file,
+                          cl->buf->file_pos,
+                          cl->buf->file_last);
+
+            ngx_debug_point();
+            return NGX_ERROR;
+        }
+
+        size += ngx_buf_size(cl->buf);
+
+        if (cl->buf->flush || cl->buf->recycled) {
+            flush = 1;
+        }
+
+        if (cl->buf->sync) {
+            sync = 1;
+        }
+
+        if (cl->buf->last_buf) {
+            last = 1;
+        }
+    }
+
+    *ll = NULL;
+
+    ngx_log_debug3(NGX_LOG_DEBUG_HTTP, c->log, 0,
+                   "http write filter: l:%ui f:%ui s:%O", last, flush, size);
+
+    clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+
+    /*
+     * avoid the output if there are no last buf, no flush point,
+     * there are the incoming bufs and the size of all bufs
+     * is smaller than "postpone_output" directive
+     */
+
+    if (!last && !flush && in && size < (off_t) clcf->postpone_output) {
+        return NGX_OK;
+    }
+
+    if (c->write->delayed) {
+        c->buffered |= NGX_HTTP_WRITE_BUFFERED;
+        return NGX_AGAIN;
+    }
+
+    if (size == 0
+        && !(c->buffered & NGX_LOWLEVEL_BUFFERED)
+        && !(last && c->need_last_buf)
+        && !(flush && c->need_flush_buf))
+    {
+        if (last || flush || sync) {
+            for (cl = r->out; cl; /* void */) {
+                ln = cl;
+                cl = cl->next;
+                ngx_free_chain(r->pool, ln);
+            }
+
+            r->out = NULL;
+            c->buffered &= ~NGX_HTTP_WRITE_BUFFERED;
+
+            if (last) {
+                r->response_sent = 1;
+            }
+
+            return NGX_OK;
+        }
+
+        ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+                      "the http output chain is empty");
+
+        ngx_debug_point();
+
+        return NGX_ERROR;
+    }
+
+    if (!r->limit_rate_set) {
+        r->limit_rate = ngx_http_complex_value_size(r, clcf->limit_rate, 0);
+        r->limit_rate_set = 1;
+    }
+
+    if (r->limit_rate) {
+
+        if (!r->limit_rate_after_set) {
+            r->limit_rate_after = ngx_http_complex_value_size(r,
+                                                    clcf->limit_rate_after, 0);
+            r->limit_rate_after_set = 1;
+        }
+
+        limit = (off_t) r->limit_rate * (ngx_time() - r->start_sec + 1)
+                - (c->sent - r->limit_rate_after);
+
+        if (limit <= 0) {
+            c->write->delayed = 1;
+            delay = (ngx_msec_t) (- limit * 1000 / r->limit_rate + 1);
+            ngx_add_timer(c->write, delay);
+
+            c->buffered |= NGX_HTTP_WRITE_BUFFERED;
+
+            return NGX_AGAIN;
+        }
+
+        if (clcf->sendfile_max_chunk
+            && (off_t) clcf->sendfile_max_chunk < limit)
+        {
+            limit = clcf->sendfile_max_chunk;
+        }
+
+    } else {
+        limit = clcf->sendfile_max_chunk;
+    }
+
     sent = c->sent;
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, c->log, 0,
@@ -1007,6 +3757,61 @@ write filter收集`r->out`，检查flush/last/缓冲标志，计算limit与sendf
         c->error = 1;
         return NGX_ERROR;
     }
+
+    if (r->limit_rate) {
+
+        nsent = c->sent;
+
+        if (r->limit_rate_after) {
+
+            sent -= r->limit_rate_after;
+            if (sent < 0) {
+                sent = 0;
+            }
+
+            nsent -= r->limit_rate_after;
+            if (nsent < 0) {
+                nsent = 0;
+            }
+        }
+
+        delay = (ngx_msec_t) ((nsent - sent) * 1000 / r->limit_rate);
+
+        if (delay > 0) {
+            c->write->delayed = 1;
+            ngx_add_timer(c->write, delay);
+        }
+    }
+
+    if (chain && c->write->ready && !c->write->delayed) {
+        ngx_post_event(c->write, &ngx_posted_next_events);
+    }
+
+    for (cl = r->out; cl && cl != chain; /* void */) {
+        ln = cl;
+        cl = cl->next;
+        ngx_free_chain(r->pool, ln);
+    }
+
+    r->out = chain;
+
+    if (chain) {
+        c->buffered |= NGX_HTTP_WRITE_BUFFERED;
+        return NGX_AGAIN;
+    }
+
+    c->buffered &= ~NGX_HTTP_WRITE_BUFFERED;
+
+    if (last) {
+        r->response_sent = 1;
+    }
+
+    if ((c->buffered & NGX_LOWLEVEL_BUFFERED) && r->postponed == NULL) {
+        return NGX_AGAIN;
+    }
+
+    return NGX_OK;
+}
 ```
 
 **第二证据：**[`Linux余量更新 · L200–L206`](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/os/unix/ngx_linux_sendfile_chain.c#L200-L206)推进c->sent与链，并在AGAIN时清write ready。`sendfile_max_chunk`是公平性边界，避免单条大连接在一次循环里独占过久。
@@ -1031,9 +3836,20 @@ MISS可能发到上游，HIT从文件返回，EXPIRED可能等待刷新或重验
 
 ![机制图22：cache hit是多阶段判断，不是一张map](./diagrams/22.svg)
 
-**真实源码：**[src/http/ngx_http_file_cache.c · L275—L299](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_file_cache.c#L275-L299)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/ngx_http_file_cache.c · L264—L401](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_file_cache.c#L264-L401)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+ngx_int_t
+ngx_http_file_cache_open(ngx_http_request_t *r)
+{
+    ngx_int_t                  rc, rv;
+    ngx_uint_t                 test;
+    ngx_http_cache_t          *c;
+    ngx_pool_cleanup_t        *cln;
+    ngx_open_file_info_t       of;
+    ngx_http_file_cache_t     *cache;
+    ngx_http_core_loc_conf_t  *clcf;
+
     c = r->cache;
 
     if (c->waiting) {
@@ -1059,6 +3875,108 @@ MISS可能发到上游，HIT从文件返回，EXPIRED可能等待刷新或重验
     c->buffer_size = c->body_start;
 
     rc = ngx_http_file_cache_exists(cache, c);
+
+    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "http file cache exists: %i e:%d", rc, c->exists);
+
+    if (rc == NGX_ERROR) {
+        return rc;
+    }
+
+    if (rc == NGX_AGAIN) {
+        return NGX_HTTP_CACHE_SCARCE;
+    }
+
+    if (rc == NGX_OK) {
+
+        if (c->error) {
+            return c->error;
+        }
+
+        c->temp_file = 1;
+        test = c->exists ? 1 : 0;
+        rv = NGX_DECLINED;
+
+    } else { /* rc == NGX_DECLINED */
+
+        test = cache->sh->cold ? 1 : 0;
+
+        if (c->min_uses > 1) {
+
+            if (!test) {
+                return NGX_HTTP_CACHE_SCARCE;
+            }
+
+            rv = NGX_HTTP_CACHE_SCARCE;
+
+        } else {
+            c->temp_file = 1;
+            rv = NGX_DECLINED;
+        }
+    }
+
+    if (ngx_http_file_cache_name(r, cache->path) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
+    if (!test) {
+        goto done;
+    }
+
+    clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+
+    ngx_memzero(&of, sizeof(ngx_open_file_info_t));
+
+    of.uniq = c->uniq;
+    of.valid = clcf->open_file_cache_valid;
+    of.min_uses = clcf->open_file_cache_min_uses;
+    of.events = clcf->open_file_cache_events;
+    of.directio = NGX_OPEN_FILE_DIRECTIO_OFF;
+    of.read_ahead = clcf->read_ahead;
+
+    if (ngx_open_cached_file(clcf->open_file_cache, &c->file.name, &of, r->pool)
+        != NGX_OK)
+    {
+        switch (of.err) {
+
+        case 0:
+            return NGX_ERROR;
+
+        case NGX_ENOENT:
+        case NGX_ENOTDIR:
+            goto done;
+
+        default:
+            ngx_log_error(NGX_LOG_CRIT, r->connection->log, of.err,
+                          ngx_open_file_n " \"%s\" failed", c->file.name.data);
+            return NGX_ERROR;
+        }
+    }
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "http file cache fd: %d", of.fd);
+
+    c->file.fd = of.fd;
+    c->file.log = r->connection->log;
+    c->uniq = of.uniq;
+    c->length = of.size;
+    c->fs_size = (of.fs_size + cache->bsize - 1) / cache->bsize;
+
+    c->buf = ngx_create_temp_buf(r->pool, c->body_start);
+    if (c->buf == NULL) {
+        return NGX_ERROR;
+    }
+
+    return ngx_http_file_cache_read(r, c);
+
+done:
+
+    if (rv == NGX_DECLINED) {
+        return ngx_http_file_cache_lock(r, c);
+    }
+
+    return rv;
+}
 ```
 
 **完整链：**proxy create_key → file_cache_open → shared exists/lock → file read/validity → cache_send或upstream connect → temp写入 → 原子文件更新与索引状态更新。实际存在many分支，磁盘删除或权限变化仍可能使“索引存在”走回miss/error。
@@ -1083,9 +4001,59 @@ limit_req在PREACCESS注册handler，计算配置的complex key，hash查共享�
 
 ![机制图23：excess是固定精度负债，不是请求数队列](./diagrams/23.svg)
 
-**真实源码：**[src/http/modules/ngx_http_limit_req_module.c · L454—L473](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L454-L473)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/http/modules/ngx_http_limit_req_module.c · L404—L532](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L404-L532)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+static ngx_int_t
+ngx_http_limit_req_lookup(ngx_http_limit_req_limit_t *limit, ngx_uint_t hash,
+    ngx_str_t *key, ngx_uint_t *ep, ngx_uint_t account)
+{
+    size_t                      size;
+    ngx_int_t                   rc, excess;
+    ngx_msec_t                  now;
+    ngx_msec_int_t              ms;
+    ngx_rbtree_node_t          *node, *sentinel;
+    ngx_http_limit_req_ctx_t   *ctx;
+    ngx_http_limit_req_node_t  *lr;
+
+    now = ngx_current_msec;
+
+    ctx = limit->shm_zone->data;
+
+    node = ctx->sh->rbtree.root;
+    sentinel = ctx->sh->rbtree.sentinel;
+
+    while (node != sentinel) {
+
+        if (hash < node->key) {
+            node = node->left;
+            continue;
+        }
+
+        if (hash > node->key) {
+            node = node->right;
+            continue;
+        }
+
+        /* hash == node->key */
+
+        lr = (ngx_http_limit_req_node_t *) &node->color;
+
+        rc = ngx_memn2cmp(key->data, lr->data, key->len, (size_t) lr->len);
+
+        if (rc == 0) {
+            ngx_queue_remove(&lr->queue);
+            ngx_queue_insert_head(&ctx->sh->queue, &lr->queue);
+
+            ms = (ngx_msec_int_t) (now - lr->last);
+
+            if (ms < -60000) {
+                ms = 1;
+
+            } else if (ms < 0) {
+                ms = 0;
+            }
+
             excess = lr->excess - ctx->rate * ms / 1000 + 1000;
 
             if (excess < 0) {
@@ -1106,6 +4074,65 @@ limit_req在PREACCESS注册handler，计算配置的complex key，hash查共享�
                 }
 
                 return NGX_OK;
+            }
+
+            lr->count++;
+
+            ctx->node = lr;
+
+            return NGX_AGAIN;
+        }
+
+        node = (rc < 0) ? node->left : node->right;
+    }
+
+    *ep = 0;
+
+    size = offsetof(ngx_rbtree_node_t, color)
+           + offsetof(ngx_http_limit_req_node_t, data)
+           + key->len;
+
+    ngx_http_limit_req_expire(ctx, 1);
+
+    node = ngx_slab_alloc_locked(ctx->shpool, size);
+
+    if (node == NULL) {
+        ngx_http_limit_req_expire(ctx, 0);
+
+        node = ngx_slab_alloc_locked(ctx->shpool, size);
+        if (node == NULL) {
+            ngx_log_error(NGX_LOG_ALERT, ngx_cycle->log, 0,
+                          "could not allocate node%s", ctx->shpool->log_ctx);
+            return NGX_ERROR;
+        }
+    }
+
+    node->key = hash;
+
+    lr = (ngx_http_limit_req_node_t *) &node->color;
+
+    lr->len = (u_short) key->len;
+    lr->excess = 0;
+
+    ngx_memcpy(lr->data, key->data, key->len);
+
+    ngx_rbtree_insert(&ctx->sh->rbtree, node);
+
+    ngx_queue_insert_head(&ctx->sh->queue, &lr->queue);
+
+    if (account) {
+        lr->last = now;
+        lr->count = 0;
+        return NGX_OK;
+    }
+
+    lr->last = 0;
+    lr->count = 1;
+
+    ctx->node = lr;
+
+    return NGX_AGAIN;
+}
 ```
 
 **精度练习：**假设rate=2r/s，内部rate=2000，前一excess=1000，间隔250ms，则新excess=1000-2000×250/1000+1000=1500。burst=1内部1000时会拒绝；burst=3时可进入delay/pass判断。这是公式推演，不是实测时序。
@@ -1132,9 +4159,97 @@ reload加载新的SSL配置，旧worker现有SSL连接继续使用旧对象；�
 
 ![机制图24：连接的最后一步也是状态机的一部分](./diagrams/24.svg)
 
-**真实源码：**[src/event/ngx_event_openssl.c · L1793—L1806](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_openssl.c#L1793-L1806)。连续原文，节选窗口不代表完整函数。
+**真实源码：**[src/event/ngx_event_openssl.c · L1705—L1850](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_openssl.c#L1705-L1850)。连续原文，包含所讨论函数的完整分支与边界。
 
 ```c
+ngx_int_t
+ngx_ssl_handshake(ngx_connection_t *c)
+{
+    int        n, sslerr;
+    ngx_err_t  err;
+    ngx_int_t  rc;
+
+#ifdef SSL_READ_EARLY_DATA_SUCCESS
+    if (c->ssl->try_early_data) {
+        return ngx_ssl_try_early_data(c);
+    }
+#endif
+
+    if (c->ssl->in_ocsp) {
+        return ngx_ssl_ocsp_validate(c);
+    }
+
+    ngx_ssl_clear_error(c->log);
+
+    n = SSL_do_handshake(c->ssl->connection);
+
+    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, c->log, 0, "SSL_do_handshake: %d", n);
+
+    if (n == 1) {
+
+        if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
+            return NGX_ERROR;
+        }
+
+        if (ngx_handle_write_event(c->write, 0) != NGX_OK) {
+            return NGX_ERROR;
+        }
+
+#if (NGX_DEBUG)
+        ngx_ssl_handshake_log(c);
+#endif
+
+        c->recv = ngx_ssl_recv;
+        c->send = ngx_ssl_write;
+        c->recv_chain = ngx_ssl_recv_chain;
+        c->send_chain = ngx_ssl_send_chain;
+
+        c->read->ready = 1;
+        c->write->ready = 1;
+
+#if (!defined SSL_OP_NO_RENEGOTIATION                                         \
+     && !defined SSL_OP_NO_CLIENT_RENEGOTIATION                               \
+     && defined SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS                             \
+     && OPENSSL_VERSION_NUMBER < 0x10100000L)
+
+        /* initial handshake done, disable renegotiation (CVE-2009-3555) */
+        if (c->ssl->connection->s3 && SSL_is_server(c->ssl->connection)) {
+            c->ssl->connection->s3->flags |= SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS;
+        }
+
+#endif
+
+#if (defined BIO_get_ktls_send && !NGX_WIN32)
+
+        if (BIO_get_ktls_send(SSL_get_wbio(c->ssl->connection)) == 1) {
+            ngx_log_debug0(NGX_LOG_DEBUG_EVENT, c->log, 0,
+                           "BIO_get_ktls_send(): 1");
+            c->ssl->sendfile = 1;
+        }
+
+#endif
+
+        rc = ngx_ssl_ocsp_validate(c);
+
+        if (rc == NGX_ERROR) {
+            return NGX_ERROR;
+        }
+
+        if (rc == NGX_AGAIN) {
+            c->read->handler = ngx_ssl_handshake_handler;
+            c->write->handler = ngx_ssl_handshake_handler;
+            return NGX_AGAIN;
+        }
+
+        c->ssl->handshaked = 1;
+
+        return NGX_OK;
+    }
+
+    sslerr = SSL_get_error(c->ssl->connection, n);
+
+    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, c->log, 0, "SSL_get_error: %d", sslerr);
+
     if (sslerr == SSL_ERROR_WANT_READ) {
         c->read->ready = 0;
         c->read->handler = ngx_ssl_handshake_handler;
@@ -1149,6 +4264,50 @@ reload加载新的SSL配置，旧worker现有SSL连接继续使用旧对象；�
         }
 
         return NGX_AGAIN;
+    }
+
+    if (sslerr == SSL_ERROR_WANT_WRITE) {
+        c->write->ready = 0;
+        c->read->handler = ngx_ssl_handshake_handler;
+        c->write->handler = ngx_ssl_handshake_handler;
+
+        if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
+            return NGX_ERROR;
+        }
+
+        if (ngx_handle_write_event(c->write, 0) != NGX_OK) {
+            return NGX_ERROR;
+        }
+
+        return NGX_AGAIN;
+    }
+
+    err = (sslerr == SSL_ERROR_SYSCALL) ? ngx_errno : 0;
+
+    c->ssl->no_wait_shutdown = 1;
+    c->ssl->no_send_shutdown = 1;
+    c->read->eof = 1;
+
+    if (sslerr == SSL_ERROR_ZERO_RETURN || ERR_peek_error() == 0) {
+        ngx_connection_error(c, err,
+                             "peer closed connection in SSL handshake");
+
+        return NGX_ERROR;
+    }
+
+    if (c->ssl->handshake_rejected) {
+        ngx_connection_error(c, err, "handshake rejected");
+        ERR_clear_error();
+
+        return NGX_ERROR;
+    }
+
+    c->read->error = 1;
+
+    ngx_ssl_connection_error(c, sslerr, err, "SSL_do_handshake() failed");
+
+    return NGX_ERROR;
+}
 ```
 
 **实验：**lab日志已经配置两种URI和upstream分段时间。连接拒绝常落502，连接/读超时可能504，响应体已输出后超时可能是截断；在每种场景同时记录status、curl退出码、error日志和收到字节数。TLS用自签证书的独立lab端口测试，可执行`openssl s_client -connect 127.0.0.1:18443 -servername lab.local`；本文没有启动TLS实例。

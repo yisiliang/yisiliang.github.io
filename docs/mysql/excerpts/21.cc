@@ -1,3 +1,5 @@
+/** If required, flushes the log to disk based on the value of
+ innodb_flush_log_at_trx_commit. */
 static void trx_flush_log_if_needed_low(lsn_t lsn) /*!< in: lsn up to which logs
                                                    are to be flushed. */
 {

@@ -1,3 +1,4 @@
+/** Commit a mini-transaction. */
 void mtr_t::commit() {
   ut_ad(is_active());
   ut_ad(!is_inside_ibuf());
@@ -29,3 +30,6 @@ void mtr_t::remove_from_debug_list() const {
   auto it = s_my_thread_active_mtrs.find(this);
   /* We have to find the MTR that is about to be committed in local context. We
   are not sharing MTRs between threads. */
+  ut_a(it != s_my_thread_active_mtrs.end());
+  s_my_thread_active_mtrs.erase(it);
+}

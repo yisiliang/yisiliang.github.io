@@ -1,3 +1,21 @@
+/** Tries to lock the specified record in the mode requested. If not immediately
+possible, enqueues a waiting lock request. This is a low-level function
+which does NOT look at implicit locks! Checks lock compatibility within
+explicit locks. This function sets a normal next-key lock, or in the case
+of a page supremum record, a gap type lock.
+@param[in]      impl            if true, no lock is set if no wait is
+                                necessary: we assume that the caller will
+                                set an implicit lock
+@param[in]      sel_mode        select mode: SELECT_ORDINARY,
+                                SELECT_SKIP_LOCKED, or SELECT_NO_WAIT
+@param[in]      mode            lock mode: LOCK_X or LOCK_S possibly ORed to
+                                either LOCK_GAP or LOCK_REC_NOT_GAP
+@param[in]      block           buffer block containing the record
+@param[in]      heap_no         heap number of record
+@param[in]      index           index of record
+@param[in,out]  thr             query thread
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
+DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 static dberr_t lock_rec_lock(bool impl, select_mode sel_mode, ulint mode,
                              const buf_block_t *block, ulint heap_no,
                              dict_index_t *index, que_thr_t *thr) {
@@ -27,3 +45,5 @@ static dberr_t lock_rec_lock(bool impl, select_mode sel_mode, ulint mode,
           lock_rec_lock_slow(impl, sel_mode, mode, block, heap_no, index, thr));
     default:
       ut_error;
+  }
+}

@@ -1,3 +1,6 @@
+    /**
+     * switch server .
+     */
     protected void reconnect(final ServerInfo recommendServerInfo, boolean onRequestFail) {
         
         try {

@@ -1,3 +1,5 @@
+/** Prepares a transaction for given rollback segment.
+ @return lsn_t: lsn assigned for commit of scheduled rollback segment */
 static lsn_t trx_prepare_low(
     trx_t *trx,               /*!< in/out: transaction */
     trx_undo_ptr_t *undo_ptr, /*!< in/out: pointer to rollback
@@ -44,3 +46,11 @@ static lsn_t trx_prepare_low(
     /*--------------*/
 
     if (!noredo_logging) {
+      const lsn_t lsn = mtr.commit_lsn();
+      ut_ad(lsn > 0 || !mtr_t::s_logging.is_enabled());
+      return lsn;
+    }
+  }
+
+  return 0;
+}

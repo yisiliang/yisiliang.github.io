@@ -39,9 +39,15 @@ Boot的SpringApplication持有primarySources、initializers、listeners和启动
 
 业务main→SpringApplication.run→prepareEnvironment→prepareContext→refreshContext→AbstractApplicationContext.refresh。refresh中的invokeBeanFactoryPostProcessors负责执行配置类解析，registerBeanPostProcessors负责把实例拦截器准备好，onRefresh让Boot的Servlet上下文创建WebServer。
 
-[真实源码 · SpringApplication.java:301–314 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L301-L314)
+[真实源码 · SpringApplication.java:301–314 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L295-L339)
 
 ```java
+	/**
+	 * Run the Spring application, creating and refreshing a new
+	 * {@link ApplicationContext}.
+	 * @param args the application arguments (usually passed from a Java main method)
+	 * @return a running {@link ApplicationContext}
+	 */
 	public ConfigurableApplicationContext run(String... args) {
 		Startup startup = Startup.create();
 		if (this.properties.isRegisterShutdownHook()) {
@@ -56,11 +62,37 @@ Boot的SpringApplication持有primarySources、initializers、listeners和启动
 			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args);
 			ConfigurableEnvironment environment = prepareEnvironment(listeners, bootstrapContext, applicationArguments);
 			Banner printedBanner = printBanner(environment);
+			context = createApplicationContext();
+			context.setApplicationStartup(this.applicationStartup);
+			prepareContext(bootstrapContext, context, environment, listeners, applicationArguments, printedBanner);
+			refreshContext(context);
+			afterRefresh(context, applicationArguments);
+			startup.started();
+			if (this.properties.isLogStartupInfo()) {
+				new StartupInfoLogger(this.mainApplicationClass, environment).logStarted(getApplicationLog(), startup);
+			}
+			listeners.started(context, startup.timeTakenToStarted());
+			callRunners(context, applicationArguments);
+		}
+		catch (Throwable ex) {
+			throw handleRunFailure(context, ex, listeners);
+		}
+		try {
+			if (context.isRunning()) {
+				listeners.ready(context, startup.ready());
+			}
+		}
+		catch (Throwable ex) {
+			throw handleRunFailure(context, ex, null);
+		}
+		return context;
+	}
 ```
 
-[真实源码 · AbstractApplicationContext.java:588–612 · 6.2.19](https://github.com/spring-projects/spring-framework/blob/6214eae8bd02c2ed7ab382bb8d16a9cc6de49522/spring-context/src/main/java/org/springframework/context/support/AbstractApplicationContext.java#L588-L612)
+[真实源码 · AbstractApplicationContext.java:588–612 · 6.2.19](https://github.com/spring-projects/spring-framework/blob/6214eae8bd02c2ed7ab382bb8d16a9cc6de49522/spring-context/src/main/java/org/springframework/context/support/AbstractApplicationContext.java#L587-L658)
 
 ```java
+	@Override
 	public void refresh() throws BeansException, IllegalStateException {
 		this.startupShutdownLock.lock();
 		try {
@@ -86,6 +118,52 @@ Boot的SpringApplication持有primarySources、initializers、listeners和启动
 				invokeBeanFactoryPostProcessors(beanFactory);
 				// Register bean processors that intercept bean creation.
 				registerBeanPostProcessors(beanFactory);
+				beanPostProcess.end();
+
+				// Initialize message source for this context.
+				initMessageSource();
+
+				// Initialize event multicaster for this context.
+				initApplicationEventMulticaster();
+
+				// Initialize other special beans in specific context subclasses.
+				onRefresh();
+
+				// Check for listener beans and register them.
+				registerListeners();
+
+				// Instantiate all remaining (non-lazy-init) singletons.
+				finishBeanFactoryInitialization(beanFactory);
+
+				// Last step: publish corresponding event.
+				finishRefresh();
+			}
+
+			catch (RuntimeException | Error ex) {
+				if (logger.isWarnEnabled()) {
+					logger.warn("Exception encountered during context initialization - " +
+							"cancelling refresh attempt: " + ex);
+				}
+
+				// Destroy already created singletons to avoid dangling resources.
+				destroyBeans();
+
+				// Reset 'active' flag.
+				cancelRefresh(ex);
+
+				// Propagate exception to caller.
+				throw ex;
+			}
+
+			finally {
+				contextRefresh.end();
+			}
+		}
+		finally {
+			this.startupShutdownThread = null;
+			this.startupShutdownLock.unlock();
+		}
+	}
 ```
 
 ### 分支与失败边界
@@ -112,9 +190,15 @@ run里的context最初为null，随后创建；Startup记录启动耗时；liste
 
 run创建DefaultBootstrapContext→listeners.starting→DefaultApplicationArguments→prepareEnvironment→printBanner→createApplicationContext→prepareContext→refreshContext→afterRefresh→listeners.started→callRunners→context.isRunning检查→listeners.ready→返回context。注意ready在第二个try块，关闭了上下文的Runner会使其跳过。
 
-[真实源码 · SpringApplication.java:301–339 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L301-L339)
+[真实源码 · SpringApplication.java:301–339 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L295-L339)
 
 ```java
+	/**
+	 * Run the Spring application, creating and refreshing a new
+	 * {@link ApplicationContext}.
+	 * @param args the application arguments (usually passed from a Java main method)
+	 * @return a running {@link ApplicationContext}
+	 */
 	public ConfigurableApplicationContext run(String... args) {
 		Startup startup = Startup.create();
 		if (this.properties.isRegisterShutdownHook()) {
@@ -233,9 +317,16 @@ MutablePropertySources维护有序列表；SimpleCommandLinePropertySource处理
 
 prepareEnvironment→configureEnvironment→configurePropertySources：默认源addOrMerge，命令行源addFirst；environmentPrepared阶段加入ConfigData；默认源moveToEnd。Framework getProperty从前向后找命中的源并转换类型。这里给出的常见优先级是命令行＞系统属性＞系统环境＞ConfigData＞程序默认值，Servlet/JNDI/JSON/测试注入会插入额外源，不能把简表当完整所有场景表。
 
-[真实源码 · SpringApplication.java:507–527 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L507-L527)
+[真实源码 · SpringApplication.java:507–527 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L500-L527)
 
 ```java
+	/**
+	 * Add, remove or re-order any {@link PropertySource}s in this application's
+	 * environment.
+	 * @param environment this application's environment
+	 * @param args arguments passed to the {@code run} method
+	 * @see #configureEnvironment(ConfigurableEnvironment, String[])
+	 */
 	protected void configurePropertySources(ConfigurableEnvironment environment, String[] args) {
 		MutablePropertySources sources = environment.getPropertySources();
 		if (!CollectionUtils.isEmpty(this.defaultProperties)) {
@@ -259,9 +350,10 @@ prepareEnvironment→configureEnvironment→configurePropertySources：默认源
 	}
 ```
 
-[真实源码 · PropertySourcesPropertyResolver.java:78–98 · 6.2.19](https://github.com/spring-projects/spring-framework/blob/6214eae8bd02c2ed7ab382bb8d16a9cc6de49522/spring-core/src/main/java/org/springframework/core/env/PropertySourcesPropertyResolver.java#L78-L98)
+[真实源码 · PropertySourcesPropertyResolver.java:78–98 · 6.2.19](https://github.com/spring-projects/spring-framework/blob/6214eae8bd02c2ed7ab382bb8d16a9cc6de49522/spring-core/src/main/java/org/springframework/core/env/PropertySourcesPropertyResolver.java#L77-L105)
 
 ```java
+	@Nullable
 	protected <T> T getProperty(String key, Class<T> targetValueType, boolean resolveNestedPlaceholders) {
 		if (this.propertySources != null) {
 			for (PropertySource<?> propertySource : this.propertySources) {
@@ -283,6 +375,13 @@ prepareEnvironment→configureEnvironment→configurePropertySources：默认源
 					logKeyFound(key, propertySource, value);
 					return convertValueIfNecessary(value, targetValueType);
 				}
+			}
+		}
+		if (logger.isTraceEnabled()) {
+			logger.trace("Could not find key '" + key + "' in any property source");
+		}
+		return null;
+	}
 ```
 
 ### 分支与失败边界
@@ -309,9 +408,13 @@ ConfigDataEnvironment的contributors描述候选来源及激活状态；ConfigDa
 
 ConfigDataEnvironmentPostProcessor.postProcessEnvironment→getConfigDataEnvironment→processAndApply→processInitial→createActivationContext→processWithoutProfiles→withProfiles→processWithProfiles→applyToEnvironment。最终才将活跃贡献的PropertySource放入实际Environment。
 
-[真实源码 · ConfigDataEnvironment.java:234–246 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataEnvironment.java#L234-L246)
+[真实源码 · ConfigDataEnvironment.java:234–246 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataEnvironment.java#L230-L246)
 
 ```java
+	/**
+	 * Process all contributions and apply any newly imported property sources to the
+	 * {@link Environment}.
+	 */
 	void processAndApply() {
 		ConfigDataImporter importer = new ConfigDataImporter(this.logFactory, this.notFoundAction, this.resolvers,
 				this.loaders);
@@ -327,9 +430,10 @@ ConfigDataEnvironmentPostProcessor.postProcessEnvironment→getConfigDataEnviron
 	}
 ```
 
-[真实源码 · ConfigDataEnvironmentPostProcessor.java:88–97 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataEnvironmentPostProcessor.java#L88-L97)
+[真实源码 · ConfigDataEnvironmentPostProcessor.java:88–97 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataEnvironmentPostProcessor.java#L87-L97)
 
 ```java
+	@Override
 	public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
 		postProcessEnvironment(environment, application.getResourceLoader(), application.getAdditionalProfiles());
 	}
@@ -370,9 +474,18 @@ ConfigDataLocation携带optional语义；ConfigDataResource是资源身份；Con
 
 resolveAndLoad读取activationContext profiles→resolve遍历locations→resolvers解析→load调用loaders→记账并返回Map。IO异常转换成IllegalStateException附带导入位置；缺失资源由ConfigDataNotFoundAction与optional分支判定是否抛出。
 
-[真实源码 · ConfigDataImporter.java:81–92 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataImporter.java#L81-L92)
+[真实源码 · ConfigDataImporter.java:81–92 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataImporter.java#L72-L92)
 
 ```java
+	/**
+	 * Resolve and load the given list of locations, filtering any that have been
+	 * previously loaded.
+	 * @param activationContext the activation context
+	 * @param locationResolverContext the location resolver context
+	 * @param loaderContext the loader context
+	 * @param locations the locations to resolve
+	 * @return a map of the loaded locations and data
+	 */
 	Map<ConfigDataResolutionResult, ConfigData> resolveAndLoad(ConfigDataActivationContext activationContext,
 			ConfigDataLocationResolverContext locationResolverContext, ConfigDataLoaderContext loaderContext,
 			List<ConfigDataLocation> locations) {
@@ -421,9 +534,17 @@ AutoConfigurationImportSelector保存autoConfigurationAnnotation与ClassLoader�
 
 @EnableAutoConfiguration的@Import→DeferredImportSelector→getAutoConfigurationEntry→getCandidateConfigurations→ImportCandidates.load→ClassLoader.getResources遍历多个jar→读取类名。候选随后去重、排除、过滤，再进入配置解析。
 
-[真实源码 · AutoConfigurationImportSelector.java:195–206 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L195-L206)
+[真实源码 · AutoConfigurationImportSelector.java:195–206 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L187-L217)
 
 ```java
+	/**
+	 * Return the auto-configuration class names that should be considered. By default,
+	 * this method will load candidates using {@link ImportCandidates}.
+	 * @param metadata the source metadata
+	 * @param attributes the {@link #getAttributes(AnnotationMetadata) annotation
+	 * attributes}
+	 * @return a list of candidate configurations
+	 */
 	protected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {
 		ImportCandidates importCandidates = ImportCandidates.load(this.autoConfigurationAnnotation,
 				getBeanClassLoader());
@@ -436,9 +557,20 @@ AutoConfigurationImportSelector保存autoConfigurationAnnotation与ClassLoader�
 	}
 
 	private void checkExcludedClasses(List<String> configurations, Set<String> exclusions) {
+		List<String> invalidExcludes = new ArrayList<>(exclusions.size());
+		ClassLoader classLoader = (this.beanClassLoader != null) ? this.beanClassLoader : getClass().getClassLoader();
+		for (String exclusion : exclusions) {
+			if (ClassUtils.isPresent(exclusion, classLoader) && !configurations.contains(exclusion)) {
+				invalidExcludes.add(exclusion);
+			}
+		}
+		if (!invalidExcludes.isEmpty()) {
+			handleInvalidExcludes(invalidExcludes);
+		}
+	}
 ```
 
-[真实源码 · ImportCandidates.java:108–124 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/annotation/ImportCandidates.java#L108-L124)
+[真实源码 · ImportCandidates.java:108–124 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/annotation/ImportCandidates.java#L108-L126)
 
 ```java
 	private static List<String> readCandidateConfigurations(URL url) {
@@ -458,6 +590,8 @@ AutoConfigurationImportSelector保存autoConfigurationAnnotation与ClassLoader�
 		}
 		catch (IOException ex) {
 			throw new IllegalArgumentException("Unable to load configurations from location [" + url + "]", ex);
+		}
+	}
 ```
 
 ### 分支与失败边界
@@ -488,9 +622,15 @@ AutoConfigurationEntry保存configurations与exclusions；ConfigurationClassFilt
 
 getAutoConfigurationEntry：isEnabled→attributes→候选→removeDuplicates→getExclusions→checkExcludedClasses→removeAll→getConfigurationClassFilter.filter→fireAutoConfigurationImportEvents。后续Framework配置解析仍评估ConfigurationCondition及@Bean方法上的条件。
 
-[真实源码 · AutoConfigurationImportSelector.java:137–151 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L137-L151)
+[真实源码 · AutoConfigurationImportSelector.java:137–151 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L131-L151)
 
 ```java
+	/**
+	 * Return the {@link AutoConfigurationEntry} based on the {@link AnnotationMetadata}
+	 * of the importing {@link Configuration @Configuration} class.
+	 * @param annotationMetadata the annotation metadata of the configuration class
+	 * @return the auto-configurations that should be imported
+	 */
 	protected AutoConfigurationEntry getAutoConfigurationEntry(AnnotationMetadata annotationMetadata) {
 		if (!isEnabled(annotationMetadata)) {
 			return EMPTY_ENTRY;
@@ -505,6 +645,7 @@ getAutoConfigurationEntry：isEnabled→attributes→候选→removeDuplicates�
 		fireAutoConfigurationImportEvents(configurations, exclusions);
 		return new AutoConfigurationEntry(configurations, exclusions);
 	}
+
 
 ```
 
@@ -532,9 +673,10 @@ OnClassCondition对候选返回ConditionOutcome数组，null结果表示这层�
 
 ConfigurationClassFilter→OnClassCondition.getOutcomes→按处理器数选择单线程或一个后台线程→StandardOutcomesResolver检查required classes→缺类返回noMatch。Framework阶段getMatchOutcome再读取实际注解属性。该并行是候选检查优化，不能据此声称Bean创建全部并行。
 
-[真实源码 · OnClassCondition.java:47–60 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnClassCondition.java#L47-L60)
+[真实源码 · OnClassCondition.java:47–60 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnClassCondition.java#L46-L60)
 
 ```java
+	@Override
 	protected final ConditionOutcome[] getOutcomes(String[] autoConfigurationClasses,
 			AutoConfigurationMetadata autoConfigurationMetadata) {
 		// Split the work and perform half in a background thread if more than one
@@ -575,17 +717,19 @@ OnBeanCondition的Spec保存names、types、annotations、search strategy及igno
 
 Framework解析配置→OnBeanCondition.getConfigurationPhase返回REGISTER_BEAN→getMatchOutcome处理ConditionalOnBean、SingleCandidate、MissingBean→查询BeanFactory可见候选→匹配结果决定是否登记BeanDefinition。默认配置放在用户配置之后，减少“未来Bean尚不可见”的问题。
 
-[真实源码 · OnBeanCondition.java:88–90 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnBeanCondition.java#L88-L90)
+[真实源码 · OnBeanCondition.java:88–90 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnBeanCondition.java#L87-L90)
 
 ```java
+	@Override
 	public ConfigurationPhase getConfigurationPhase() {
 		return ConfigurationPhase.REGISTER_BEAN;
 	}
 ```
 
-[真实源码 · OnBeanCondition.java:123–145 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnBeanCondition.java#L123-L145)
+[真实源码 · OnBeanCondition.java:123–145 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnBeanCondition.java#L122-L150)
 
 ```java
+	@Override
 	public ConditionOutcome getMatchOutcome(ConditionContext context, AnnotatedTypeMetadata metadata) {
 		ConditionOutcome matchOutcome = ConditionOutcome.match();
 		MergedAnnotations annotations = metadata.getAnnotations();
@@ -609,6 +753,11 @@ Framework解析配置→OnBeanCondition.getConfigurationPhase返回REGISTER_BEAN
 					ConditionalOnMissingBean.class);
 			matchOutcome = evaluateConditionalOnMissingBean(spec, matchOutcome.getConditionMessage());
 			if (!matchOutcome.isMatch()) {
+				return matchOutcome;
+			}
+		}
+		return matchOutcome;
+	}
 ```
 
 ### 分支与失败边界
@@ -738,9 +887,27 @@ AbstractAutowireCapableBeanFactory.initializeBean局部wrappedBean可以从原�
 
 Framework createBean→doCreateBean→createBeanInstance→populateBean→initializeBean→invokeAwareMethods→applyBeanPostProcessorsBeforeInitialization→invokeInitMethods→applyBeanPostProcessorsAfterInitialization→返回wrappedBean。ConfigurationProperties绑定就在before initialization阶段之一。
 
-[真实源码 · AbstractAutowireCapableBeanFactory.java:1811–1831 · 6.2.19](https://github.com/spring-projects/spring-framework/blob/6214eae8bd02c2ed7ab382bb8d16a9cc6de49522/spring-beans/src/main/java/org/springframework/beans/factory/support/AbstractAutowireCapableBeanFactory.java#L1811-L1831)
+[真实源码 · AbstractAutowireCapableBeanFactory.java:1811–1831 · 6.2.19](https://github.com/spring-projects/spring-framework/blob/6214eae8bd02c2ed7ab382bb8d16a9cc6de49522/spring-beans/src/main/java/org/springframework/beans/factory/support/AbstractAutowireCapableBeanFactory.java#L1793-L1831)
 
 ```java
+	/**
+	 * Initialize the given bean instance, applying factory callbacks
+	 * as well as init methods and bean post processors.
+	 * <p>Called from {@link #createBean} for traditionally defined beans,
+	 * and from {@link #initializeBean} for existing bean instances.
+	 * @param beanName the bean name in the factory (for debugging purposes)
+	 * @param bean the new bean instance we may need to initialize
+	 * @param mbd the bean definition that the bean was created with
+	 * (can also be {@code null}, if given an existing bean instance)
+	 * @return the initialized bean instance (potentially wrapped)
+	 * @see BeanNameAware
+	 * @see BeanClassLoaderAware
+	 * @see BeanFactoryAware
+	 * @see #applyBeanPostProcessorsBeforeInitialization
+	 * @see #invokeInitMethods
+	 * @see #applyBeanPostProcessorsAfterInitialization
+	 */
+	@SuppressWarnings("deprecation")
 	protected Object initializeBean(String beanName, Object bean, @Nullable RootBeanDefinition mbd) {
 		invokeAwareMethods(beanName, bean);
 
@@ -764,9 +931,29 @@ Framework createBean→doCreateBean→createBeanInstance→populateBean→initia
 	}
 ```
 
-[真实源码 · SpringApplication.java:397–404 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L397-L404)
+[真实源码 · SpringApplication.java:397–404 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L377-L417)
 
 ```java
+	private void prepareContext(DefaultBootstrapContext bootstrapContext, ConfigurableApplicationContext context,
+			ConfigurableEnvironment environment, SpringApplicationRunListeners listeners,
+			ApplicationArguments applicationArguments, Banner printedBanner) {
+		context.setEnvironment(environment);
+		postProcessApplicationContext(context);
+		addAotGeneratedInitializerIfNecessary(this.initializers);
+		applyInitializers(context);
+		listeners.contextPrepared(context);
+		bootstrapContext.close(context);
+		if (this.properties.isLogStartupInfo()) {
+			logStartupInfo(context.getParent() == null);
+			logStartupInfo(context);
+			logStartupProfileInfo(context);
+		}
+		// Add boot specific singleton beans
+		ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
+		beanFactory.registerSingleton("springApplicationArguments", applicationArguments);
+		if (printedBanner != null) {
+			beanFactory.registerSingleton("springBootBanner", printedBanner);
+		}
 		if (beanFactory instanceof AbstractAutowireCapableBeanFactory autowireCapableBeanFactory) {
 			autowireCapableBeanFactory.setAllowCircularReferences(this.properties.isAllowCircularReferences());
 			if (beanFactory instanceof DefaultListableBeanFactory listableBeanFactory) {
@@ -775,6 +962,19 @@ Framework createBean→doCreateBean→createBeanInstance→populateBean→initia
 		}
 		if (this.properties.isLazyInitialization()) {
 			context.addBeanFactoryPostProcessor(new LazyInitializationBeanFactoryPostProcessor());
+		}
+		if (this.properties.isKeepAlive()) {
+			context.addApplicationListener(new KeepAlive());
+		}
+		context.addBeanFactoryPostProcessor(new PropertySourceOrderingBeanFactoryPostProcessor(context));
+		if (!AotDetector.useGeneratedArtifacts()) {
+			// Load the sources
+			Set<Object> sources = getAllSources();
+			Assert.state(!ObjectUtils.isEmpty(sources), "No sources defined");
+			load(context, sources.toArray(new Object[0]));
+		}
+		listeners.contextLoaded(context);
+	}
 ```
 
 ### 分支与失败边界
@@ -801,7 +1001,7 @@ ServletWebServerApplicationContext的webServer字段最初null，servletContext�
 
 Framework refresh.onRefresh→Boot createWebServer→getWebServerFactory→factory.getWebServer(getSelfInitializer)→注册生命周期Bean；Framework finishRefresh启动LifecycleProcessor→WebServerStartStopLifecycle.start→webServer.start→发布ServletWebServerInitializedEvent。
 
-[真实源码 · ServletWebServerApplicationContext.java:186–208 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/context/ServletWebServerApplicationContext.java#L186-L208)
+[真实源码 · ServletWebServerApplicationContext.java:186–208 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/context/ServletWebServerApplicationContext.java#L186-L209)
 
 ```java
 	private void createWebServer() {
@@ -827,6 +1027,7 @@ Framework refresh.onRefresh→Boot createWebServer→getWebServerFactory→facto
 			}
 		}
 		initPropertySources();
+	}
 ```
 
 [真实源码 · WebServerStartStopLifecycle.java:42–48 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/context/WebServerStartStopLifecycle.java#L42-L48)
@@ -865,9 +1066,10 @@ TomcatServletWebServerFactory持有protocol、baseDirectory、additionalTomcatCo
 
 getWebServer→new Tomcat→设置baseDir→创建Connector→customizeConnector→设置Host/Engine→prepareContext→getTomcatWebServer；Context初始化时selfInitialize→getServletContextInitializerBeans→按order执行onStartup，在ServletContext登记Servlet、Filter与Listener。
 
-[真实源码 · TomcatServletWebServerFactory.java:196–217 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/embedded/tomcat/TomcatServletWebServerFactory.java#L196-L217)
+[真实源码 · TomcatServletWebServerFactory.java:196–217 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/embedded/tomcat/TomcatServletWebServerFactory.java#L195-L220)
 
 ```java
+	@Override
 	public WebServer getWebServer(ServletContextInitializer... initializers) {
 		if (this.disableMBeanRegistry) {
 			Registry.disableRegistry();
@@ -890,11 +1092,21 @@ getWebServer→new Tomcat→设置baseDir→创建Connector→customizeConnector
 			tomcat.getService().addConnector(additionalConnector);
 			registerConnectorExecutor(tomcat, additionalConnector);
 		}
+		prepareContext(tomcat.getHost(), initializers);
+		return getTomcatWebServer(tomcat);
+	}
 ```
 
-[真实源码 · ServletContextInitializerBeans.java:95–101 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/ServletContextInitializerBeans.java#L95-L101)
+[真实源码 · ServletContextInitializerBeans.java:95–101 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/ServletContextInitializerBeans.java#L88-L102)
 
 ```java
+	@SafeVarargs
+	@SuppressWarnings("varargs")
+	public ServletContextInitializerBeans(ListableBeanFactory beanFactory,
+			Class<? extends ServletContextInitializer>... initializerTypes) {
+		this.initializers = new LinkedMultiValueMap<>();
+		this.initializerTypes = (initializerTypes.length != 0) ? Arrays.asList(initializerTypes)
+				: Collections.singletonList(ServletContextInitializer.class);
 		addServletContextInitializerBeans(beanFactory);
 		addAdaptableBeans(beanFactory);
 		this.sortedList = this.initializers.values()
@@ -902,6 +1114,7 @@ getWebServer→new Tomcat→设置baseDir→创建Connector→customizeConnector
 			.flatMap((value) -> value.stream().sorted(AnnotationAwareOrderComparator.INSTANCE))
 			.toList();
 		logMappings(this.initializers);
+	}
 ```
 
 ### 分支与失败边界
@@ -939,9 +1152,21 @@ Boot自动配置登记MVC支持Bean→DispatcherServlet初始化策略→doDispa
 public class WebMvcAutoConfiguration {
 ```
 
-[真实源码 · DispatcherServlet.java:1049–1072 · 6.2.19](https://github.com/spring-projects/spring-framework/blob/6214eae8bd02c2ed7ab382bb8d16a9cc6de49522/spring-webmvc/src/main/java/org/springframework/web/servlet/DispatcherServlet.java#L1049-L1072)
+[真实源码 · DispatcherServlet.java:1049–1072 · 6.2.19](https://github.com/spring-projects/spring-framework/blob/6214eae8bd02c2ed7ab382bb8d16a9cc6de49522/spring-webmvc/src/main/java/org/springframework/web/servlet/DispatcherServlet.java#L1037-L1130)
 
 ```java
+	/**
+	 * Process the actual dispatching to the handler.
+	 * <p>The handler will be obtained by applying the servlet's HandlerMappings in order.
+	 * The HandlerAdapter will be obtained by querying the servlet's installed HandlerAdapters
+	 * to find the first that supports the handler class.
+	 * <p>All HTTP methods are handled by this method. It's up to HandlerAdapters or handlers
+	 * themselves to decide which methods are acceptable.
+	 * @param request current HTTP request
+	 * @param response current HTTP response
+	 * @throws Exception in case of any kind of processing failure
+	 */
+	@SuppressWarnings("deprecation")
 	protected void doDispatch(HttpServletRequest request, HttpServletResponse response) throws Exception {
 		HttpServletRequest processedRequest = request;
 		HandlerExecutionChain mappedHandler = null;
@@ -966,6 +1191,64 @@ public class WebMvcAutoConfiguration {
 
 				// Determine handler adapter for the current request.
 				HandlerAdapter ha = getHandlerAdapter(mappedHandler.getHandler());
+
+				// Process last-modified header, if supported by the handler.
+				String method = request.getMethod();
+				boolean isGet = HttpMethod.GET.matches(method);
+				if (isGet || HttpMethod.HEAD.matches(method)) {
+					long lastModified = ha.getLastModified(request, mappedHandler.getHandler());
+					if (new ServletWebRequest(request, response).checkNotModified(lastModified) && isGet) {
+						return;
+					}
+				}
+
+				if (!mappedHandler.applyPreHandle(processedRequest, response)) {
+					return;
+				}
+
+				// Actually invoke the handler.
+				mv = ha.handle(processedRequest, response, mappedHandler.getHandler());
+
+				if (asyncManager.isConcurrentHandlingStarted()) {
+					return;
+				}
+
+				applyDefaultViewName(processedRequest, mv);
+				mappedHandler.applyPostHandle(processedRequest, response, mv);
+			}
+			catch (Exception ex) {
+				dispatchException = ex;
+			}
+			catch (Throwable err) {
+				// As of 4.3, we're processing Errors thrown from handler methods as well,
+				// making them available for @ExceptionHandler methods and other scenarios.
+				dispatchException = new ServletException("Handler dispatch failed: " + err, err);
+			}
+			processDispatchResult(processedRequest, response, mappedHandler, mv, dispatchException);
+		}
+		catch (Exception ex) {
+			triggerAfterCompletion(processedRequest, response, mappedHandler, ex);
+		}
+		catch (Throwable err) {
+			triggerAfterCompletion(processedRequest, response, mappedHandler,
+					new ServletException("Handler processing failed: " + err, err));
+		}
+		finally {
+			if (asyncManager.isConcurrentHandlingStarted()) {
+				// Instead of postHandle and afterCompletion
+				if (mappedHandler != null) {
+					mappedHandler.applyAfterConcurrentHandlingStarted(processedRequest, response);
+				}
+				asyncManager.setMultipartRequestParsed(multipartRequestParsed);
+			}
+			else {
+				// Clean up any resources used by a multipart request.
+				if (multipartRequestParsed || asyncManager.isMultipartRequestParsed()) {
+					cleanupMultipart(processedRequest);
+				}
+			}
+		}
+	}
 ```
 
 ### 分支与失败边界
@@ -1038,9 +1321,10 @@ BindMethod区分JAVA_BEAN与VALUE_OBJECT；ConfigurationPropertiesBindingPostPro
 
 通过ConfigurationPropertiesScan或EnableConfigurationProperties登记类型→值对象由对应Bean注册/实例供应路径bindOrCreate；常规Bean经过postProcessBeforeInitialization→ConfigurationPropertiesBean.get→ConfigurationPropertiesBinder.bind→Binder与校验Handler。错误包装ConfigurationPropertiesBindException，携带Bean信息。
 
-[真实源码 · ConfigurationPropertiesBindingPostProcessor.java:77–86 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/ConfigurationPropertiesBindingPostProcessor.java#L77-L86)
+[真实源码 · ConfigurationPropertiesBindingPostProcessor.java:77–86 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/ConfigurationPropertiesBindingPostProcessor.java#L76-L86)
 
 ```java
+	@Override
 	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
 		if (!hasBoundValueObject(beanName)) {
 			bind(ConfigurationPropertiesBean.get(this.applicationContext, bean, beanName));
@@ -1064,23 +1348,51 @@ BindMethod区分JAVA_BEAN与VALUE_OBJECT；ConfigurationPropertiesBindingPostPro
 	}
 ```
 
-[真实源码 · ConstructorBinding.java:34–38 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/bind/ConstructorBinding.java#L34-L38)
+[真实源码 · ConstructorBinding.java:34–38 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/bind/ConstructorBinding.java#L25-L38)
 
 ```java
+/**
+ * Annotation that can be used to indicate which constructor to use when binding
+ * configuration properties using constructor arguments rather than by calling setters. A
+ * single parameterized constructor implicitly indicates that constructor binding should
+ * be used unless the constructor is annotated with {@code @Autowired}.
+ *
+ * @author Phillip Webb
+ * @since 3.0.0
+ */
 @Target({ ElementType.CONSTRUCTOR, ElementType.ANNOTATION_TYPE })
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface ConstructorBinding {
 
+
 ```
 
-[真实源码 · ConstructorBinding.java:42–46 · 2.7.18](https://github.com/spring-projects/spring-boot/blob/0c8b382d42db22b92efcf47000d0ff9ef4971629/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/ConstructorBinding.java#L42-L46)
+[真实源码 · ConstructorBinding.java:42–46 · 2.7.18](https://github.com/spring-projects/spring-boot/blob/0c8b382d42db22b92efcf47000d0ff9ef4971629/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/ConstructorBinding.java#L25-L46)
 
 ```java
+/**
+ * Annotation that can be used to indicate that configuration properties should be bound
+ * using constructor arguments rather than by calling setters. Can be added at the type
+ * level (if there is an unambiguous constructor) or on the actual constructor to use.
+ * <p>
+ * Note: To use constructor binding the class must be enabled using
+ * {@link EnableConfigurationProperties @EnableConfigurationProperties} or configuration
+ * property scanning. Constructor binding cannot be used with beans that are created by
+ * the regular Spring mechanisms (e.g.
+ * {@link org.springframework.stereotype.Component @Component} beans, beans created via
+ * {@link org.springframework.context.annotation.Bean @Bean} methods or beans loaded using
+ * {@link org.springframework.context.annotation.Import @Import}).
+ *
+ * @author Phillip Webb
+ * @since 2.2.0
+ * @see ConfigurationProperties
+ */
 @Target({ ElementType.TYPE, ElementType.CONSTRUCTOR })
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface ConstructorBinding {
+
 
 ```
 
@@ -1108,7 +1420,7 @@ EndpointDiscoverer缓存endpoints；EndpointBean保存id、Bean与操作；creat
 
 getEndpoints→discoverEndpoints→createEndpointBeans→addExtensionBeans→convertToEndpoints→过滤操作/端点→Web端点映射→请求鉴权→调用操作。health、metrics、conditions与beans不是同一种成本，尤其条件报告和Bean信息不能无区别公开。
 
-[真实源码 · EndpointDiscoverer.java:151–167 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-actuator/src/main/java/org/springframework/boot/actuate/endpoint/annotation/EndpointDiscoverer.java#L151-L167)
+[真实源码 · EndpointDiscoverer.java:151–167 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-actuator/src/main/java/org/springframework/boot/actuate/endpoint/annotation/EndpointDiscoverer.java#L151-L170)
 
 ```java
 	private Collection<E> discoverEndpoints() {
@@ -1128,6 +1440,9 @@ getEndpoints→discoverEndpoints→createEndpointBeans→addExtensionBeans→con
 				Assert.state(previous == null, () -> "Found two endpoints with the id '" + endpointBean.getId() + "': '"
 						+ endpointBean.getBeanName() + "' and '" + previous.getBeanName() + "'");
 			}
+		}
+		return byId.values();
+	}
 ```
 
 ### 分支与失败边界
@@ -1154,9 +1469,10 @@ ApplicationAvailabilityBean的events按AvailabilityState类型保存最后事件
 
 refresh完成→EventPublishingRunListener.started发布ApplicationStartedEvent与LivenessState.CORRECT→callRunners收集并排序ApplicationRunner/CommandLineRunner→ready发布ApplicationReadyEvent与ReadinessState.ACCEPTING_TRAFFIC。外部探针适配可将这些状态映射为健康结果。
 
-[真实源码 · EventPublishingRunListener.java:102–112 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/event/EventPublishingRunListener.java#L102-L112)
+[真实源码 · EventPublishingRunListener.java:102–112 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/event/EventPublishingRunListener.java#L101-L112)
 
 ```java
+	@Override
 	public void started(ConfigurableApplicationContext context, Duration timeTaken) {
 		context.publishEvent(new ApplicationStartedEvent(this.application, this.args, context, timeTaken));
 		AvailabilityChangeEvent.publish(context, LivenessState.CORRECT);
@@ -1168,11 +1484,13 @@ refresh完成→EventPublishingRunListener.started发布ApplicationStartedEvent�
 		AvailabilityChangeEvent.publish(context, ReadinessState.ACCEPTING_TRAFFIC);
 	}
 
+
 ```
 
-[真实源码 · ApplicationAvailabilityBean.java:74–80 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/availability/ApplicationAvailabilityBean.java#L74-L80)
+[真实源码 · ApplicationAvailabilityBean.java:74–80 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/availability/ApplicationAvailabilityBean.java#L73-L80)
 
 ```java
+	@Override
 	public void onApplicationEvent(AvailabilityChangeEvent<?> event) {
 		Class<? extends AvailabilityState> type = getStateType(event.getState());
 		if (this.logger.isDebugEnabled()) {
@@ -1182,7 +1500,7 @@ refresh完成→EventPublishingRunListener.started发布ApplicationStartedEvent�
 	}
 ```
 
-[真实源码 · SpringApplication.java:763–775 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L763-L775)
+[真实源码 · SpringApplication.java:763–775 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L763-L780)
 
 ```java
 	private void callRunners(ConfigurableApplicationContext context, ApplicationArguments args) {
@@ -1198,16 +1516,23 @@ refresh完成→EventPublishingRunListener.started发布ApplicationStartedEvent�
 	}
 
 	private OrderComparator getOrderComparator(ConfigurableListableBeanFactory beanFactory) {
+		Comparator<?> dependencyComparator = (beanFactory instanceof DefaultListableBeanFactory defaultListableBeanFactory)
+				? defaultListableBeanFactory.getDependencyComparator() : null;
+		return (dependencyComparator instanceof OrderComparator orderComparator) ? orderComparator
+				: AnnotationAwareOrderComparator.INSTANCE;
+	}
 ```
 
-[真实源码 · SpringApplication.java:793–798 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L793-L798)
+[真实源码 · SpringApplication.java:793–798 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L792-L798)
 
 ```java
+	@SuppressWarnings("unchecked")
 	private <R extends Runner> void callRunner(Class<R> type, Runner runner, ThrowingConsumer<R> call) {
 		call.throwing(
 				(message, ex) -> new IllegalStateException("Failed to execute " + ClassUtils.getShortName(type), ex))
 			.accept((R) runner);
 	}
+
 
 ```
 
@@ -1224,9 +1549,15 @@ refresh完成→EventPublishingRunListener.started发布ApplicationStartedEvent�
 	}
 ```
 
-[真实源码 · ThrowingConsumer.java:58–69 · 6.2.19](https://github.com/spring-projects/spring-framework/blob/6214eae8bd02c2ed7ab382bb8d16a9cc6de49522/spring-core/src/main/java/org/springframework/util/function/ThrowingConsumer.java#L58-L69)
+[真实源码 · ThrowingConsumer.java:58–69 · 6.2.19](https://github.com/spring-projects/spring-framework/blob/6214eae8bd02c2ed7ab382bb8d16a9cc6de49522/spring-core/src/main/java/org/springframework/util/function/ThrowingConsumer.java#L52-L69)
 
 ```java
+	/**
+	 * Performs this operation on the given argument, wrapping any thrown
+	 * checked exceptions using the given {@code exceptionWrapper}.
+	 * @param exceptionWrapper {@link BiFunction} that wraps the given message
+	 * and checked exception into a runtime exception
+	 */
 	default void accept(T t, BiFunction<String, Exception, RuntimeException> exceptionWrapper) {
 		try {
 			acceptWithException(t);
@@ -1238,6 +1569,7 @@ refresh完成→EventPublishingRunListener.started发布ApplicationStartedEvent�
 			throw exceptionWrapper.apply(ex.getMessage(), ex);
 		}
 	}
+
 
 ```
 
@@ -1269,9 +1601,10 @@ LoggingApplicationListener持有loggingSystem、logFile和loggerGroups；环境�
 
 ApplicationStartingEvent→LoggingSystem.get.beforeInitialize→ApplicationEnvironmentPreparedEvent→initialize(environment)；启动异常→SpringApplication.handleRunFailure→SpringBootExceptionReporter.reportException→FailureAnalyzers.analyze按序首个非null→reporters.report→必要时通用异常日志。
 
-[真实源码 · LoggingApplicationListener.java:218–238 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/logging/LoggingApplicationListener.java#L218-L238)
+[真实源码 · LoggingApplicationListener.java:218–238 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/logging/LoggingApplicationListener.java#L217-L239)
 
 ```java
+	@Override
 	public void onApplicationEvent(ApplicationEvent event) {
 		if (event instanceof ApplicationStartingEvent startingEvent) {
 			onApplicationStartingEvent(startingEvent);
@@ -1293,9 +1626,10 @@ ApplicationStartingEvent→LoggingSystem.get.beforeInitialize→ApplicationEnvir
 	private void onApplicationStartingEvent(ApplicationStartingEvent event) {
 		this.loggingSystem = LoggingSystem.get(event.getSpringApplication().getClassLoader());
 		this.loggingSystem.beforeInitialize();
+	}
 ```
 
-[真实源码 · FailureAnalyzers.java:85–100 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/diagnostics/FailureAnalyzers.java#L85-L100)
+[真实源码 · FailureAnalyzers.java:85–100 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/diagnostics/FailureAnalyzers.java#L85-L109)
 
 ```java
 	private FailureAnalysis analyze(Throwable failure, List<FailureAnalyzer> analyzers) {
@@ -1314,6 +1648,15 @@ ApplicationStartingEvent→LoggingSystem.get.beforeInitialize→ApplicationEnvir
 	}
 
 	private boolean report(FailureAnalysis analysis) {
+		List<FailureAnalysisReporter> reporters = this.springFactoriesLoader.load(FailureAnalysisReporter.class);
+		if (analysis == null || reporters.isEmpty()) {
+			return false;
+		}
+		for (FailureAnalysisReporter reporter : reporters) {
+			reporter.report(analysis);
+		}
+		return true;
+	}
 ```
 
 ### 分支与失败边界
@@ -1340,9 +1683,10 @@ SpringApplicationAotProcessor保存applicationArgs，继承Framework ContextAotP
 
 AOT构建入口→prepareApplicationContext→反射调用应用main→AotProcessorHook在准备好的上下文处交接→Framework ContextAotProcessor分析生成源/资源/类→Native编译；运行时SpringApplication.addAotGeneratedInitializerIfNecessary→加载生成初始化器，跳过常规source load分支。
 
-[真实源码 · SpringApplicationAotProcessor.java:59–71 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplicationAotProcessor.java#L59-L71)
+[真实源码 · SpringApplicationAotProcessor.java:59–71 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplicationAotProcessor.java#L58-L71)
 
 ```java
+	@Override
 	protected GenericApplicationContext prepareApplicationContext(Class<?> application) {
 		return new AotProcessorHook(application).run(() -> {
 			Method mainMethod = getMainMethod(application);
@@ -1358,7 +1702,7 @@ AOT构建入口→prepareApplicationContext→反射调用应用main→AotProces
 	}
 ```
 
-[真实源码 · SpringApplication.java:419–432 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L419-L432)
+[真实源码 · SpringApplication.java:419–432 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L419-L433)
 
 ```java
 	private void addAotGeneratedInitializerIfNecessary(List<ApplicationContextInitializer<?>> initializers) {
@@ -1375,6 +1719,7 @@ AOT构建入口→prepareApplicationContext→反射调用应用main→AotProces
 			initializers.removeAll(aotInitializers);
 			initializers.addAll(0, aotInitializers);
 		}
+	}
 ```
 
 ### 分支与失败边界
@@ -1419,12 +1764,14 @@ JUnit扩展→TestContextBootstrapper→合并上下文配置→切片TypeExclud
 public @interface WebMvcTest {
 ```
 
-[真实源码 · SpringBootTestContextBootstrapper.java:144–147 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-test/src/main/java/org/springframework/boot/test/context/SpringBootTestContextBootstrapper.java#L144-L147)
+[真实源码 · SpringBootTestContextBootstrapper.java:144–147 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-test/src/main/java/org/springframework/boot/test/context/SpringBootTestContextBootstrapper.java#L143-L147)
 
 ```java
+	@Override
 	protected Class<? extends ContextLoader> getDefaultContextLoaderClass(Class<?> testClass) {
 		return SpringBootContextLoader.class;
 	}
+
 
 ```
 
@@ -1452,9 +1799,20 @@ public @interface WebMvcTest {
 
 构建工具解析Boot BOM→固定依赖集→javac/运行JVM基线→ClassLoader加载Jakarta API→自动配置候选读取imports→Framework6解析Bean/MVC→Boot生命周期。每一层都应单独核验：NoClassDefFoundError偏向命名空间/缺依赖，NoSuchMethodError偏向版本混装，Bean条件不匹配偏向候选/环境。
 
-[真实源码 · AutoConfigurationImportSelector.java:181–190 · 2.7.18](https://github.com/spring-projects/spring-boot/blob/0c8b382d42db22b92efcf47000d0ff9ef4971629/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L181-L190)
+[真实源码 · AutoConfigurationImportSelector.java:181–190 · 2.7.18](https://github.com/spring-projects/spring-boot/blob/0c8b382d42db22b92efcf47000d0ff9ef4971629/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L170-L190)
 
 ```java
+	/**
+	 * Return the auto-configuration class names that should be considered. By default
+	 * this method will load candidates using {@link ImportCandidates} with
+	 * {@link #getSpringFactoriesLoaderFactoryClass()}. For backward compatible reasons it
+	 * will also consider {@link SpringFactoriesLoader} with
+	 * {@link #getSpringFactoriesLoaderFactoryClass()}.
+	 * @param metadata the source metadata
+	 * @param attributes the {@link #getAttributes(AnnotationMetadata) annotation
+	 * attributes}
+	 * @return a list of candidate configurations
+	 */
 	protected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {
 		List<String> configurations = new ArrayList<>(
 				SpringFactoriesLoader.loadFactoryNames(getSpringFactoriesLoaderFactoryClass(), getBeanClassLoader()));
@@ -1465,11 +1823,20 @@ public @interface WebMvcTest {
 		return configurations;
 	}
 
+
 ```
 
-[真实源码 · AutoConfigurationImportSelector.java:195–205 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L195-L205)
+[真实源码 · AutoConfigurationImportSelector.java:195–205 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L187-L205)
 
 ```java
+	/**
+	 * Return the auto-configuration class names that should be considered. By default,
+	 * this method will load candidates using {@link ImportCandidates}.
+	 * @param metadata the source metadata
+	 * @param attributes the {@link #getAttributes(AnnotationMetadata) annotation
+	 * attributes}
+	 * @return a list of candidate configurations
+	 */
 	protected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {
 		ImportCandidates importCandidates = ImportCandidates.load(this.autoConfigurationAnnotation,
 				getBeanClassLoader());
@@ -1480,6 +1847,7 @@ public @interface WebMvcTest {
 						+ "are using a custom packaging, make sure that file is correct.");
 		return configurations;
 	}
+
 
 ```
 
@@ -1525,9 +1893,19 @@ DataSourceAutoConfiguration带ConditionalOnClass(DataSource,EmbeddedDatabaseType
 
 自动配置候选过滤→DataSource主条件→嵌入式/池化分支→具体Hikari等配置→JdbcConnectionDetails选择→DataSource实例创建→连接池在需要时建立连接。SqlInitializationAutoConfiguration排在该配置之后，但排序不等于任意SQL初始化都成功。
 
-[真实源码 · DataSourceAutoConfiguration.java:59–85 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration.java#L59-L85)
+[真实源码 · DataSourceAutoConfiguration.java:59–85 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration.java#L49-L86)
 
 ```java
+/**
+ * {@link EnableAutoConfiguration Auto-configuration} for {@link DataSource}.
+ *
+ * @author Dave Syer
+ * @author Phillip Webb
+ * @author Stephane Nicoll
+ * @author Kazuki Shimizu
+ * @author Olga Maciaszek-Sharma
+ * @since 1.0.0
+ */
 @AutoConfiguration(before = SqlInitializationAutoConfiguration.class)
 @ConditionalOnClass({ DataSource.class, EmbeddedDatabaseType.class })
 @ConditionalOnMissingBean(type = "io.r2dbc.spi.ConnectionFactory")
@@ -1555,6 +1933,7 @@ public class DataSourceAutoConfiguration {
 		@ConditionalOnMissingBean(JdbcConnectionDetails.class)
 		PropertiesJdbcConnectionDetails jdbcConnectionDetails(DataSourceProperties properties) {
 			return new PropertiesJdbcConnectionDetails(properties);
+		}
 ```
 
 ### 分支与失败边界
@@ -1581,18 +1960,20 @@ WebServerGracefulShutdownLifecycle维护running标记，stop(callback)调用webS
 
 关闭context→Servlet doClose发布REFUSING_TRAFFIC→Framework LifecycleProcessor停止高phase→WebServerGracefulShutdownLifecycle.shutDownGracefully→回调或超时→停止WebServer→销毁单例→webServer.destroy。部署平台摘流量与SIGTERM宽限时间必须与应用预算配合。
 
-[真实源码 · WebServerGracefulShutdownLifecycle.java:60–63 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/context/WebServerGracefulShutdownLifecycle.java#L60-L63)
+[真实源码 · WebServerGracefulShutdownLifecycle.java:60–63 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/context/WebServerGracefulShutdownLifecycle.java#L59-L63)
 
 ```java
+	@Override
 	public void stop(Runnable callback) {
 		this.running = false;
 		this.webServer.shutDownGracefully((result) -> callback.run());
 	}
 ```
 
-[真实源码 · ServletWebServerApplicationContext.java:175–184 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/context/ServletWebServerApplicationContext.java#L175-L184)
+[真实源码 · ServletWebServerApplicationContext.java:175–184 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/context/ServletWebServerApplicationContext.java#L174-L184)
 
 ```java
+	@Override
 	protected void doClose() {
 		if (isActive()) {
 			AvailabilityChangeEvent.publish(this, ReadinessState.REFUSING_TRAFFIC);
@@ -1605,15 +1986,21 @@ WebServerGracefulShutdownLifecycle维护running标记，stop(callback)调用webS
 	}
 ```
 
-[真实源码 · ServerProperties.java:116–116 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/ServerProperties.java#L116-L116)
+[真实源码 · ServerProperties.java:116–116 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/ServerProperties.java#L113-L116)
 
 ```java
+	/**
+	 * Type of shutdown that the server will support.
+	 */
 	private Shutdown shutdown = Shutdown.GRACEFUL;
 ```
 
-[真实源码 · ServerProperties.java:108–108 · 2.7.18](https://github.com/spring-projects/spring-boot/blob/0c8b382d42db22b92efcf47000d0ff9ef4971629/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/ServerProperties.java#L108-L108)
+[真实源码 · ServerProperties.java:108–108 · 2.7.18](https://github.com/spring-projects/spring-boot/blob/0c8b382d42db22b92efcf47000d0ff9ef4971629/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/ServerProperties.java#L105-L108)
 
 ```java
+	/**
+	 * Type of shutdown that the server will support.
+	 */
 	private Shutdown shutdown = Shutdown.IMMEDIATE;
 ```
 
@@ -1641,9 +2028,15 @@ SIGKILL不会运行正常关闭回调；平台终止宽限比应用timeout短会
 
 mvn test运行绑定/条件/启动回归→mvn package生成可执行jar→java -jar启动完整Servlet路径→curl /ping→改变命令行、环境变量与profile观察行为→用本机信号验证关闭。Native实验另外要求GraalVM，不混入普通测试通过结论。
 
-[真实源码 · SpringApplication.java:301–308 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L301-L308)
+[真实源码 · SpringApplication.java:301–308 · 3.5.16](https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java#L295-L339)
 
 ```java
+	/**
+	 * Run the Spring application, creating and refreshing a new
+	 * {@link ApplicationContext}.
+	 * @param args the application arguments (usually passed from a Java main method)
+	 * @return a running {@link ApplicationContext}
+	 */
 	public ConfigurableApplicationContext run(String... args) {
 		Startup startup = Startup.create();
 		if (this.properties.isRegisterShutdownHook()) {
@@ -1652,6 +2045,37 @@ mvn test运行绑定/条件/启动回归→mvn package生成可执行jar→java 
 		DefaultBootstrapContext bootstrapContext = createBootstrapContext();
 		ConfigurableApplicationContext context = null;
 		configureHeadlessProperty();
+		SpringApplicationRunListeners listeners = getRunListeners(args);
+		listeners.starting(bootstrapContext, this.mainApplicationClass);
+		try {
+			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args);
+			ConfigurableEnvironment environment = prepareEnvironment(listeners, bootstrapContext, applicationArguments);
+			Banner printedBanner = printBanner(environment);
+			context = createApplicationContext();
+			context.setApplicationStartup(this.applicationStartup);
+			prepareContext(bootstrapContext, context, environment, listeners, applicationArguments, printedBanner);
+			refreshContext(context);
+			afterRefresh(context, applicationArguments);
+			startup.started();
+			if (this.properties.isLogStartupInfo()) {
+				new StartupInfoLogger(this.mainApplicationClass, environment).logStarted(getApplicationLog(), startup);
+			}
+			listeners.started(context, startup.timeTakenToStarted());
+			callRunners(context, applicationArguments);
+		}
+		catch (Throwable ex) {
+			throw handleRunFailure(context, ex, listeners);
+		}
+		try {
+			if (context.isRunning()) {
+				listeners.ready(context, startup.ready());
+			}
+		}
+		catch (Throwable ex) {
+			throw handleRunFailure(context, ex, null);
+		}
+		return context;
+	}
 ```
 
 ### 分支与失败边界

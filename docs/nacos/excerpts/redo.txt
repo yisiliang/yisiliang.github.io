@@ -1,3 +1,4 @@
+    @Override
     public void onDisConnect(Connection connection) {
         connected = false;
         LogUtils.NAMING_LOGGER.warn("Grpc connection disconnect, mark to redo");

@@ -1,3 +1,9 @@
+    /**
+     * Checks the complete member view and irreversibly enables JRaft authentication when every
+     * member reports support. In-memory enforcement is enabled immediately, while state-file
+     * persistence is retried independently until it succeeds.
+     */
+    @Scheduled(fixedRate = 3000)
     public synchronized void doCheck() {
         if (enforced.get()) {
             persistStateIfNecessary();

@@ -1,3 +1,8 @@
+    /**
+     * adaptor to config module ,when server side config change ,invoke this method.
+     *
+     * @param groupKey groupKey
+     */
     public void configDataChanged(String groupKey, String dataId, String group, String tenant) {
         
         Set<String> listeners = configChangeListenContext.getListeners(groupKey);

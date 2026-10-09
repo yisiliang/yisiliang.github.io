@@ -20,3 +20,42 @@ int TableScanIterator::Read() {
           return HandleError(tmp);
         }
         if (m_examined_rows != nullptr) {
+          ++*m_examined_rows;
+        }
+
+        // Filter out rows not qualifying for INTERSECT, EXCEPT by reading
+        // the counter.
+        const ulonglong cnt =
+            static_cast<ulonglong>(table()->set_counter()->val_int());
+        if (table()->is_except()) {
+          if (table()->is_distinct()) {
+            // EXCEPT DISTINCT: any counter value larger than one yields
+            // exactly one row
+            if (cnt >= 1) break;
+          } else {
+            // EXCEPT ALL: we use m_remaining_dups to yield as many rows
+            // as found in the counter.
+            m_remaining_dups = cnt;
+          }
+        } else {
+          // INTERSECT
+          if (table()->is_distinct()) {
+            if (cnt == 0) break;
+          } else {
+            HalfCounter c(cnt);
+            // Use min(left side counter, right side counter)
+            m_remaining_dups = std::min(c[0], c[1]);
+          }
+        }
+      } else {
+        --m_remaining_dups;  // return the same row once more.
+        break;
+      }
+      // Skipping this row
+    }
+    if (++m_stored_rows > m_limit_rows) {
+      return HandleError(HA_ERR_END_OF_FILE);
+    }
+  }
+  return 0;
+}

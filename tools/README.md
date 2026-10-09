@@ -1,5 +1,15 @@
 # 源码节选边界校验
 
+完整函数边界检查覆盖首页目录中所有带固定上游源码链接的文章，使用原有版本，不切换上游基线：
+
+```sh
+/tmp/source-excerpts-env/bin/python tools/complete_source_excerpts.py
+/tmp/source-excerpts-env/bin/python tools/complete_source_excerpts.py --apply
+python3 tools/style_readers.py
+```
+
+检查优先使用已打包源码，其余按文章原有提交或版本标签获取并缓存；函数窗口补齐签名、完整分支和结束位置，多函数窗口保留所有函数，字段、枚举和版本配置窗口保持各自用途。网页、Markdown、源码文件、生成器清单和现有离线包同步。`tools/source-completion-report.json`记录补齐范围；再次检查应为0处。更新Java专题的`sources.json`后运行该目录`build.py`与`render-diagrams.py`（从docs启动静态服务器并通过`READER_URL`指定专题地址），随后刷新共享阅读器；Nginx限流专题的窗口定义同时维护在`build.py`。回归边界与空行规则运行`python -m unittest discover -s tools -p 'test_complete_source_excerpts.py'`。
+
 跨目录发布检查运行`python3 tools/audit_articles.py`，覆盖首页收录的全部技术文章及现有离线包；技术机制和固定源码仍须分别核对。离线转换器会把跨教程的相对导航改为网站绝对链接，避免解压后访问不存在的兄弟目录。
 
 `repair_source_excerpts.py`检查JDK、RocketMQ、Redis三本手册的全部源码卡片，使用各手册内已固定版本的原始源码ZIP，不获取或替换上游源码。修复后同步Markdown、网页代码、行号、链接和离线包；正文与图表不变。
@@ -24,7 +34,7 @@ npm ci --prefix tools
 /tmp/source-excerpts-env/bin/python tools/repair_source_excerpts.py --apply
 ```
 
-脚本从函数定义前补回对应原始注释，函数结束后不附带下一个函数的注释或实现。类、字段、方法内部的窗口保留其用途；ThreadLocal的rehash/resize/全表清理是正文明确讨论的连续多方法窗口。窗口仍可能止于当前函数内部，不额外补全长函数；若截在内部注释中，则补齐该注释。
+脚本从函数定义前补回对应原始注释，函数结束后不附带下一个函数的注释或实现。类、字段、方法内部的窗口保留其用途；ThreadLocal的rehash/resize/全表清理是正文明确讨论的连续多方法窗口。函数窗口同时补齐开头与结尾，不因函数较长而截断；注释也保持完整。
 
 `--baseline --apply`可从当前Git提交中的手册重建，使用前确保未提交的正文改动无需保留。`source-excerpt-repair-report.json`记录最近一次有改动的修复清单。每次运行均核对显示的源码与固定源码包、Markdown与网页修改数量、离线ZIP完整性；修复后的再次检查应显示0处改动。
 
@@ -61,7 +71,7 @@ python3 tools/build_homepage.py
 
 ## 资料页统一阅读样式
 
-首页目录中的12个技术阅读页面均采用技术专题的排版：固定顶栏、左侧章节目录、中央正文、右侧篇内目录与阅读进度。按章显示完整内容，提供全文搜索、源码复制、SVG图解放大、手机目录抽屉与系统／浅色／深色主题。共享源文件是`reader/style.css`、`reader/controls.js`，在线与现有离线页面均内嵌这些资源；技术专题还保留“要点速览”。
+首页目录中的12个技术阅读页面均采用技术专题的排版：固定顶栏、左侧章节目录、中央正文、右侧篇内目录与阅读进度。默认整页连续展示全部章节、问答与阅读说明，目录只负责锚点定位；滚动时更新当前章节、篇内目录和全文阅读进度。提供全文搜索、源码复制、SVG图解放大、手机目录抽屉与系统／浅色／深色主题。共享源文件是`reader/style.css`、`reader/controls.js`，在线与现有离线页面均内嵌这些资源；技术专题还保留“要点速览”。
 
 首页与全部技术文章的颜色变量统一维护在`reader/theme.css`，偏好与切换逻辑统一维护在`reader/theme.js`。共用`learning-reader-theme`存储键，切页沿用偏好，已经打开的同源页面通过`storage`事件同步；系统模式随操作系统变化。首页生成器输出带内容摘要的CSS与主题JS，阅读器直接内嵌同一份源码，离线包不需要外部主题资源。修改这两个文件后同时运行`python3 tools/style_readers.py`与`python3 tools/build_homepage.py`。
 

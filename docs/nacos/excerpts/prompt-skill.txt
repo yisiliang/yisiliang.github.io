@@ -1,3 +1,6 @@
+    // ========== Client APIs ==========
+    
+    @Override
     public PromptVersionInfo queryPrompt(String namespaceId, String promptKey, String version,
         String label)
         throws NacosException {

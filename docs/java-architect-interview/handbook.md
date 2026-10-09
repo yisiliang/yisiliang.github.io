@@ -60,14 +60,27 @@ A 被唤醒后并没有直接得到锁。假如新来的非公平线程先抢到
 线程池从 `execute` 看最容易：不足 core 时 addWorker，之后尝试 workQueue.offer，装不下才用 maximum 限制加 worker。Worker 自身继承 AQS，主要保护这个工作线程的执行状态，并没有把整个池的任务串成一条。runWorker 执行任务和钩子，worker 异常退出由 processWorkerExit 后续处理。
 
 
-<div class="source-caption"><code>AbstractQueuedSynchronizer.acquire</code><span>OpenJDK 8u462-b08 · L1197–L1202 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1197-L1202">完整源码</a></span></div>
+<div class="source-caption"><code>AbstractQueuedSynchronizer.acquire</code><span>OpenJDK 8u462-b08 · L1185–L1202 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L1185-L1202">完整源码</a></span></div>
 
 ```java
+    /**
+     * Acquires in exclusive mode, ignoring interrupts.  Implemented
+     * by invoking at least once {@link #tryAcquire},
+     * returning on success.  Otherwise the thread is queued, possibly
+     * repeatedly blocking and unblocking, invoking {@link
+     * #tryAcquire} until success.  This method can be used
+     * to implement method {@link Lock#lock}.
+     *
+     * @param arg the acquire argument.  This value is conveyed to
+     *        {@link #tryAcquire} but is otherwise uninterpreted and
+     *        can represent anything you like.
+     */
     public final void acquire(int arg) {
         if (!tryAcquire(arg) &&
             acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
             selfInterrupt();
     }
+
 
 ```
 
@@ -75,9 +88,26 @@ A 被唤醒后并没有直接得到锁。假如新来的非公平线程先抢到
 
 
 
-<div class="source-caption"><code>AbstractQueuedSynchronizer.acquireQueued</code><span>OpenJDK 8u462-b08 · L857–L875 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L857-L875">完整源码</a></span></div>
+<div class="source-caption"><code>AbstractQueuedSynchronizer.acquireQueued</code><span>OpenJDK 8u462-b08 · L840–L877 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java#L840-L877">完整源码</a></span></div>
 
 ```java
+    /*
+     * Various flavors of acquire, varying in exclusive/shared and
+     * control modes.  Each is mostly the same, but annoyingly
+     * different.  Only a little bit of factoring is possible due to
+     * interactions of exception mechanics (including ensuring that we
+     * cancel if tryAcquire throws exception) and other control, at
+     * least not without hurting performance too much.
+     */
+
+    /**
+     * Acquires in exclusive uninterruptible mode for thread already in
+     * queue. Used by condition wait methods as well as acquire.
+     *
+     * @param node the node
+     * @param arg the acquire argument
+     * @return {@code true} if interrupted while waiting
+     */
     final boolean acquireQueued(final Node node, int arg) {
         boolean failed = true;
         try {
@@ -97,15 +127,32 @@ A 被唤醒后并没有直接得到锁。假如新来的非公平线程先抢到
         } finally {
             if (failed)
                 cancelAcquire(node);
+        }
+    }
+
 ```
 
 循环里的 p 是当前节点的前驱。只有前驱已成为 head，当前线程才尝试获取。成功后把自己设为新 head；失败才判断是否 park。唤醒后继续这个循环，所以唤醒与锁所有权是两件事。
 
 
 
-<div class="source-caption"><code>ThreadPoolExecutor.execute</code><span>OpenJDK 8u462-b08 · L1342–L1365 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1342-L1365">完整源码</a></span></div>
+<div class="source-caption"><code>ThreadPoolExecutor.execute</code><span>OpenJDK 8u462-b08 · L1328–L1380 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java#L1328-L1380">完整源码</a></span></div>
 
 ```java
+    /**
+     * Executes the given task sometime in the future.  The task
+     * may execute in a new thread or in an existing pooled thread.
+     *
+     * If the task cannot be submitted for execution, either because this
+     * executor has been shutdown or because its capacity has been reached,
+     * the task is handled by the current {@code RejectedExecutionHandler}.
+     *
+     * @param command the task to execute
+     * @throws RejectedExecutionException at discretion of
+     *         {@code RejectedExecutionHandler}, if the task
+     *         cannot be accepted for execution
+     * @throws NullPointerException if {@code command} is null
+     */
     public void execute(Runnable command) {
         if (command == null)
             throw new NullPointerException();
@@ -130,6 +177,22 @@ A 被唤醒后并没有直接得到锁。假如新来的非公平线程先抢到
          * and so reject the task.
          */
         int c = ctl.get();
+        if (workerCountOf(c) < corePoolSize) {
+            if (addWorker(command, true))
+                return;
+            c = ctl.get();
+        }
+        if (isRunning(c) && workQueue.offer(command)) {
+            int recheck = ctl.get();
+            if (! isRunning(recheck) && remove(command))
+                reject(command);
+            else if (workerCountOf(recheck) == 0)
+                addWorker(null, false);
+        }
+        else if (!addWorker(command, false))
+            reject(command);
+    }
+
 ```
 
 这里的顺序就是 core、queue、maximum。offer 成功后还有 recheck，这是为了处理任务入队与线程池关闭同时发生；它不是只要入队就不再检查。
@@ -253,7 +316,7 @@ ReentrantLock 用 AQS 的 state 记录获取次数，再记录谁持锁。当前
 
 ## 官方资料与版本来源
 
-本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [AbstractQueuedSynchronizer.acquire · OpenJDK 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java)
 - [ReentrantLock.Sync.nonfairTryAcquire · OpenJDK 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java)
@@ -314,22 +377,115 @@ computeIfAbsent 进一步允许你在缺值时计算结果。不过，JDK 8 的�
 HashMap 完整插入入口是 putVal，扩容入口是 resize，树化入口是 treeifyBin。更新已有 key 不会增加 size，新增节点才算一次结构修改。CHM 的遍历允许并发变化，通常不抛 ConcurrentModificationException，也不保证一次完整快照。
 
 
-<div class="source-caption"><code>HashMap.hash</code><span>OpenJDK 8u462-b08 · L338–L341 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/HashMap.java#L338-L341">完整源码</a></span></div>
+<div class="source-caption"><code>HashMap.hash</code><span>OpenJDK 8u462-b08 · L320–L341 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/HashMap.java#L320-L341">完整源码</a></span></div>
 
 ```java
+    /* ---------------- Static utilities -------------- */
+
+    /**
+     * Computes key.hashCode() and spreads (XORs) higher bits of hash
+     * to lower.  Because the table uses power-of-two masking, sets of
+     * hashes that vary only in bits above the current mask will
+     * always collide. (Among known examples are sets of Float keys
+     * holding consecutive whole numbers in small tables.)  So we
+     * apply a transform that spreads the impact of higher bits
+     * downward. There is a tradeoff between speed, utility, and
+     * quality of bit-spreading. Because many common sets of hashes
+     * are already reasonably distributed (so don't benefit from
+     * spreading), and because we use trees to handle large sets of
+     * collisions in bins, we just XOR some shifted bits in the
+     * cheapest possible way to reduce systematic lossage, as well as
+     * to incorporate impact of the highest bits that would otherwise
+     * never be used in index calculations because of table bounds.
+     */
     static final int hash(Object key) {
         int h;
         return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
     }
+
 ```
 
 null key 的 hash 是 0。其余 key 先保存 hashCode，再把高 16 位右移与原值异或。最后桶下标仍由 table 长度决定。
 
 
 
-<div class="source-caption"><code>ConcurrentHashMap.transfer</code><span>OpenJDK 8u462-b08 · L2435–L2456 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2435-L2456">完整源码</a></span></div>
+<div class="source-caption"><code>ConcurrentHashMap.transfer</code><span>OpenJDK 8u462-b08 · L2361–L2496 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2361-L2496">完整源码</a></span></div>
 
 ```java
+    /**
+     * Moves and/or copies the nodes in each bin to new table. See
+     * above for explanation.
+     */
+    private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
+        int n = tab.length, stride;
+        if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
+            stride = MIN_TRANSFER_STRIDE; // subdivide range
+        if (nextTab == null) {            // initiating
+            try {
+                @SuppressWarnings("unchecked")
+                Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n << 1];
+                nextTab = nt;
+            } catch (Throwable ex) {      // try to cope with OOME
+                sizeCtl = Integer.MAX_VALUE;
+                return;
+            }
+            nextTable = nextTab;
+            transferIndex = n;
+        }
+        int nextn = nextTab.length;
+        ForwardingNode<K,V> fwd = new ForwardingNode<K,V>(nextTab);
+        boolean advance = true;
+        boolean finishing = false; // to ensure sweep before committing nextTab
+        for (int i = 0, bound = 0;;) {
+            Node<K,V> f; int fh;
+            while (advance) {
+                int nextIndex, nextBound;
+                if (--i >= bound || finishing)
+                    advance = false;
+                else if ((nextIndex = transferIndex) <= 0) {
+                    i = -1;
+                    advance = false;
+                }
+                else if (U.compareAndSwapInt
+                         (this, TRANSFERINDEX, nextIndex,
+                          nextBound = (nextIndex > stride ?
+                                       nextIndex - stride : 0))) {
+                    bound = nextBound;
+                    i = nextIndex - 1;
+                    advance = false;
+                }
+            }
+            if (i < 0 || i >= n || i + n >= nextn) {
+                int sc;
+                if (finishing) {
+                    nextTable = null;
+                    table = nextTab;
+                    sizeCtl = (n << 1) - (n >>> 1);
+                    return;
+                }
+                if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
+                    if ((sc - 2) != resizeStamp(n) << RESIZE_STAMP_SHIFT)
+                        return;
+                    finishing = advance = true;
+                    i = n; // recheck before commit
+                }
+            }
+            else if ((f = tabAt(tab, i)) == null)
+                advance = casTabAt(tab, i, null, fwd);
+            else if ((fh = f.hash) == MOVED)
+                advance = true; // already processed
+            else {
+                synchronized (f) {
+                    if (tabAt(tab, i) == f) {
+                        Node<K,V> ln, hn;
+                        if (fh >= 0) {
+                            int runBit = fh & n;
+                            Node<K,V> lastRun = f;
+                            for (Node<K,V> p = f.next; p != null; p = p.next) {
+                                int b = p.hash & n;
+                                if (b != runBit) {
+                                    runBit = b;
+                                    lastRun = p;
                                 }
                             }
                             if (runBit == 0) {
@@ -352,13 +508,54 @@ null key 的 hash 是 0。其余 key 先保存 hashCode，再把高 16 位右移
                             setTabAt(tab, i, fwd);
                             advance = true;
                         }
+                        else if (f instanceof TreeBin) {
+                            TreeBin<K,V> t = (TreeBin<K,V>)f;
+                            TreeNode<K,V> lo = null, loTail = null;
+                            TreeNode<K,V> hi = null, hiTail = null;
+                            int lc = 0, hc = 0;
+                            for (Node<K,V> e = t.first; e != null; e = e.next) {
+                                int h = e.hash;
+                                TreeNode<K,V> p = new TreeNode<K,V>
+                                    (h, e.key, e.val, null, null);
+                                if ((h & n) == 0) {
+                                    if ((p.prev = loTail) == null)
+                                        lo = p;
+                                    else
+                                        loTail.next = p;
+                                    loTail = p;
+                                    ++lc;
+                                }
+                                else {
+                                    if ((p.prev = hiTail) == null)
+                                        hi = p;
+                                    else
+                                        hiTail.next = p;
+                                    hiTail = p;
+                                    ++hc;
+                                }
+                            }
+                            ln = (lc <= UNTREEIFY_THRESHOLD) ? untreeify(lo) :
+                                (hc != 0) ? new TreeBin<K,V>(lo) : t;
+                            hn = (hc <= UNTREEIFY_THRESHOLD) ? untreeify(hi) :
+                                (lc != 0) ? new TreeBin<K,V>(hi) : t;
+                            setTabAt(nextTab, i, ln);
+                            setTabAt(nextTab, i + n, hn);
+                            setTabAt(tab, i, fwd);
+                            advance = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 ```
 
 ln 和 hn 是拆出的两组。最后三次 setTabAt 先写新表两槽，后写旧槽 fwd；这就是读线程能安全跟着 ForwardingNode 去找新桶的原因。前面的 lastRun 用于复用可用的链表后缀。
 
 
 
-<div class="source-caption"><code>ConcurrentHashMap.putVal</code><span>OpenJDK 8u462-b08 · L1008–L1037 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L1008-L1037">完整源码</a></span></div>
+<div class="source-caption"><code>ConcurrentHashMap.putVal</code><span>OpenJDK 8u462-b08 · L1008–L1072 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L1008-L1072">完整源码</a></span></div>
 
 ```java
 
@@ -391,6 +588,42 @@ ln 和 hn 是拆出的两组。最后三次 setTabAt 先写新表两槽，后写
                                      (ek != null && key.equals(ek)))) {
                                     oldVal = e.val;
                                     if (!onlyIfAbsent)
+                                        e.val = value;
+                                    break;
+                                }
+                                Node<K,V> pred = e;
+                                if ((e = e.next) == null) {
+                                    pred.next = new Node<K,V>(hash, key,
+                                                              value, null);
+                                    break;
+                                }
+                            }
+                        }
+                        else if (f instanceof TreeBin) {
+                            Node<K,V> p;
+                            binCount = 2;
+                            if ((p = ((TreeBin<K,V>)f).putTreeVal(hash, key,
+                                                           value)) != null) {
+                                oldVal = p.val;
+                                if (!onlyIfAbsent)
+                                    p.val = value;
+                            }
+                        }
+                    }
+                }
+                if (binCount != 0) {
+                    if (binCount >= TREEIFY_THRESHOLD)
+                        treeifyBin(tab, i);
+                    if (oldVal != null)
+                        return oldVal;
+                    break;
+                }
+            }
+        }
+        addCount(1L, binCount);
+        return null;
+    }
+
 ```
 
 桶空时 casTabAt 安装第一个 Node；看到 MOVED 时帮扩容；其他情况才 synchronized(f)。进入锁后重新比较当前槽和 f，避免用过时桶头修改。
@@ -522,7 +755,7 @@ CHM 的空槽用 CAS 安装，非空桶锁住头节点后重查，防止等待�
 
 ## 官方资料与版本来源
 
-本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [HashMap.hash · OpenJDK 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/HashMap.java)
 - [ConcurrentHashMap.transfer · OpenJDK 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java)
@@ -594,9 +827,15 @@ GC 主过程在 HotSpot 的 C++ 中。CMS 看 `CMSCollector::collect_in_backgrou
 下面两个片段只是入口。并发标记还要看 ConcurrentMark，SATB 屏障涉及 G1SATBCardTableModRefBS。读入口时先确认哪些工作要求安全点，再追实际标记、扫描和复制；仅看 System.gc 的 Java 调用无法解释这些阶段。
 
 
-<div class="source-caption"><code>CMSCollector::collect_in_background</code><span>HotSpot 8u462-b08 · L2256–L2274 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp#L2256-L2274">完整源码</a></span></div>
+<div class="source-caption"><code>CMSCollector::collect_in_background</code><span>HotSpot 8u462-b08 · L2250–L2504 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp#L2250-L2504">完整源码</a></span></div>
 
 ```cpp
+// There are separate collect_in_background and collect_in_foreground because of
+// the different locking requirements of the background collector and the
+// foreground collector.  There was originally an attempt to share
+// one "collect" method between the background collector and the foreground
+// collector but the if-then-else required made it cleaner to have
+// separate methods.
 void CMSCollector::collect_in_background(bool clear_all_soft_refs, GCCause::Cause cause) {
   assert(Thread::current()->is_ConcurrentGC_thread(),
     "A CMS asynchronous collection is only allowed on a CMS thread.");
@@ -616,13 +855,244 @@ void CMSCollector::collect_in_background(bool clear_all_soft_refs, GCCause::Caus
     } else {
       assert(_collectorState == Idling, "Should be idling before start.");
       _collectorState = InitialMarking;
+      register_gc_start(cause);
+      // Reset the expansion cause, now that we are about to begin
+      // a new cycle.
+      clear_expansion_cause();
+
+      // Clear the MetaspaceGC flag since a concurrent collection
+      // is starting but also clear it after the collection.
+      MetaspaceGC::set_should_concurrent_collect(false);
+    }
+    // Decide if we want to enable class unloading as part of the
+    // ensuing concurrent GC cycle.
+    update_should_unload_classes();
+    _full_gc_requested = false;           // acks all outstanding full gc requests
+    _full_gc_cause = GCCause::_no_gc;
+    // Signal that we are about to start a collection
+    gch->increment_total_full_collections();  // ... starting a collection cycle
+    _collection_count_start = gch->total_full_collections();
+  }
+
+  // Used for PrintGC
+  size_t prev_used = 0;
+  if (PrintGC && Verbose) {
+    prev_used = _cmsGen->used(); // XXXPERM
+  }
+
+  // The change of the collection state is normally done at this level;
+  // the exceptions are phases that are executed while the world is
+  // stopped.  For those phases the change of state is done while the
+  // world is stopped.  For baton passing purposes this allows the
+  // background collector to finish the phase and change state atomically.
+  // The foreground collector cannot wait on a phase that is done
+  // while the world is stopped because the foreground collector already
+  // has the world stopped and would deadlock.
+  while (_collectorState != Idling) {
+    if (TraceCMSState) {
+      gclog_or_tty->print_cr("Thread " INTPTR_FORMAT " in CMS state %d",
+        Thread::current(), _collectorState);
+    }
+    // The foreground collector
+    //   holds the Heap_lock throughout its collection.
+    //   holds the CMS token (but not the lock)
+    //     except while it is waiting for the background collector to yield.
+    //
+    // The foreground collector should be blocked (not for long)
+    //   if the background collector is about to start a phase
+    //   executed with world stopped.  If the background
+    //   collector has already started such a phase, the
+    //   foreground collector is blocked waiting for the
+    //   Heap_lock.  The stop-world phases (InitialMarking and FinalMarking)
+    //   are executed in the VM thread.
+    //
+    // The locking order is
+    //   PendingListLock (PLL)  -- if applicable (FinalMarking)
+    //   Heap_lock  (both this & PLL locked in VM_CMS_Operation::prologue())
+    //   CMS token  (claimed in
+    //                stop_world_and_do() -->
+    //                  safepoint_synchronize() -->
+    //                    CMSThread::synchronize())
+
+    {
+      // Check if the FG collector wants us to yield.
+      CMSTokenSync x(true); // is cms thread
+      if (waitForForegroundGC()) {
+        // We yielded to a foreground GC, nothing more to be
+        // done this round.
+        assert(_foregroundGCShouldWait == false, "We set it to false in "
+               "waitForForegroundGC()");
+        if (TraceCMSState) {
+          gclog_or_tty->print_cr("CMS Thread " INTPTR_FORMAT
+            " exiting collection CMS state %d",
+            Thread::current(), _collectorState);
+        }
+        return;
+      } else {
+        // The background collector can run but check to see if the
+        // foreground collector has done a collection while the
+        // background collector was waiting to get the CGC_lock
+        // above.  If yes, break so that _foregroundGCShouldWait
+        // is cleared before returning.
+        if (_collectorState == Idling) {
+          break;
+        }
+      }
+    }
+
+    assert(_foregroundGCShouldWait, "Foreground collector, if active, "
+      "should be waiting");
+
+    switch (_collectorState) {
+      case InitialMarking:
+        {
+          ReleaseForegroundGC x(this);
+          stats().record_cms_begin();
+          VM_CMS_Initial_Mark initial_mark_op(this);
+          VMThread::execute(&initial_mark_op);
+        }
+        // The collector state may be any legal state at this point
+        // since the background collector may have yielded to the
+        // foreground collector.
+        break;
+      case Marking:
+        // initial marking in checkpointRootsInitialWork has been completed
+        if (markFromRoots(true)) { // we were successful
+          assert(_collectorState == Precleaning, "Collector state should "
+            "have changed");
+        } else {
+          assert(_foregroundGCIsActive, "Internal state inconsistency");
+        }
+        break;
+      case Precleaning:
+        if (UseAdaptiveSizePolicy) {
+          size_policy()->concurrent_precleaning_begin();
+        }
+        // marking from roots in markFromRoots has been completed
+        preclean();
+        if (UseAdaptiveSizePolicy) {
+          size_policy()->concurrent_precleaning_end();
+        }
+        assert(_collectorState == AbortablePreclean ||
+               _collectorState == FinalMarking,
+               "Collector state should have changed");
+        break;
+      case AbortablePreclean:
+        if (UseAdaptiveSizePolicy) {
+        size_policy()->concurrent_phases_resume();
+        }
+        abortable_preclean();
+        if (UseAdaptiveSizePolicy) {
+          size_policy()->concurrent_precleaning_end();
+        }
+        assert(_collectorState == FinalMarking, "Collector state should "
+          "have changed");
+        break;
+      case FinalMarking:
+        {
+          ReleaseForegroundGC x(this);
+
+          VM_CMS_Final_Remark final_remark_op(this);
+          VMThread::execute(&final_remark_op);
+        }
+        assert(_foregroundGCShouldWait, "block post-condition");
+        break;
+      case Sweeping:
+        if (UseAdaptiveSizePolicy) {
+          size_policy()->concurrent_sweeping_begin();
+        }
+        // final marking in checkpointRootsFinal has been completed
+        sweep(true);
+        assert(_collectorState == Resizing, "Collector state change "
+          "to Resizing must be done under the free_list_lock");
+        _full_gcs_since_conc_gc = 0;
+
+        // Stop the timers for adaptive size policy for the concurrent phases
+        if (UseAdaptiveSizePolicy) {
+          size_policy()->concurrent_sweeping_end();
+          size_policy()->concurrent_phases_end(gch->gc_cause(),
+                                             gch->prev_gen(_cmsGen)->capacity(),
+                                             _cmsGen->free());
+        }
+
+      case Resizing: {
+        // Sweeping has been completed...
+        // At this point the background collection has completed.
+        // Don't move the call to compute_new_size() down
+        // into code that might be executed if the background
+        // collection was preempted.
+        {
+          ReleaseForegroundGC x(this);   // unblock FG collection
+          MutexLockerEx       y(Heap_lock, Mutex::_no_safepoint_check_flag);
+          CMSTokenSync        z(true);   // not strictly needed.
+          if (_collectorState == Resizing) {
+            compute_new_size();
+            save_heap_summary();
+            _collectorState = Resetting;
+          } else {
+            assert(_collectorState == Idling, "The state should only change"
+                   " because the foreground collector has finished the collection");
+          }
+        }
+        break;
+      }
+      case Resetting:
+        // CMS heap resizing has been completed
+        reset(true);
+        assert(_collectorState == Idling, "Collector state should "
+          "have changed");
+
+        MetaspaceGC::set_should_concurrent_collect(false);
+
+        stats().record_cms_end();
+        // Don't move the concurrent_phases_end() and compute_new_size()
+        // calls to here because a preempted background collection
+        // has it's state set to "Resetting".
+        break;
+      case Idling:
+      default:
+        ShouldNotReachHere();
+        break;
+    }
+    if (TraceCMSState) {
+      gclog_or_tty->print_cr("  Thread " INTPTR_FORMAT " done - next CMS state %d",
+        Thread::current(), _collectorState);
+    }
+    assert(_foregroundGCShouldWait, "block post-condition");
+  }
+
+  // Should this be in gc_epilogue?
+  collector_policy()->counters()->update_counters();
+
+  {
+    // Clear _foregroundGCShouldWait and, in the event that the
+    // foreground collector is waiting, notify it, before
+    // returning.
+    MutexLockerEx x(CGC_lock, Mutex::_no_safepoint_check_flag);
+    _foregroundGCShouldWait = false;
+    if (_foregroundGCIsActive) {
+      CGC_lock->notify();
+    }
+    assert(!ConcurrentMarkSweepThread::cms_thread_has_cms_token(),
+           "Possible deadlock");
+  }
+  if (TraceCMSState) {
+    gclog_or_tty->print_cr("CMS Thread " INTPTR_FORMAT
+      " exiting collection CMS state %d",
+      Thread::current(), _collectorState);
+  }
+  if (PrintGC && Verbose) {
+    _cmsGen->print_heap_change(prev_used);
+  }
+}
+
 ```
 
 入口先串行协调一次 CMS 周期，并准备老年代相关状态。真正分阶段的工作在后续状态循环中；这个片段不能单独证明所有阶段都没有停顿，要继续读 InitialMarking 和 FinalMarking 的 VM 操作。
 
 
 
-<div class="source-caption"><code>G1CollectedHeap::do_collection_pause_at_safepoint</code><span>HotSpot 8u462-b08 · L3972–L3990 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp#L3972-L3990">完整源码</a></span></div>
+<div class="source-caption"><code>G1CollectedHeap::do_collection_pause_at_safepoint</code><span>HotSpot 8u462-b08 · L3972–L4381 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp#L3972-L4381">完整源码</a></span></div>
 
 ```cpp
 bool
@@ -643,6 +1113,398 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
 
   print_heap_before_gc();
   trace_heap_before_gc(_gc_tracer_stw);
+
+  verify_region_sets_optional();
+  verify_dirty_young_regions();
+
+  // This call will decide whether this pause is an initial-mark
+  // pause. If it is, during_initial_mark_pause() will return true
+  // for the duration of this pause.
+  g1_policy()->decide_on_conc_mark_initiation();
+
+  // We do not allow initial-mark to be piggy-backed on a mixed GC.
+  assert(!g1_policy()->during_initial_mark_pause() ||
+          g1_policy()->gcs_are_young(), "sanity");
+
+  // We also do not allow mixed GCs during marking.
+  assert(!mark_in_progress() || g1_policy()->gcs_are_young(), "sanity");
+
+  // Record whether this pause is an initial mark. When the current
+  // thread has completed its logging output and it's safe to signal
+  // the CM thread, the flag's value in the policy has been reset.
+  bool should_start_conc_mark = g1_policy()->during_initial_mark_pause();
+
+  // Inner scope for scope based logging, timers, and stats collection
+  {
+    EvacuationInfo evacuation_info;
+
+    if (g1_policy()->during_initial_mark_pause()) {
+      // We are about to start a marking cycle, so we increment the
+      // full collection counter.
+      increment_old_marking_cycles_started();
+      register_concurrent_cycle_start(_gc_timer_stw->gc_start());
+    }
+
+    _gc_tracer_stw->report_yc_type(yc_type());
+
+    TraceCPUTime tcpu(G1Log::finer(), true, gclog_or_tty);
+
+    uint active_workers = AdaptiveSizePolicy::calc_active_workers(workers()->total_workers(),
+                                                                  workers()->active_workers(),
+                                                                  Threads::number_of_non_daemon_threads());
+    assert(UseDynamicNumberOfGCThreads ||
+           active_workers == workers()->total_workers(),
+           "If not dynamic should be using all the  workers");
+    workers()->set_active_workers(active_workers);
+
+
+    double pause_start_sec = os::elapsedTime();
+    g1_policy()->phase_times()->note_gc_start(active_workers, mark_in_progress());
+    log_gc_header();
+
+    TraceCollectorStats tcs(g1mm()->incremental_collection_counters());
+    TraceMemoryManagerStats tms(false /* fullGC */, gc_cause(),
+                                yc_type() == Mixed /* allMemoryPoolsAffected */);
+
+    // If the secondary_free_list is not empty, append it to the
+    // free_list. No need to wait for the cleanup operation to finish;
+    // the region allocation code will check the secondary_free_list
+    // and wait if necessary. If the G1StressConcRegionFreeing flag is
+    // set, skip this step so that the region allocation code has to
+    // get entries from the secondary_free_list.
+    if (!G1StressConcRegionFreeing) {
+      append_secondary_free_list_if_not_empty_with_lock();
+    }
+
+    assert(check_young_list_well_formed(), "young list should be well formed");
+    assert(check_heap_region_claim_values(HeapRegion::InitialClaimValue),
+           "sanity check");
+
+    // Don't dynamically change the number of GC threads this early.  A value of
+    // 0 is used to indicate serial work.  When parallel work is done,
+    // it will be set.
+
+    { // Call to jvmpi::post_class_unload_events must occur outside of active GC
+      IsGCActiveMark x;
+
+      gc_prologue(false);
+      increment_total_collections(false /* full gc */);
+      increment_gc_time_stamp();
+
+      if (VerifyRememberedSets) {
+        if (!VerifySilently) {
+          gclog_or_tty->print_cr("[Verifying RemSets before GC]");
+        }
+        VerifyRegionRemSetClosure v_cl;
+        heap_region_iterate(&v_cl);
+      }
+
+      verify_before_gc();
+      check_bitmaps("GC Start");
+
+      COMPILER2_PRESENT(DerivedPointerTable::clear());
+
+      // Please see comment in g1CollectedHeap.hpp and
+      // G1CollectedHeap::ref_processing_init() to see how
+      // reference processing currently works in G1.
+
+      // Enable discovery in the STW reference processor
+      ref_processor_stw()->enable_discovery(true /*verify_disabled*/,
+                                            true /*verify_no_refs*/);
+
+      {
+        // We want to temporarily turn off discovery by the
+        // CM ref processor, if necessary, and turn it back on
+        // on again later if we do. Using a scoped
+        // NoRefDiscovery object will do this.
+        NoRefDiscovery no_cm_discovery(ref_processor_cm());
+
+        // Forget the current alloc region (we might even choose it to be part
+        // of the collection set!).
+        _allocator->release_mutator_alloc_region();
+
+        // We should call this after we retire the mutator alloc
+        // region(s) so that all the ALLOC / RETIRE events are generated
+        // before the start GC event.
+        _hr_printer.start_gc(false /* full */, (size_t) total_collections());
+
+        // This timing is only used by the ergonomics to handle our pause target.
+        // It is unclear why this should not include the full pause. We will
+        // investigate this in CR 7178365.
+        //
+        // Preserving the old comment here if that helps the investigation:
+        //
+        // The elapsed time induced by the start time below deliberately elides
+        // the possible verification above.
+        double sample_start_time_sec = os::elapsedTime();
+
+#if YOUNG_LIST_VERBOSE
+        gclog_or_tty->print_cr("\nBefore recording pause start.\nYoung_list:");
+        _young_list->print();
+        g1_policy()->print_collection_set(g1_policy()->inc_cset_head(), gclog_or_tty);
+#endif // YOUNG_LIST_VERBOSE
+
+        g1_policy()->record_collection_pause_start(sample_start_time_sec, *_gc_tracer_stw);
+
+        double scan_wait_start = os::elapsedTime();
+        // We have to wait until the CM threads finish scanning the
+        // root regions as it's the only way to ensure that all the
+        // objects on them have been correctly scanned before we start
+        // moving them during the GC.
+        bool waited = _cm->root_regions()->wait_until_scan_finished();
+        double wait_time_ms = 0.0;
+        if (waited) {
+          double scan_wait_end = os::elapsedTime();
+          wait_time_ms = (scan_wait_end - scan_wait_start) * 1000.0;
+        }
+        g1_policy()->phase_times()->record_root_region_scan_wait_time(wait_time_ms);
+
+#if YOUNG_LIST_VERBOSE
+        gclog_or_tty->print_cr("\nAfter recording pause start.\nYoung_list:");
+        _young_list->print();
+#endif // YOUNG_LIST_VERBOSE
+
+        if (g1_policy()->during_initial_mark_pause()) {
+          concurrent_mark()->checkpointRootsInitialPre();
+        }
+
+#if YOUNG_LIST_VERBOSE
+        gclog_or_tty->print_cr("\nBefore choosing collection set.\nYoung_list:");
+        _young_list->print();
+        g1_policy()->print_collection_set(g1_policy()->inc_cset_head(), gclog_or_tty);
+#endif // YOUNG_LIST_VERBOSE
+
+        g1_policy()->finalize_cset(target_pause_time_ms, evacuation_info);
+
+        // Make sure the remembered sets are up to date. This needs to be
+        // done before register_humongous_regions_with_cset(), because the
+        // remembered sets are used there to choose eager reclaim candidates.
+        // If the remembered sets are not up to date we might miss some
+        // entries that need to be handled.
+        g1_rem_set()->cleanupHRRS();
+
+        register_humongous_regions_with_in_cset_fast_test();
+
+        assert(check_cset_fast_test(), "Inconsistency in the InCSetState table.");
+
+        _cm->note_start_of_gc();
+        // We call this after finalize_cset() to
+        // ensure that the CSet has been finalized.
+        _cm->verify_no_cset_oops();
+
+        if (_hr_printer.is_active()) {
+          HeapRegion* hr = g1_policy()->collection_set();
+          while (hr != NULL) {
+            _hr_printer.cset(hr);
+            hr = hr->next_in_collection_set();
+          }
+        }
+
+#ifdef ASSERT
+        VerifyCSetClosure cl;
+        collection_set_iterate(&cl);
+#endif // ASSERT
+
+        setup_surviving_young_words();
+
+        // Initialize the GC alloc regions.
+        _allocator->init_gc_alloc_regions(evacuation_info);
+
+        // Actually do the work...
+        evacuate_collection_set(evacuation_info);
+
+        free_collection_set(g1_policy()->collection_set(), evacuation_info);
+
+        eagerly_reclaim_humongous_regions();
+
+        g1_policy()->clear_collection_set();
+
+        cleanup_surviving_young_words();
+
+        // Start a new incremental collection set for the next pause.
+        g1_policy()->start_incremental_cset_building();
+
+        clear_cset_fast_test();
+
+        _young_list->reset_sampled_info();
+
+        // Don't check the whole heap at this point as the
+        // GC alloc regions from this pause have been tagged
+        // as survivors and moved on to the survivor list.
+        // Survivor regions will fail the !is_young() check.
+        assert(check_young_list_empty(false /* check_heap */),
+          "young list should be empty");
+
+#if YOUNG_LIST_VERBOSE
+        gclog_or_tty->print_cr("Before recording survivors.\nYoung List:");
+        _young_list->print();
+#endif // YOUNG_LIST_VERBOSE
+
+        g1_policy()->record_survivor_regions(_young_list->survivor_length(),
+                                             _young_list->first_survivor_region(),
+                                             _young_list->last_survivor_region());
+
+        _young_list->reset_auxilary_lists();
+
+        if (evacuation_failed()) {
+          _allocator->set_used(recalculate_used());
+          uint n_queues = MAX2((int)ParallelGCThreads, 1);
+          for (uint i = 0; i < n_queues; i++) {
+            if (_evacuation_failed_info_array[i].has_failed()) {
+              _gc_tracer_stw->report_evacuation_failed(_evacuation_failed_info_array[i]);
+            }
+          }
+        } else {
+          // The "used" of the the collection set have already been subtracted
+          // when they were freed.  Add in the bytes evacuated.
+          _allocator->increase_used(g1_policy()->bytes_copied_during_gc());
+        }
+
+        if (g1_policy()->during_initial_mark_pause()) {
+          // We have to do this before we notify the CM threads that
+          // they can start working to make sure that all the
+          // appropriate initialization is done on the CM object.
+          concurrent_mark()->checkpointRootsInitialPost();
+          set_marking_started();
+          // Note that we don't actually trigger the CM thread at
+          // this point. We do that later when we're sure that
+          // the current thread has completed its logging output.
+        }
+
+        allocate_dummy_regions();
+
+#if YOUNG_LIST_VERBOSE
+        gclog_or_tty->print_cr("\nEnd of the pause.\nYoung_list:");
+        _young_list->print();
+        g1_policy()->print_collection_set(g1_policy()->inc_cset_head(), gclog_or_tty);
+#endif // YOUNG_LIST_VERBOSE
+
+        _allocator->init_mutator_alloc_region();
+
+        {
+          size_t expand_bytes = g1_policy()->expansion_amount();
+          if (expand_bytes > 0) {
+            size_t bytes_before = capacity();
+            // No need for an ergo verbose message here,
+            // expansion_amount() does this when it returns a value > 0.
+            if (!expand(expand_bytes)) {
+              // We failed to expand the heap. Cannot do anything about it.
+            }
+          }
+        }
+
+        // We redo the verification but now wrt to the new CSet which
+        // has just got initialized after the previous CSet was freed.
+        _cm->verify_no_cset_oops();
+        _cm->note_end_of_gc();
+
+        // This timing is only used by the ergonomics to handle our pause target.
+        // It is unclear why this should not include the full pause. We will
+        // investigate this in CR 7178365.
+        double sample_end_time_sec = os::elapsedTime();
+        double pause_time_ms = (sample_end_time_sec - sample_start_time_sec) * MILLIUNITS;
+        g1_policy()->record_collection_pause_end(pause_time_ms, evacuation_info);
+
+        MemoryService::track_memory_usage();
+
+        // In prepare_for_verify() below we'll need to scan the deferred
+        // update buffers to bring the RSets up-to-date if
+        // G1HRRSFlushLogBuffersOnVerify has been set. While scanning
+        // the update buffers we'll probably need to scan cards on the
+        // regions we just allocated to (i.e., the GC alloc
+        // regions). However, during the last GC we called
+        // set_saved_mark() on all the GC alloc regions, so card
+        // scanning might skip the [saved_mark_word()...top()] area of
+        // those regions (i.e., the area we allocated objects into
+        // during the last GC). But it shouldn't. Given that
+        // saved_mark_word() is conditional on whether the GC time stamp
+        // on the region is current or not, by incrementing the GC time
+        // stamp here we invalidate all the GC time stamps on all the
+        // regions and saved_mark_word() will simply return top() for
+        // all the regions. This is a nicer way of ensuring this rather
+        // than iterating over the regions and fixing them. In fact, the
+        // GC time stamp increment here also ensures that
+        // saved_mark_word() will return top() between pauses, i.e.,
+        // during concurrent refinement. So we don't need the
+        // is_gc_active() check to decided which top to use when
+        // scanning cards (see CR 7039627).
+        increment_gc_time_stamp();
+
+        if (VerifyRememberedSets) {
+          if (!VerifySilently) {
+            gclog_or_tty->print_cr("[Verifying RemSets after GC]");
+          }
+          VerifyRegionRemSetClosure v_cl;
+          heap_region_iterate(&v_cl);
+        }
+
+        verify_after_gc();
+        check_bitmaps("GC End");
+
+        assert(!ref_processor_stw()->discovery_enabled(), "Postcondition");
+        ref_processor_stw()->verify_no_references_recorded();
+
+        // CM reference discovery will be re-enabled if necessary.
+      }
+
+      // We should do this after we potentially expand the heap so
+      // that all the COMMIT events are generated before the end GC
+      // event, and after we retire the GC alloc regions so that all
+      // RETIRE events are generated before the end GC event.
+      _hr_printer.end_gc(false /* full */, (size_t) total_collections());
+
+#ifdef TRACESPINNING
+      ParallelTaskTerminator::print_termination_counts();
+#endif
+
+      gc_epilogue(false);
+    }
+
+    // Print the remainder of the GC log output.
+    log_gc_footer(os::elapsedTime() - pause_start_sec);
+
+    // It is not yet to safe to tell the concurrent mark to
+    // start as we have some optional output below. We don't want the
+    // output from the concurrent mark thread interfering with this
+    // logging output either.
+
+    _hrm.verify_optional();
+    verify_region_sets_optional();
+
+    TASKQUEUE_STATS_ONLY(if (ParallelGCVerbose) print_taskqueue_stats());
+    TASKQUEUE_STATS_ONLY(reset_taskqueue_stats());
+
+    print_heap_after_gc();
+    trace_heap_after_gc(_gc_tracer_stw);
+
+    // We must call G1MonitoringSupport::update_sizes() in the same scoping level
+    // as an active TraceMemoryManagerStats object (i.e. before the destructor for the
+    // TraceMemoryManagerStats is called) so that the G1 memory pools are updated
+    // before any GC notifications are raised.
+    g1mm()->update_sizes();
+
+    _gc_tracer_stw->report_evacuation_info(&evacuation_info);
+    _gc_tracer_stw->report_tenuring_threshold(_g1_policy->tenuring_threshold());
+    _gc_timer_stw->register_gc_end();
+    _gc_tracer_stw->report_gc_end(_gc_timer_stw->gc_end(), _gc_timer_stw->time_partitions());
+  }
+  // It should now be safe to tell the concurrent mark thread to start
+  // without its logging output interfering with the logging output
+  // that came from the pause.
+
+  if (should_start_conc_mark) {
+    // CAUTION: after the doConcurrentMark() call below,
+    // the concurrent marking thread(s) could be running
+    // concurrently with us. Make sure that anything after
+    // this point does not assume that we are the only GC thread
+    // running. Note: of course, the actual marking work will
+    // not start until the safepoint itself is released in
+    // SuspendibleThreadSet::desynchronize().
+    doConcurrentMark();
+  }
+
+  return true;
+}
 
 ```
 
@@ -780,7 +1642,7 @@ G1 用等大 Region，Young 时复制存活对象。只回收部分区域，就�
 
 ## 官方资料与版本来源
 
-本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [CMSCollector::collect_in_background · HotSpot 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp)
 - [G1CollectedHeap::do_collection_pause_at_safepoint · HotSpot 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp)
@@ -882,7 +1744,7 @@ JDK 8 可用 `-XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:gc.log` 记录 
 XStream 片段选的是旧版本序列化构造器缓存。它把构造器存在哪里，直接决定每次新建实例会不会失去上次的复用结果。
 
 
-<div class="source-caption"><code>Bits.tryReserveMemory</code><span>OpenJDK 8u462-b08 · L705–L718 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/nio/Bits.java#L705-L718">完整源码</a></span></div>
+<div class="source-caption"><code>Bits.tryReserveMemory</code><span>OpenJDK 8u462-b08 · L705–L720 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/nio/Bits.java#L705-L720">完整源码</a></span></div>
 
 ```java
     private static boolean tryReserveMemory(long size, int cap) {
@@ -898,6 +1760,9 @@ XStream 片段选的是旧版本序列化构造器缓存。它把构造器存在
                 return true;
             }
         }
+
+        return false;
+    }
 
 ```
 
@@ -1045,7 +1910,7 @@ Metaspace 我会区分一个 loader 动态类越来越多，和很多旧 loader 
 
 ## 官方资料与版本来源
 
-本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [Bits.tryReserveMemory · OpenJDK 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/nio/Bits.java)
 - [Sun14ReflectionProvider.getMungedConstructor · XStream 1.4.4 / c4c7122](https://raw.githubusercontent.com/x-stream/xstream/c4c71226515fa42809a48d9ae702756e2831f379/xstream/src/java/com/thoughtworks/xstream/converters/reflection/Sun14ReflectionProvider.java)
@@ -1141,9 +2006,18 @@ spring:
 自动配置读取候选的代码很短，适合直接确认 Boot 2.7 到底还读不读 spring.factories。
 
 
-<div class="source-caption"><code>DefaultSingletonBeanRegistry.getSingleton</code><span>Spring Framework 5.3.31 · L180–L204 · <a href="https://github.com/spring-projects/spring-framework/blob/v5.3.31/spring-beans/src/main/java/org/springframework/beans/factory/support/DefaultSingletonBeanRegistry.java#L180-L204">完整源码</a></span></div>
+<div class="source-caption"><code>DefaultSingletonBeanRegistry.getSingleton</code><span>Spring Framework 5.3.31 · L171–L204 · <a href="https://github.com/spring-projects/spring-framework/blob/v5.3.31/spring-beans/src/main/java/org/springframework/beans/factory/support/DefaultSingletonBeanRegistry.java#L171-L204">完整源码</a></span></div>
 
 ```java
+	/**
+	 * Return the (raw) singleton object registered under the given name.
+	 * <p>Checks already instantiated singletons and also allows for an early
+	 * reference to a currently created singleton (resolving a circular reference).
+	 * @param beanName the name of the bean to look for
+	 * @param allowEarlyReference whether early references should be created or not
+	 * @return the registered singleton object, or {@code null} if none found
+	 */
+	@Nullable
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 		// Quick check for existing instance without full singleton lock
 		Object singletonObject = this.singletonObjects.get(beanName);
@@ -1169,15 +2043,70 @@ spring:
 		}
 		return singletonObject;
 	}
+
 ```
 
 早期引用只有在 Bean 正在创建时才有意义。工厂成功生成引用后，将它放入 earlySingletonObjects 并移除工厂；完整单例则仍优先从 singletonObjects 读取。
 
 
 
-<div class="source-caption"><code>TransactionAspectSupport.invokeWithinTransaction</code><span>Spring Framework 5.3.31 · L378–L407 · <a href="https://github.com/spring-projects/spring-framework/blob/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java#L378-L407">完整源码</a></span></div>
+<div class="source-caption"><code>TransactionAspectSupport.invokeWithinTransaction</code><span>Spring Framework 5.3.31 · L324–L471 · <a href="https://github.com/spring-projects/spring-framework/blob/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java#L324-L471">完整源码</a></span></div>
 
 ```java
+	/**
+	 * General delegate for around-advice-based subclasses, delegating to several other template
+	 * methods on this class. Able to handle {@link CallbackPreferringPlatformTransactionManager}
+	 * as well as regular {@link PlatformTransactionManager} implementations and
+	 * {@link ReactiveTransactionManager} implementations for reactive return types.
+	 * @param method the Method being invoked
+	 * @param targetClass the target class that we're invoking the method on
+	 * @param invocation the callback to use for proceeding with the target invocation
+	 * @return the return value of the method, if any
+	 * @throws Throwable propagated from the target invocation
+	 */
+	@Nullable
+	protected Object invokeWithinTransaction(Method method, @Nullable Class<?> targetClass,
+			final InvocationCallback invocation) throws Throwable {
+
+		// If the transaction attribute is null, the method is non-transactional.
+		TransactionAttributeSource tas = getTransactionAttributeSource();
+		final TransactionAttribute txAttr = (tas != null ? tas.getTransactionAttribute(method, targetClass) : null);
+		final TransactionManager tm = determineTransactionManager(txAttr);
+
+		if (this.reactiveAdapterRegistry != null && tm instanceof ReactiveTransactionManager) {
+			boolean isSuspendingFunction = KotlinDetector.isSuspendingFunction(method);
+			boolean hasSuspendingFlowReturnType = isSuspendingFunction &&
+					COROUTINES_FLOW_CLASS_NAME.equals(new MethodParameter(method, -1).getParameterType().getName());
+			if (isSuspendingFunction && !(invocation instanceof CoroutinesInvocationCallback)) {
+				throw new IllegalStateException("Coroutines invocation not supported: " + method);
+			}
+			CoroutinesInvocationCallback corInv = (isSuspendingFunction ? (CoroutinesInvocationCallback) invocation : null);
+
+			ReactiveTransactionSupport txSupport = this.transactionSupportCache.computeIfAbsent(method, key -> {
+				Class<?> reactiveType =
+						(isSuspendingFunction ? (hasSuspendingFlowReturnType ? Flux.class : Mono.class) : method.getReturnType());
+				ReactiveAdapter adapter = this.reactiveAdapterRegistry.getAdapter(reactiveType);
+				if (adapter == null) {
+					throw new IllegalStateException("Cannot apply reactive transaction to non-reactive return type: " +
+							method.getReturnType());
+				}
+				return new ReactiveTransactionSupport(adapter);
+			});
+
+			InvocationCallback callback = invocation;
+			if (corInv != null) {
+				callback = () -> CoroutinesUtils.invokeSuspendingFunction(method, corInv.getTarget(), corInv.getArguments());
+			}
+			Object result = txSupport.invokeWithinTransaction(method, targetClass, callback, txAttr, (ReactiveTransactionManager) tm);
+			if (corInv != null) {
+				Publisher<?> pr = (Publisher<?>) result;
+				return (hasSuspendingFlowReturnType ? KotlinDelegate.asFlow(pr) :
+						KotlinDelegate.awaitSingleOrNull(pr, corInv.getContinuation()));
+			}
+			return result;
+		}
+
+		PlatformTransactionManager ptm = asPlatformTransactionManager(tm);
 		final String joinpointIdentification = methodIdentification(method, targetClass, txAttr);
 
 		if (txAttr == null || !(ptm instanceof CallbackPreferringPlatformTransactionManager)) {
@@ -1208,15 +2137,91 @@ spring:
 			}
 
 			commitTransactionAfterReturning(txInfo);
+			return retVal;
+		}
+
+		else {
+			Object result;
+			final ThrowableHolder throwableHolder = new ThrowableHolder();
+
+			// It's a CallbackPreferringPlatformTransactionManager: pass a TransactionCallback in.
+			try {
+				result = ((CallbackPreferringPlatformTransactionManager) ptm).execute(txAttr, status -> {
+					TransactionInfo txInfo = prepareTransactionInfo(ptm, txAttr, joinpointIdentification, status);
+					try {
+						Object retVal = invocation.proceedWithInvocation();
+						if (retVal != null && vavrPresent && VavrDelegate.isVavrTry(retVal)) {
+							// Set rollback-only in case of Vavr failure matching our rollback rules...
+							retVal = VavrDelegate.evaluateTryFailure(retVal, txAttr, status);
+						}
+						return retVal;
+					}
+					catch (Throwable ex) {
+						if (txAttr.rollbackOn(ex)) {
+							// A RuntimeException: will lead to a rollback.
+							if (ex instanceof RuntimeException) {
+								throw (RuntimeException) ex;
+							}
+							else {
+								throw new ThrowableHolderException(ex);
+							}
+						}
+						else {
+							// A normal return value: will lead to a commit.
+							throwableHolder.throwable = ex;
+							return null;
+						}
+					}
+					finally {
+						cleanupTransactionInfo(txInfo);
+					}
+				});
+			}
+			catch (ThrowableHolderException ex) {
+				throw ex.getCause();
+			}
+			catch (TransactionSystemException ex2) {
+				if (throwableHolder.throwable != null) {
+					logger.error("Application exception overridden by commit exception", throwableHolder.throwable);
+					ex2.initApplicationException(throwableHolder.throwable);
+				}
+				throw ex2;
+			}
+			catch (Throwable ex2) {
+				if (throwableHolder.throwable != null) {
+					logger.error("Application exception overridden by commit exception", throwableHolder.throwable);
+				}
+				throw ex2;
+			}
+
+			// Check result state: It might indicate a Throwable to rethrow.
+			if (throwableHolder.throwable != null) {
+				throw throwableHolder.throwable;
+			}
+			return result;
+		}
+	}
+
 ```
 
 真正业务调用在 proceedWithInvocation。抛异常时 completeTransactionAfterThrowing 判断回滚规则；finally 恢复事务调用上下文；正常返回才走 commitTransactionAfterReturning。上下文清理本身不等于数据库已经提交。
 
 
 
-<div class="source-caption"><code>AutoConfigurationImportSelector.getCandidateConfigurations</code><span>Spring Boot 2.7.18 · L181–L189 · <a href="https://github.com/spring-projects/spring-boot/blob/v2.7.18/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L181-L189">完整源码</a></span></div>
+<div class="source-caption"><code>AutoConfigurationImportSelector.getCandidateConfigurations</code><span>Spring Boot 2.7.18 · L170–L189 · <a href="https://github.com/spring-projects/spring-boot/blob/v2.7.18/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L170-L189">完整源码</a></span></div>
 
 ```java
+	/**
+	 * Return the auto-configuration class names that should be considered. By default
+	 * this method will load candidates using {@link ImportCandidates} with
+	 * {@link #getSpringFactoriesLoaderFactoryClass()}. For backward compatible reasons it
+	 * will also consider {@link SpringFactoriesLoader} with
+	 * {@link #getSpringFactoriesLoaderFactoryClass()}.
+	 * @param metadata the source metadata
+	 * @param attributes the {@link #getAttributes(AnnotationMetadata) annotation
+	 * attributes}
+	 * @return a list of candidate configurations
+	 */
 	protected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {
 		List<String> configurations = new ArrayList<>(
 				SpringFactoriesLoader.loadFactoryNames(getSpringFactoriesLoaderFactoryClass(), getBeanClassLoader()));
@@ -1226,6 +2231,7 @@ spring:
 						+ "are using a custom packaging, make sure that file is correct.");
 		return configurations;
 	}
+
 ```
 
 两行加载来源分别是 SpringFactoriesLoader 与 ImportCandidates。它们一起加入候选列表，后续再过滤；这能直接回答 Boot 2.7 是否已经完全不用 spring.factories。
@@ -1350,7 +2356,7 @@ Spring 先创建和注入 Bean，再通过后处理器做代理。三级缓存�
 
 ## 官方资料与版本来源
 
-本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [DefaultSingletonBeanRegistry.getSingleton · Spring Framework 5.3.31](https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-beans/src/main/java/org/springframework/beans/factory/support/DefaultSingletonBeanRegistry.java)
 - [TransactionAspectSupport.invokeWithinTransaction · Spring Framework 5.3.31](https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java)
@@ -1432,9 +2438,127 @@ InnoDB 普通读会经过 `row_search_mvcc` 及相关可见性检查。`ReadView
 下面这段判断与前面的 {100,104} 例子对应，注意 m_up_limit_id 和 m_low_limit_id 的历史命名，按代码比较方向理解，不凭英文名称猜。
 
 
-<div class="source-caption"><code>ReadView::changes_visible</code><span>MySQL 8.0.36 · L162–L181 · <a href="https://github.com/mysql/mysql-server/blob/mysql-8.0.36/storage/innobase/include/read0types.h#L162-L181">完整源码</a></span></div>
+<div class="source-caption"><code>ReadView::changes_visible</code><span>MySQL 8.0.36 · L44–L319 · <a href="https://github.com/mysql/mysql-server/blob/mysql-8.0.36/storage/innobase/include/read0types.h#L44-L319">完整源码</a></span></div>
 
 ```cpp
+/** Read view lists the trx ids of those transactions for which a consistent
+read should not see the modifications to the database. */
+
+class ReadView {
+  /** This is similar to a std::vector but it is not a drop
+  in replacement. It is specific to ReadView. */
+  class ids_t {
+    typedef trx_ids_t::value_type value_type;
+
+    /**
+    Constructor */
+    ids_t() : m_ptr(), m_size(), m_reserved() {}
+
+    /**
+    Destructor */
+    ~ids_t() { ut::delete_arr(m_ptr); }
+
+    /** Try and increase the size of the array. Old elements are copied across.
+    It is a no-op if n is < current size.
+    @param n            Make space for n elements */
+    void reserve(ulint n);
+
+    /**
+    Resize the array, sets the current element count.
+    @param n            new size of the array, in elements */
+    void resize(ulint n) {
+      ut_ad(n <= capacity());
+
+      m_size = n;
+    }
+
+    /**
+    Reset the size to 0 */
+    void clear() { resize(0); }
+
+    /**
+    @return the capacity of the array in elements */
+    ulint capacity() const { return (m_reserved); }
+
+    /**
+    Copy and overwrite the current array contents
+
+    @param start                Source array
+    @param end          Pointer to end of array */
+    void assign(const value_type *start, const value_type *end);
+
+    /**
+    Insert the value in the correct slot, preserving the order.
+    Doesn't check for duplicates. */
+    void insert(value_type value);
+
+    /**
+    @return the value of the first element in the array */
+    value_type front() const {
+      ut_ad(!empty());
+
+      return (m_ptr[0]);
+    }
+
+    /**
+    @return the value of the last element in the array */
+    value_type back() const {
+      ut_ad(!empty());
+
+      return (m_ptr[m_size - 1]);
+    }
+
+    /**
+    Append a value to the array.
+    @param value                the value to append */
+    void push_back(value_type value);
+
+    /**
+    @return a pointer to the start of the array */
+    trx_id_t *data() { return (m_ptr); }
+
+    /**
+    @return a const pointer to the start of the array */
+    const trx_id_t *data() const { return (m_ptr); }
+
+    /**
+    @return the number of elements in the array */
+    ulint size() const { return (m_size); }
+
+    /**
+    @return true if size() == 0 */
+    bool empty() const { return (size() == 0); }
+
+   private:
+    // Prevent copying
+    ids_t(const ids_t &);
+    ids_t &operator=(const ids_t &);
+
+   private:
+    /** Memory for the array */
+    value_type *m_ptr;
+
+    /** Number of active elements in the array */
+    ulint m_size;
+
+    /** Size of m_ptr in elements */
+    ulint m_reserved;
+
+    friend class ReadView;
+  };
+
+ public:
+  ReadView();
+  ~ReadView();
+  /** Check whether transaction id is valid.
+  @param[in]    id              transaction id to check
+  @param[in]    name            table name */
+  static void check_trx_id_sanity(trx_id_t id, const table_name_t &name);
+
+  /** Check whether the changes by id are visible.
+  @param[in]    id      transaction id to check against the view
+  @param[in]    name    table name
+  @return whether the view sees the modifications of id. */
   [[nodiscard]] bool changes_visible(trx_id_t id,
                                      const table_name_t &name) const {
     ut_ad(id > 0);
@@ -1455,6 +2579,145 @@ InnoDB 普通读会经过 `row_search_mvcc` 及相关可见性检查。`ReadView
     const ids_t::value_type *p = m_ids.data();
 
     return (!std::binary_search(p, p + m_ids.size(), id));
+  }
+
+  /**
+  @param id             transaction to check
+  @return true if view sees transaction id */
+  bool sees(trx_id_t id) const { return (id < m_up_limit_id); }
+
+  /**
+  Mark the view as closed */
+  void close() {
+    ut_ad(m_creator_trx_id != TRX_ID_MAX);
+    m_creator_trx_id = TRX_ID_MAX;
+  }
+
+  /**
+  @return true if the view is closed */
+  bool is_closed() const { return (m_closed); }
+
+  /**
+  Write the limits to the file.
+  @param file           file to write to */
+  void print_limits(FILE *file) const {
+    fprintf(file,
+            "Trx read view will not see trx with"
+            " id >= " TRX_ID_FMT ", sees < " TRX_ID_FMT "\n",
+            m_low_limit_id, m_up_limit_id);
+  }
+
+  /** Check and reduce low limit number for read view. Used to
+  block purge till GTID is persisted on disk table.
+  @param[in]    trx_no  transaction number to check with */
+  void reduce_low_limit(trx_id_t trx_no) {
+    if (trx_no < m_low_limit_no) {
+      /* Save low limit number set for Read View for MVCC. */
+      ut_d(m_view_low_limit_no = m_low_limit_no);
+      m_low_limit_no = trx_no;
+    }
+  }
+
+  /**
+  @return the low limit no */
+  trx_id_t low_limit_no() const { return (m_low_limit_no); }
+
+  /**
+  @return the low limit id */
+  trx_id_t low_limit_id() const { return (m_low_limit_id); }
+
+  /**
+  @return true if there are no transaction ids in the snapshot */
+  bool empty() const { return (m_ids.empty()); }
+
+#ifdef UNIV_DEBUG
+  /**
+  @return the view low limit number */
+  trx_id_t view_low_limit_no() const { return (m_view_low_limit_no); }
+
+  /**
+  @param rhs            view to compare with
+  @return truen if this view is less than or equal rhs */
+  bool le(const ReadView *rhs) const {
+    return (m_low_limit_no <= rhs->m_low_limit_no);
+  }
+#endif /* UNIV_DEBUG */
+ private:
+  /**
+  Copy the transaction ids from the source vector */
+  inline void copy_trx_ids(const trx_ids_t &trx_ids);
+
+  /**
+  Opens a read view where exactly the transactions serialized before this
+  point in time are seen in the view.
+  @param id             Creator transaction id */
+  inline void prepare(trx_id_t id);
+
+  /**
+  Copy state from another view. Must call copy_complete() to finish.
+  @param other          view to copy from */
+  inline void copy_prepare(const ReadView &other);
+
+  /**
+  Complete the copy, insert the creator transaction id into the
+  m_trx_ids too and adjust the m_up_limit_id *, if required */
+  inline void copy_complete();
+
+  /**
+  Set the creator transaction id, existing id must be 0 */
+  void creator_trx_id(trx_id_t id) {
+    ut_ad(m_creator_trx_id == 0);
+    m_creator_trx_id = id;
+  }
+
+  friend class MVCC;
+
+ private:
+  // Disable copying
+  ReadView(const ReadView &);
+  ReadView &operator=(const ReadView &);
+
+ private:
+  /** The read should not see any transaction with trx id >= this
+  value. In other words, this is the "high water mark". */
+  trx_id_t m_low_limit_id;
+
+  /** The read should see all trx ids which are strictly
+  smaller (<) than this value.  In other words, this is the
+  low water mark". */
+  trx_id_t m_up_limit_id;
+
+  /** trx id of creating transaction, set to TRX_ID_MAX for free
+  views. */
+  trx_id_t m_creator_trx_id;
+
+  /** Set of RW transactions that was active when this snapshot
+  was taken */
+  ids_t m_ids;
+
+  /** The view does not need to see the undo logs for transactions
+  whose transaction number is strictly smaller (<) than this value:
+  they can be removed in purge if not needed by other views */
+  trx_id_t m_low_limit_no;
+
+#ifdef UNIV_DEBUG
+  /** The low limit number up to which read views don't need to access
+  undo log records for MVCC. This could be higher than m_low_limit_no
+  if purge is blocked for GTID persistence. Currently used for debug
+  variable INNODB_PURGE_VIEW_TRX_ID_AGE. */
+  trx_id_t m_view_low_limit_no;
+#endif /* UNIV_DEBUG */
+
+  /** AC-NL-RO transaction view that has been "closed". */
+  bool m_closed;
+
+  typedef UT_LIST_NODE_T(ReadView) node_t;
+
+  /** List of read views in trx_sys */
+  byte pad1[64 - sizeof(node_t)];
+  node_t m_view_list;
+};
+
 ```
 
 先允许较早版本和自己的版本，再拒绝超出新事务界限的版本，最后在活跃事务集合里查找。binary_search 找不到，才表示这个中间区间的事务版本可见。
@@ -1577,7 +2840,7 @@ RC 每次一致性读通常换快照，RR 则通常首次读后复用，不一�
 
 ## 官方资料与版本来源
 
-本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [ReadView::changes_visible · MySQL 8.0.36](https://raw.githubusercontent.com/mysql/mysql-server/mysql-8.0.36/storage/innobase/include/read0types.h)
 - [PostgreSQL16 隔离级别](https://www.postgresql.org/docs/16/transaction-iso.html)
@@ -1650,9 +2913,130 @@ Broker 故障时，先核对集群模式、最新副本位置和复制延迟，�
 回查不是凭 Half 的存在就断定业务成功。`TransactionalMessageServiceImpl.check` 结合 Half 与操作记录，决定跳过、回查、重新写入或后续处理。生产者的 executeLocalTransaction 和 checkLocalTransaction 要能回答同一业务状态。
 
 
-<div class="source-caption"><code>CommitLog.asyncPutMessage</code><span>RocketMQ 4.9.8 · L738–L752 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L738-L752">完整源码</a></span></div>
+<div class="source-caption"><code>CommitLog.asyncPutMessage</code><span>RocketMQ 4.9.8 · L617–L860 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L617-L860">完整源码</a></span></div>
 
 ```java
+    public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
+        // Set the storage time
+        msg.setStoreTimestamp(System.currentTimeMillis());
+        // Set the message body BODY CRC (consider the most appropriate setting
+        // on the client)
+        msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
+        // Back to Results
+        AppendMessageResult result = null;
+
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
+
+        String topic = msg.getTopic();
+//        int queueId msg.getQueueId();
+        final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
+        if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
+                || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
+            // Delay Delivery
+            if (msg.getDelayTimeLevel() > 0) {
+                if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
+                    msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
+                }
+
+                topic = TopicValidator.RMQ_SYS_SCHEDULE_TOPIC;
+                int queueId = ScheduleMessageService.delayLevel2QueueId(msg.getDelayTimeLevel());
+
+                // Backup real topic, queueId
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_TOPIC, msg.getTopic());
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_QUEUE_ID, String.valueOf(msg.getQueueId()));
+                msg.setPropertiesString(MessageDecoder.messageProperties2String(msg.getProperties()));
+
+                msg.setTopic(topic);
+                msg.setQueueId(queueId);
+            }
+        }
+
+        InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
+        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setBornHostV6Flag();
+        }
+
+        InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
+        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setStoreHostAddressV6Flag();
+        }
+
+        PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
+        updateMaxMessageSize(putMessageThreadLocal);
+        if (!multiDispatch.isMultiDispatchMsg(msg)) {
+            PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
+            if (encodeResult != null) {
+                return CompletableFuture.completedFuture(encodeResult);
+            }
+            msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
+        }
+        PutMessageContext putMessageContext = new PutMessageContext(generateKey(putMessageThreadLocal.getKeyBuilder(), msg));
+
+        long elapsedTimeInLock = 0;
+        MappedFile unlockMappedFile = null;
+
+        putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
+        try {
+            MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
+            long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+            this.beginTimeInLock = beginLockTimestamp;
+
+            // Here settings are stored timestamp, in order to ensure an orderly
+            // global
+            msg.setStoreTimestamp(beginLockTimestamp);
+
+            if (null == mappedFile || mappedFile.isFull()) {
+                mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+            }
+            if (null == mappedFile) {
+                log.error("create mapped file1 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
+            }
+
+            result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+            switch (result.getStatus()) {
+                case PUT_OK:
+                    break;
+                case END_OF_FILE:
+                    unlockMappedFile = mappedFile;
+                    // Create a new file, re-write the message
+                    mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                    if (null == mappedFile) {
+                        // XXX: warn and notify me
+                        log.error("create mapped file2 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, result));
+                    }
+                    result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                    break;
+                case MESSAGE_SIZE_EXCEEDED:
+                case PROPERTIES_SIZE_EXCEEDED:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+                case UNKNOWN_ERROR:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+                default:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+            }
+
+            elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
+        } finally {
+            beginTimeInLock = 0;
+            putMessageLock.unlock();
+        }
+
+        if (elapsedTimeInLock > 500) {
+            log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
+        }
+
+        if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
+            this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
+        }
+
+        PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
+
+        // Statistics
+        storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).add(1);
+        storeStatsService.getSinglePutMessageTopicSizeTotal(topic).add(result.getWroteBytes());
+
         CompletableFuture<PutMessageStatus> flushResultFuture = submitFlushRequest(result, msg);
         CompletableFuture<PutMessageStatus> replicaResultFuture = submitReplicaRequest(result, msg);
         return flushResultFuture.thenCombine(replicaResultFuture, (flushStatus, replicaStatus) -> {
@@ -1668,13 +3052,122 @@ Broker 故障时，先核对集群模式、最新副本位置和复制延迟，�
 
     public CompletableFuture<PutMessageResult> asyncPutMessages(final MessageExtBatch messageExtBatch) {
         messageExtBatch.setStoreTimestamp(System.currentTimeMillis());
+        AppendMessageResult result;
+
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
+
+        final int tranType = MessageSysFlag.getTransactionValue(messageExtBatch.getSysFlag());
+
+        if (tranType != MessageSysFlag.TRANSACTION_NOT_TYPE) {
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null));
+        }
+        if (messageExtBatch.getDelayTimeLevel() > 0) {
+            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null));
+        }
+
+        InetSocketAddress bornSocketAddress = (InetSocketAddress) messageExtBatch.getBornHost();
+        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
+            messageExtBatch.setBornHostV6Flag();
+        }
+
+        InetSocketAddress storeSocketAddress = (InetSocketAddress) messageExtBatch.getStoreHost();
+        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
+            messageExtBatch.setStoreHostAddressV6Flag();
+        }
+
+        long elapsedTimeInLock = 0;
+        MappedFile unlockMappedFile = null;
+        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
+
+        //fine-grained lock instead of the coarse-grained
+        PutMessageThreadLocal pmThreadLocal = this.putMessageThreadLocal.get();
+        updateMaxMessageSize(pmThreadLocal);
+        MessageExtEncoder batchEncoder = pmThreadLocal.getEncoder();
+
+        PutMessageContext putMessageContext = new PutMessageContext(generateKey(pmThreadLocal.getKeyBuilder(), messageExtBatch));
+        messageExtBatch.setEncodedBuff(batchEncoder.encode(messageExtBatch, putMessageContext));
+
+        putMessageLock.lock();
+        try {
+            long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+            this.beginTimeInLock = beginLockTimestamp;
+
+            // Here settings are stored timestamp, in order to ensure an orderly
+            // global
+            messageExtBatch.setStoreTimestamp(beginLockTimestamp);
+
+            if (null == mappedFile || mappedFile.isFull()) {
+                mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
+            }
+            if (null == mappedFile) {
+                log.error("Create mapped file1 error, topic: {} clientAddr: {}", messageExtBatch.getTopic(), messageExtBatch.getBornHostString());
+                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
+            }
+
+            result = mappedFile.appendMessages(messageExtBatch, this.appendMessageCallback, putMessageContext);
+            switch (result.getStatus()) {
+                case PUT_OK:
+                    break;
+                case END_OF_FILE:
+                    unlockMappedFile = mappedFile;
+                    // Create a new file, re-write the message
+                    mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                    if (null == mappedFile) {
+                        // XXX: warn and notify me
+                        log.error("Create mapped file2 error, topic: {} clientAddr: {}", messageExtBatch.getTopic(), messageExtBatch.getBornHostString());
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, result));
+                    }
+                    result = mappedFile.appendMessages(messageExtBatch, this.appendMessageCallback, putMessageContext);
+                    break;
+                case MESSAGE_SIZE_EXCEEDED:
+                case PROPERTIES_SIZE_EXCEEDED:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+                case UNKNOWN_ERROR:
+                default:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+            }
+
+            elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
+        } finally {
+            beginTimeInLock = 0;
+            putMessageLock.unlock();
+        }
+
+        if (elapsedTimeInLock > 500) {
+            log.warn("[NOTIFYME]putMessages in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, messageExtBatch.getBody().length, result);
+        }
+
+        if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
+            this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
+        }
+
+        PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
+
+        // Statistics
+        storeStatsService.getSinglePutMessageTopicTimesTotal(messageExtBatch.getTopic()).add(result.getMsgNum());
+        storeStatsService.getSinglePutMessageTopicSizeTotal(messageExtBatch.getTopic()).add(result.getWroteBytes());
+
+        CompletableFuture<PutMessageStatus> flushOKFuture = submitFlushRequest(result, messageExtBatch);
+        CompletableFuture<PutMessageStatus> replicaOKFuture = submitReplicaRequest(result, messageExtBatch);
+        return flushOKFuture.thenCombine(replicaOKFuture, (flushStatus, replicaStatus) -> {
+            if (flushStatus != PutMessageStatus.PUT_OK) {
+                putMessageResult.setPutMessageStatus(flushStatus);
+            }
+            if (replicaStatus != PutMessageStatus.PUT_OK) {
+                putMessageResult.setPutMessageStatus(replicaStatus);
+            }
+            return putMessageResult;
+        });
+
+    }
+
 ```
 
 flushResultFuture 和 replicaResultFuture 分别代表刷盘、复制。组合回调会把失败状态带进 PutMessageResult，业务应检查结果，而不是仅认为方法没有抛异常就可靠成功。
 
 
 
-<div class="source-caption"><code>DefaultMQProducerImpl.sendMessageInTransaction</code><span>RocketMQ 4.9.8 · L1222–L1240 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L1222-L1240">完整源码</a></span></div>
+<div class="source-caption"><code>DefaultMQProducerImpl.sendMessageInTransaction</code><span>RocketMQ 4.9.8 · L1222–L1302 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java#L1222-L1302">完整源码</a></span></div>
 
 ```java
     public TransactionSendResult sendMessageInTransaction(final Message msg,
@@ -1696,15 +3189,79 @@ flushResultFuture 和 replicaResultFuture 分别代表刷盘、复制。组合�
         MessageAccessor.putProperty(msg, MessageConst.PROPERTY_TRANSACTION_PREPARED, "true");
         MessageAccessor.putProperty(msg, MessageConst.PROPERTY_PRODUCER_GROUP, this.defaultMQProducer.getProducerGroup());
         try {
+            sendResult = this.send(msg);
+        } catch (Exception e) {
+            throw new MQClientException("send message Exception", e);
+        }
+
+        LocalTransactionState localTransactionState = LocalTransactionState.UNKNOW;
+        Throwable localException = null;
+        switch (sendResult.getSendStatus()) {
+            case SEND_OK: {
+                try {
+                    if (sendResult.getTransactionId() != null) {
+                        msg.putUserProperty("__transactionId__", sendResult.getTransactionId());
+                    }
+                    String transactionId = msg.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
+                    if (null != transactionId && !"".equals(transactionId)) {
+                        msg.setTransactionId(transactionId);
+                    }
+                    if (null != localTransactionExecuter) {
+                        localTransactionState = localTransactionExecuter.executeLocalTransactionBranch(msg, arg);
+                    } else if (transactionListener != null) {
+                        log.debug("Used new transaction API");
+                        localTransactionState = transactionListener.executeLocalTransaction(msg, arg);
+                    }
+                    if (null == localTransactionState) {
+                        localTransactionState = LocalTransactionState.UNKNOW;
+                    }
+
+                    if (localTransactionState != LocalTransactionState.COMMIT_MESSAGE) {
+                        log.info("executeLocalTransactionBranch return {}", localTransactionState);
+                        log.info(msg.toString());
+                    }
+                } catch (Throwable e) {
+                    log.info("executeLocalTransactionBranch exception", e);
+                    log.info(msg.toString());
+                    localException = e;
+                }
+            }
+            break;
+            case FLUSH_DISK_TIMEOUT:
+            case FLUSH_SLAVE_TIMEOUT:
+            case SLAVE_NOT_AVAILABLE:
+                localTransactionState = LocalTransactionState.ROLLBACK_MESSAGE;
+                break;
+            default:
+                break;
+        }
+
+        try {
+            this.endTransaction(msg, sendResult, localTransactionState, localException);
+        } catch (Exception e) {
+            log.warn("local transaction execute " + localTransactionState + ", but end broker transaction failed", e);
+        }
+
+        TransactionSendResult transactionSendResult = new TransactionSendResult();
+        transactionSendResult.setSendStatus(sendResult.getSendStatus());
+        transactionSendResult.setMessageQueue(sendResult.getMessageQueue());
+        transactionSendResult.setMsgId(sendResult.getMsgId());
+        transactionSendResult.setQueueOffset(sendResult.getQueueOffset());
+        transactionSendResult.setTransactionId(sendResult.getTransactionId());
+        transactionSendResult.setLocalTransactionState(localTransactionState);
+        return transactionSendResult;
+    }
+
 ```
 
 事务发送先检查本地事务监听器，再处理 Half 准备消息。后面才执行本地事务和 endTransaction。监听器的返回与持久状态必须一致，不能只靠进程还活着。
 
 
 
-<div class="source-caption"><code>TransactionalMessageServiceImpl.check</code><span>RocketMQ 4.9.8 · L127–L143 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L127-L143">完整源码</a></span></div>
+<div class="source-caption"><code>TransactionalMessageServiceImpl.check</code><span>RocketMQ 4.9.8 · L126–L253 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L126-L253">完整源码</a></span></div>
 
 ```java
+    @Override
     public void check(long transactionTimeout, int transactionCheckMax,
         AbstractTransactionalMessageCheckListener listener) {
         try {
@@ -1722,6 +3279,117 @@ flushResultFuture 和 replicaResultFuture 分别代表刷盘、复制。组合�
                 long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);
                 log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
                 if (halfOffset < 0 || opOffset < 0) {
+                    log.error("MessageQueue: {} illegal offset read: {}, op offset: {},skip this queue", messageQueue,
+                        halfOffset, opOffset);
+                    continue;
+                }
+
+                List<Long> doneOpOffset = new ArrayList<>();
+                HashMap<Long, Long> removeMap = new HashMap<>();
+                PullResult pullResult = fillOpRemoveMap(removeMap, opQueue, opOffset, halfOffset, doneOpOffset);
+                if (null == pullResult) {
+                    log.error("The queue={} check msgOffset={} with opOffset={} failed, pullResult is null",
+                        messageQueue, halfOffset, opOffset);
+                    continue;
+                }
+                // single thread
+                int getMessageNullCount = 1;
+                long newOffset = halfOffset;
+                long i = halfOffset;
+                while (true) {
+                    if (System.currentTimeMillis() - startTime > MAX_PROCESS_TIME_LIMIT) {
+                        log.info("Queue={} process time reach max={}", messageQueue, MAX_PROCESS_TIME_LIMIT);
+                        break;
+                    }
+                    if (removeMap.containsKey(i)) {
+                        log.debug("Half offset {} has been committed/rolled back", i);
+                        Long removedOpOffset = removeMap.remove(i);
+                        doneOpOffset.add(removedOpOffset);
+                    } else {
+                        GetResult getResult = getHalfMsg(messageQueue, i);
+                        MessageExt msgExt = getResult.getMsg();
+                        if (msgExt == null) {
+                            if (getMessageNullCount++ > MAX_RETRY_COUNT_WHEN_HALF_NULL) {
+                                break;
+                            }
+                            if (getResult.getPullResult().getPullStatus() == PullStatus.NO_NEW_MSG) {
+                                log.debug("No new msg, the miss offset={} in={}, continue check={}, pull result={}", i,
+                                    messageQueue, getMessageNullCount, getResult.getPullResult());
+                                break;
+                            } else {
+                                log.info("Illegal offset, the miss offset={} in={}, continue check={}, pull result={}",
+                                    i, messageQueue, getMessageNullCount, getResult.getPullResult());
+                                i = getResult.getPullResult().getNextBeginOffset();
+                                newOffset = i;
+                                continue;
+                            }
+                        }
+
+                        if (needDiscard(msgExt, transactionCheckMax) || needSkip(msgExt)) {
+                            listener.resolveDiscardMsg(msgExt);
+                            newOffset = i + 1;
+                            i++;
+                            continue;
+                        }
+                        if (msgExt.getStoreTimestamp() >= startTime) {
+                            log.debug("Fresh stored. the miss offset={}, check it later, store={}", i,
+                                new Date(msgExt.getStoreTimestamp()));
+                            break;
+                        }
+
+                        long valueOfCurrentMinusBorn = System.currentTimeMillis() - msgExt.getBornTimestamp();
+                        long checkImmunityTime = transactionTimeout;
+                        String checkImmunityTimeStr = msgExt.getUserProperty(MessageConst.PROPERTY_CHECK_IMMUNITY_TIME_IN_SECONDS);
+                        if (null != checkImmunityTimeStr) {
+                            checkImmunityTime = getImmunityTime(checkImmunityTimeStr, transactionTimeout);
+                            if (valueOfCurrentMinusBorn < checkImmunityTime) {
+                                if (checkPrepareQueueOffset(removeMap, doneOpOffset, msgExt)) {
+                                    newOffset = i + 1;
+                                    i++;
+                                    continue;
+                                }
+                            }
+                        } else {
+                            if ((0 <= valueOfCurrentMinusBorn) && (valueOfCurrentMinusBorn < checkImmunityTime)) {
+                                log.debug("New arrived, the miss offset={}, check it later checkImmunity={}, born={}", i,
+                                    checkImmunityTime, new Date(msgExt.getBornTimestamp()));
+                                break;
+                            }
+                        }
+                        List<MessageExt> opMsg = pullResult.getMsgFoundList();
+                        boolean isNeedCheck = (opMsg == null && valueOfCurrentMinusBorn > checkImmunityTime)
+                            || (opMsg != null && (opMsg.get(opMsg.size() - 1).getBornTimestamp() - startTime > transactionTimeout))
+                            || (valueOfCurrentMinusBorn <= -1);
+
+                        if (isNeedCheck) {
+                            if (!putBackHalfMsgQueue(msgExt, i)) {
+                                continue;
+                            }
+                            listener.resolveHalfMsg(msgExt);
+                        } else {
+                            pullResult = fillOpRemoveMap(removeMap, opQueue, pullResult.getNextBeginOffset(), halfOffset, doneOpOffset);
+                            log.debug("The miss offset:{} in messageQueue:{} need to get more opMsg, result is:{}", i,
+                                messageQueue, pullResult);
+                            continue;
+                        }
+                    }
+                    newOffset = i + 1;
+                    i++;
+                }
+                if (newOffset != halfOffset) {
+                    transactionalMessageBridge.updateConsumeOffset(messageQueue, newOffset);
+                }
+                long newOpOffset = calculateOpOffset(doneOpOffset, opOffset);
+                if (newOpOffset != opOffset) {
+                    transactionalMessageBridge.updateConsumeOffset(opQueue, newOpOffset);
+                }
+            }
+        } catch (Throwable e) {
+            log.error("Check error", e);
+        }
+
+    }
+
 ```
 
 check 从 Half 相关 Topic 的队列开始遍历；后续还要对照操作队列和检查次数。回查本身并不替 Producer 做数据库提交，Producer 要实现持久状态查询。
@@ -1856,9 +3524,68 @@ OrderTopic/0的ConsumeQueue依次保存`(1000,200,TagA)`和`(1350,300,TagB)`，�
 简化发送链路是`SendMessageProcessor → DefaultMessageStore.asyncPutMessage → CommitLog.asyncPutMessage → MappedFile.appendMessage → DefaultAppendMessageCallback.doAppend`。Producer请求可以并发到达，经典CommitLog的追加临界区由`putMessageLock`串行协调，锁类型取决于配置。
 
 
-<div class="source-caption"><code>CommitLog.asyncPutMessage</code><span>RocketMQ 4.9.8 · L676–L694 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L676-L694">完整源码</a></span></div>
+<div class="source-caption"><code>CommitLog.asyncPutMessage</code><span>RocketMQ 4.9.8 · L617–L749 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L617-L749">完整源码</a></span></div>
 
 ```java
+    public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
+        // Set the storage time
+        msg.setStoreTimestamp(System.currentTimeMillis());
+        // Set the message body BODY CRC (consider the most appropriate setting
+        // on the client)
+        msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
+        // Back to Results
+        AppendMessageResult result = null;
+
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
+
+        String topic = msg.getTopic();
+//        int queueId msg.getQueueId();
+        final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
+        if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
+                || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
+            // Delay Delivery
+            if (msg.getDelayTimeLevel() > 0) {
+                if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
+                    msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
+                }
+
+                topic = TopicValidator.RMQ_SYS_SCHEDULE_TOPIC;
+                int queueId = ScheduleMessageService.delayLevel2QueueId(msg.getDelayTimeLevel());
+
+                // Backup real topic, queueId
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_TOPIC, msg.getTopic());
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_QUEUE_ID, String.valueOf(msg.getQueueId()));
+                msg.setPropertiesString(MessageDecoder.messageProperties2String(msg.getProperties()));
+
+                msg.setTopic(topic);
+                msg.setQueueId(queueId);
+            }
+        }
+
+        InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
+        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setBornHostV6Flag();
+        }
+
+        InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
+        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setStoreHostAddressV6Flag();
+        }
+
+        PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
+        updateMaxMessageSize(putMessageThreadLocal);
+        if (!multiDispatch.isMultiDispatchMsg(msg)) {
+            PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
+            if (encodeResult != null) {
+                return CompletableFuture.completedFuture(encodeResult);
+            }
+            msg.setEncodedBuff(putMessageThreadLocal.getEncoder().getEncoderBuffer());
+        }
+        PutMessageContext putMessageContext = new PutMessageContext(generateKey(putMessageThreadLocal.getKeyBuilder(), msg));
+
+        long elapsedTimeInLock = 0;
+        MappedFile unlockMappedFile = null;
+
         putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
         try {
             MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
@@ -1878,6 +3605,61 @@ OrderTopic/0的ConsumeQueue依次保存`(1000,200,TagA)`和`(1350,300,TagB)`，�
             }
 
             result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+            switch (result.getStatus()) {
+                case PUT_OK:
+                    break;
+                case END_OF_FILE:
+                    unlockMappedFile = mappedFile;
+                    // Create a new file, re-write the message
+                    mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                    if (null == mappedFile) {
+                        // XXX: warn and notify me
+                        log.error("create mapped file2 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
+                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, result));
+                    }
+                    result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
+                    break;
+                case MESSAGE_SIZE_EXCEEDED:
+                case PROPERTIES_SIZE_EXCEEDED:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+                case UNKNOWN_ERROR:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+                default:
+                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+            }
+
+            elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
+        } finally {
+            beginTimeInLock = 0;
+            putMessageLock.unlock();
+        }
+
+        if (elapsedTimeInLock > 500) {
+            log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
+        }
+
+        if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
+            this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
+        }
+
+        PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
+
+        // Statistics
+        storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).add(1);
+        storeStatsService.getSinglePutMessageTopicSizeTotal(topic).add(result.getWroteBytes());
+
+        CompletableFuture<PutMessageStatus> flushResultFuture = submitFlushRequest(result, msg);
+        CompletableFuture<PutMessageStatus> replicaResultFuture = submitReplicaRequest(result, msg);
+        return flushResultFuture.thenCombine(replicaResultFuture, (flushStatus, replicaStatus) -> {
+            if (flushStatus != PutMessageStatus.PUT_OK) {
+                putMessageResult.setPutMessageStatus(flushStatus);
+            }
+            if (replicaStatus != PutMessageStatus.PUT_OK) {
+                putMessageResult.setPutMessageStatus(replicaStatus);
+            }
+            return putMessageResult;
+        });
+    }
 
 ```
 
@@ -1887,9 +3669,74 @@ OrderTopic/0的ConsumeQueue依次保存`(1000,200,TagA)`和`(1350,300,TagB)`，�
 锁内选择或创建当前文件、重新设置存储时间戳，再追加消息。编码有部分工作在锁外完成，但队列序号和物理offset是在锁内的追加回调中写回编码缓冲区。物理起点是`fileFromOffset+byteBuffer.position()`；`topicQueueTable`按Topic-QueueId取下一逻辑序号，普通/提交消息追加成功后才递增。不同队列独立编号，因此上例两个队列的第一条消息都可以是Queue Offset=0。
 
 
-<div class="source-caption"><code>CommitLog.DefaultAppendMessageCallback.doAppend</code><span>RocketMQ 4.9.8 · L1374–L1409 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1374-L1409">完整源码</a></span></div>
+<div class="source-caption"><code>CommitLog.DefaultAppendMessageCallback.doAppend</code><span>RocketMQ 4.9.8 · L1309–L1409 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L1309-L1409">完整源码</a></span></div>
 
 ```java
+        public AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer, final int maxBlank,
+            final MessageExtBrokerInner msgInner, PutMessageContext putMessageContext) {
+            // STORETIMESTAMP + STOREHOSTADDRESS + OFFSET <br>
+
+            // PHY OFFSET
+            long wroteOffset = fileFromOffset + byteBuffer.position();
+
+            Supplier<String> msgIdSupplier = () -> {
+                int sysflag = msgInner.getSysFlag();
+                int msgIdLen = (sysflag & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 4 + 4 + 8 : 16 + 4 + 8;
+                ByteBuffer msgIdBuffer = ByteBuffer.allocate(msgIdLen);
+                MessageExt.socketAddress2ByteBuffer(msgInner.getStoreHost(), msgIdBuffer);
+                msgIdBuffer.clear();//because socketAddress2ByteBuffer flip the buffer
+                msgIdBuffer.putLong(msgIdLen - 8, wroteOffset);
+                return UtilAll.bytes2string(msgIdBuffer.array());
+            };
+
+            // Record ConsumeQueue information
+            String key = putMessageContext.getTopicQueueTableKey();
+            Long queueOffset = CommitLog.this.topicQueueTable.get(key);
+            if (null == queueOffset) {
+                queueOffset = 0L;
+                CommitLog.this.topicQueueTable.put(key, queueOffset);
+            }
+
+            boolean multiDispatchWrapResult = CommitLog.this.multiDispatch.wrapMultiDispatch(msgInner);
+            if (!multiDispatchWrapResult) {
+                return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
+            }
+
+            // Transaction messages that require special handling
+            final int tranType = MessageSysFlag.getTransactionValue(msgInner.getSysFlag());
+            switch (tranType) {
+                // Prepared and Rollback message is not consumed, will not enter the
+                // consumer queue
+                case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
+                case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
+                    queueOffset = 0L;
+                    break;
+                case MessageSysFlag.TRANSACTION_NOT_TYPE:
+                case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
+                default:
+                    break;
+            }
+
+            ByteBuffer preEncodeBuffer = msgInner.getEncodedBuff();
+            final int msgLen = preEncodeBuffer.getInt(0);
+
+            // Determines whether there is sufficient free space
+            if ((msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) {
+                this.msgStoreItemMemory.clear();
+                // 1 TOTALSIZE
+                this.msgStoreItemMemory.putInt(maxBlank);
+                // 2 MAGICCODE
+                this.msgStoreItemMemory.putInt(CommitLog.BLANK_MAGIC_CODE);
+                // 3 The remaining space may be any value
+                // Here the length of the specially set maxBlank
+                final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
+                byteBuffer.put(this.msgStoreItemMemory.array(), 0, 8);
+                return new AppendMessageResult(AppendMessageStatus.END_OF_FILE, wroteOffset,
+                        maxBlank, /* only wrote 8 bytes, but declare wrote maxBlank for compute write position */
+                        msgIdSupplier, msgInner.getStoreTimestamp(),
+                        queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
+            }
+
             int pos = 4 + 4 + 4 + 4 + 4;
             // 6 QUEUEOFFSET
             preEncodeBuffer.putLong(pos, queueOffset);
@@ -1941,9 +3788,28 @@ OrderTopic/0的ConsumeQueue依次保存`(1000,200,TagA)`和`(1350,300,TagB)`，�
 4.9.8经典Reput由单个后台服务线程沿物理offset解析。它先取可读CommitLog切片，再由`checkMessageAndReturnSize`生成DispatchRequest，其中已经包含Topic、QueueId、消息大小、物理offset、逻辑队列offset、tagsCode、Key和存储时间，不需要猜测目标队列。
 
 
-<div class="source-caption"><code>DefaultMessageStore.ReputMessageService.doReput</code><span>RocketMQ 4.9.8 · L2028–L2047 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L2028-L2047">完整源码</a></span></div>
+<div class="source-caption"><code>DefaultMessageStore.ReputMessageService.doReput</code><span>RocketMQ 4.9.8 · L2009–L2084 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L2009-L2084">完整源码</a></span></div>
 
 ```java
+        private void doReput() {
+            if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
+                log.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.",
+                    this.reputFromOffset, DefaultMessageStore.this.commitLog.getMinOffset());
+                this.reputFromOffset = DefaultMessageStore.this.commitLog.getMinOffset();
+            }
+            for (boolean doNext = true; this.isCommitLogAvailable() && doNext; ) {
+
+                if (DefaultMessageStore.this.getMessageStoreConfig().isDuplicationEnable()
+                    && this.reputFromOffset >= DefaultMessageStore.this.getConfirmOffset()) {
+                    break;
+                }
+
+                SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
+                if (result != null) {
+                    try {
+                        this.reputFromOffset = result.getStartOffset();
+
+                        for (int readSize = 0; readSize < result.getSize() && doNext; ) {
                             DispatchRequest dispatchRequest =
                                 DefaultMessageStore.this.commitLog.checkMessageAndReturnSize(result.getByteBuffer(), false, false);
                             int size = dispatchRequest.getBufferSize() == -1 ? dispatchRequest.getMsgSize() : dispatchRequest.getBufferSize();
@@ -1964,6 +3830,43 @@ OrderTopic/0的ConsumeQueue依次保存`(1000,200,TagA)`和`(1350,300,TagB)`，�
 
                                     this.reputFromOffset += size;
                                     readSize += size;
+                                    if (DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole() == BrokerRole.SLAVE) {
+                                        DefaultMessageStore.this.storeStatsService
+                                            .getSinglePutMessageTopicTimesTotal(dispatchRequest.getTopic()).add(1);
+                                        DefaultMessageStore.this.storeStatsService
+                                            .getSinglePutMessageTopicSizeTotal(dispatchRequest.getTopic())
+                                            .add(dispatchRequest.getMsgSize());
+                                    }
+                                } else if (size == 0) {
+                                    this.reputFromOffset = DefaultMessageStore.this.commitLog.rollNextFile(this.reputFromOffset);
+                                    readSize = result.getSize();
+                                }
+                            } else if (!dispatchRequest.isSuccess()) {
+
+                                if (size > 0) {
+                                    log.error("[BUG]read total count not equals msg total size. reputFromOffset={}", reputFromOffset);
+                                    this.reputFromOffset += size;
+                                } else {
+                                    doNext = false;
+                                    // If user open the dledger pattern or the broker is master node,
+                                    // it will not ignore the exception and fix the reputFromOffset variable
+                                    if (DefaultMessageStore.this.getMessageStoreConfig().isEnableDLegerCommitLog() ||
+                                        DefaultMessageStore.this.brokerConfig.getBrokerId() == MixAll.MASTER_ID) {
+                                        log.error("[BUG]dispatch message to consume queue error, COMMITLOG OFFSET: {}",
+                                            this.reputFromOffset);
+                                        this.reputFromOffset += result.getSize() - readSize;
+                                    }
+                                }
+                            }
+                        }
+                    } finally {
+                        result.release();
+                    }
+                } else {
+                    doNext = false;
+                }
+            }
+        }
 
 ```
 
@@ -1996,7 +3899,7 @@ DefaultMessageStore构造器先注册`CommitLogDispatcherBuildConsumeQueue`，�
 ### ConsumeQueue如何识别重放、重复和逻辑错位
 
 
-<div class="source-caption"><code>ConsumeQueue.putMessagePositionInfo</code><span>RocketMQ 4.9.8 · L478–L493 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java#L478-L493">完整源码</a></span></div>
+<div class="source-caption"><code>ConsumeQueue.putMessagePositionInfo</code><span>RocketMQ 4.9.8 · L478–L530 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java#L478-L530">完整源码</a></span></div>
 
 ```java
     private boolean putMessagePositionInfo(final long offset, final int size, final long tagsCode,
@@ -2015,28 +3918,18 @@ DefaultMessageStore构造器先注册`CommitLogDispatcherBuildConsumeQueue`，�
 
         final long expectLogicOffset = cqOffset * CQ_STORE_UNIT_SIZE;
 
+        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile(expectLogicOffset);
+        if (mappedFile != null) {
 
-```
+            if (mappedFile.isFirstCreateInQueue() && cqOffset != 0 && mappedFile.getWrotePosition() == 0) {
+                this.minLogicOffset = expectLogicOffset;
+                this.mappedFileQueue.setFlushedWhere(expectLogicOffset);
+                this.mappedFileQueue.setCommittedWhere(expectLogicOffset);
+                this.fillPreBlank(mappedFile, expectLogicOffset);
+                log.info("fill pre blank space " + mappedFile.getFileName() + " " + expectLogicOffset + " "
+                    + mappedFile.getWrotePosition());
+            }
 
-节选物理结束位置去重与20B索引编码。cqOffset乘以20换算逻辑字节位置；后文展示逻辑位置检查，完整方法还处理首文件有效起点。
-
-
-这里三个坐标分别是`offset`（消息物理起点）、`offset+size`（消息物理结束位置）和`cqOffset×20`（预期逻辑字节位置）。`maxPhysicOffset`保存该队列已处理消息的最大物理结束位置，不是消息起点，也不是逻辑序号。
-
-例如OrderTopic/0已索引到M3，则`maxPhysicOffset=1650`。重放M1时，`1000+200≤1650`成立，直接返回true，避免再次追加。即使PaymentTopic/1最后处理的位置不同，也不会影响Order队列自己的判定。
-
-接下来比较预期逻辑位置与当前文件写入位置：
-
-|关系|4.9.8处理|需要理解的边界|
-|---|---|---|
-|预期小于当前|记录重复构建告警，返回true|依赖现有索引与物理日志顺序正确|
-|预期等于当前|正常追加20B|Queue Offset和文件写入位置对应|
-|预期大于当前|记录`logic queue order maybe wrong`，仍继续尝试追加|日志不是自动补洞或拒绝写入的保证|
-
-
-<div class="source-caption"><code>ConsumeQueue.putMessagePositionInfo</code><span>RocketMQ 4.9.8 · L506–L528 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java#L506-L528">完整源码</a></span></div>
-
-```java
             if (cqOffset != 0) {
                 long currentLogicOffset = mappedFile.getWrotePosition() + mappedFile.getFileFromOffset();
 
@@ -2060,6 +3953,83 @@ DefaultMessageStore构造器先注册`CommitLogDispatcherBuildConsumeQueue`，�
             this.maxPhysicOffset = offset + size;
             return mappedFile.appendMessage(this.byteBufferIndex.array());
         }
+        return false;
+    }
+
+```
+
+节选物理结束位置去重与20B索引编码。cqOffset乘以20换算逻辑字节位置；后文展示逻辑位置检查，完整方法还处理首文件有效起点。
+
+
+这里三个坐标分别是`offset`（消息物理起点）、`offset+size`（消息物理结束位置）和`cqOffset×20`（预期逻辑字节位置）。`maxPhysicOffset`保存该队列已处理消息的最大物理结束位置，不是消息起点，也不是逻辑序号。
+
+例如OrderTopic/0已索引到M3，则`maxPhysicOffset=1650`。重放M1时，`1000+200≤1650`成立，直接返回true，避免再次追加。即使PaymentTopic/1最后处理的位置不同，也不会影响Order队列自己的判定。
+
+接下来比较预期逻辑位置与当前文件写入位置：
+
+|关系|4.9.8处理|需要理解的边界|
+|---|---|---|
+|预期小于当前|记录重复构建告警，返回true|依赖现有索引与物理日志顺序正确|
+|预期等于当前|正常追加20B|Queue Offset和文件写入位置对应|
+|预期大于当前|记录`logic queue order maybe wrong`，仍继续尝试追加|日志不是自动补洞或拒绝写入的保证|
+
+
+<div class="source-caption"><code>ConsumeQueue.putMessagePositionInfo</code><span>RocketMQ 4.9.8 · L478–L530 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java#L478-L530">完整源码</a></span></div>
+
+```java
+    private boolean putMessagePositionInfo(final long offset, final int size, final long tagsCode,
+        final long cqOffset) {
+
+        if (offset + size <= this.maxPhysicOffset) {
+            log.warn("Maybe try to build consume queue repeatedly maxPhysicOffset={} phyOffset={}", maxPhysicOffset, offset);
+            return true;
+        }
+
+        this.byteBufferIndex.flip();
+        this.byteBufferIndex.limit(CQ_STORE_UNIT_SIZE);
+        this.byteBufferIndex.putLong(offset);
+        this.byteBufferIndex.putInt(size);
+        this.byteBufferIndex.putLong(tagsCode);
+
+        final long expectLogicOffset = cqOffset * CQ_STORE_UNIT_SIZE;
+
+        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile(expectLogicOffset);
+        if (mappedFile != null) {
+
+            if (mappedFile.isFirstCreateInQueue() && cqOffset != 0 && mappedFile.getWrotePosition() == 0) {
+                this.minLogicOffset = expectLogicOffset;
+                this.mappedFileQueue.setFlushedWhere(expectLogicOffset);
+                this.mappedFileQueue.setCommittedWhere(expectLogicOffset);
+                this.fillPreBlank(mappedFile, expectLogicOffset);
+                log.info("fill pre blank space " + mappedFile.getFileName() + " " + expectLogicOffset + " "
+                    + mappedFile.getWrotePosition());
+            }
+
+            if (cqOffset != 0) {
+                long currentLogicOffset = mappedFile.getWrotePosition() + mappedFile.getFileFromOffset();
+
+                if (expectLogicOffset < currentLogicOffset) {
+                    log.warn("Build  consume queue repeatedly, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}",
+                        expectLogicOffset, currentLogicOffset, this.topic, this.queueId, expectLogicOffset - currentLogicOffset);
+                    return true;
+                }
+
+                if (expectLogicOffset != currentLogicOffset) {
+                    LOG_ERROR.warn(
+                        "[BUG]logic queue order maybe wrong, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}",
+                        expectLogicOffset,
+                        currentLogicOffset,
+                        this.topic,
+                        this.queueId,
+                        expectLogicOffset - currentLogicOffset
+                    );
+                }
+            }
+            this.maxPhysicOffset = offset + size;
+            return mappedFile.appendMessage(this.byteBufferIndex.array());
+        }
+        return false;
+    }
 
 ```
 
@@ -2075,9 +4045,104 @@ DefaultMessageStore构造器先注册`CommitLogDispatcherBuildConsumeQueue`，�
 `PullMessageProcessor → DefaultMessageStore.getMessage → ConsumeQueue.getIndexBuffer → CommitLog.getMessage`是经典Broker读取主线。getMessage先检查请求的逻辑offset与队列min/max范围，再逐条读取20B索引；过滤不匹配、条目指向已清理数据和批次已满都有独立分支。
 
 
-<div class="source-caption"><code>DefaultMessageStore.getMessage</code><span>RocketMQ 4.9.8 · L655–L686 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L655-L686">完整源码</a></span></div>
+<div class="source-caption"><code>DefaultMessageStore.getMessage</code><span>RocketMQ 4.9.8 · L560–L735 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L560-L735">完整源码</a></span></div>
 
 ```java
+    public GetMessageResult getMessage(final String group, final String topic, final int queueId, final long offset,
+        final int maxMsgNums,
+        final MessageFilter messageFilter) {
+        if (this.shutdown) {
+            log.warn("message store has shutdown, so getMessage is forbidden");
+            return null;
+        }
+
+        if (!this.runningFlags.isReadable()) {
+            log.warn("message store is not readable, so getMessage is forbidden " + this.runningFlags.getFlagBits());
+            return null;
+        }
+
+        if (MixAll.isLmq(topic) && this.isLmqConsumeQueueNumExceeded()) {
+            log.warn("message store is not available, broker config enableLmq and enableMultiDispatch, lmq consumeQueue num exceed maxLmqConsumeQueueNum config num");
+            return null;
+        }
+
+        long beginTime = this.getSystemClock().now();
+
+        GetMessageStatus status = GetMessageStatus.NO_MESSAGE_IN_QUEUE;
+        long nextBeginOffset = offset;
+        long minOffset = 0;
+        long maxOffset = 0;
+
+        // lazy init when find msg.
+        GetMessageResult getResult = null;
+
+        final long maxOffsetPy = this.commitLog.getMaxOffset();
+
+        ConsumeQueue consumeQueue = findConsumeQueue(topic, queueId);
+        if (consumeQueue != null) {
+            minOffset = consumeQueue.getMinOffsetInQueue();
+            maxOffset = consumeQueue.getMaxOffsetInQueue();
+
+            if (maxOffset == 0) {
+                status = GetMessageStatus.NO_MESSAGE_IN_QUEUE;
+                nextBeginOffset = nextOffsetCorrection(offset, 0);
+            } else if (offset < minOffset) {
+                status = GetMessageStatus.OFFSET_TOO_SMALL;
+                nextBeginOffset = nextOffsetCorrection(offset, minOffset);
+            } else if (offset == maxOffset) {
+                status = GetMessageStatus.OFFSET_OVERFLOW_ONE;
+                nextBeginOffset = nextOffsetCorrection(offset, offset);
+            } else if (offset > maxOffset) {
+                status = GetMessageStatus.OFFSET_OVERFLOW_BADLY;
+                nextBeginOffset = nextOffsetCorrection(offset, maxOffset);
+            } else {
+                SelectMappedBufferResult bufferConsumeQueue = consumeQueue.getIndexBuffer(offset);
+                if (bufferConsumeQueue != null) {
+                    try {
+                        status = GetMessageStatus.NO_MATCHED_MESSAGE;
+
+                        long nextPhyFileStartOffset = Long.MIN_VALUE;
+                        long maxPhyOffsetPulling = 0;
+
+                        int i = 0;
+                        final int maxFilterMessageCount = Math.max(16000, maxMsgNums * ConsumeQueue.CQ_STORE_UNIT_SIZE);
+                        final boolean diskFallRecorded = this.messageStoreConfig.isDiskFallRecorded();
+
+                        getResult = new GetMessageResult(maxMsgNums);
+
+                        ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit();
+                        for (; i < bufferConsumeQueue.getSize() && i < maxFilterMessageCount; i += ConsumeQueue.CQ_STORE_UNIT_SIZE) {
+                            long offsetPy = bufferConsumeQueue.getByteBuffer().getLong();
+                            int sizePy = bufferConsumeQueue.getByteBuffer().getInt();
+                            long tagsCode = bufferConsumeQueue.getByteBuffer().getLong();
+
+                            maxPhyOffsetPulling = offsetPy;
+
+                            if (nextPhyFileStartOffset != Long.MIN_VALUE) {
+                                if (offsetPy < nextPhyFileStartOffset)
+                                    continue;
+                            }
+
+                            boolean isInDisk = checkInDiskByCommitOffset(offsetPy, maxOffsetPy);
+
+                            if (this.isTheBatchFull(sizePy, maxMsgNums, getResult.getBufferTotalSize(), getResult.getMessageCount(),
+                                isInDisk)) {
+                                break;
+                            }
+
+                            boolean extRet = false, isTagsCodeLegal = true;
+                            if (consumeQueue.isExtAddr(tagsCode)) {
+                                extRet = consumeQueue.getExt(tagsCode, cqExtUnit);
+                                if (extRet) {
+                                    tagsCode = cqExtUnit.getTagsCode();
+                                } else {
+                                    // can't find ext content.Client will filter messages by tag also.
+                                    log.error("[BUG] can't find consume queue extend file content!addr={}, offsetPy={}, sizePy={}, topic={}, group={}",
+                                        tagsCode, offsetPy, sizePy, topic, group);
+                                    isTagsCodeLegal = false;
+                                }
+                            }
+
                             if (messageFilter != null
                                 && !messageFilter.isMatchedByConsumeQueue(isTagsCodeLegal ? tagsCode : null, extRet ? cqExtUnit : null)) {
                                 if (getResult.getBufferTotalSize() == 0) {
@@ -2110,6 +4175,55 @@ DefaultMessageStore构造器先注册`CommitLogDispatcherBuildConsumeQueue`，�
                             this.storeStatsService.getGetMessageTransferedMsgCount().add(1);
                             getResult.addMessage(selectResult);
                             status = GetMessageStatus.FOUND;
+                            nextPhyFileStartOffset = Long.MIN_VALUE;
+                        }
+
+                        if (diskFallRecorded) {
+                            long fallBehind = maxOffsetPy - maxPhyOffsetPulling;
+                            brokerStatsManager.recordDiskFallBehindSize(group, topic, queueId, fallBehind);
+                        }
+
+                        nextBeginOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE);
+
+                        long diff = maxOffsetPy - maxPhyOffsetPulling;
+                        long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE
+                            * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0));
+                        getResult.setSuggestPullingFromSlave(diff > memory);
+                    } finally {
+
+                        bufferConsumeQueue.release();
+                    }
+                } else {
+                    status = GetMessageStatus.OFFSET_FOUND_NULL;
+                    nextBeginOffset = nextOffsetCorrection(offset, consumeQueue.rollNextFile(offset));
+                    log.warn("consumer request topic: " + topic + "offset: " + offset + " minOffset: " + minOffset + " maxOffset: "
+                        + maxOffset + ", but access logic queue failed.");
+                }
+            }
+        } else {
+            status = GetMessageStatus.NO_MATCHED_LOGIC_QUEUE;
+            nextBeginOffset = nextOffsetCorrection(offset, 0);
+        }
+
+        if (GetMessageStatus.FOUND == status) {
+            this.storeStatsService.getGetMessageTimesTotalFound().add(1);
+        } else {
+            this.storeStatsService.getGetMessageTimesTotalMiss().add(1);
+        }
+        long elapsedTime = this.getSystemClock().now() - beginTime;
+        this.storeStatsService.setGetMessageEntireTimeMax(elapsedTime);
+
+        // lazy init no data found.
+        if (getResult == null) {
+            getResult = new GetMessageResult(0);
+        }
+
+        getResult.setStatus(status);
+        getResult.setNextBeginOffset(nextBeginOffset);
+        getResult.setMaxOffset(maxOffset);
+        getResult.setMinOffset(minOffset);
+        return getResult;
+    }
 
 ```
 
@@ -2127,9 +4241,34 @@ DefaultMessageStore构造器先注册`CommitLogDispatcherBuildConsumeQueue`，�
 IndexService把Topic和Key组合成`OrderTopic#ORDER_123456`。IndexFile对这个字符串计算非负哈希，`slot=hash%hashSlotNum`；槽里放的是最新索引编号。每个20B条目依次是4B keyHash、8B物理offset、4B相对文件起始时间的秒差、4B前一索引编号。
 
 
-<div class="source-caption"><code>IndexFile.putKey</code><span>RocketMQ 4.9.8 · L113–L134 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/index/IndexFile.java#L113-L134">完整源码</a></span></div>
+<div class="source-caption"><code>IndexFile.putKey</code><span>RocketMQ 4.9.8 · L88–L146 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/index/IndexFile.java#L88-L146">完整源码</a></span></div>
 
 ```java
+    public boolean putKey(final String key, final long phyOffset, final long storeTimestamp) {
+        if (this.indexHeader.getIndexCount() < this.indexNum) {
+            int keyHash = indexKeyHashMethod(key);
+            int slotPos = keyHash % this.hashSlotNum;
+            int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize;
+
+            try {
+
+                int slotValue = this.mappedByteBuffer.getInt(absSlotPos);
+                if (slotValue <= invalidIndex || slotValue > this.indexHeader.getIndexCount()) {
+                    slotValue = invalidIndex;
+                }
+
+                long timeDiff = storeTimestamp - this.indexHeader.getBeginTimestamp();
+
+                timeDiff = timeDiff / 1000;
+
+                if (this.indexHeader.getBeginTimestamp() <= 0) {
+                    timeDiff = 0;
+                } else if (timeDiff > Integer.MAX_VALUE) {
+                    timeDiff = Integer.MAX_VALUE;
+                } else if (timeDiff < 0) {
+                    timeDiff = 0;
+                }
+
                 int absIndexPos =
                     IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize
                         + this.indexHeader.getIndexCount() * indexSize;
@@ -2153,6 +4292,18 @@ IndexService把Topic和Key组合成`OrderTopic#ORDER_123456`。IndexFile对这�
                 this.indexHeader.setEndPhyOffset(phyOffset);
                 this.indexHeader.setEndTimestamp(storeTimestamp);
 
+                return true;
+            } catch (Exception e) {
+                log.error("putKey exception, Key: " + key + " KeyHashCode: " + key.hashCode(), e);
+            }
+        } else {
+            log.warn("Over index file capacity: index count = " + this.indexHeader.getIndexCount()
+                + "; index max num = " + this.indexNum);
+        }
+
+        return false;
+    }
+
 ```
 
 节选20B哈希条目的字段写入及槽指针更新。slotValue是旧槽指向的索引编号，存入新条目的prevIndex，形成冲突链；完整方法还更新文件头和处理容量/异常。
@@ -2163,9 +4314,121 @@ IndexService把Topic和Key组合成`OrderTopic#ORDER_123456`。IndexFile对这�
 需要区分“落入同一个槽”和“完整哈希相同”：前者可由条目中的keyHash排除，后者仍可能返回错误Key的候选位置。IndexFile不保存原始Key全文。Broker回读CommitLog返回候选消息后，4.9.8经典管理客户端MQAdminImpl.queryMessage对真实Topic和业务Key逐一核对。
 
 
-<div class="source-caption"><code>MQAdminImpl.queryMessage</code><span>RocketMQ 4.9.8 · L407–L429 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/client/src/main/java/org/apache/rocketmq/client/impl/MQAdminImpl.java#L407-L429">完整源码</a></span></div>
+<div class="source-caption"><code>MQAdminImpl.queryMessage</code><span>RocketMQ 4.9.8 · L295–L449 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/client/src/main/java/org/apache/rocketmq/client/impl/MQAdminImpl.java#L295-L449">完整源码</a></span></div>
 
 ```java
+    protected QueryResult queryMessage(String topic, String key, int maxNum, long begin, long end,
+        boolean isUniqKey) throws MQClientException,
+        InterruptedException {
+        TopicRouteData topicRouteData = this.mQClientFactory.getAnExistTopicRouteData(topic);
+        if (null == topicRouteData) {
+            this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic);
+            topicRouteData = this.mQClientFactory.getAnExistTopicRouteData(topic);
+        }
+
+        if (topicRouteData != null) {
+            List<String> brokerAddrs = new LinkedList<String>();
+            for (BrokerData brokerData : topicRouteData.getBrokerDatas()) {
+                String addr = brokerData.selectBrokerAddr();
+                if (addr != null) {
+                    brokerAddrs.add(addr);
+                }
+            }
+
+            if (!brokerAddrs.isEmpty()) {
+                final CountDownLatch countDownLatch = new CountDownLatch(brokerAddrs.size());
+                final List<QueryResult> queryResultList = new LinkedList<QueryResult>();
+                final ReadWriteLock lock = new ReentrantReadWriteLock(false);
+
+                for (String addr : brokerAddrs) {
+                    try {
+                        QueryMessageRequestHeader requestHeader = new QueryMessageRequestHeader();
+                        requestHeader.setTopic(topic);
+                        requestHeader.setKey(key);
+                        requestHeader.setMaxNum(maxNum);
+                        requestHeader.setBeginTimestamp(begin);
+                        requestHeader.setEndTimestamp(end);
+
+                        this.mQClientFactory.getMQClientAPIImpl().queryMessage(addr, requestHeader, timeoutMillis * 3,
+                            new InvokeCallback() {
+                                @Override
+                                public void operationComplete(ResponseFuture responseFuture) {
+                                    try {
+                                        RemotingCommand response = responseFuture.getResponseCommand();
+                                        if (response != null) {
+                                            switch (response.getCode()) {
+                                                case ResponseCode.SUCCESS: {
+                                                    QueryMessageResponseHeader responseHeader = null;
+                                                    try {
+                                                        responseHeader =
+                                                            (QueryMessageResponseHeader) response
+                                                                .decodeCommandCustomHeader(QueryMessageResponseHeader.class);
+                                                    } catch (RemotingCommandException e) {
+                                                        log.error("decodeCommandCustomHeader exception", e);
+                                                        return;
+                                                    }
+
+                                                    List<MessageExt> wrappers =
+                                                        MessageDecoder.decodes(ByteBuffer.wrap(response.getBody()), true);
+
+                                                    QueryResult qr = new QueryResult(responseHeader.getIndexLastUpdateTimestamp(), wrappers);
+                                                    try {
+                                                        lock.writeLock().lock();
+                                                        queryResultList.add(qr);
+                                                    } finally {
+                                                        lock.writeLock().unlock();
+                                                    }
+                                                    break;
+                                                }
+                                                default:
+                                                    log.warn("getResponseCommand failed, {} {}", response.getCode(), response.getRemark());
+                                                    break;
+                                            }
+                                        } else {
+                                            log.warn("getResponseCommand return null");
+                                        }
+                                    } finally {
+                                        countDownLatch.countDown();
+                                    }
+                                }
+                            }, isUniqKey);
+                    } catch (Exception e) {
+                        log.warn("queryMessage exception", e);
+                    }
+
+                }
+
+                boolean ok = countDownLatch.await(timeoutMillis * 4, TimeUnit.MILLISECONDS);
+                if (!ok) {
+                    log.warn("queryMessage, maybe some broker failed");
+                }
+
+                long indexLastUpdateTimestamp = 0;
+                List<MessageExt> messageList = new LinkedList<MessageExt>();
+                for (QueryResult qr : queryResultList) {
+                    if (qr.getIndexLastUpdateTimestamp() > indexLastUpdateTimestamp) {
+                        indexLastUpdateTimestamp = qr.getIndexLastUpdateTimestamp();
+                    }
+
+                    for (MessageExt msgExt : qr.getMessageList()) {
+                        if (isUniqKey) {
+                            if (msgExt.getMsgId().equals(key)) {
+
+                                if (messageList.size() > 0) {
+
+                                    if (messageList.get(0).getStoreTimestamp() > msgExt.getStoreTimestamp()) {
+
+                                        messageList.clear();
+                                        messageList.add(msgExt);
+                                    }
+
+                                } else {
+
+                                    messageList.add(msgExt);
+                                }
+                            } else {
+                                log.warn("queryMessage by uniqKey, find message key not matched, maybe hash duplicate {}", msgExt.toString());
+                            }
                         } else {
                             String keys = msgExt.getKeys();
                             String msgTopic = msgExt.getTopic();
@@ -2189,6 +4452,26 @@ IndexService把Topic和Key组合成`OrderTopic#ORDER_123456`。IndexFile对这�
                                 }
                             }
                         }
+                    }
+                }
+
+                //If namespace not null , reset Topic without namespace.
+                for (MessageExt messageExt : messageList) {
+                    if (null != this.mQClientFactory.getClientConfig().getNamespace()) {
+                        messageExt.setTopic(NamespaceUtil.withoutNamespace(messageExt.getTopic(), this.mQClientFactory.getClientConfig().getNamespace()));
+                    }
+                }
+
+                if (!messageList.isEmpty()) {
+                    return new QueryResult(indexLastUpdateTimestamp, messageList);
+                } else {
+                    throw new MQClientException(ResponseCode.NO_MESSAGE, "query message by key finished, but no message.");
+                }
+            }
+        }
+
+        throw new MQClientException(ResponseCode.TOPIC_NOT_EXIST, "The topic[" + topic + "] not matched route info");
+    }
 
 ```
 
@@ -2310,9 +4593,74 @@ StoreCheckpoint记录三个时间戳，不保存消费组offset，也不是持�
 假设M97～M99有效，M100只写入一部分，扫描在M100处发现无效记录，最终有效结束位置停在M99之后。恢复把flushedWhere、committedWhere调整到这个位置，并用truncateDirtyFiles收缩写入位置、清理后续脏文件。这里的“截断”是存储层有效范围调整，不应理解为必然把预分配文件的操作系统长度直接缩短。
 
 
-<div class="source-caption"><code>CommitLog.recoverAbnormally</code><span>RocketMQ 4.9.8 · L531–L542 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L531-L542">完整源码</a></span></div>
+<div class="source-caption"><code>CommitLog.recoverAbnormally</code><span>RocketMQ 4.9.8 · L466–L550 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java#L466-L550">完整源码</a></span></div>
 
 ```java
+    @Deprecated
+    public void recoverAbnormally(long maxPhyOffsetOfConsumeQueue) {
+        // recover by the minimum time stamp
+        boolean checkCRCOnRecover = this.defaultMessageStore.getMessageStoreConfig().isCheckCRCOnRecover();
+        final List<MappedFile> mappedFiles = this.mappedFileQueue.getMappedFiles();
+        if (!mappedFiles.isEmpty()) {
+            // Looking beginning to recover from which file
+            int index = mappedFiles.size() - 1;
+            MappedFile mappedFile = null;
+            for (; index >= 0; index--) {
+                mappedFile = mappedFiles.get(index);
+                if (this.isMappedFileMatchedRecover(mappedFile)) {
+                    log.info("recover from this mapped file " + mappedFile.getFileName());
+                    break;
+                }
+            }
+
+            if (index < 0) {
+                index = 0;
+                mappedFile = mappedFiles.get(index);
+            }
+
+            ByteBuffer byteBuffer = mappedFile.sliceByteBuffer();
+            long processOffset = mappedFile.getFileFromOffset();
+            long mappedFileOffset = 0;
+            while (true) {
+                DispatchRequest dispatchRequest = this.checkMessageAndReturnSize(byteBuffer, checkCRCOnRecover);
+                int size = dispatchRequest.getMsgSize();
+
+                if (dispatchRequest.isSuccess()) {
+                    // Normal data
+                    if (size > 0) {
+                        mappedFileOffset += size;
+
+                        if (this.defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
+                            if (dispatchRequest.getCommitLogOffset() < this.defaultMessageStore.getConfirmOffset()) {
+                                this.defaultMessageStore.doDispatch(dispatchRequest);
+                            }
+                        } else {
+                            this.defaultMessageStore.doDispatch(dispatchRequest);
+                        }
+                    }
+                    // Come the end of the file, switch to the next file
+                    // Since the return 0 representatives met last hole, this can
+                    // not be included in truncate offset
+                    else if (size == 0) {
+                        index++;
+                        if (index >= mappedFiles.size()) {
+                            // The current branch under normal circumstances should
+                            // not happen
+                            log.info("recover physics file over, last mapped file " + mappedFile.getFileName());
+                            break;
+                        } else {
+                            mappedFile = mappedFiles.get(index);
+                            byteBuffer = mappedFile.sliceByteBuffer();
+                            processOffset = mappedFile.getFileFromOffset();
+                            mappedFileOffset = 0;
+                            log.info("recover next physics file, " + mappedFile.getFileName());
+                        }
+                    }
+                } else {
+                    log.info("recover physics file end, " + mappedFile.getFileName() + " pos=" + byteBuffer.position());
+                    break;
+                }
+            }
 
             processOffset += mappedFileOffset;
             this.mappedFileQueue.setFlushedWhere(processOffset);
@@ -2325,6 +4673,14 @@ StoreCheckpoint记录三个时间戳，不保存消费组offset，也不是持�
                 this.defaultMessageStore.truncateDirtyLogicFiles(processOffset);
             }
         }
+        // Commitlog case files are deleted
+        else {
+            log.warn("The commitlog files are deleted, and delete the consume queue files");
+            this.mappedFileQueue.setFlushedWhere(0);
+            this.mappedFileQueue.setCommittedWhere(0);
+            this.defaultMessageStore.destroyLogics();
+        }
+    }
 
 ```
 
@@ -2338,9 +4694,51 @@ StoreCheckpoint记录三个时间戳，不保存消费组offset，也不是持�
 异常恢复校验有效记录时已经执行doDispatch，CQ的物理/逻辑位置检查帮助跳过已有条目。随后DefaultMessageStore.start从现有CQ最大物理结束位置计算Reput起点，以CommitLog最小位置作为下界，启动Reput并等待`dispatchBehindBytes()≤0`，再恢复topicQueueTable并继续启动其他服务。
 
 
-<div class="source-caption"><code>DefaultMessageStore.start</code><span>RocketMQ 4.9.8 · L275–L292 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L275-L292">完整源码</a></span></div>
+<div class="source-caption"><code>DefaultMessageStore.start</code><span>RocketMQ 4.9.8 · L233–L306 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java#L233-L306">完整源码</a></span></div>
 
 ```java
+    /**
+     * @throws Exception
+     */
+    public void start() throws Exception {
+
+        lock = lockFile.getChannel().tryLock(0, 1, false);
+        if (lock == null || lock.isShared() || !lock.isValid()) {
+            throw new RuntimeException("Lock failed,MQ already started");
+        }
+
+        lockFile.getChannel().write(ByteBuffer.wrap("lock".getBytes()));
+        lockFile.getChannel().force(true);
+        {
+            /**
+             * 1. Make sure the fast-forward messages to be truncated during the recovering according to the max physical offset of the commitlog;
+             * 2. DLedger committedPos may be missing, so the maxPhysicalPosInLogicQueue maybe bigger that maxOffset returned by DLedgerCommitLog, just let it go;
+             * 3. Calculate the reput offset according to the consume queue;
+             * 4. Make sure the fall-behind messages to be dispatched before starting the commitlog, especially when the broker role are automatically changed.
+             */
+            long maxPhysicalPosInLogicQueue = commitLog.getMinOffset();
+            for (ConcurrentMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
+                for (ConsumeQueue logic : maps.values()) {
+                    if (logic.getMaxPhysicOffset() > maxPhysicalPosInLogicQueue) {
+                        maxPhysicalPosInLogicQueue = logic.getMaxPhysicOffset();
+                    }
+                }
+            }
+            if (maxPhysicalPosInLogicQueue < 0) {
+                maxPhysicalPosInLogicQueue = 0;
+            }
+            if (maxPhysicalPosInLogicQueue < this.commitLog.getMinOffset()) {
+                maxPhysicalPosInLogicQueue = this.commitLog.getMinOffset();
+                /**
+                 * This happens in following conditions:
+                 * 1. If someone removes all the consumequeue files or the disk get damaged.
+                 * 2. Launch a new broker, and copy the commitlog from other brokers.
+                 *
+                 * All the conditions has the same in common that the maxPhysicalPosInLogicQueue should be 0.
+                 * If the maxPhysicalPosInLogicQueue is gt 0, there maybe something wrong.
+                 */
+                log.warn("[TooSmallCqOffset] maxPhysicalPosInLogicQueue={} clMinOffset={}", maxPhysicalPosInLogicQueue, this.commitLog.getMinOffset());
+            }
             log.info("[SetReputOffset] maxPhysicalPosInLogicQueue={} clMinOffset={} clMaxOffset={} clConfirmedOffset={}",
                 maxPhysicalPosInLogicQueue, this.commitLog.getMinOffset(), this.commitLog.getMaxOffset(), this.commitLog.getConfirmOffset());
             this.reputMessageService.setReputFromOffset(maxPhysicalPosInLogicQueue);
@@ -2360,6 +4758,20 @@ StoreCheckpoint记录三个时间戳，不保存消费组offset，也不是持�
             this.recoverTopicQueueTable();
         }
 
+        if (!messageStoreConfig.isEnableDLegerCommitLog()) {
+            this.haService.start();
+            this.handleScheduleMessageService(messageStoreConfig.getBrokerRole());
+        }
+
+        this.flushConsumeQueueService.start();
+        this.commitLog.start();
+        this.storeStatsService.start();
+
+        this.createTempFile();
+        this.addScheduleTask();
+        this.shutdown = false;
+    }
+
 ```
 
 节选启动Reput、等待派发追赶、再恢复队列序号。起点由前面的各CQ最大物理结束位置计算，并受CommitLog最小位置约束，不是加载持久化Reput字段。
@@ -2372,9 +4784,20 @@ StoreCheckpoint记录三个时间戳，不保存消费组offset，也不是持�
 IndexFile走另一套边界：异常启动时IndexService.load删除结束时间晚于indexMsgTimestamp的整个索引文件；恢复扫描只会重建实际扫过的消息。buildIndex以最后保留IndexFile的endPhyOffset过滤更早记录，条件是物理起点`<endPhyOffset`，不能直接套用CQ的`offset+size≤maxPhysicOffset`规则。
 
 
-<div class="source-caption"><code>IndexService.load</code><span>RocketMQ 4.9.8 · L68–L75 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/index/IndexService.java#L68-L75">完整源码</a></span></div>
+<div class="source-caption"><code>IndexService.load</code><span>RocketMQ 4.9.8 · L57–L88 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/index/IndexService.java#L57-L88">完整源码</a></span></div>
 
 ```java
+    public boolean load(final boolean lastExitOK) {
+        File dir = new File(this.storePath);
+        File[] files = dir.listFiles();
+        if (files != null) {
+            // ascending order
+            Arrays.sort(files);
+            for (File file : files) {
+                try {
+                    IndexFile f = new IndexFile(file.getPath(), this.hashSlotNum, this.indexNum, 0, 0);
+                    f.load();
+
                     if (!lastExitOK) {
                         if (f.getEndTimestamp() > this.defaultMessageStore.getStoreCheckpoint()
                             .getIndexMsgTimestamp()) {
@@ -2383,6 +4806,19 @@ IndexFile走另一套边界：异常启动时IndexService.load删除结束时间
                         }
                     }
 
+                    log.info("load index file OK, " + f.getFileName());
+                    this.indexFileList.add(f);
+                } catch (IOException e) {
+                    log.error("load file {} error", file, e);
+                    return false;
+                } catch (NumberFormatException e) {
+                    log.error("load file {} error", file, e);
+                }
+            }
+        }
+
+        return true;
+    }
 
 ```
 
@@ -2533,7 +4969,7 @@ Broker 已写入而响应丢失时，Producer 只看到超时，重试可能重�
 
 ## 官方资料与版本来源
 
-本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [CommitLog.asyncPutMessage · RocketMQ 4.9.8](https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/store/src/main/java/org/apache/rocketmq/store/CommitLog.java)
 - [DefaultMQProducerImpl.sendMessageInTransaction · RocketMQ 4.9.8](https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java)
@@ -2630,7 +5066,7 @@ SLOWLOG 主要反映命令执行时间，不包含完整网络往返。服务端
 删除由 dbDelete 选择同步或异步释放路径。对象编码还需继续看 t_hash.c、t_zset.c、dict.c、quicklist.c，不能只根据对外类型名估计所有操作的成本。
 
 
-<div class="source-caption"><code>setGenericCommand</code><span>Redis 7.2.4 · L84–L103 · <a href="https://github.com/redis/redis/blob/7.2.4/src/t_string.c#L84-L103">完整源码</a></span></div>
+<div class="source-caption"><code>setGenericCommand</code><span>Redis 7.2.4 · L84–L150 · <a href="https://github.com/redis/redis/blob/7.2.4/src/t_string.c#L84-L150">完整源码</a></span></div>
 
 ```c
 void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire, int unit, robj *ok_reply, robj *abort_reply) {
@@ -2653,21 +5089,97 @@ void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire,
     {
         if (!(flags & OBJ_SET_GET)) {
             addReply(c, abort_reply ? abort_reply : shared.null[c->resp]);
+        }
+        return;
+    }
+
+    /* When expire is not NULL, we avoid deleting the TTL so it can be updated later instead of being deleted and then created again. */
+    setkey_flags |= ((flags & OBJ_KEEPTTL) || expire) ? SETKEY_KEEPTTL : 0;
+    setkey_flags |= found ? SETKEY_ALREADY_EXIST : SETKEY_DOESNT_EXIST;
+
+    setKey(c,c->db,key,val,setkey_flags);
+    server.dirty++;
+    notifyKeyspaceEvent(NOTIFY_STRING,"set",key,c->db->id);
+
+    if (expire) {
+        setExpire(c,c->db,key,milliseconds);
+        /* Propagate as SET Key Value PXAT millisecond-timestamp if there is
+         * EX/PX/EXAT flag. */
+        if (!(flags & OBJ_PXAT)) {
+            robj *milliseconds_obj = createStringObjectFromLongLong(milliseconds);
+            rewriteClientCommandVector(c, 5, shared.set, key, val, shared.pxat, milliseconds_obj);
+            decrRefCount(milliseconds_obj);
+        }
+        notifyKeyspaceEvent(NOTIFY_GENERIC,"expire",key,c->db->id);
+    }
+
+    if (!(flags & OBJ_SET_GET)) {
+        addReply(c, ok_reply ? ok_reply : shared.ok);
+    }
+
+    /* Propagate without the GET argument (Isn't needed if we had expire since in that case we completely re-written the command argv) */
+    if ((flags & OBJ_SET_GET) && !expire) {
+        int argc = 0;
+        int j;
+        robj **argv = zmalloc((c->argc-1)*sizeof(robj*));
+        for (j=0; j < c->argc; j++) {
+            char *a = c->argv[j]->ptr;
+            /* Skip GET which may be repeated multiple times. */
+            if (j >= 3 &&
+                (a[0] == 'g' || a[0] == 'G') &&
+                (a[1] == 'e' || a[1] == 'E') &&
+                (a[2] == 't' || a[2] == 'T') && a[3] == '\0')
+                continue;
+            argv[argc++] = c->argv[j];
+            incrRefCount(c->argv[j]);
+        }
+        replaceClientCommandVector(c, argc, argv);
+    }
+}
+
 ```
 
 lookupKeyWrite 之后直接检查 NX/XX 是否满足，不满足就回复并返回。条件判定和后续写入处在同一次命令执行中，不需要客户端先 GET 再决定 SET。
 
 
 
-<div class="source-caption"><code>dbDelete</code><span>Redis 7.2.4 · L403–L408 · <a href="https://github.com/redis/redis/blob/7.2.4/src/db.c#L403-L408">完整源码</a></span></div>
+<div class="source-caption"><code>dbDelete</code><span>Redis 7.2.4 · L401–L433 · <a href="https://github.com/redis/redis/blob/7.2.4/src/db.c#L401-L433">完整源码</a></span></div>
 
 ```c
+/* This is a wrapper whose behavior depends on the Redis lazy free
+ * configuration. Deletes the key synchronously or asynchronously. */
 int dbDelete(redisDb *db, robj *key) {
     return dbGenericDelete(db, key, server.lazyfree_lazy_server_del, DB_FLAG_KEY_DELETED);
 }
 
 /* Prepare the string object stored at 'key' to be modified destructively
  * to implement commands like SETBIT or APPEND.
+ *
+ * An object is usually ready to be modified unless one of the two conditions
+ * are true:
+ *
+ * 1) The object 'o' is shared (refcount > 1), we don't want to affect
+ *    other users.
+ * 2) The object encoding is not "RAW".
+ *
+ * If the object is found in one of the above conditions (or both) by the
+ * function, an unshared / not-encoded copy of the string object is stored
+ * at 'key' in the specified 'db'. Otherwise the object 'o' itself is
+ * returned.
+ *
+ * USAGE:
+ *
+ * The object 'o' is what the caller already obtained by looking up 'key'
+ * in 'db', the usage pattern looks like this:
+ *
+ * o = lookupKeyWrite(db,key);
+ * if (checkType(c,o,OBJ_STRING)) return;
+ * o = dbUnshareStringValue(db,key,o);
+ *
+ * At this point the caller is ready to modify the object, for example
+ * using an sdscat() call to append some data, or anything else.
+ */
+
 ```
 
 dbDelete 根据 lazyfree 配置选择 dbAsyncDelete 或 dbSyncDelete。异步路径允许先移除 key，再由后台处理部分内存释放，所以命令成功与 RSS 下降不一定同时发生。
@@ -2794,7 +5306,7 @@ Redis 常见操作靠内存结构和事件循环，网络 IO 多线程不代表�
 
 ## 官方资料与版本来源
 
-本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [dbDelete · Redis 7.2.4](https://raw.githubusercontent.com/redis/redis/7.2.4/src/db.c)
 - [setGenericCommand · Redis 7.2.4](https://raw.githubusercontent.com/redis/redis/7.2.4/src/t_string.c)
@@ -2885,9 +5397,10 @@ Outbox 是业务表和后台任务的一种做法，没有一个通用 JDK 类�
 本章再次引用回查入口，是为了对应恢复责任：Broker 会检查待决消息，但真正本地交易状态仍由 Producer 查询。数据库中的 eventId、状态和约束必须由业务设计。
 
 
-<div class="source-caption"><code>TransactionalMessageServiceImpl.check</code><span>RocketMQ 4.9.8 · L127–L143 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L127-L143">完整源码</a></span></div>
+<div class="source-caption"><code>TransactionalMessageServiceImpl.check</code><span>RocketMQ 4.9.8 · L126–L253 · <a href="https://github.com/apache/rocketmq/blob/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java#L126-L253">完整源码</a></span></div>
 
 ```java
+    @Override
     public void check(long transactionTimeout, int transactionCheckMax,
         AbstractTransactionalMessageCheckListener listener) {
         try {
@@ -2905,6 +5418,117 @@ Outbox 是业务表和后台任务的一种做法，没有一个通用 JDK 类�
                 long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);
                 log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
                 if (halfOffset < 0 || opOffset < 0) {
+                    log.error("MessageQueue: {} illegal offset read: {}, op offset: {},skip this queue", messageQueue,
+                        halfOffset, opOffset);
+                    continue;
+                }
+
+                List<Long> doneOpOffset = new ArrayList<>();
+                HashMap<Long, Long> removeMap = new HashMap<>();
+                PullResult pullResult = fillOpRemoveMap(removeMap, opQueue, opOffset, halfOffset, doneOpOffset);
+                if (null == pullResult) {
+                    log.error("The queue={} check msgOffset={} with opOffset={} failed, pullResult is null",
+                        messageQueue, halfOffset, opOffset);
+                    continue;
+                }
+                // single thread
+                int getMessageNullCount = 1;
+                long newOffset = halfOffset;
+                long i = halfOffset;
+                while (true) {
+                    if (System.currentTimeMillis() - startTime > MAX_PROCESS_TIME_LIMIT) {
+                        log.info("Queue={} process time reach max={}", messageQueue, MAX_PROCESS_TIME_LIMIT);
+                        break;
+                    }
+                    if (removeMap.containsKey(i)) {
+                        log.debug("Half offset {} has been committed/rolled back", i);
+                        Long removedOpOffset = removeMap.remove(i);
+                        doneOpOffset.add(removedOpOffset);
+                    } else {
+                        GetResult getResult = getHalfMsg(messageQueue, i);
+                        MessageExt msgExt = getResult.getMsg();
+                        if (msgExt == null) {
+                            if (getMessageNullCount++ > MAX_RETRY_COUNT_WHEN_HALF_NULL) {
+                                break;
+                            }
+                            if (getResult.getPullResult().getPullStatus() == PullStatus.NO_NEW_MSG) {
+                                log.debug("No new msg, the miss offset={} in={}, continue check={}, pull result={}", i,
+                                    messageQueue, getMessageNullCount, getResult.getPullResult());
+                                break;
+                            } else {
+                                log.info("Illegal offset, the miss offset={} in={}, continue check={}, pull result={}",
+                                    i, messageQueue, getMessageNullCount, getResult.getPullResult());
+                                i = getResult.getPullResult().getNextBeginOffset();
+                                newOffset = i;
+                                continue;
+                            }
+                        }
+
+                        if (needDiscard(msgExt, transactionCheckMax) || needSkip(msgExt)) {
+                            listener.resolveDiscardMsg(msgExt);
+                            newOffset = i + 1;
+                            i++;
+                            continue;
+                        }
+                        if (msgExt.getStoreTimestamp() >= startTime) {
+                            log.debug("Fresh stored. the miss offset={}, check it later, store={}", i,
+                                new Date(msgExt.getStoreTimestamp()));
+                            break;
+                        }
+
+                        long valueOfCurrentMinusBorn = System.currentTimeMillis() - msgExt.getBornTimestamp();
+                        long checkImmunityTime = transactionTimeout;
+                        String checkImmunityTimeStr = msgExt.getUserProperty(MessageConst.PROPERTY_CHECK_IMMUNITY_TIME_IN_SECONDS);
+                        if (null != checkImmunityTimeStr) {
+                            checkImmunityTime = getImmunityTime(checkImmunityTimeStr, transactionTimeout);
+                            if (valueOfCurrentMinusBorn < checkImmunityTime) {
+                                if (checkPrepareQueueOffset(removeMap, doneOpOffset, msgExt)) {
+                                    newOffset = i + 1;
+                                    i++;
+                                    continue;
+                                }
+                            }
+                        } else {
+                            if ((0 <= valueOfCurrentMinusBorn) && (valueOfCurrentMinusBorn < checkImmunityTime)) {
+                                log.debug("New arrived, the miss offset={}, check it later checkImmunity={}, born={}", i,
+                                    checkImmunityTime, new Date(msgExt.getBornTimestamp()));
+                                break;
+                            }
+                        }
+                        List<MessageExt> opMsg = pullResult.getMsgFoundList();
+                        boolean isNeedCheck = (opMsg == null && valueOfCurrentMinusBorn > checkImmunityTime)
+                            || (opMsg != null && (opMsg.get(opMsg.size() - 1).getBornTimestamp() - startTime > transactionTimeout))
+                            || (valueOfCurrentMinusBorn <= -1);
+
+                        if (isNeedCheck) {
+                            if (!putBackHalfMsgQueue(msgExt, i)) {
+                                continue;
+                            }
+                            listener.resolveHalfMsg(msgExt);
+                        } else {
+                            pullResult = fillOpRemoveMap(removeMap, opQueue, pullResult.getNextBeginOffset(), halfOffset, doneOpOffset);
+                            log.debug("The miss offset:{} in messageQueue:{} need to get more opMsg, result is:{}", i,
+                                messageQueue, pullResult);
+                            continue;
+                        }
+                    }
+                    newOffset = i + 1;
+                    i++;
+                }
+                if (newOffset != halfOffset) {
+                    transactionalMessageBridge.updateConsumeOffset(messageQueue, newOffset);
+                }
+                long newOpOffset = calculateOpOffset(doneOpOffset, opOffset);
+                if (newOpOffset != opOffset) {
+                    transactionalMessageBridge.updateConsumeOffset(opQueue, newOpOffset);
+                }
+            }
+        } catch (Throwable e) {
+            log.error("Check error", e);
+        }
+
+    }
+
 ```
 
 check 从 Half 相关 Topic 的队列开始遍历；后续还要对照操作队列和检查次数。回查本身并不替 Producer 做数据库提交，Producer 要实现持久状态查询。
@@ -3046,7 +5670,7 @@ Outbox 发送成功未标 SENT 时会重发，先标再发则可能丢失，所�
 
 ## 官方资料与版本来源
 
-本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [TransactionAspectSupport.invokeWithinTransaction · Spring Framework 5.3.31](https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java)
 - [TransactionalMessageServiceImpl.check · RocketMQ 4.9.8](https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java)
@@ -3129,9 +5753,15 @@ Gateway 从 `FilteringWebHandler.handle` 建立过滤器链。Netty 的 `NioEven
 沿这三个片段，分别回答请求先过哪些过滤器、线程什么时候被占住，以及数据在哪个队列等下游。这样比看到 Mono 就断言非阻塞更具体。
 
 
-<div class="source-caption"><code>FilteringWebHandler.handle</code><span>Spring Cloud Gateway 3.1.8 · L75–L86 · <a href="https://github.com/spring-cloud/spring-cloud-gateway/blob/v3.1.8/spring-cloud-gateway-server/src/main/java/org/springframework/cloud/gateway/handler/FilteringWebHandler.java#L75-L86">完整源码</a></span></div>
+<div class="source-caption"><code>FilteringWebHandler.handle</code><span>Spring Cloud Gateway 3.1.8 · L69–L89 · <a href="https://github.com/spring-cloud/spring-cloud-gateway/blob/v3.1.8/spring-cloud-gateway-server/src/main/java/org/springframework/cloud/gateway/handler/FilteringWebHandler.java#L69-L89">完整源码</a></span></div>
 
 ```java
+	/*
+	 * TODO: relocate @EventListener(RefreshRoutesEvent.class) void handleRefresh() {
+	 * this.combinedFiltersForRoute.clear();
+	 */
+
+	@Override
 	public Mono<Void> handle(ServerWebExchange exchange) {
 		Route route = exchange.getRequiredAttribute(GATEWAY_ROUTE_ATTR);
 		List<GatewayFilter> gatewayFilters = route.getFilters();
@@ -3144,15 +5774,68 @@ Gateway 从 `FilteringWebHandler.handle` 建立过滤器链。Netty 的 `NioEven
 		if (logger.isDebugEnabled()) {
 			logger.debug("Sorted gatewayFilterFactories: " + combined);
 		}
+
+		return new DefaultGatewayFilterChain(combined).filter(exchange);
+	}
+
 ```
 
 过滤器链把全局过滤器与路由过滤器放在一起排序，再继续执行。调用顺序由 order 决定，不能只根据 Bean 注册顺序判断。
 
 
 
-<div class="source-caption"><code>NioEventLoop.run</code><span>Netty 4.1.108.Final · L552–L569 · <a href="https://github.com/netty/netty/blob/netty-4.1.108.Final/transport/src/main/java/io/netty/channel/nio/NioEventLoop.java#L552-L569">完整源码</a></span></div>
+<div class="source-caption"><code>NioEventLoop.run</code><span>Netty 4.1.108.Final · L503–L607 · <a href="https://github.com/netty/netty/blob/netty-4.1.108.Final/transport/src/main/java/io/netty/channel/nio/NioEventLoop.java#L503-L607">完整源码</a></span></div>
 
 ```java
+    @Override
+    protected void run() {
+        int selectCnt = 0;
+        for (;;) {
+            try {
+                int strategy;
+                try {
+                    strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
+                    switch (strategy) {
+                    case SelectStrategy.CONTINUE:
+                        continue;
+
+                    case SelectStrategy.BUSY_WAIT:
+                        // fall-through to SELECT since the busy-wait is not supported with NIO
+
+                    case SelectStrategy.SELECT:
+                        long curDeadlineNanos = nextScheduledTaskDeadlineNanos();
+                        if (curDeadlineNanos == -1L) {
+                            curDeadlineNanos = NONE; // nothing on the calendar
+                        }
+                        nextWakeupNanos.set(curDeadlineNanos);
+                        try {
+                            if (!hasTasks()) {
+                                strategy = select(curDeadlineNanos);
+                            }
+                        } finally {
+                            // This update is just to help block unnecessary selector wakeups
+                            // so use of lazySet is ok (no race condition)
+                            nextWakeupNanos.lazySet(AWAKE);
+                        }
+                        // fall through
+                    default:
+                    }
+                } catch (IOException e) {
+                    // If we receive an IOException here its because the Selector is messed up. Let's rebuild
+                    // the selector and retry. https://github.com/netty/netty/issues/8566
+                    rebuildSelector0();
+                    selectCnt = 0;
+                    handleLoopException(e);
+                    continue;
+                }
+
+                selectCnt++;
+                cancelledKeys = 0;
+                needsToSelectAgain = false;
+                final int ioRatio = this.ioRatio;
+                boolean ranTasks;
+                if (ioRatio == 100) {
+                    try {
                         if (strategy > 0) {
                             processSelectedKeys();
                         }
@@ -3171,15 +5854,55 @@ Gateway 从 `FilteringWebHandler.handle` 建立过滤器链。Netty 的 `NioEven
                     }
                 } else {
                     ranTasks = runAllTasks(0); // This will run the minimum number of tasks
+                }
+
+                if (ranTasks || strategy > 0) {
+                    if (selectCnt > MIN_PREMATURE_SELECTOR_RETURNS && logger.isDebugEnabled()) {
+                        logger.debug("Selector.select() returned prematurely {} times in a row for Selector {}.",
+                                selectCnt - 1, selector);
+                    }
+                    selectCnt = 0;
+                } else if (unexpectedSelectorWakeup(selectCnt)) { // Unexpected wakeup (unusual case)
+                    selectCnt = 0;
+                }
+            } catch (CancelledKeyException e) {
+                // Harmless exception - log anyway
+                if (logger.isDebugEnabled()) {
+                    logger.debug(CancelledKeyException.class.getSimpleName() + " raised by a Selector {} - JDK bug?",
+                            selector, e);
+                }
+            } catch (Error e) {
+                throw e;
+            } catch (Throwable t) {
+                handleLoopException(t);
+            } finally {
+                // Always handle shutdown even if the loop processing threw an exception.
+                try {
+                    if (isShuttingDown()) {
+                        closeAll();
+                        if (confirmShutdown()) {
+                            return;
+                        }
+                    }
+                } catch (Error e) {
+                    throw e;
+                } catch (Throwable t) {
+                    handleLoopException(t);
+                }
+            }
+        }
+    }
+
 ```
 
 ioRatio 为 100 时处理 IO 后运行任务；其他情况下按 IO 用时为任务分配时间。一个任务自己阻塞很久，这种时间分配也无法让它凭空变成可中断的异步调用。
 
 
 
-<div class="source-caption"><code>FluxPublishOn.onNext</code><span>Reactor 3.4.34 · L214–L231 · <a href="https://github.com/reactor/reactor-core/blob/v3.4.34/reactor-core/src/main/java/reactor/core/publisher/FluxPublishOn.java#L214-L231">完整源码</a></span></div>
+<div class="source-caption"><code>FluxPublishOn.onNext</code><span>Reactor 3.4.34 · L213–L238 · <a href="https://github.com/reactor/reactor-core/blob/v3.4.34/reactor-core/src/main/java/reactor/core/publisher/FluxPublishOn.java#L213-L238">完整源码</a></span></div>
 
 ```java
+		@Override
 		public void onNext(T t) {
 			if (sourceMode == ASYNC) {
 				trySchedule(this, null, null /* t always null */);
@@ -3198,6 +5921,14 @@ ioRatio 为 100 时处理 IO 后运行任务；其他情况下按 IO 用时为�
 
 			if (!queue.offer(t)) {
 				Operators.onDiscard(t, actual.currentContext());
+				error = Operators.onOperatorError(s,
+						Exceptions.failWithOverflow(Exceptions.BACKPRESSURE_ERROR_QUEUE_FULL),
+						t, actual.currentContext());
+				done = true;
+			}
+			trySchedule(this, null, t);
+		}
+
 ```
 
 onNext 先把值交给队列，再触发调度。队列满等异常会沿错误处理传递。后续 drain 与 request 配合，才构成跨线程处理和需求补充。
@@ -3335,7 +6066,7 @@ subscribeOn 影响订阅和源执行的位置，publishOn 影响它之后的信�
 
 ## 官方资料与版本来源
 
-本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [NioEventLoop.run · Netty 4.1.108.Final](https://raw.githubusercontent.com/netty/netty/netty-4.1.108.Final/transport/src/main/java/io/netty/channel/nio/NioEventLoop.java)
 - [FluxPublishOn.onNext · Reactor 3.4.34](https://raw.githubusercontent.com/reactor/reactor-core/v3.4.34/reactor-core/src/main/java/reactor/core/publisher/FluxPublishOn.java)
@@ -3526,9 +6257,10 @@ CAS在指定位置上比较期望值并尝试原子更新。失败时调用方�
 `method_invocation_event → call_event → compile → submit_compile → CompileBroker::compile_method`连接调用热度与编译请求；回边事件另经`loop_event`决定OSR层级和BCI。下面是固定版本的完整submit_compile函数，`InvocationEntryBci`区分普通方法入口和OSR入口；hot_count相应使用调用计数或回边计数。
 
 
-<div class="source-caption"><code>AdvancedThresholdPolicy::submit_compile</code><span>HotSpot 8u462-b08 · L453–L458 · <a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/runtime/advancedThresholdPolicy.cpp#L453-L458">完整源码</a></span></div>
+<div class="source-caption"><code>AdvancedThresholdPolicy::submit_compile</code><span>HotSpot 8u462-b08 · L452–L458 · <a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/runtime/advancedThresholdPolicy.cpp#L452-L458">完整源码</a></span></div>
 
 ```cpp
+// Update the rate and submit compile
 void AdvancedThresholdPolicy::submit_compile(methodHandle mh, int bci, CompLevel level, JavaThread* thread) {
   int hot_count = (bci == InvocationEntryBci) ? mh->invocation_count() : mh->backedge_count();
   update_rate(os::javaTimeMillis(), mh());
@@ -3552,9 +6284,93 @@ CompileBroker的编译线程取出CompileTask，`invoke_compiler_on_method`选�
 Parse::do_get_xxx首先检查字段是否volatile。构造加载时选择acquire内存顺序；在这个版本的后续分支中，还插入MemBarAcquire节点。图中的内存依赖限制非法重排，不能把节点数量直接换算成硬件屏障数量。
 
 
-<div class="source-caption"><code>Parse::do_get_xxx / load</code><span>HotSpot 8u462-b08 · L231–L238 · <a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp#L231-L238">完整源码</a></span></div>
+<div class="source-caption"><code>Parse::do_get_xxx / load</code><span>HotSpot 8u462-b08 · L147–L280 · <a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp#L147-L280">完整源码</a></span></div>
 
 ```cpp
+void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
+  // Does this field have a constant value?  If so, just push the value.
+  if (field->is_constant()) {
+    // final or stable field
+    const Type* stable_type = NULL;
+    if (FoldStableValues && field->is_stable()) {
+      stable_type = Type::get_const_type(field->type());
+      if (field->type()->is_array_klass()) {
+        int stable_dimension = field->type()->as_array_klass()->dimension();
+        stable_type = stable_type->is_aryptr()->cast_to_stable(true, stable_dimension);
+      }
+    }
+    if (field->is_static()) {
+      // final static field
+      if (C->eliminate_boxing()) {
+        // The pointers in the autobox arrays are always non-null.
+        ciSymbol* klass_name = field->holder()->name();
+        if (field->name() == ciSymbol::cache_field_name() &&
+            field->holder()->uses_default_loader() &&
+            (klass_name == ciSymbol::java_lang_Character_CharacterCache() ||
+             klass_name == ciSymbol::java_lang_Byte_ByteCache() ||
+             klass_name == ciSymbol::java_lang_Short_ShortCache() ||
+             klass_name == ciSymbol::java_lang_Integer_IntegerCache() ||
+             klass_name == ciSymbol::java_lang_Long_LongCache())) {
+          bool require_const = true;
+          bool autobox_cache = true;
+          if (push_constant(field->constant_value(), require_const, autobox_cache)) {
+            return;
+          }
+        }
+      }
+      if (push_constant(field->constant_value(), false, false, stable_type))
+        return;
+    } else {
+      // final or stable non-static field
+      // Treat final non-static fields of trusted classes (classes in
+      // java.lang.invoke and sun.invoke packages and subpackages) as
+      // compile time constants.
+      if (obj->is_Con()) {
+        const TypeOopPtr* oop_ptr = obj->bottom_type()->isa_oopptr();
+        ciObject* constant_oop = oop_ptr->const_oop();
+        ciConstant constant = field->constant_value_of(constant_oop);
+        if (FoldStableValues && field->is_stable() && constant.is_null_or_zero()) {
+          // fall through to field load; the field is not yet initialized
+        } else {
+          if (push_constant(constant, true, false, stable_type))
+            return;
+        }
+      }
+    }
+  }
+
+  Node* leading_membar = NULL;
+  ciType* field_klass = field->type();
+  bool is_vol = field->is_volatile();
+
+  // Compute address and memory type.
+  int offset = field->offset_in_bytes();
+  const TypePtr* adr_type = C->alias_type(field)->adr_type();
+  Node *adr = basic_plus_adr(obj, obj, offset);
+  BasicType bt = field->layout_type();
+
+  // Build the resultant type of the load
+  const Type *type;
+
+  bool must_assert_null = false;
+
+  if( bt == T_OBJECT ) {
+    if (!field->type()->is_loaded()) {
+      type = TypeInstPtr::BOTTOM;
+      must_assert_null = true;
+    } else if (field->is_constant() && field->is_static()) {
+      // This can happen if the constant oop is non-perm.
+      ciObject* con = field->constant_value().as_object();
+      // Do not "join" in the previous type; it doesn't add value,
+      // and may yield a vacuous result if the field is of interface type.
+      type = TypeOopPtr::make_from_constant(con)->isa_oopptr();
+      assert(type != NULL, "field singleton type must be consistent");
+    } else {
+      type = TypeOopPtr::make_from_klass(field_klass->as_klass());
+    }
+  } else {
+    type = Type::get_const_basic_type(bt);
+  }
   if (support_IRIW_for_not_multiple_copy_atomic_cpu && field->is_volatile()) {
     leading_membar = insert_mem_bar(Op_MemBarVolatile);   // StoreLoad barrier
   }
@@ -3563,16 +6379,38 @@ Parse::do_get_xxx首先检查字段是否volatile。构造加载时选择acquire
   MemNode::MemOrd mo = is_vol ? MemNode::acquire : MemNode::unordered;
   Node* ld = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, is_vol);
 
+  // Adjust Java stack
+  if (type2size[bt] == 1)
+    push(ld);
+  else
+    push_pair(ld);
 
-```
+  if (must_assert_null) {
+    // Do not take a trap here.  It's possible that the program
+    // will never load the field's class, and will happily see
+    // null values in this field forever.  Don't stumble into a
+    // trap for such a program, or we might get a long series
+    // of useless recompilations.  (Or, we might load a class
+    // which should not be loaded.)  If we ever see a non-null
+    // value, we will then trap and recompile.  (The trap will
+    // not need to mention the class index, since the class will
+    // already have been loaded if we ever see a non-null value.)
+    // uncommon_trap(iter().get_field_signature_index());
+#ifndef PRODUCT
+    if (PrintOpto && (Verbose || WizardMode)) {
+      method()->print_name(); tty->print_cr(" asserting nullness of field at bci: %d", bci());
+    }
+#endif
+    if (C->log() != NULL) {
+      C->log()->elem("assert_null reason='field' klass='%d'",
+                     C->log()->identify(field->type()));
+    }
+    // If there is going to be a trap, put it at the next bytecode:
+    set_bci(iter().next_bci());
+    null_assert(peek());
+    set_bci(iter().cur_bci()); // put it back
+  }
 
-连续局部窗口：特殊平台可能先放置额外屏障；volatile加载带acquire属性和is_vol标记。ld后续还用于Acquire节点。
-
-
-
-<div class="source-caption"><code>Parse::do_get_xxx / acquire</code><span>HotSpot 8u462-b08 · L271–L279 · <a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp#L271-L279">完整源码</a></span></div>
-
-```cpp
   // If reference is volatile, prevent following memory ops from
   // floating up past the volatile read.  Also prevents commoning
   // another volatile read.
@@ -3582,6 +6420,151 @@ Parse::do_get_xxx首先检查字段是否volatile。构造加载时选择acquire
     Node* mb = insert_mem_bar(Op_MemBarAcquire, ld);
     mb->as_MemBar()->set_trailing_load();
   }
+}
+
+```
+
+连续局部窗口：特殊平台可能先放置额外屏障；volatile加载带acquire属性和is_vol标记。ld后续还用于Acquire节点。
+
+
+
+<div class="source-caption"><code>Parse::do_get_xxx / acquire</code><span>HotSpot 8u462-b08 · L147–L280 · <a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp#L147-L280">完整源码</a></span></div>
+
+```cpp
+void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
+  // Does this field have a constant value?  If so, just push the value.
+  if (field->is_constant()) {
+    // final or stable field
+    const Type* stable_type = NULL;
+    if (FoldStableValues && field->is_stable()) {
+      stable_type = Type::get_const_type(field->type());
+      if (field->type()->is_array_klass()) {
+        int stable_dimension = field->type()->as_array_klass()->dimension();
+        stable_type = stable_type->is_aryptr()->cast_to_stable(true, stable_dimension);
+      }
+    }
+    if (field->is_static()) {
+      // final static field
+      if (C->eliminate_boxing()) {
+        // The pointers in the autobox arrays are always non-null.
+        ciSymbol* klass_name = field->holder()->name();
+        if (field->name() == ciSymbol::cache_field_name() &&
+            field->holder()->uses_default_loader() &&
+            (klass_name == ciSymbol::java_lang_Character_CharacterCache() ||
+             klass_name == ciSymbol::java_lang_Byte_ByteCache() ||
+             klass_name == ciSymbol::java_lang_Short_ShortCache() ||
+             klass_name == ciSymbol::java_lang_Integer_IntegerCache() ||
+             klass_name == ciSymbol::java_lang_Long_LongCache())) {
+          bool require_const = true;
+          bool autobox_cache = true;
+          if (push_constant(field->constant_value(), require_const, autobox_cache)) {
+            return;
+          }
+        }
+      }
+      if (push_constant(field->constant_value(), false, false, stable_type))
+        return;
+    } else {
+      // final or stable non-static field
+      // Treat final non-static fields of trusted classes (classes in
+      // java.lang.invoke and sun.invoke packages and subpackages) as
+      // compile time constants.
+      if (obj->is_Con()) {
+        const TypeOopPtr* oop_ptr = obj->bottom_type()->isa_oopptr();
+        ciObject* constant_oop = oop_ptr->const_oop();
+        ciConstant constant = field->constant_value_of(constant_oop);
+        if (FoldStableValues && field->is_stable() && constant.is_null_or_zero()) {
+          // fall through to field load; the field is not yet initialized
+        } else {
+          if (push_constant(constant, true, false, stable_type))
+            return;
+        }
+      }
+    }
+  }
+
+  Node* leading_membar = NULL;
+  ciType* field_klass = field->type();
+  bool is_vol = field->is_volatile();
+
+  // Compute address and memory type.
+  int offset = field->offset_in_bytes();
+  const TypePtr* adr_type = C->alias_type(field)->adr_type();
+  Node *adr = basic_plus_adr(obj, obj, offset);
+  BasicType bt = field->layout_type();
+
+  // Build the resultant type of the load
+  const Type *type;
+
+  bool must_assert_null = false;
+
+  if( bt == T_OBJECT ) {
+    if (!field->type()->is_loaded()) {
+      type = TypeInstPtr::BOTTOM;
+      must_assert_null = true;
+    } else if (field->is_constant() && field->is_static()) {
+      // This can happen if the constant oop is non-perm.
+      ciObject* con = field->constant_value().as_object();
+      // Do not "join" in the previous type; it doesn't add value,
+      // and may yield a vacuous result if the field is of interface type.
+      type = TypeOopPtr::make_from_constant(con)->isa_oopptr();
+      assert(type != NULL, "field singleton type must be consistent");
+    } else {
+      type = TypeOopPtr::make_from_klass(field_klass->as_klass());
+    }
+  } else {
+    type = Type::get_const_basic_type(bt);
+  }
+  if (support_IRIW_for_not_multiple_copy_atomic_cpu && field->is_volatile()) {
+    leading_membar = insert_mem_bar(Op_MemBarVolatile);   // StoreLoad barrier
+  }
+  // Build the load.
+  //
+  MemNode::MemOrd mo = is_vol ? MemNode::acquire : MemNode::unordered;
+  Node* ld = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, is_vol);
+
+  // Adjust Java stack
+  if (type2size[bt] == 1)
+    push(ld);
+  else
+    push_pair(ld);
+
+  if (must_assert_null) {
+    // Do not take a trap here.  It's possible that the program
+    // will never load the field's class, and will happily see
+    // null values in this field forever.  Don't stumble into a
+    // trap for such a program, or we might get a long series
+    // of useless recompilations.  (Or, we might load a class
+    // which should not be loaded.)  If we ever see a non-null
+    // value, we will then trap and recompile.  (The trap will
+    // not need to mention the class index, since the class will
+    // already have been loaded if we ever see a non-null value.)
+    // uncommon_trap(iter().get_field_signature_index());
+#ifndef PRODUCT
+    if (PrintOpto && (Verbose || WizardMode)) {
+      method()->print_name(); tty->print_cr(" asserting nullness of field at bci: %d", bci());
+    }
+#endif
+    if (C->log() != NULL) {
+      C->log()->elem("assert_null reason='field' klass='%d'",
+                     C->log()->identify(field->type()));
+    }
+    // If there is going to be a trap, put it at the next bytecode:
+    set_bci(iter().next_bci());
+    null_assert(peek());
+    set_bci(iter().cur_bci()); // put it back
+  }
+
+  // If reference is volatile, prevent following memory ops from
+  // floating up past the volatile read.  Also prevents commoning
+  // another volatile read.
+  if (field->is_volatile()) {
+    // Memory barrier includes bogus read of value to force load BEFORE membar
+    assert(leading_membar == NULL || support_IRIW_for_not_multiple_copy_atomic_cpu, "no leading membar expected");
+    Node* mb = insert_mem_bar(Op_MemBarAcquire, ld);
+    mb->as_MemBar()->set_trailing_load();
+  }
+}
 
 ```
 
@@ -3593,9 +6576,10 @@ Parse::do_get_xxx首先检查字段是否volatile。构造加载时选择acquire
 Parse::do_put_xxx在volatile写之前插入MemBarRelease，写节点带release属性，之后按平台能力插入MemBarVolatile，并配对记录相关屏障。这解释了为什么仅用“volatile等于Acquire/Release”描述还不完整：额外约束也参与实现volatile同步动作的要求。
 
 
-<div class="source-caption"><code>Parse::do_put_xxx / release</code><span>HotSpot 8u462-b08 · L283–L290 · <a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp#L283-L290">完整源码</a></span></div>
+<div class="source-caption"><code>Parse::do_put_xxx / release</code><span>HotSpot 8u462-b08 · L282–L357 · <a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp#L282-L357">完整源码</a></span></div>
 
 ```cpp
+void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   Node* leading_membar = NULL;
   bool is_vol = field->is_volatile();
   // If reference is volatile, prevent following memory ops from
@@ -3605,15 +6589,40 @@ Parse::do_put_xxx在volatile写之前插入MemBarRelease，写节点带release�
     leading_membar = insert_mem_bar(Op_MemBarRelease);
   }
 
-```
+  // Compute address and memory type.
+  int offset = field->offset_in_bytes();
+  const TypePtr* adr_type = C->alias_type(field)->adr_type();
+  Node* adr = basic_plus_adr(obj, obj, offset);
+  BasicType bt = field->layout_type();
+  // Value to be stored
+  Node* val = type2size[bt] == 1 ? pop() : pop_pair();
+  // Round doubles before storing
+  if (bt == T_DOUBLE)  val = dstore_rounding(val);
 
-方法开头的连续窗口：判断volatile属性，在字段存储前插入Release节点；余下存储构造未在此节选展示。
+  // Conservatively release stores of object references.
+  const MemNode::MemOrd mo =
+    is_vol ?
+    // Volatile fields need releasing stores.
+    MemNode::release :
+    // Non-volatile fields also need releasing stores if they hold an
+    // object reference, because the object reference might point to
+    // a freshly created object.
+    StoreNode::release_if_reference(bt);
 
+  // Store the value.
+  Node* store;
+  if (bt == T_OBJECT) {
+    const TypeOopPtr* field_type;
+    if (!field->type()->is_loaded()) {
+      field_type = TypeInstPtr::BOTTOM;
+    } else {
+      field_type = TypeOopPtr::make_from_klass(field->type()->as_klass());
+    }
+    store = store_oop_to_object(control(), obj, adr, adr_type, val, field_type, bt, mo);
+  } else {
+    store = store_to_memory(control(), adr, val, bt, adr_type, mo, is_vol);
+  }
 
-
-<div class="source-caption"><code>Parse::do_put_xxx / volatile</code><span>HotSpot 8u462-b08 · L326–L340 · <a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp#L326-L340">完整源码</a></span></div>
-
-```cpp
   // If reference is volatile, prevent following volatiles ops from
   // floating up before the volatile write.
   if (is_vol) {
@@ -3629,6 +6638,109 @@ Parse::do_put_xxx在volatile写之前插入MemBarRelease，写节点带release�
       set_wrote_volatile(true);
     }
   }
+
+  // If the field is final, the rules of Java say we are in <init> or <clinit>.
+  // Note the presence of writes to final non-static fields, so that we
+  // can insert a memory barrier later on to keep the writes from floating
+  // out of the constructor.
+  // Any method can write a @Stable field; insert memory barriers after those also.
+  if (is_field && (field->is_final() || field->is_stable())) {
+    set_wrote_final(true);
+    // Preserve allocation ptr to create precedent edge to it in membar
+    // generated on exit from constructor.
+    if (C->eliminate_boxing() &&
+        adr_type->isa_oopptr() && adr_type->is_oopptr()->is_ptr_to_boxed_value() &&
+        AllocateNode::Ideal_allocation(obj, &_gvn) != NULL) {
+      set_alloc_with_final(obj);
+    }
+  }
+}
+
+```
+
+方法开头的连续窗口：判断volatile属性，在字段存储前插入Release节点；余下存储构造未在此节选展示。
+
+
+
+<div class="source-caption"><code>Parse::do_put_xxx / volatile</code><span>HotSpot 8u462-b08 · L282–L357 · <a href="https://github.com/openjdk/jdk8u/blob/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp#L282-L357">完整源码</a></span></div>
+
+```cpp
+void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
+  Node* leading_membar = NULL;
+  bool is_vol = field->is_volatile();
+  // If reference is volatile, prevent following memory ops from
+  // floating down past the volatile write.  Also prevents commoning
+  // another volatile read.
+  if (is_vol) {
+    leading_membar = insert_mem_bar(Op_MemBarRelease);
+  }
+
+  // Compute address and memory type.
+  int offset = field->offset_in_bytes();
+  const TypePtr* adr_type = C->alias_type(field)->adr_type();
+  Node* adr = basic_plus_adr(obj, obj, offset);
+  BasicType bt = field->layout_type();
+  // Value to be stored
+  Node* val = type2size[bt] == 1 ? pop() : pop_pair();
+  // Round doubles before storing
+  if (bt == T_DOUBLE)  val = dstore_rounding(val);
+
+  // Conservatively release stores of object references.
+  const MemNode::MemOrd mo =
+    is_vol ?
+    // Volatile fields need releasing stores.
+    MemNode::release :
+    // Non-volatile fields also need releasing stores if they hold an
+    // object reference, because the object reference might point to
+    // a freshly created object.
+    StoreNode::release_if_reference(bt);
+
+  // Store the value.
+  Node* store;
+  if (bt == T_OBJECT) {
+    const TypeOopPtr* field_type;
+    if (!field->type()->is_loaded()) {
+      field_type = TypeInstPtr::BOTTOM;
+    } else {
+      field_type = TypeOopPtr::make_from_klass(field->type()->as_klass());
+    }
+    store = store_oop_to_object(control(), obj, adr, adr_type, val, field_type, bt, mo);
+  } else {
+    store = store_to_memory(control(), adr, val, bt, adr_type, mo, is_vol);
+  }
+
+  // If reference is volatile, prevent following volatiles ops from
+  // floating up before the volatile write.
+  if (is_vol) {
+    // If not multiple copy atomic, we do the MemBarVolatile before the load.
+    if (!support_IRIW_for_not_multiple_copy_atomic_cpu) {
+      Node* mb = insert_mem_bar(Op_MemBarVolatile, store); // Use fat membar
+      MemBarNode::set_store_pair(leading_membar->as_MemBar(), mb->as_MemBar());
+    }
+    // Remember we wrote a volatile field.
+    // For not multiple copy atomic cpu (ppc64) a barrier should be issued
+    // in constructors which have such stores. See do_exits() in parse1.cpp.
+    if (is_field) {
+      set_wrote_volatile(true);
+    }
+  }
+
+  // If the field is final, the rules of Java say we are in <init> or <clinit>.
+  // Note the presence of writes to final non-static fields, so that we
+  // can insert a memory barrier later on to keep the writes from floating
+  // out of the constructor.
+  // Any method can write a @Stable field; insert memory barriers after those also.
+  if (is_field && (field->is_final() || field->is_stable())) {
+    set_wrote_final(true);
+    // Preserve allocation ptr to create precedent edge to it in membar
+    // generated on exit from constructor.
+    if (C->eliminate_boxing() &&
+        adr_type->isa_oopptr() && adr_type->is_oopptr()->is_ptr_to_boxed_value() &&
+        AllocateNode::Ideal_allocation(obj, &_gvn) != NULL) {
+      set_alloc_with_final(obj);
+    }
+  }
+}
 
 ```
 
@@ -3810,7 +6922,7 @@ JMM规定合法共享内存行为，HB连接跨线程发布与读取。普通停
 
 ## 官方资料与版本来源
 
-本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
+本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。
 
 - [AdvancedThresholdPolicy::submit_compile · HotSpot 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/runtime/advancedThresholdPolicy.cpp)
 - [Parse::do_get_xxx / load · HotSpot 8u462-b08](https://raw.githubusercontent.com/openjdk/jdk8u/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp)

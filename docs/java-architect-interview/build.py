@@ -36,7 +36,7 @@ for n,file in enumerate(chapter_files,1):
   url+=f"#L{s['line']}-L{s['end_line']}"
   return f'\n<div class="source-caption"><code>{method}</code><span>{version} · L{s["line"]}–L{s["end_line"]} · <a href="{url}">完整源码</a></span></div>\n\n```{lang}\n{s["excerpt"]}\n```\n\n{notes[key]}\n'
  text=re.sub(r'<!-- source:(\w+) -->',insert_source,text)
- text+='\n\n## 官方资料与版本来源\n\n本文按上述版本阅读官方源码，节选可能省略方法的其他分支。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。\n\n'
+ text+='\n\n## 官方资料与版本来源\n\n本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 [source-notices.txt](./source-notices.txt)，下载记录见 [sources.json](./sources.json)。\n\n'
  for key in refs[n]:
   s=sources[key];label=meta[key][1]+' · '+meta[key][0] if key in meta else ('PostgreSQL16 隔离级别' if key=='pg' else 'Oracle19c 并发与一致性')
   text+=f'- [{label}]({s["url"]})\n'

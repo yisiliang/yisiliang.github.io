@@ -49,17 +49,17 @@ with sync_playwright() as p:
  resp=page.goto(URL);assert resp.status==200
  page.wait_for_function("document.documentElement.classList.contains('js-enabled')")
  assert page.locator('.chapter.active').get_attribute('id')=='c1'
- assert page.locator('.chapter:visible').count()==1
+ assert page.locator('.chapter:visible').count()==11
  assert page.locator('#right-toc').is_visible()
  assert page.locator('.token.keyword').count()>0
- assert page.locator('.diagram svg:visible').count()==1
+ assert page.locator('.diagram svg:visible').count()==diagram_count
  screenshot_dir=ROOT.parents[1]/'output/playwright';screenshot_dir.mkdir(parents=True,exist_ok=True)
  page.screenshot(path=str(screenshot_dir/'desktop.png'),full_page=False)
  for n in range(1,12):
   page.goto(URL+'#c'+str(n));page.wait_for_function(f"document.querySelector('.chapter.active').id==='c{n}'")
   assert page.locator('#toc a').count()>10
   qa=page.locator(f'#c{n} .study details:not(.diagram details)').first
-  assert not qa.evaluate('(el)=>el.open');qa.locator('summary').click();assert qa.evaluate('(el)=>el.open')
+  assert qa.evaluate('(el)=>el.open');qa.locator('summary').click();assert not qa.evaluate('(el)=>el.open');qa.locator('summary').click();assert qa.evaluate('(el)=>el.open')
   assert qa.locator('p').count()==3
   page.locator('#mode').click();assert page.locator(f'#c{n} .quick').is_visible()
   assert not page.locator(f'#c{n} .study').is_visible()
@@ -93,12 +93,12 @@ with sync_playwright() as p:
  target=soup.select_one('#c7 .study h3')['id'];page.goto(URL+'#'+target)
  page.wait_for_function("document.querySelector('.chapter.active').id==='c7'")
  page.wait_for_timeout(250);assert page.locator('#'+target).is_visible()
- page.evaluate("document.querySelector('#c7').scrollIntoView({block:'end',behavior:'instant'})");page.wait_for_timeout(100)
+ page.evaluate("document.querySelector('#c11').scrollIntoView({block:'end',behavior:'instant'})");page.wait_for_timeout(100)
  assert int(re.search(r'\d+',page.locator('#progress-text').inner_text()).group())>=95
  # 放大后的SVG必须保留原图样式；仅确认弹窗存在会漏掉黑色节点。
  for figure in soup.select('.diagram'):
   chapter=figure.find_parent('article')['id'];identifier=figure['data-diagram']
-  page.goto(URL+'#'+chapter);page.wait_for_function("id=>document.querySelector('.chapter.active').id===id",arg=chapter)
+  page.locator('.chapter-nav summary a[href="#'+chapter+'"]').click();page.wait_for_function("id=>document.querySelector('.chapter.active').id===id",arg=chapter)
   original=page.locator(f'figure[data-diagram="{identifier}"]')
   colors=original.locator('svg rect').evaluate_all("nodes=>nodes.map(el=>({fill:getComputedStyle(el).fill,stroke:getComputedStyle(el).stroke}))")
   original.locator('button.expand').click()
@@ -124,7 +124,6 @@ with sync_playwright() as p:
  nojs.route('https://**/*',lambda route:route.abort());np=nojs.new_page();np.goto(URL)
  assert np.locator('.chapter:visible').count()==11
  assert np.locator('.diagram svg').count()==diagram_count
- np.locator('#c1 .study details:not(.diagram details)').first.locator('summary').click()
  assert np.locator('#c1 .study details:not(.diagram details)').first.get_attribute('open') is not None
  assert not errors,errors
  report['browser']={'desktop':'1440×1000 pass','responsive':'320/390/820 px pass','search':'full content / no result / escaped input pass','mode':'all 11 chapters pass','theme':'system/light/dark and persistence pass','copy':'copy handler matches source pass','qa':'all 11 chapters pass','hash':'deep link pass','reading_progress':'pass','diagram_viewer':f'{diagram_count} SVGs retain node colors, valid arrows, unique IDs and zoom controls','offline_core':'all external requests blocked pass','javascript_disabled':f'11 chapters + {diagram_count} SVG pass','page_errors':errors}

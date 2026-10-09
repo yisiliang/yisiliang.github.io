@@ -26,3 +26,4 @@ static void log_update_available_for_checkpoint_lsn(log_t &log) {
   }
 
   log_limits_mutex_exit(log);
+}

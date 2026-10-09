@@ -1,3 +1,7 @@
+/** Assigns a read view for a consistent read query. All the consistent reads
+ within the same transaction will get the same read view, which is created
+ when this function is first called for a new started transaction.
+ @return consistent read view */
 ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
 {
   ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));

@@ -1,3 +1,52 @@
+Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
+  ut_a(!srv_read_only_mode);
+
+  /* If we were updating log.flushed_to_disk_lsn while parsing redo log
+  during recovery, we would have valid value here and we would not need
+  to explicitly exit because of the recovery. However we do not update
+  the log.flushed_to_disk during recovery (it is zero).
+
+  On the other hand, when we apply log records during recovery, we modify
+  pages and update their oldest/newest_modification. The modified pages
+  become dirty. When size of the buffer pool is too small, some pages
+  have to be flushed from LRU, to reclaim a free page for a next read.
+
+  When flushing such dirty pages, we notice that newest_modification != 0,
+  so the redo log has to be flushed up to the newest_modification, before
+  flushing the page. In such case we end up here during recovery.
+
+  Note that redo log is actually flushed, because changes to the page
+  are caused by applying the redo. */
+
+  if (recv_no_ibuf_operations) {
+    /* Recovery is running and no operations on the log files are
+    allowed yet, which is implicitly deduced from the fact, that
+    still ibuf merges are disallowed. */
+    return Wait_stats{0};
+  }
+
+  /* We do not need to have exact numbers and we do not care if we
+  lost some increments for heavy workload. The value only has usage
+  when it is low workload and we need to discover that we request
+  redo write or flush only from time to time. In such case we prefer
+  to avoid spinning in log threads to save on CPU power usage. */
+  log.write_to_file_requests_total.store(
+      log.write_to_file_requests_total.load(std::memory_order_relaxed) + 1,
+      std::memory_order_relaxed);
+
+  ut_a(end_lsn != LSN_MAX);
+
+  ut_a(end_lsn % OS_FILE_LOG_BLOCK_SIZE == 0 ||
+       end_lsn % OS_FILE_LOG_BLOCK_SIZE >= LOG_BLOCK_HDR_SIZE);
+
+  ut_a(end_lsn % OS_FILE_LOG_BLOCK_SIZE <=
+       OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
+
+  ut_ad(end_lsn <= log_get_lsn(log));
+
+  Wait_stats wait_stats{0};
+  bool interrupted = false;
+
 retry:
   if (log.writer_threads_paused.load(std::memory_order_acquire)) {
     /* the log writer threads are paused not to waste CPU resource. */

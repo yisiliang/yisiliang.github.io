@@ -1,0 +1,4178 @@
+[
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/String.java",
+    "old": [
+      114,
+      120
+    ],
+    "new": [
+      113,
+      120
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/Integer.java",
+    "old": [
+      780,
+      803
+    ],
+    "new": [
+      769,
+      803
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      439,
+      459
+    ],
+    "new": [
+      437,
+      459
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      322,
+      341
+    ],
+    "new": [
+      320,
+      341
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      616,
+      659
+    ],
+    "new": [
+      616,
+      667
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      663,
+      666
+    ],
+    "new": [
+      616,
+      667
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      669,
+      706
+    ],
+    "new": [
+      669,
+      750
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      717,
+      746
+    ],
+    "new": [
+      669,
+      750
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      737,
+      746
+    ],
+    "new": [
+      669,
+      750
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      644,
+      648
+    ],
+    "new": [
+      616,
+      667
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      2044,
+      2079
+    ],
+    "new": [
+      2044,
+      2150
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      1445,
+      1467
+    ],
+    "new": [
+      1443,
+      1476
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/TreeMap.java",
+    "old": [
+      517,
+      568
+    ],
+    "new": [
+      517,
+      586
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/TreeMap.java",
+    "old": [
+      2256,
+      2291
+    ],
+    "new": [
+      2256,
+      2296
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      594,
+      597
+    ],
+    "new": [
+      591,
+      597
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      737,
+      756
+    ],
+    "new": [
+      735,
+      756
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2163,
+      2195
+    ],
+    "new": [
+      2160,
+      2195
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2361,
+      2394
+    ],
+    "new": [
+      2361,
+      2496
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2419,
+      2436
+    ],
+    "new": [
+      2361,
+      2496
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2406,
+      2413
+    ],
+    "new": [
+      2361,
+      2496
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      1621,
+      1675
+    ],
+    "new": [
+      1621,
+      1722
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2246,
+      2282
+    ],
+    "new": [
+      2246,
+      2290
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CopyOnWriteArrayList.java",
+    "old": [
+      1135,
+      1155
+    ],
+    "new": [
+      1135,
+      1159
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentLinkedQueue.java",
+    "old": [
+      319,
+      353
+    ],
+    "new": [
+      319,
+      354
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      329,
+      337
+    ],
+    "new": [
+      321,
+      337
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      188,
+      205
+    ],
+    "new": [
+      188,
+      207
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ThreadLocal.java",
+    "old": [
+      686,
+      739
+    ],
+    "new": [
+      686,
+      741
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/sun/misc/Unsafe.java",
+    "old": [
+      1020,
+      1037
+    ],
+    "new": [
+      1017,
+      1037
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/atomic/Striped64.java",
+    "old": [
+      202,
+      242
+    ],
+    "new": [
+      202,
+      293
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      849,
+      877
+    ],
+    "new": [
+      840,
+      877
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      786,
+      818
+    ],
+    "new": [
+      786,
+      821
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      665,
+      695
+    ],
+    "new": [
+      665,
+      698
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      1929,
+      1943
+    ],
+    "new": [
+      1927,
+      1943
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java",
+    "old": [
+      235,
+      242
+    ],
+    "new": [
+      227,
+      249
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java",
+    "old": [
+      262,
+      270
+    ],
+    "new": [
+      255,
+      270
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java",
+    "old": [
+      380,
+      406
+    ],
+    "new": [
+      380,
+      410
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/ReentrantReadWriteLock.java",
+    "old": [
+      448,
+      475
+    ],
+    "new": [
+      448,
+      489
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ArrayBlockingQueue.java",
+    "old": [
+      153,
+      165
+    ],
+    "new": [
+      153,
+      166
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java",
+    "old": [
+      324,
+      359
+    ],
+    "new": [
+      324,
+      361
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/LinkedBlockingQueue.java",
+    "old": [
+      204,
+      217
+    ],
+    "new": [
+      204,
+      219
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/DelayQueue.java",
+    "old": [
+      197,
+      234
+    ],
+    "new": [
+      197,
+      236
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/DelayQueue.java",
+    "old": [
+      129,
+      148
+    ],
+    "new": [
+      129,
+      149
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      875,
+      930
+    ],
+    "new": [
+      871,
+      966
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      825,
+      831
+    ],
+    "new": [
+      820,
+      831
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      381,
+      408
+    ],
+    "new": [
+      324,
+      408
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      2023,
+      2040
+    ],
+    "new": [
+      2017,
+      2040
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      2092,
+      2114
+    ],
+    "new": [
+      2087,
+      2114
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/FutureTask.java",
+    "old": [
+      92,
+      101
+    ],
+    "new": [
+      76,
+      101
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/FutureTask.java",
+    "old": [
+      255,
+      285
+    ],
+    "new": [
+      255,
+      286
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CompletableFuture.java",
+    "old": [
+      400,
+      411
+    ],
+    "new": [
+      396,
+      411
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/CompletableFuture.java",
+    "old": [
+      2262,
+      2280
+    ],
+    "new": [
+      2260,
+      2280
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/nio/Direct-X-Buffer.java.template",
+    "old": [
+      117,
+      149
+    ],
+    "new": [
+      115,
+      156
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/nio/Bits.java",
+    "old": [
+      705,
+      719
+    ],
+    "new": [
+      705,
+      720
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/nio/Bits.java",
+    "old": [
+      641,
+      671
+    ],
+    "new": [
+      641,
+      703
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/stream/ReferencePipeline.java",
+    "old": [
+      159,
+      179
+    ],
+    "new": [
+      159,
+      180
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/stream/AbstractPipeline.java",
+    "old": [
+      219,
+      235
+    ],
+    "new": [
+      217,
+      235
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/reflect/Proxy.java",
+    "old": [
+      557,
+      583
+    ],
+    "new": [
+      553,
+      654
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ClassLoader.java",
+    "old": [
+      354,
+      428
+    ],
+    "new": [
+      354,
+      431
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/lang/ClassLoader.java",
+    "old": [
+      433,
+      461
+    ],
+    "new": [
+      433,
+      463
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "old": [
+      301,
+      314
+    ],
+    "new": [
+      295,
+      339
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-context/src/main/java/org/springframework/context/support/AbstractApplicationContext.java",
+    "old": [
+      588,
+      612
+    ],
+    "new": [
+      587,
+      658
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "old": [
+      301,
+      339
+    ],
+    "new": [
+      295,
+      339
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "old": [
+      507,
+      527
+    ],
+    "new": [
+      500,
+      527
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-core/src/main/java/org/springframework/core/env/PropertySourcesPropertyResolver.java",
+    "old": [
+      78,
+      98
+    ],
+    "new": [
+      77,
+      105
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataEnvironment.java",
+    "old": [
+      234,
+      246
+    ],
+    "new": [
+      230,
+      246
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataEnvironmentPostProcessor.java",
+    "old": [
+      88,
+      97
+    ],
+    "new": [
+      87,
+      97
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/config/ConfigDataImporter.java",
+    "old": [
+      81,
+      92
+    ],
+    "new": [
+      72,
+      92
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java",
+    "old": [
+      195,
+      206
+    ],
+    "new": [
+      187,
+      217
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/annotation/ImportCandidates.java",
+    "old": [
+      108,
+      124
+    ],
+    "new": [
+      108,
+      126
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java",
+    "old": [
+      137,
+      151
+    ],
+    "new": [
+      131,
+      151
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnClassCondition.java",
+    "old": [
+      47,
+      60
+    ],
+    "new": [
+      46,
+      60
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnBeanCondition.java",
+    "old": [
+      88,
+      90
+    ],
+    "new": [
+      87,
+      90
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/condition/OnBeanCondition.java",
+    "old": [
+      123,
+      145
+    ],
+    "new": [
+      122,
+      150
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-beans/src/main/java/org/springframework/beans/factory/support/AbstractAutowireCapableBeanFactory.java",
+    "old": [
+      1811,
+      1831
+    ],
+    "new": [
+      1793,
+      1831
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "old": [
+      397,
+      404
+    ],
+    "new": [
+      377,
+      417
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/context/ServletWebServerApplicationContext.java",
+    "old": [
+      186,
+      208
+    ],
+    "new": [
+      186,
+      209
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/embedded/tomcat/TomcatServletWebServerFactory.java",
+    "old": [
+      196,
+      217
+    ],
+    "new": [
+      195,
+      220
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/ServletContextInitializerBeans.java",
+    "old": [
+      95,
+      101
+    ],
+    "new": [
+      88,
+      102
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-webmvc/src/main/java/org/springframework/web/servlet/DispatcherServlet.java",
+    "old": [
+      1049,
+      1072
+    ],
+    "new": [
+      1037,
+      1130
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/ConfigurationPropertiesBindingPostProcessor.java",
+    "old": [
+      77,
+      86
+    ],
+    "new": [
+      76,
+      86
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/bind/ConstructorBinding.java",
+    "old": [
+      34,
+      38
+    ],
+    "new": [
+      25,
+      38
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/properties/ConstructorBinding.java",
+    "old": [
+      42,
+      46
+    ],
+    "new": [
+      25,
+      46
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-actuator/src/main/java/org/springframework/boot/actuate/endpoint/annotation/EndpointDiscoverer.java",
+    "old": [
+      151,
+      167
+    ],
+    "new": [
+      151,
+      170
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/event/EventPublishingRunListener.java",
+    "old": [
+      102,
+      112
+    ],
+    "new": [
+      101,
+      112
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/availability/ApplicationAvailabilityBean.java",
+    "old": [
+      74,
+      80
+    ],
+    "new": [
+      73,
+      80
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "old": [
+      763,
+      775
+    ],
+    "new": [
+      763,
+      780
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "old": [
+      793,
+      798
+    ],
+    "new": [
+      792,
+      798
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-core/src/main/java/org/springframework/util/function/ThrowingConsumer.java",
+    "old": [
+      58,
+      69
+    ],
+    "new": [
+      52,
+      69
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/context/logging/LoggingApplicationListener.java",
+    "old": [
+      218,
+      238
+    ],
+    "new": [
+      217,
+      239
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/diagnostics/FailureAnalyzers.java",
+    "old": [
+      85,
+      100
+    ],
+    "new": [
+      85,
+      109
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplicationAotProcessor.java",
+    "old": [
+      59,
+      71
+    ],
+    "new": [
+      58,
+      71
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "old": [
+      419,
+      432
+    ],
+    "new": [
+      419,
+      433
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-test/src/main/java/org/springframework/boot/test/context/SpringBootTestContextBootstrapper.java",
+    "old": [
+      144,
+      147
+    ],
+    "new": [
+      143,
+      147
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java",
+    "old": [
+      181,
+      190
+    ],
+    "new": [
+      170,
+      190
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java",
+    "old": [
+      195,
+      205
+    ],
+    "new": [
+      187,
+      205
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration.java",
+    "old": [
+      59,
+      85
+    ],
+    "new": [
+      49,
+      86
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/context/WebServerGracefulShutdownLifecycle.java",
+    "old": [
+      60,
+      63
+    ],
+    "new": [
+      59,
+      63
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/web/servlet/context/ServletWebServerApplicationContext.java",
+    "old": [
+      175,
+      184
+    ],
+    "new": [
+      174,
+      184
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/ServerProperties.java",
+    "old": [
+      116,
+      116
+    ],
+    "new": [
+      113,
+      116
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/web/ServerProperties.java",
+    "old": [
+      108,
+      108
+    ],
+    "new": [
+      105,
+      108
+    ]
+  },
+  {
+    "book": "springboot",
+    "file": "spring-boot-project/spring-boot/src/main/java/org/springframework/boot/SpringApplication.java",
+    "old": [
+      301,
+      308
+    ],
+    "new": [
+      295,
+      339
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "sql/handler.cc",
+    "old": [
+      1786,
+      1827
+    ],
+    "new": [
+      1611,
+      1885
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "sql/conn_handler/connection_handler_per_thread.cc",
+    "old": [
+      299,
+      316
+    ],
+    "new": [
+      246,
+      357
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "sql/sql_parse.cc",
+    "old": [
+      2079,
+      2114
+    ],
+    "new": [
+      1723,
+      2521
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "sql/sql_lex.cc",
+    "old": [
+      1432,
+      1456
+    ],
+    "new": [
+      1432,
+      2156
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "sql/mdl.cc",
+    "old": [
+      3371,
+      3427
+    ],
+    "new": [
+      3349,
+      3594
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "sql/sql_optimizer.cc",
+    "old": [
+      362,
+      389
+    ],
+    "new": [
+      328,
+      1140
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "sql/iterators/basic_row_iterators.cc",
+    "old": [
+      291,
+      312
+    ],
+    "new": [
+      291,
+      351
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/btr/btr0cur.cc",
+    "old": [
+      1539,
+      1580
+    ],
+    "new": [
+      609,
+      1698
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/btr/btr0btr.cc",
+    "old": [
+      2423,
+      2482
+    ],
+    "new": [
+      2298,
+      2682
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/buf/buf0buf.cc",
+    "old": [
+      4419,
+      4444
+    ],
+    "new": [
+      4380,
+      4445
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/buf/buf0lru.cc",
+    "old": [
+      1647,
+      1678
+    ],
+    "new": [
+      1639,
+      1700
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/mtr/mtr0mtr.cc",
+    "old": [
+      659,
+      689
+    ],
+    "new": [
+      658,
+      692
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/log/log0write.cc",
+    "old": [
+      1135,
+      1207
+    ],
+    "new": [
+      1086,
+      1207
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/buf/buf0flu.cc",
+    "old": [
+      1198,
+      1224
+    ],
+    "new": [
+      1168,
+      1262
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/row/row0vers.cc",
+    "old": [
+      1280,
+      1334
+    ],
+    "new": [
+      1228,
+      1343
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/include/read0types.h",
+    "old": [
+      163,
+      184
+    ],
+    "new": [
+      45,
+      320
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/read/read0read.cc",
+    "old": [
+      447,
+      471
+    ],
+    "new": [
+      442,
+      471
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/trx/trx0trx.cc",
+    "old": [
+      2315,
+      2330
+    ],
+    "new": [
+      2311,
+      2330
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/lock/lock0lock.cc",
+    "old": [
+      1936,
+      1964
+    ],
+    "new": [
+      1918,
+      1966
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/lock/lock0wait.cc",
+    "old": [
+      917,
+      953
+    ],
+    "new": [
+      911,
+      958
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/trx/trx0trx.cc",
+    "old": [
+      1754,
+      1784
+    ],
+    "new": [
+      1752,
+      1784
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/trx/trx0trx.cc",
+    "old": [
+      2923,
+      2968
+    ],
+    "new": [
+      2921,
+      2976
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "sql/binlog.cc",
+    "old": [
+      9096,
+      9123
+    ],
+    "new": [
+      8974,
+      9280
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "sql/binlog.cc",
+    "old": [
+      9172,
+      9197
+    ],
+    "new": [
+      8974,
+      9280
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/log/log0chkp.cc",
+    "old": [
+      282,
+      309
+    ],
+    "new": [
+      282,
+      310
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/log/log0recv.cc",
+    "old": [
+      3850,
+      3875
+    ],
+    "new": [
+      3850,
+      4029
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "storage/innobase/trx/trx0purge.cc",
+    "old": [
+      2390,
+      2423
+    ],
+    "new": [
+      2388,
+      2477
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "sql/rpl_replica.cc",
+    "old": [
+      4438,
+      4477
+    ],
+    "new": [
+      4383,
+      4771
+    ]
+  },
+  {
+    "book": "mysql",
+    "file": "sql/sql_union.cc",
+    "old": [
+      1753,
+      1780
+    ],
+    "new": [
+      1676,
+      1809
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/server.c",
+    "old": [
+      7042,
+      7082
+    ],
+    "new": [
+      7042,
+      7371
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/networking.c",
+    "old": [
+      3763,
+      3815
+    ],
+    "new": [
+      3763,
+      3838
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/networking.c",
+    "old": [
+      4431,
+      4493
+    ],
+    "new": [
+      4431,
+      4523
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/ae.c",
+    "old": [
+      346,
+      434
+    ],
+    "new": [
+      346,
+      469
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/server.c",
+    "old": [
+      3825,
+      3913
+    ],
+    "new": [
+      3825,
+      4174
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/server.c",
+    "old": [
+      3438,
+      3570
+    ],
+    "new": [
+      3438,
+      3700
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/networking.c",
+    "old": [
+      2242,
+      2326
+    ],
+    "new": [
+      2242,
+      2413
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/networking.c",
+    "old": [
+      2515,
+      2595
+    ],
+    "new": [
+      2515,
+      2614
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/object.c",
+    "old": [
+      634,
+      704
+    ],
+    "new": [
+      634,
+      705
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/object.c",
+    "old": [
+      437,
+      497
+    ],
+    "new": [
+      437,
+      515
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/object.c",
+    "old": [
+      634,
+      694
+    ],
+    "new": [
+      634,
+      705
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/dict.c",
+    "old": [
+      286,
+      374
+    ],
+    "new": [
+      286,
+      381
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/db.c",
+    "old": [
+      944,
+      1031
+    ],
+    "new": [
+      944,
+      1159
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/listpack.c",
+    "old": [
+      752,
+      866
+    ],
+    "new": [
+      752,
+      927
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/ziplist.c",
+    "old": [
+      731,
+      833
+    ],
+    "new": [
+      731,
+      847
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/quicklist.h",
+    "old": [
+      46,
+      85
+    ],
+    "new": [
+      38,
+      85
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_hash.c",
+    "old": [
+      37,
+      68
+    ],
+    "new": [
+      33,
+      68
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_hash.c",
+    "old": [
+      207,
+      274
+    ],
+    "new": [
+      207,
+      277
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_hash.c",
+    "old": [
+      200,
+      267
+    ],
+    "new": [
+      200,
+      271
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_zset.c",
+    "old": [
+      1318,
+      1457
+    ],
+    "new": [
+      1318,
+      1493
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/geo.c",
+    "old": [
+      444,
+      503
+    ],
+    "new": [
+      440,
+      503
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/db.c",
+    "old": [
+      601,
+      606
+    ],
+    "new": [
+      592,
+      606
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/expire.c",
+    "old": [
+      142,
+      232
+    ],
+    "new": [
+      142,
+      324
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/evict.c",
+    "old": [
+      514,
+      633
+    ],
+    "new": [
+      514,
+      757
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/evict.c",
+    "old": [
+      137,
+      230
+    ],
+    "new": [
+      137,
+      241
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/multi.c",
+    "old": [
+      148,
+      242
+    ],
+    "new": [
+      148,
+      256
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/script.c",
+    "old": [
+      508,
+      562
+    ],
+    "new": [
+      508,
+      573
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      1065,
+      1163
+    ],
+    "new": [
+      1047,
+      1268
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/bio.c",
+    "old": [
+      205,
+      291
+    ],
+    "new": [
+      205,
+      300
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/server.c",
+    "old": [
+      1714,
+      1752
+    ],
+    "new": [
+      1611,
+      1780
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      2413,
+      2495
+    ],
+    "new": [
+      2409,
+      2495
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      1650,
+      1737
+    ],
+    "new": [
+      1650,
+      1774
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      1849,
+      1939
+    ],
+    "new": [
+      1849,
+      2010
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/aof.c",
+    "old": [
+      2413,
+      2495
+    ],
+    "new": [
+      2409,
+      2495
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      735,
+      825
+    ],
+    "new": [
+      735,
+      836
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      936,
+      1032
+    ],
+    "new": [
+      936,
+      1129
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      326,
+      420
+    ],
+    "new": [
+      326,
+      429
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      326,
+      412
+    ],
+    "new": [
+      326,
+      429
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      3187,
+      3218
+    ],
+    "new": [
+      3187,
+      3223
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      1346,
+      1371
+    ],
+    "new": [
+      1342,
+      1371
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      7207,
+      7333
+    ],
+    "new": [
+      7207,
+      7449
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      746,
+      771
+    ],
+    "new": [
+      742,
+      771
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      1346,
+      1371
+    ],
+    "new": [
+      1342,
+      1371
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      1935,
+      1983
+    ],
+    "new": [
+      1931,
+      1983
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      4175,
+      4281
+    ],
+    "new": [
+      4175,
+      4352
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/cluster.c",
+    "old": [
+      5887,
+      5952
+    ],
+    "new": [
+      5887,
+      6491
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      408,
+      527
+    ],
+    "new": [
+      408,
+      670
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      2173,
+      2263
+    ],
+    "new": [
+      2173,
+      2444
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      3322,
+      3436
+    ],
+    "new": [
+      3322,
+      3510
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      3042,
+      3151
+    ],
+    "new": [
+      3042,
+      3196
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      3322,
+      3436
+    ],
+    "new": [
+      3322,
+      3510
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/stream.h",
+    "old": [
+      92,
+      104
+    ],
+    "new": [
+      91,
+      104
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_string.c",
+    "old": [
+      84,
+      141
+    ],
+    "new": [
+      84,
+      150
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_hash.c",
+    "old": [
+      200,
+      234
+    ],
+    "new": [
+      200,
+      271
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_string.c",
+    "old": [
+      84,
+      133
+    ],
+    "new": [
+      84,
+      150
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/script.c",
+    "old": [
+      508,
+      544
+    ],
+    "new": [
+      508,
+      573
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/replication.c",
+    "old": [
+      3527,
+      3550
+    ],
+    "new": [
+      3527,
+      3559
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/server.c",
+    "old": [
+      1241,
+      1343
+    ],
+    "new": [
+      1241,
+      1527
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/t_stream.c",
+    "old": [
+      2812,
+      2854
+    ],
+    "new": [
+      2812,
+      2867
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java",
+    "old": [
+      241,
+      270
+    ],
+    "new": [
+      241,
+      483
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java",
+    "old": [
+      797,
+      840
+    ],
+    "new": [
+      797,
+      860
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "common/src/main/java/org/apache/rocketmq/common/TopicConfig.java",
+    "old": [
+      21,
+      51
+    ],
+    "new": [
+      21,
+      60
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "proxy/src/main/java/org/apache/rocketmq/proxy/processor/ProducerProcessor.java",
+    "old": [
+      69,
+      102
+    ],
+    "new": [
+      69,
+      126
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java",
+    "old": [
+      700,
+      745
+    ],
+    "new": [
+      700,
+      801
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java",
+    "old": [
+      409,
+      446
+    ],
+    "new": [
+      409,
+      466
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java",
+    "old": [
+      700,
+      737
+    ],
+    "new": [
+      700,
+      801
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java",
+    "old": [
+      892,
+      935
+    ],
+    "new": [
+      892,
+      985
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java",
+    "old": [
+      1094,
+      1145
+    ],
+    "new": [
+      1094,
+      1221
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "remoting/src/main/java/org/apache/rocketmq/remoting/netty/NettyRemotingAbstract.java",
+    "old": [
+      336,
+      391
+    ],
+    "new": [
+      336,
+      402
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java",
+    "old": [
+      243,
+      291
+    ],
+    "new": [
+      243,
+      293
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java",
+    "old": [
+      738,
+      805
+    ],
+    "new": [
+      738,
+      896
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java",
+    "old": [
+      915,
+      978
+    ],
+    "new": [
+      915,
+      1101
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java",
+    "old": [
+      555,
+      588
+    ],
+    "new": [
+      537,
+      670
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java",
+    "old": [
+      756,
+      804
+    ],
+    "new": [
+      738,
+      896
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java",
+    "old": [
+      242,
+      306
+    ],
+    "new": [
+      242,
+      365
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java",
+    "old": [
+      367,
+      428
+    ],
+    "new": [
+      367,
+      545
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java",
+    "old": [
+      180,
+      239
+    ],
+    "new": [
+      180,
+      240
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      1017,
+      1106
+    ],
+    "new": [
+      948,
+      1123
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      1064,
+      1091
+    ],
+    "new": [
+      948,
+      1123
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      1959,
+      2023
+    ],
+    "new": [
+      1959,
+      2070
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      676,
+      730
+    ],
+    "new": [
+      617,
+      749
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      1017,
+      1074
+    ],
+    "new": [
+      948,
+      1123
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      1662,
+      1734
+    ],
+    "new": [
+      1659,
+      1749
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      617,
+      653
+    ],
+    "new": [
+      617,
+      749
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      996,
+      1024
+    ],
+    "new": [
+      948,
+      1123
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      2083,
+      2111
+    ],
+    "new": [
+      2083,
+      2117
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      1235,
+      1253
+    ],
+    "new": [
+      1221,
+      1253
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/MQAdminImpl.java",
+    "old": [
+      441,
+      475
+    ],
+    "new": [
+      323,
+      488
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/PullMessageProcessor.java",
+    "old": [
+      302,
+      368
+    ],
+    "new": [
+      302,
+      603
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java",
+    "old": [
+      428,
+      503
+    ],
+    "new": [
+      428,
+      508
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/RebalanceImpl.java",
+    "old": [
+      239,
+      304
+    ],
+    "new": [
+      239,
+      312
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java",
+    "old": [
+      675,
+      728
+    ],
+    "new": [
+      675,
+      878
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java",
+    "old": [
+      246,
+      341
+    ],
+    "new": [
+      246,
+      499
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/DefaultMQPushConsumerImpl.java",
+    "old": [
+      353,
+      408
+    ],
+    "new": [
+      346,
+      433
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java",
+    "old": [
+      242,
+      275
+    ],
+    "new": [
+      242,
+      310
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java",
+    "old": [
+      272,
+      310
+    ],
+    "new": [
+      242,
+      310
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java",
+    "old": [
+      410,
+      486
+    ],
+    "new": [
+      410,
+      569
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java",
+    "old": [
+      274,
+      344
+    ],
+    "new": [
+      274,
+      345
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageOrderlyService.java",
+    "old": [
+      272,
+      318
+    ],
+    "new": [
+      272,
+      343
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "proxy/src/main/java/org/apache/rocketmq/proxy/grpc/v2/producer/SendMessageActivity.java",
+    "old": [
+      271,
+      288
+    ],
+    "new": [
+      198,
+      296
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/AbstractSendMessageProcessor.java",
+    "old": [
+      92,
+      163
+    ],
+    "new": [
+      92,
+      334
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/SendMessageProcessor.java",
+    "old": [
+      180,
+      239
+    ],
+    "new": [
+      180,
+      240
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/PullAPIWrapper.java",
+    "old": [
+      73,
+      145
+    ],
+    "new": [
+      73,
+      153
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/EndTransactionProcessor.java",
+    "old": [
+      130,
+      189
+    ],
+    "new": [
+      57,
+      189
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java",
+    "old": [
+      161,
+      249
+    ],
+    "new": [
+      161,
+      354
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/schedule/ScheduleMessageService.java",
+    "old": [
+      276,
+      308
+    ],
+    "new": [
+      276,
+      309
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/ha/DefaultHAConnection.java",
+    "old": [
+      256,
+      316
+    ],
+    "new": [
+      256,
+      406
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java",
+    "old": [
+      538,
+      608
+    ],
+    "new": [
+      538,
+      639
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "store/src/main/java/org/apache/rocketmq/store/dledger/DLedgerCommitLog.java",
+    "old": [
+      424,
+      472
+    ],
+    "new": [
+      424,
+      534
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "proxy/src/main/java/org/apache/rocketmq/proxy/grpc/v2/consumer/ReceiveMessageActivity.java",
+    "old": [
+      59,
+      154
+    ],
+    "new": [
+      59,
+      169
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/BrokerController.java",
+    "old": [
+      542,
+      580
+    ],
+    "new": [
+      542,
+      621
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java",
+    "old": [
+      675,
+      759
+    ],
+    "new": [
+      675,
+      878
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/AckMessageProcessor.java",
+    "old": [
+      191,
+      285
+    ],
+    "new": [
+      191,
+      314
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/pop/PopConsumerService.java",
+    "old": [
+      326,
+      415
+    ],
+    "new": [
+      326,
+      433
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/consumer/store/RemoteBrokerOffsetStore.java",
+    "old": [
+      114,
+      144
+    ],
+    "new": [
+      114,
+      148
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/processor/PopMessageProcessor.java",
+    "old": [
+      384,
+      416
+    ],
+    "new": [
+      224,
+      648
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java",
+    "old": [
+      817,
+      842
+    ],
+    "new": [
+      738,
+      896
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java",
+    "old": [
+      306,
+      310
+    ],
+    "new": [
+      242,
+      310
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java",
+    "old": [
+      298,
+      302
+    ],
+    "new": [
+      241,
+      302
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/consumer/ConsumeMessageConcurrentlyService.java",
+    "old": [
+      306,
+      310
+    ],
+    "new": [
+      242,
+      310
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/factory/MQClientInstance.java",
+    "old": [
+      782,
+      847
+    ],
+    "new": [
+      782,
+      871
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java",
+    "old": [
+      596,
+      623
+    ],
+    "new": [
+      596,
+      631
+    ]
+  },
+  {
+    "book": "rocketmq",
+    "file": "namesrv/src/main/java/org/apache/rocketmq/namesrv/routeinfo/RouteInfoManager.java",
+    "old": [
+      700,
+      730
+    ],
+    "new": [
+      700,
+      801
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/os/unix/ngx_process_cycle.c",
+    "old": [
+      699,
+      721
+    ],
+    "new": [
+      698,
+      749
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/core/ngx_conf_file.c",
+    "old": [
+      445,
+      470
+    ],
+    "new": [
+      355,
+      499
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/os/unix/ngx_process_cycle.c",
+    "old": [
+      728,
+      740
+    ],
+    "new": [
+      698,
+      749
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/os/unix/ngx_process_cycle.c",
+    "old": [
+      223,
+      243
+    ],
+    "new": [
+      73,
+      275
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/event/ngx_event.c",
+    "old": [
+      246,
+      263
+    ],
+    "new": [
+      194,
+      264
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/event/modules/ngx_epoll_module.c",
+    "old": [
+      836,
+      854
+    ],
+    "new": [
+      783,
+      936
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/event/ngx_event_timer.c",
+    "old": [
+      68,
+      94
+    ],
+    "new": [
+      53,
+      96
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/event/ngx_event_accept.c",
+    "old": [
+      58,
+      78
+    ],
+    "new": [
+      20,
+      324
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/core/ngx_connection.c",
+    "old": [
+      1193,
+      1226
+    ],
+    "new": [
+      1174,
+      1237
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/core/ngx_palloc.c",
+    "old": [
+      154,
+      173
+    ],
+    "new": [
+      148,
+      174
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/ngx_http_parse.c",
+    "old": [
+      135,
+      155
+    ],
+    "new": [
+      101,
+      812
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/ngx_http_core_module.c",
+    "old": [
+      1415,
+      1434
+    ],
+    "new": [
+      1394,
+      1469
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/ngx_http_core_module.c",
+    "old": [
+      904,
+      923
+    ],
+    "new": [
+      891,
+      925
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/ngx_http_core_module.c",
+    "old": [
+      1074,
+      1090
+    ],
+    "new": [
+      1050,
+      1091
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/modules/ngx_http_proxy_module.c",
+    "old": [
+      1033,
+      1049
+    ],
+    "new": [
+      954,
+      1050
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/ngx_http_upstream.c",
+    "old": [
+      1623,
+      1636
+    ],
+    "new": [
+      1549,
+      1721
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/ngx_http_upstream_round_robin.c",
+    "old": [
+      743,
+      758
+    ],
+    "new": [
+      703,
+      779
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/ngx_http_upstream.c",
+    "old": [
+      4462,
+      4474
+    ],
+    "new": [
+      4379,
+      4532
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/modules/ngx_http_upstream_keepalive_module.c",
+    "old": [
+      285,
+      300
+    ],
+    "new": [
+      235,
+      301
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/ngx_http_upstream.c",
+    "old": [
+      3125,
+      3136
+    ],
+    "new": [
+      3056,
+      3396
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/ngx_http_write_filter_module.c",
+    "old": [
+      294,
+      307
+    ],
+    "new": [
+      47,
+      362
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/ngx_http_file_cache.c",
+    "old": [
+      275,
+      299
+    ],
+    "new": [
+      264,
+      401
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/http/modules/ngx_http_limit_req_module.c",
+    "old": [
+      454,
+      473
+    ],
+    "new": [
+      404,
+      532
+    ]
+  },
+  {
+    "book": "nginx",
+    "file": "src/event/ngx_event_openssl.c",
+    "old": [
+      1793,
+      1806
+    ],
+    "new": [
+      1705,
+      1850
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "core/src/main/java/com/alibaba/nacos/core/remote/ConnectionManager.java",
+    "old": [
+      104,
+      131
+    ],
+    "new": [
+      98,
+      131
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "common/src/main/java/com/alibaba/nacos/common/remote/client/RpcClient.java",
+    "old": [
+      488,
+      607
+    ],
+    "new": [
+      485,
+      607
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/EphemeralClientOperationServiceImpl.java",
+    "old": [
+      56,
+      78
+    ],
+    "new": [
+      55,
+      78
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/NamingPushRequestHandler.java",
+    "old": [
+      41,
+      48
+    ],
+    "new": [
+      40,
+      48
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "client/src/main/java/com/alibaba/nacos/client/naming/cache/ServiceInfoHolder.java",
+    "old": [
+      129,
+      173
+    ],
+    "new": [
+      123,
+      173
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "naming/src/main/java/com/alibaba/nacos/naming/core/v2/client/manager/impl/ConnectionBasedClientManager.java",
+    "old": [
+      105,
+      118
+    ],
+    "new": [
+      104,
+      118
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "client/src/main/java/com/alibaba/nacos/client/naming/remote/gprc/redo/NamingGrpcRedoService.java",
+    "old": [
+      105,
+      120
+    ],
+    "new": [
+      104,
+      120
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "core/src/main/java/com/alibaba/nacos/core/distributed/distro/DistroProtocol.java",
+    "old": [
+      132,
+      143
+    ],
+    "new": [
+      124,
+      143
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java",
+    "old": [
+      107,
+      131
+    ],
+    "new": [
+      106,
+      131
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "naming/src/main/java/com/alibaba/nacos/naming/core/v2/service/impl/PersistentClientOperationServiceImpl.java",
+    "old": [
+      201,
+      235
+    ],
+    "new": [
+      200,
+      235
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "config/src/main/java/com/alibaba/nacos/config/server/service/ConfigOperationService.java",
+    "old": [
+      88,
+      191
+    ],
+    "new": [
+      83,
+      191
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "config/src/main/java/com/alibaba/nacos/config/server/service/repository/extrnal/ExternalConfigInfoPersistServiceImpl.java",
+    "old": [
+      595,
+      644
+    ],
+    "new": [
+      594,
+      644
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "core/src/main/java/com/alibaba/nacos/core/persistence/DistributedDatabaseOperateImpl.java",
+    "old": [
+      455,
+      498
+    ],
+    "new": [
+      454,
+      498
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "config/src/main/java/com/alibaba/nacos/config/server/service/ConfigCacheService.java",
+    "old": [
+      84,
+      164
+    ],
+    "new": [
+      72,
+      164
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "config/src/main/java/com/alibaba/nacos/config/server/remote/ConfigChangeBatchListenRequestHandler.java",
+    "old": [
+      60,
+      97
+    ],
+    "new": [
+      55,
+      97
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "core/src/main/java/com/alibaba/nacos/core/distributed/raft/auth/JRaftAuthUpgradeCoordinator.java",
+    "old": [
+      115,
+      134
+    ],
+    "new": [
+      109,
+      134
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "ai/src/main/java/com/alibaba/nacos/ai/service/McpServerOperationService.java",
+    "old": [
+      372,
+      448
+    ],
+    "new": [
+      361,
+      448
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "ai/src/main/java/com/alibaba/nacos/ai/service/prompt/PromptOperationServiceImpl.java",
+    "old": [
+      812,
+      836
+    ],
+    "new": [
+      809,
+      836
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "naming/src/main/java/com/alibaba/nacos/naming/core/v2/pojo/Service.java",
+    "old": [
+      107,
+      117
+    ],
+    "new": [
+      106,
+      117
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "ai/src/main/java/com/alibaba/nacos/ai/service/a2a/A2aServerOperationService.java",
+    "old": [
+      97,
+      129
+    ],
+    "new": [
+      91,
+      129
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "ai/src/main/java/com/alibaba/nacos/ai/service/skills/SkillOperationServiceImpl.java",
+    "old": [
+      1108,
+      1144
+    ],
+    "new": [
+      1103,
+      1144
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "core/src/main/java/com/alibaba/nacos/core/auth/RemoteRequestAuthFilter.java",
+    "old": [
+      68,
+      142
+    ],
+    "new": [
+      67,
+      142
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "config/src/main/java/com/alibaba/nacos/config/server/remote/RpcConfigChangeNotifier.java",
+    "old": [
+      87,
+      117
+    ],
+    "new": [
+      82,
+      117
+    ]
+  },
+  {
+    "book": "nacos",
+    "file": "client/src/main/java/com/alibaba/nacos/client/config/impl/ClientWorker.java",
+    "old": [
+      825,
+      833
+    ],
+    "new": [
+      824,
+      833
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "hotspot/src/share/vm/runtime/advancedThresholdPolicy.cpp",
+    "old": [
+      453,
+      458
+    ],
+    "new": [
+      452,
+      458
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "hotspot/src/share/vm/opto/parse3.cpp",
+    "old": [
+      231,
+      238
+    ],
+    "new": [
+      147,
+      280
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "hotspot/src/share/vm/opto/parse3.cpp",
+    "old": [
+      271,
+      279
+    ],
+    "new": [
+      147,
+      280
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "hotspot/src/share/vm/opto/parse3.cpp",
+    "old": [
+      283,
+      290
+    ],
+    "new": [
+      282,
+      357
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "hotspot/src/share/vm/opto/parse3.cpp",
+    "old": [
+      326,
+      340
+    ],
+    "new": [
+      282,
+      357
+    ]
+  },
+  {
+    "book": "nginx-rate-limiting",
+    "file": "src/http/modules/ngx_http_limit_req_module.c",
+    "old": [
+      445,
+      480
+    ],
+    "new": [
+      404,
+      532
+    ]
+  },
+  {
+    "book": "nginx-rate-limiting",
+    "file": "src/http/modules/ngx_http_limit_req_module.c",
+    "old": [
+      508,
+      526
+    ],
+    "new": [
+      404,
+      532
+    ]
+  },
+  {
+    "book": "nginx-rate-limiting",
+    "file": "src/http/modules/ngx_http_limit_req_module.c",
+    "old": [
+      544,
+      553
+    ],
+    "new": [
+      535,
+      606
+    ]
+  },
+  {
+    "book": "nginx-rate-limiting",
+    "file": "src/http/modules/ngx_http_limit_req_module.c",
+    "old": [
+      1020,
+      1023
+    ],
+    "new": [
+      963,
+      1064
+    ]
+  },
+  {
+    "book": "nginx-rate-limiting",
+    "file": "src/http/modules/ngx_http_limit_req_module.c",
+    "old": [
+      322,
+      328
+    ],
+    "new": [
+      194,
+      329
+    ]
+  },
+  {
+    "book": "nginx-rate-limiting",
+    "file": "src/http/modules/ngx_http_limit_req_module.c",
+    "old": [
+      350,
+      360
+    ],
+    "new": [
+      332,
+      360
+    ]
+  },
+  {
+    "book": "nginx-rate-limiting",
+    "file": "src/http/modules/ngx_http_limit_req_module.c",
+    "old": [
+      244,
+      250
+    ],
+    "new": [
+      194,
+      329
+    ]
+  },
+  {
+    "book": "nginx-rate-limiting",
+    "file": "src/http/modules/ngx_http_limit_req_module.c",
+    "old": [
+      651,
+      694
+    ],
+    "new": [
+      632,
+      695
+    ]
+  },
+  {
+    "book": "nginx-rate-limiting",
+    "file": "src/http/modules/ngx_http_limit_req_module.c",
+    "old": [
+      563,
+      605
+    ],
+    "new": [
+      535,
+      606
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      1443,
+      1476
+    ],
+    "new": [
+      1442,
+      1476
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2160,
+      2195
+    ],
+    "new": [
+      2158,
+      2195
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      2017,
+      2040
+    ],
+    "new": [
+      2015,
+      2040
+    ]
+  },
+  {
+    "book": "jdk-source",
+    "file": "jdk/src/share/classes/java/util/concurrent/FutureTask.java",
+    "old": [
+      76,
+      101
+    ],
+    "new": [
+      64,
+      101
+    ]
+  },
+  {
+    "book": "redis",
+    "file": "src/quicklist.h",
+    "old": [
+      38,
+      85
+    ],
+    "new": [
+      36,
+      85
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      1197,
+      1202
+    ],
+    "new": [
+      1185,
+      1202
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java",
+    "old": [
+      857,
+      875
+    ],
+    "new": [
+      849,
+      877
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java",
+    "old": [
+      1342,
+      1365
+    ],
+    "new": [
+      1328,
+      1380
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "jdk/src/share/classes/java/util/HashMap.java",
+    "old": [
+      338,
+      341
+    ],
+    "new": [
+      322,
+      341
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      2435,
+      2456
+    ],
+    "new": [
+      2361,
+      2496
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java",
+    "old": [
+      1008,
+      1037
+    ],
+    "new": [
+      1008,
+      1072
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp",
+    "old": [
+      2256,
+      2274
+    ],
+    "new": [
+      2250,
+      2504
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp",
+    "old": [
+      3972,
+      3990
+    ],
+    "new": [
+      3972,
+      4381
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "jdk/src/share/classes/java/nio/Bits.java",
+    "old": [
+      705,
+      718
+    ],
+    "new": [
+      705,
+      720
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "storage/innobase/include/read0types.h",
+    "old": [
+      162,
+      181
+    ],
+    "new": [
+      158,
+      182
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      738,
+      752
+    ],
+    "new": [
+      617,
+      860
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/producer/DefaultMQProducerImpl.java",
+    "old": [
+      1222,
+      1240
+    ],
+    "new": [
+      1222,
+      1302
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java",
+    "old": [
+      127,
+      143
+    ],
+    "new": [
+      126,
+      253
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      676,
+      694
+    ],
+    "new": [
+      617,
+      749
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      1374,
+      1409
+    ],
+    "new": [
+      1309,
+      1409
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      2028,
+      2047
+    ],
+    "new": [
+      2009,
+      2084
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java",
+    "old": [
+      478,
+      493
+    ],
+    "new": [
+      478,
+      530
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "store/src/main/java/org/apache/rocketmq/store/ConsumeQueue.java",
+    "old": [
+      506,
+      528
+    ],
+    "new": [
+      478,
+      530
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      655,
+      686
+    ],
+    "new": [
+      560,
+      735
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "store/src/main/java/org/apache/rocketmq/store/index/IndexFile.java",
+    "old": [
+      113,
+      134
+    ],
+    "new": [
+      88,
+      146
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "client/src/main/java/org/apache/rocketmq/client/impl/MQAdminImpl.java",
+    "old": [
+      407,
+      429
+    ],
+    "new": [
+      295,
+      449
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "store/src/main/java/org/apache/rocketmq/store/CommitLog.java",
+    "old": [
+      531,
+      542
+    ],
+    "new": [
+      466,
+      550
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "store/src/main/java/org/apache/rocketmq/store/DefaultMessageStore.java",
+    "old": [
+      275,
+      292
+    ],
+    "new": [
+      233,
+      306
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "store/src/main/java/org/apache/rocketmq/store/index/IndexService.java",
+    "old": [
+      68,
+      75
+    ],
+    "new": [
+      57,
+      88
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "src/t_string.c",
+    "old": [
+      84,
+      103
+    ],
+    "new": [
+      84,
+      150
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "src/db.c",
+    "old": [
+      403,
+      408
+    ],
+    "new": [
+      401,
+      433
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java",
+    "old": [
+      127,
+      143
+    ],
+    "new": [
+      126,
+      253
+    ]
+  },
+  {
+    "book": "java-architect-interview",
+    "file": "transport/src/main/java/io/netty/channel/nio/NioEventLoop.java",
+    "old": [
+      552,
+      569
+    ],
+    "new": [
+      503,
+      607
+    ]
+  }
+]

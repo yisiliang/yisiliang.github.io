@@ -22,5 +22,6 @@ for entry in manifest:
 with zipfile.ZipFile(r/'mysql-offline.zip') as z:
  assert z.testzip() is None
  q=z.read('index.html').decode();assert 'umami' not in q.lower();assert not re.search(r'<script[^>]+src=',q)
- assert '27章机制研究' in q and '30段真实源码' in q
+ assert len(re.findall(r'<section id="chapter-\d+"',q)) == meta['chapters']
+ assert len(re.findall(r'<pre\b',q)) == meta['excerpts']
 print(json.dumps({'chapters':27,'diagrams':27,'excerpts':30,'unique_dom_ids':len(ids),'exact_source_checked':len(sys.argv)>1,'offline_integrity':'PASS'},ensure_ascii=False))

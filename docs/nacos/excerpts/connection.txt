@@ -1,3 +1,9 @@
+    /**
+     * register a new connect.
+     *
+     * @param connectionId connectionId
+     * @param connection   connection
+     */
     public synchronized boolean register(String connectionId, Connection connection) {
         
         if (connection.isConnected()) {

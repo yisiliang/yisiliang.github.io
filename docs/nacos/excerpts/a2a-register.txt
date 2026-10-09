@@ -1,3 +1,9 @@
+    /**
+     * Register agent.
+     *
+     * @param agentCard agent card
+     * @throws NacosException nacos exception
+     */
     public void registerAgent(AgentCard agentCard, String namespaceId, String registrationType)
         throws NacosException {
         try {

@@ -1,3 +1,14 @@
+    /**
+     * Create new mcp server with resource specification.
+     *
+     * @param namespaceId namespace id of mcp server
+     * @param serverSpecification mcp server specification
+     * @param toolSpecification mcp server tool specification
+     * @param resourceSpecification mcp server resource specification
+     * @param endpointSpecification mcp server endpoint specification
+     * @return mcp server id
+     * @throws NacosException any exception during handling
+     */
     public String createMcpServer(String namespaceId, McpServerBasicInfo serverSpecification,
         McpToolSpecification toolSpecification, McpResourceSpecification resourceSpecification,
         McpEndpointSpec endpointSpecification) throws NacosException {
