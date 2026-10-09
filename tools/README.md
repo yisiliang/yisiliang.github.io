@@ -30,7 +30,7 @@ npm ci --prefix tools
 
 ## 源码学习库首页
 
-六大技术领域与第七类“10大技术专题”记录在`homepage/catalog.json`，样式源文件是`homepage/style.css`。专题分类使用`layout: topics`横跨整行，`topics`数组维护各章节标题与锚点；手册的`kind: topics`让共享源码阅读器样式工具跳过这个独立阅读页面。新增教程时填写真实版本与统计，并运行：
+六大技术领域与第七类“技术专题”记录在`homepage/catalog.json`，样式源文件是`homepage/style.css`。专题分类使用`layout: topics`横跨整行，`topics`数组维护各章节标题与锚点；栏目名称不包含数量，统计由目录自动计算。新增教程时填写真实版本与统计，并运行：
 
 ```sh
 python3 tools/build_homepage.py
@@ -61,7 +61,9 @@ python3 tools/build_homepage.py
 
 ## 资料页统一阅读样式
 
-首页目录中的8本源码手册采用`distributed`文章的深蓝底色、紫色强调色、衬线标题和左右阅读布局。共享样式与交互源文件在`reader/style.css`、`reader/controls.js`，在线与离线页面均内嵌这些资源。
+首页目录中的11个技术阅读页面均采用技术专题的排版：固定顶栏、左侧章节目录、中央正文、右侧篇内目录与阅读进度。按章显示完整内容，提供全文搜索、源码复制、SVG图解放大、手机目录抽屉与系统／浅色／深色主题。共享源文件是`reader/style.css`、`reader/controls.js`，在线与现有离线页面均内嵌这些资源；技术专题还保留“要点速览”。
+
+首页与全部技术文章的颜色变量统一维护在`reader/theme.css`，偏好与切换逻辑统一维护在`reader/theme.js`。共用`learning-reader-theme`存储键，切页沿用偏好，已经打开的同源页面通过`storage`事件同步；系统模式随操作系统变化。首页生成器输出带内容摘要的CSS与主题JS，阅读器直接内嵌同一份源码，离线包不需要外部主题资源。修改这两个文件后同时运行`python3 tools/style_readers.py`与`python3 tools/build_homepage.py`。
 
 修改共享样式，或重新生成任一本手册后，运行：
 
@@ -72,7 +74,9 @@ python3 docs/nginx/verify.py
 python3 docs/nacos/verify.py
 ```
 
-脚本读取首页目录，保留正文、源码与SVG原文，通过页头和目录布局转换统一8本手册，并同步已有离线ZIP及本地离线中间页。重复执行不会重复添加页头、样式或控件。搜索、复制与图解放大沿用各手册实现；默认深色，明暗偏好在8本手册间共享，手机目录通过“展开目录”显示。SVG保留原有颜色与图例，打印恢复纸面排版。CAP与BASE、Transformer论文解读及应用支持、隐私页面分别维护。目录记录中的`kind: paper`表示独立论文页，共享阅读器脚本跳过这类页面。
+脚本读取首页目录，使用HTML位置适配器移动原有正文，不重新序列化源码、行号或SVG；保留旧章节与附录锚点，并同步现有离线ZIP、Markdown及本地离线中间页。重复运行只刷新资源，不重复生成结构。对外统一使用学习表述，`reader/learning_words.py`维护用语映射，固定源码不替换。CAP与BASE、Transformer也纳入统一阅读器，交互计算器仍独立运行；应用支持、隐私及历史文章页面保持原有结构。
+
+全目录结构与现有离线包检查：`python3 tools/audit_articles.py`。浏览器回归脚本是`reader/check-browser.js`，在从`docs`启动的静态服务器上用Playwright CLI运行；覆盖11个页面的搜索、旧锚点、复制、图解、主题及计算器。新增或重新生成页面后先运行样式工具，再执行结构与浏览器检查。JVM当前没有完整离线包，技术专题也尚未提供ZIP，工具不会凭空生成它们。
 
 ## Transformer论文解读
 

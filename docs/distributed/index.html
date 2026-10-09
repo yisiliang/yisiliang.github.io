@@ -6,19 +6,225 @@
 <meta name="description" content="从两副本网络分区推导CAP，理解BASE、ACID与最终一致性，通过订单和积分案例分析可靠消息、幂等、重试、补偿及对账。">
 <link rel="stylesheet" href="./style.css">
 <script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script>
-</head>
-<body>
-<a class="skip" href="#content">跳至正文</a>
-<header><div class="wrap"><a class="home" href="../">← 源码学习库</a><p class="eyebrow">DISTRIBUTED SYSTEMS / FOUNDATIONS</p><h1>CAP与BASE</h1><p class="lead">从网络分区的限制，走到最终一致性的实现。</p><p class="intro">先理解哪些承诺无法同时兑现，再决定哪些操作必须等待、哪些状态可以暂时落后，以及故障后如何恢复业务约束。</p><div class="tags"><span>9节机制分析</span><span>4张流程图解</span><span>业务案例与面试复述</span></div><div class="links"><a href="./cap-base-offline.zip" download>下载离线阅读包 ↓</a><a href="../nacos/">继续阅读Nacos ↗</a></div></div></header>
-<div class="layout wrap">
-<nav aria-label="文章目录"><p class="eyebrow">阅读路径</p><a href="#problem">01 · 为什么会有取舍</a><a href="#cap">02 · CAP的精确定义</a><a href="#partition">03 · 两副本推导与分区恢复</a><a href="#base">04 · BASE的三个承诺</a><a href="#acid">05 · CAP、BASE与ACID</a><a href="#workflow">06 · 订单与积分：落地闭环</a><a href="#choices">07 · 按操作选择一致性</a><a href="#interview">08 · 面试复述与自测</a><a href="#cap-paper">09 · CAP原论文精读</a><a href="#references">参考资料</a></nav>
-<main id="content">
-<section id="problem"><p class="eyebrow">01 / THE PROBLEM</p><h2>为什么多放一份数据，反而多了一道难题</h2>
+<style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="java-architect-interview"] .diagram svg .edgePath path,[data-reader="java-architect-interview"] .diagram svg .flowchart-link,[data-reader="java-architect-interview"] .diagram svg .messageLine0,[data-reader="java-architect-interview"] .diagram svg .messageLine1,[data-reader="java-architect-interview"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel span,[data-reader="java-architect-interview"] .diagram svg .messageText,[data-reader="java-architect-interview"] .diagram svg .loopText,[data-reader="java-architect-interview"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled .chapter:not(.active){display:none}.js-enabled .route{display:none}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}.js-enabled.show-route .chapter{display:none}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
+}
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script></head><body class="learning-reader" data-layout="learning-v2" data-reader="distributed"><a class="skip" href="#main">跳到正文</a><header class="topbar"><button id="menu" class="mobile" aria-label="打开章节导航" aria-expanded="false" aria-controls="left-nav">目录</button><div class="brand"><a class="library-home" href="../">← 学习库</a>CAP与BASE学习手册<span>分布式理论与一致性设计</span></div><div class="tools"><button id="search-open" aria-label="打开全文搜索">搜索 <kbd>/</kbd></button><button id="print" type="button">打印</button><button id="theme" aria-label="切换主题">主题：系统</button></div></header><div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div><div id="drawer-backdrop" hidden></div><div class="layout"><nav id="left-nav" aria-label="章节目录"><p class="nav-label">学习目录 / 10章</p><details class="chapter-nav" data-chapter="reading-001"><summary><a href="#reading-001"><span>01</span>为什么多放一份数据，反而多了一道难题</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-002"><summary><a href="#reading-002"><span>02</span>CAP：分区发生时，不能同时保证C与A</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-003"><summary><a href="#reading-003"><span>03</span>两副本推导：B不知道的事情，不能凭空回答</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-004"><summary><a href="#reading-004"><span>04</span>BASE：把暂时落后变成可管理的状态</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-005"><summary><a href="#reading-005"><span>05</span>CAP、BASE与ACID分别回答什么</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-006"><summary><a href="#reading-006"><span>06</span>订单与积分：把“最终”落实到每个故障窗口</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-007"><summary><a href="#reading-007"><span>07</span>按操作选承诺，不给整个产品贴一个标签</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-008"><summary><a href="#reading-008"><span>08</span>知识回顾与自测</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-009"><summary><a href="#reading-009"><span>09</span>原论文精读：Gilbert与Lynch究竟证明了什么</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-010"><summary><a href="#reading-010"><span>10</span>参考资料与继续阅读</a></summary><div></div></details></nav><main id="main" tabindex="-1"><span id="content"></span><section class="intro"><h1>CAP与BASE学习手册</h1><p>从网络分区的限制，走到最终一致性的实现。</p><div class="reader-downloads"><a href="./cap-base-offline.zip" download>下载离线阅读包 ↓</a></div></section><article class="chapter" id="reading-001" data-title="为什么多放一份数据，反而多了一道难题"><div class="chapter-title"><p class="eyebrow">章节01 / 完整阅读</p><h2>为什么多放一份数据，反而多了一道难题</h2></div><div class="study"><section id="problem"><p class="eyebrow">01 / THE PROBLEM</p>
 <p>单节点保存<code>x=0</code>时，写入与读取可以围绕同一份状态协调。为了让一个节点故障后仍有副本可用，我们把数据复制到节点A与B。新的问题随之出现：A接到<code>x=1</code>，B什么时候知道这次更新？写入成功应等待几个副本？A与B之间失联，但两边都还能接到客户端请求时，B应该如何回答？</p>
 <p>网络分区是节点之间无法正常通信，不要求节点宕机。分区两侧可能都在运行，也都能接收各自客户端的请求。一个请求超时，只能说明没有及时收到结果；它不能证明远端没有执行。这种“结果未知”会贯穿复制、选主、消息投递和分布式事务。</p>
 <div class="callout"><strong>先明确业务承诺。</strong>余额不能透支、库存不能超卖是业务不变量；“已成功的写入，后续读取必须看到”是观察数据的规则；“推荐列表允许落后”是可接受的服务行为。它们相关，但不能混成一个笼统的“一致性”。</div>
-<p class="cite">理论背景：<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf">Gilbert与Lynch的CAP证明</a>。</p></section>
-<section id="cap"><p class="eyebrow">02 / PRECISE DEFINITIONS</p><h2>CAP：分区发生时，不能同时保证C与A</h2>
+<p class="cite">理论背景：<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf">Gilbert与Lynch的CAP证明</a>。</p></section></div></article><article class="chapter" id="reading-002" data-title="CAP：分区发生时，不能同时保证C与A"><div class="chapter-title"><p class="eyebrow">章节02 / 完整阅读</p><h2>CAP：分区发生时，不能同时保证C与A</h2></div><div class="study"><section id="cap"><p class="eyebrow">02 / PRECISE DEFINITIONS</p>
 <div class="table-wrap"><table><thead><tr><th>性质</th><th>精确定义与边界</th><th>常见误解</th></tr></thead><tbody>
 <tr><td>C · Consistency<br>一致性</td><td>原始证明使用原子一致性，即线性一致性：操作看起来在调用与返回之间的某一瞬间生效，并尊重实际时间先后。写入成功返回后才发起的读取，不能返回被该写入覆盖的旧值。</td><td>不是要求所有副本在每个物理瞬间都相同；也不是ACID中业务约束的一致性。</td></tr>
 <tr><td>A · Availability<br>可用性</td><td>非故障节点收到的每个请求最终都应得到符合该操作语义的响应。该模型不承诺固定毫秒数，因此不等于工程中的延迟SLO或99.99%在线率。</td><td>返回HTTP200却不给有效读取结果，或者直接拒绝操作，并不兑现原操作的可用性。</td></tr>
@@ -26,15 +232,13 @@
 </tbody></table></div>
 <p>结论是：在允许网络分区的异步模型里，无法对所有执行同时保证线性一致性和可用性。没有分区时，系统可以同时提供C与A；分区时，可继续服务的操作、可服务的节点和需要等待的操作会不同。因此“三选二”适合帮助记忆，但不足以指导具体接口的设计。</p>
 <p>CP通常表示分区时优先保持一致性，部分节点或操作失去可用性；AP通常表示分区两侧仍可按较弱一致性语义服务。AP可以提供最终一致性或因果一致性，但不满足这里的线性一致性。CA只能在排除分区的假设或限定范围内讨论，不能作为跨机房系统逃避分区的保证。</p>
-<p class="cite">定义依据：<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf">CAP原论文</a>；设计边界：<a href="https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/">Eric Brewer的十二年回顾</a>。</p></section>
-<section id="partition"><p class="eyebrow">03 / REASONING THROUGH A PARTITION</p><h2>两副本推导：B不知道的事情，不能凭空回答</h2>
+<p class="cite">定义依据：<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf">CAP原论文</a>；设计边界：<a href="https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/">Eric Brewer的十二年回顾</a>。</p></section></div></article><article class="chapter" id="reading-003" data-title="两副本推导：B不知道的事情，不能凭空回答"><div class="chapter-title"><p class="eyebrow">章节03 / 完整阅读</p><h2>两副本推导：B不知道的事情，不能凭空回答</h2></div><div class="study"><section id="partition"><p class="eyebrow">03 / REASONING THROUGH A PARTITION</p>
 <figure class="diagram"><div class="timeline"><div><b>① 初始状态</b><span>A：x=0<br>B：x=0</span></div><div><b>② 网络分区</b><span>A ↛ B<br>两侧客户端仍可访问</span></div><div><b>③ A返回写成功</b><span>客户端写x=1<br>A：x=1，B未知</span></div><div><b>④ 随后读B</b><span>返回0：违反C<br>等待或拒绝：牺牲A</span></div></div><figcaption>图1 · 以A已经确认写入为前提，B面临的取舍。系统也可以在③就阻止写入成功。</figcaption></figure>
 <p>假设A已经把<code>x=1</code>确认给客户端，随后另一个客户端向B读取。B无法区分“A写入了1”和“A根本没有收到写入”这两种执行。如果B保持可用、直接返回本地的0，就在第一种执行中破坏C；如果B等到通信恢复才能确定最新值，永久分区下请求无法完成，就破坏A。猜测返回1同样不行，因为第二种执行并没有这次写入。</p>
 <p>另一个选择是A在无法取得协议要求的确认时，不宣布写入成功。这样避免了上述已完成写入后的旧读，但写操作失去可用性。三节点共识系统在分成“2＋1”后，可以让持有多数的分区按协议继续推进，少数侧不能独立提交新写。CP不意味着整个集群必然停机。</p>
 <figure class="diagram"><div class="timeline"><div><b>正常模式</b><span>复制与协调<br>兑现读写承诺</span></div><div><b>检测超时</b><span>可能分区或延迟<br>按策略限制操作</span></div><div><b>分区模式</b><span>等待／拒绝风险操作<br>或记录可合并的更新</span></div><div><b>恢复模式</b><span>同步历史、解决冲突<br>修复业务影响</span></div></div><figcaption>图2 · 分区管理包含检测、受限运行和恢复；超时不是网络分区的确定证明。</figcaption></figure>
 <p>恢复不能只比较最终字段值。如果两侧都对“只剩一件”的库存接受扣减，随后把数字合并成同一个值，也不能撤回已经向两个买家承诺的商品。必须知道操作历史和外部影响，决定拒绝、预分配库存额度，或者退款补偿。冲突解决规则也是系统语义的一部分；“最后写入覆盖”可能直接丢失某次业务更新。</p>
-<p class="cite">推导参考<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf">CAP原论文</a>；恢复过程参考<a href="https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/">Brewer对分区管理的讨论</a>。</p></section>
-<section id="base"><p class="eyebrow">04 / ENGINEERING WITH BASE</p><h2>BASE：把暂时落后变成可管理的状态</h2>
+<p class="cite">推导参考<a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf">CAP原论文</a>；恢复过程参考<a href="https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/">Brewer对分区管理的讨论</a>。</p></section></div></article><article class="chapter" id="reading-004" data-title="BASE：把暂时落后变成可管理的状态"><div class="chapter-title"><p class="eyebrow">章节04 / 完整阅读</p><h2>BASE：把暂时落后变成可管理的状态</h2></div><div class="study"><section id="base"><p class="eyebrow">04 / ENGINEERING WITH BASE</p>
 <p>BASE是一组工程设计原则，不是与CAP相同层级的不可能性定理。它允许适当降低即时一致性的要求，让系统在部分故障或异步传播期间继续完成有价值的工作，同时设计状态收敛的路径。</p>
 <div class="table-wrap"><table><thead><tr><th>原则</th><th>含义</th><th>业务案例与约束</th></tr></thead><tbody>
 <tr><td>BA · Basically Available<br>基本可用</td><td>故障时保留约定的核心能力，允许部分功能降级或延迟。</td><td>订单已可靠保存后，积分服务暂时不可用，页面显示“积分待到账”。这不代表所有原操作都满足CAP的A。</td></tr>
@@ -42,8 +246,7 @@
 <tr><td>E · Eventually consistent<br>最终一致性</td><td>在停止新更新、通信与处理恢复，并满足传播和冲突解决条件后，相关副本最终收敛。跨服务业务流程需要另外定义一致的终态与业务约束。</td><td>每个有效订单对应且仅对应一笔有效积分流水。业务需要定义正常延迟目标、异常告警和修复责任；理论性质本身不给固定时限。</td></tr>
 </tbody></table></div>
 <p>最终一致性不是“暂时不一致，过一会儿自然会好”。消息永久丢失、重试一直失败、冲突没有规则，都会阻断收敛。数据副本变得相同，也不自动说明业务正确：两个副本都保存了错误余额，仍然是同样的错误。</p>
-<p class="cite">延伸阅读：<a href="https://queue.acm.org/detail.cfm?id=1394128">Dan Pritchett：BASE: An ACID Alternative</a>；收敛与读写观察：<a href="https://www.allthingsdistributed.com/2008/12/eventually_consistent.html">Werner Vogels：Eventually Consistent — Revisited</a>。以下业务方案是教学设计，独立说明实现条件。</p></section>
-<section id="acid"><p class="eyebrow">05 / DIFFERENT QUESTIONS</p><h2>CAP、BASE与ACID分别回答什么</h2>
+<p class="cite">延伸阅读：<a href="https://queue.acm.org/detail.cfm?id=1394128">Dan Pritchett：BASE: An ACID Alternative</a>；收敛与读写观察：<a href="https://www.allthingsdistributed.com/2008/12/eventually_consistent.html">Werner Vogels：Eventually Consistent — Revisited</a>。以下业务方案是教学设计，独立说明实现条件。</p></section></div></article><article class="chapter" id="reading-005" data-title="CAP、BASE与ACID分别回答什么"><div class="chapter-title"><p class="eyebrow">章节05 / 完整阅读</p><h2>CAP、BASE与ACID分别回答什么</h2></div><div class="study"><section id="acid"><p class="eyebrow">05 / DIFFERENT QUESTIONS</p>
 <div class="table-wrap"><table><thead><tr><th>概念</th><th>关注的问题</th><th>案例中的位置</th></tr></thead><tbody>
 <tr><td>CAP</td><td>发生网络分区时，能否同时兑现线性一致性和可用性？</td><td>不能取得必要的复制确认时，余额写入能否成功？</td></tr>
 <tr><td>ACID</td><td>事务的原子性、业务约束一致性、隔离性和持久性如何保证？</td><td>同一本地事务内，订单记录与待发送事件一起提交或回滚。</td></tr>
@@ -51,8 +254,7 @@
 </tbody></table></div>
 <p>ACID里的C侧重业务不变量，例如转账前后总金额守恒；CAP里的C侧重并发读写的可观察顺序。ACID也不自动意味着所有读取线性一致：隔离级别、读副本策略、复制与故障切换都会影响实际语义。</p>
 <p>局部ACID与跨服务BASE可以组合。订单数据库内部用事务保证订单与事件同时持久化；积分数据库内部用事务保证去重记录与积分变更同时提交；两库之间通过异步投递形成有条件的最终收敛。这样没有获得跨库原子事务，而是明确接受并管理“订单已完成、积分未到账”的窗口。</p>
-<p class="cite">两种C的区别与局部事务组合，参考<a href="https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/">Brewer的ACID、BASE与CAP讨论</a>及<a href="https://www.allthingsdistributed.com/2008/12/eventually_consistent.html">Vogels的一致性模型说明</a>。</p></section>
-<section id="workflow"><p class="eyebrow">06 / A COMPLETE DELIVERY PATH</p><h2>订单与积分：把“最终”落实到每个故障窗口</h2>
+<p class="cite">两种C的区别与局部事务组合，参考<a href="https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/">Brewer的ACID、BASE与CAP讨论</a>及<a href="https://www.allthingsdistributed.com/2008/12/eventually_consistent.html">Vogels的一致性模型说明</a>。</p></section></div></article><article class="chapter" id="reading-006" data-title="订单与积分：把“最终”落实到每个故障窗口"><div class="chapter-title"><p class="eyebrow">章节06 / 完整阅读</p><h2>订单与积分：把“最终”落实到每个故障窗口</h2></div><div class="study"><section id="workflow"><p class="eyebrow">06 / A COMPLETE DELIVERY PATH</p>
 <p>教学场景：订单支付结果已经得到可靠确认，每笔有效订单应发一次积分。我们允许到账延迟，但不能因为进程重启漏发，也不能因为重复消费多发。支付确认本身以及退款后的积分冲正是独立流程，不能由下面这条发积分链路自动保证。</p>
 <figure class="diagram"><div class="timeline"><div><b>① 本地事务</b><span>订单状态＋outbox事件<br>同库一起提交</span></div><div><b>② 后台投递</b><span>扫描待发送事件<br>确认后标记已投递</span></div><div><b>③ 消费事务</b><span>业务唯一键去重<br>流水＋积分一起提交</span></div><div><b>④ 核对与修复</b><span>找未完成或错误终态<br>补发／冲正／人工处理</span></div></div><figcaption>图3 · 可靠保存、允许重复、事务幂等和异常修复共同构成收敛路径。</figcaption></figure>
 <p><strong>第一步，堵住漏发窗口。</strong>在订单库同一事务里更新订单，并写入outbox事件，例如<code>(order_id, event_type, version)</code>及载荷。提交后才向客户端确认订单状态。若仅在提交订单后调用MQ，进程可能在两者之间崩溃，留下永久没有消息的订单。outbox把“发送意图”保存为可恢复的数据。</p>
@@ -69,8 +271,7 @@
 </tbody></table></div>
 <p><strong>第四步，用对账识别不收敛。</strong>比较有效订单与积分流水，区分未发、重复、已退款但未冲正。补发必须仍走同一幂等入口；补偿是新的业务动作，应保存关联原交易的流水，不能简单删除历史。监控待处理年龄、失败重试次数和对账差异，比只看MQ堆积量更接近业务结果。</p>
 <div class="callout"><strong>对外状态也要准确。</strong>“订单成功，积分待到账”与“积分已到账”是两个承诺。必须先可靠保存原操作或其处理意图，才能返回“已受理”；将请求放入内存或直接返回成功，不能替代可靠受理。</div>
-<p class="cite">上述outbox流程、故障分析与约束是教学方案，并非声称某个现有项目采用了该实现。可结合<a href="../rocketmq/">RocketMQ手册</a>继续分析投递、重试与消费位点。</p></section>
-<section id="choices"><p class="eyebrow">07 / CHOOSE PER OPERATION</p><h2>按操作选承诺，不给整个产品贴一个标签</h2>
+<p class="cite">上述outbox流程、故障分析与约束是教学方案，并非声称某个现有项目采用了该实现。可结合<a href="../rocketmq/">RocketMQ手册</a>继续分析投递、重试与消费位点。</p></section></div></article><article class="chapter" id="reading-007" data-title="按操作选承诺，不给整个产品贴一个标签"><div class="chapter-title"><p class="eyebrow">章节07 / 完整阅读</p><h2>按操作选承诺，不给整个产品贴一个标签</h2></div><div class="study"><section id="choices"><p class="eyebrow">07 / CHOOSE PER OPERATION</p>
 <div class="table-wrap"><table><thead><tr><th>操作与风险</th><th>可以接受的行为</th><th>必须进一步回答</th></tr></thead><tbody>
 <tr><td>余额扣减、严格库存预占</td><td>在不能确认约束时，限制提交或返回待确认；也可预先分配可独立使用的额度。</td><td>谁有扣减权限？如何避免旧主继续写？超时后如何查结果？预分配额度如何回收？</td></tr>
 <tr><td>推荐列表、搜索索引</td><td>允许返回稍旧的数据，更新异步传播。</td><td>可落后多久？删除与权限变更是否另有严格约束？如何发现更新永久遗漏？</td></tr>
@@ -79,8 +280,7 @@
 </tbody></table></div>
 <p>共识提交不自动保证任意缓存或副本读取线性一致。多数派交集也不是一句<code>R+W&gt;N</code>就能证明整个实现正确：并发写、版本选择、成员变更和读取校验仍要分析。读取策略、故障模式与协议路径必须一起说明。</p>
 <p>阅读Nacos时，可继续追踪<a href="../nacos/">临时实例Distro、持久实例共识路径与配置存储</a>，分别确认权威状态、传播延迟和故障边界。服务注册、配置更新以及客户端缓存不是同一个操作，不能一句“Nacos是AP”或“Nacos是CP”覆盖全部行为。</p>
-<p>设计时按这个顺序追问：数据范围是什么 → 哪个操作必须保证什么 → 分区时哪些节点能服务 → 允许什么中间状态 → 恢复依赖哪些条件 → 怎样验证终态与业务约束。每一步都应能对应到状态、协议或恢复机制。</p></section>
-<section id="interview"><p class="eyebrow">08 / EXPLAIN IT BACK</p><h2>面试复述与自测</h2>
+<p>设计时按这个顺序追问：数据范围是什么 → 哪个操作必须保证什么 → 分区时哪些节点能服务 → 允许什么中间状态 → 恢复依赖哪些条件 → 怎样验证终态与业务约束。每一步都应能对应到状态、协议或恢复机制。</p></section></div></article><article class="chapter" id="reading-008" data-title="知识回顾与自测"><div class="chapter-title"><p class="eyebrow">章节08 / 完整阅读</p><h2>知识回顾与自测</h2></div><div class="study"><section id="interview"><p class="eyebrow">08 / EXPLAIN IT BACK</p>
 <blockquote>CAP描述的是网络分区下的限制：这里的C是线性一致性，A是非故障节点收到的每个请求最终完成。两个副本失联后，如果一侧已经确认新写入，另一侧仍返回旧值就失去C；等待或拒绝则失去A。BASE是一组工程设计原则，允许核心功能基本可用、存在软状态，并在条件满足后最终收敛。实现时不能只说异步消息，而要说明可靠保存、业务幂等、重试、补偿与对账。我会按具体操作做选择，比如余额扣减守住约束，积分到账允许延迟；局部用ACID，跨服务管理最终一致的窗口。</blockquote>
 <details><summary>为什么CP系统分区后可能还有部分节点可用？</summary><p>三节点分成2＋1时，多数侧可按共识协议继续提交，少数侧不能独立提交同一份数据的新写。CAP的A要求每个非故障节点的请求都完成，所以“多数侧可用”仍不等于满足整体A；读请求还要看读取协议。</p></details>
 <details><summary>最终一致能否直接保证库存不超卖？</summary><p>不能。把副本最后合并为同一个库存数，不会自动撤回两个已确认订单。需要协调限制扣减、预分配额度等方案，或者明确接受超卖并提供业务补偿。</p></details>
@@ -88,8 +288,7 @@
 <details><summary>为什么本地事务和BASE能同时使用？</summary><p>它们的范围不同。订单与outbox同库原子提交，积分与去重流水同库原子提交；两库之间仍有传播窗口，靠投递和恢复机制推进到正确终态。</p></details>
 <details><summary>“返回受理中”能否绕过CAP？</summary><p>不能。它改变了接口承诺：可靠保存请求意图可以完成受理操作，但原写入尚未完成。客户端仍需查询终态，系统仍要承担后续处理、幂等和恢复责任。</p></details>
 <details><summary>上线前怎样验证这条链路？</summary><p>在提交前后、MQ确认前后、消费提交前后注入进程崩溃；并发重复投递、延迟和乱序事件；恢复后核对每笔业务的唯一流水、积分总额、outbox终态和告警。这里提供验证思路，没有宣称已运行生产故障实验。</p></details>
-</section>
-<section id="cap-paper"><p class="eyebrow">09 / READ THE ORIGINAL PAPER</p><h2>原论文精读：Gilbert与Lynch究竟证明了什么</h2>
+</section></div></article><article class="chapter" id="reading-009" data-title="原论文精读：Gilbert与Lynch究竟证明了什么"><div class="chapter-title"><p class="eyebrow">章节09 / 完整阅读</p><h2>原论文精读：Gilbert与Lynch究竟证明了什么</h2></div><div class="study"><section id="cap-paper"><p class="eyebrow">09 / READ THE ORIGINAL PAPER</p>
 <p>论文为Seth Gilbert与Nancy Lynch的<em>Brewer’s Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web Services</em>。以下解析依据链接中的12页PDF，页码均按PDF页序计算。先读前面的两副本例子，再读本节的执行构造，便能把“CAP三选二”还原成有假设、有量词、有反证过程的理论结论。</p>
 <div class="callout"><strong>核心结论：</strong>在允许网络分区的模型中，不存在一种读写算法，能够对所有允许的执行，同时保证线性一致性和可用性。限制针对算法能兑现的承诺，不取决于机器是否足够快，也不要求节点宕机。</div>
 <h3 id="paper-map">9.1 阅读地图：不只有一个CAP证明</h3>
@@ -160,13 +359,170 @@
 <ul><li>它没有证明所有分布式系统在正常通信时也必须放弃C或A；限制针对包含分区的全部允许执行。</li><li>它没有证明CP意味着整个集群停机，或AP意味着可以任意返回错误数据；可服务范围与弱一致性语义仍需定义。</li><li>它没有证明BASE和最终一致性自动保证业务正确；副本收敛与业务约束成立是两个问题。</li><li>它没有证明超时等于失败；远端可能执行成功而回复丢失。</li><li>它没有证明某个数据库、注册中心或消息系统整体属于CP或AP；必须分析具体操作、协议、读取路径和故障模式。</li><li>它没有在本论文的模型中解决节点停止故障、业务事务、持久化与外部副作用；这些需要额外机制与证明。</li></ul>
 <blockquote>“另一侧完成了写入”和“另一侧没有写入”，对当前节点可能完全不可区分，但线性一致性要求两个世界给出不同答案；可用性又不允许无限等待。CAP证明的是这种信息约束。工程设计随后要决定允许哪些操作等待、哪些观察暂时落后，以及满足什么条件才能恢复承诺。</blockquote>
 <details><summary>闭卷自测：能否不看原文，复现证明？</summary><p>画出G₁、G₂与初始值；构造只写α₁、只读α₂、先写后读α；指出A在哪两处保证完成，C在哪两处要求不同值；说明G₂为什么不可区分。再解释推论1.1为何构造“延迟后送达”的另一个执行，以及定理2为什么要加入空闲时间。最后写出Delayed-t恢复条件，而不只背诵“最终一致”。</p></details>
-</section>
-
-<section id="references"><p class="eyebrow">PRIMARY REFERENCES</p><h2>参考资料与继续阅读</h2><ul>
+</section></div></article><article class="chapter" id="reading-010" data-title="参考资料与继续阅读"><div class="chapter-title"><p class="eyebrow">章节10 / 完整阅读</p><h2>参考资料与继续阅读</h2></div><div class="study"><section id="references"><p class="eyebrow">PRIMARY REFERENCES</p><ul>
 <li><a href="https://www.cs.princeton.edu/courses/archive/spr22/cos418/papers/cap.pdf">Seth Gilbert与Nancy Lynch，Brewer’s Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web Services，2002</a>：形式化定义与不可能性证明。</li>
 <li><a href="https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/">Eric Brewer，CAP Twelve Years Later: How the “Rules” Have Changed，2012</a>：作者对“三选二”、分区管理和恢复的解释。</li>
 <li><a href="https://queue.acm.org/detail.cfm?id=1394128">Dan Pritchett，BASE: An ACID Alternative，2008</a>：BASE与业务异步处理的经典讨论。</li>
 <li><a href="https://www.allthingsdistributed.com/2008/12/eventually_consistent.html">Werner Vogels，Eventually Consistent — Revisited，2008</a>：最终一致性与客户端观察语义。</li>
 </ul><p>理论定义依据原论文与作者文章；订单积分、outbox和故障窗口采用教学案例。下一步：<a href="../nacos/">Nacos的状态与协议路径</a> · <a href="../rocketmq/">RocketMQ的可靠投递与消费</a> · <a href="../redis/">Redis复制与分布式锁边界</a>。</p></section>
-</main></div><footer class="wrap">YiSiliang · 分布式与平台基础 · <a href="../">返回学习库</a></footer>
-</body></html>
+</div></article></main><aside id="right-toc" aria-label="当前章节目录"><div class="reading"><span id="progress-text">阅读进度0%</span><span id="current-label"></span></div><p class="nav-label">本篇目录</p><nav id="toc"></nav></aside></div><dialog id="search-dialog" aria-labelledby="search-title"><div class="search-head"><h2 id="search-title">全文搜索</h2><button id="search-close" aria-label="关闭搜索">关闭</button></div><label for="search-input">搜索关键词、源码方法或原理问题</label><input id="search-input" type="search" placeholder="输入关键词，搜索完整正文" autocomplete="off"><p id="search-status" role="status" aria-live="polite">输入关键词，搜索完整正文。</p><div id="search-results"></div></dialog><div id="toast" role="status" aria-live="polite"></div><footer class="wrap">YiSiliang · 分布式与平台基础 · <a href="../">返回学习库</a></footer><dialog id="diagram-dialog" aria-label="图解放大"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];}
+  function makeToc() {
+    sections=visibleHeadings();$('#toc').replaceChildren();
+    sections.forEach(h=>{const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';$('#toc').append(a);});
+    $('#current-label').textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)$('#review-route').scrollIntoView({block:'start'});closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      requestAnimationFrame(()=>{target.scrollIntoView({block:'start'});if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();});
+    }
+    updateReading();
+  }
+  function updateReading() {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;const box=active.getBoundingClientRect();
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('#toc a,.chapter-nav div a').forEach(a=>a.classList.toggle('current',!!current && a.hash==='#'+current.id));
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{const canvas=$('#diagram-content');canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));canvas.querySelectorAll('[id]').forEach(el=>{el.id='zoom-'+el.id});canvas.querySelectorAll('*').forEach(el=>{for(const attr of ['style','fill','stroke','marker-end','marker-start','clip-path']){const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.replace(/url\(#/g,'url(#zoom-'));}});scale(1);viewer.showModal();});
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
+})();
+</script></body></html>

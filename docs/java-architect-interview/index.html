@@ -1,10 +1,224 @@
 <!DOCTYPE html>
 
-<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/><meta content="light dark" name="color-scheme"/><meta content="Java 高级开发与架构师面试深度学习手册：JDK8 源码、RocketMQ、JVM 故障排查及分布式一致性，十个专题和三层问答。" name="description"/><title>Java 架构师面试 · 深度学习手册</title><link href="./style.css?v=418345e477" rel="stylesheet"/><script src="./theme.js?v=2272474c55"></script><script data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3" defer="" src="https://cloud.umami.is/script.js"></script><script data-manual="" defer="" src="./vendor/prism.js"></script><script defer="" src="./vendor/prism-c.js"></script><script defer="" src="./vendor/prism-cpp.js"></script><script defer="" src="./vendor/prism-java.js"></script><script defer="" src="./vendor/prism-sql.js"></script><script defer="" src="./vendor/prism-bash.js"></script><script defer="" src="./vendor/prism-yaml.js"></script><script defer="" src="./app.js?v=80b1e877cc"></script></head><body>
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/><meta content="light dark" name="color-scheme"/><meta content="Java核心技术与架构实践深度学习手册：JDK8 源码、RocketMQ、JVM 故障排查及分布式一致性，十个专题和三层问答。" name="description"/><title>Java核心技术与架构实践 · 深度学习手册</title><script data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3" defer="" src="https://cloud.umami.is/script.js"></script><script data-manual="" defer="" src="./vendor/prism.js"></script><script defer="" src="./vendor/prism-c.js"></script><script defer="" src="./vendor/prism-cpp.js"></script><script defer="" src="./vendor/prism-java.js"></script><script defer="" src="./vendor/prism-sql.js"></script><script defer="" src="./vendor/prism-bash.js"></script><script defer="" src="./vendor/prism-yaml.js"></script><style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="java-architect-interview"] .diagram svg .edgePath path,[data-reader="java-architect-interview"] .diagram svg .flowchart-link,[data-reader="java-architect-interview"] .diagram svg .messageLine0,[data-reader="java-architect-interview"] .diagram svg .messageLine1,[data-reader="java-architect-interview"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel span,[data-reader="java-architect-interview"] .diagram svg .messageText,[data-reader="java-architect-interview"] .diagram svg .loopText,[data-reader="java-architect-interview"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled .chapter:not(.active){display:none}.js-enabled .route{display:none}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}.js-enabled.show-route .chapter{display:none}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
+}
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script></head><body class="learning-reader" data-layout="learning-v2" data-reader="java-architect-interview">
 <a class="skip" href="#main">跳到正文</a>
-<header class="topbar"><button aria-controls="left-nav" aria-expanded="false" aria-label="打开章节导航" class="mobile" id="menu">目录</button><div class="brand">Java 面试手册<span>Java 8 · Spring 5 · RocketMQ</span></div><div class="tools"><button aria-label="打开全文搜索" id="search-open">搜索 <kbd>/</kbd></button><button aria-pressed="false" id="mode">面试速查</button><button aria-label="切换主题" id="theme">主题：系统</button></div></header>
+<header class="topbar"><button aria-controls="left-nav" aria-expanded="false" aria-label="打开章节导航" class="mobile" id="menu">目录</button><div class="brand"><a class="library-home" href="../">← 学习库</a>Java技术学习手册<span>源码原理 · 故障排查 · 架构实践</span></div><div class="tools"><button aria-label="打开全文搜索" id="search-open">搜索 <kbd>/</kbd></button><button aria-pressed="false" id="mode">要点速览</button><button aria-label="切换主题" id="theme">主题：系统</button></div></header>
 <div aria-hidden="true" class="progress-track"><div id="progress-bar"></div></div><div hidden="" id="drawer-backdrop"></div>
-<div class="layout"><nav aria-label="技术专题" id="left-nav"><p class="nav-label">学习目录 / 10 个专题</p><details class="chapter-nav" data-chapter="c1"><summary><a href="#c1"><span>01</span>Java 并发编程与锁机制</a></summary><div><a href="#c1-s1">核心知识与原理</a><a href="#c1-s6">源码级解析与调用链</a><a href="#c1-s7">面试官三层追问</a><a href="#c1-s14">模拟生产案例：队列吞噬内存</a><a href="#c1-s15">面试回答与核心总结</a><a href="#c1-s19">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c2"><summary><a href="#c2"><span>02</span>HashMap 与 ConcurrentHashMap</a></summary><div><a href="#c2-s1">核心知识与原理</a><a href="#c2-s6">源码级解析与调用链</a><a href="#c2-s7">面试官三层追问</a><a href="#c2-s14">模拟生产案例：缓存加载造成桶级阻塞</a><a href="#c2-s15">面试回答与核心总结</a><a href="#c2-s19">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c3"><summary><a href="#c3"><span>03</span>JVM 内存管理、CMS 与 G1</a></summary><div><a href="#c3-s1">核心知识与原理</a><a href="#c3-s7">源码级解析与调用链</a><a href="#c3-s8">面试官三层追问</a><a href="#c3-s15">模拟生产案例：大报表使 G1 退化</a><a href="#c3-s16">面试回答与核心总结</a><a href="#c3-s20">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c4"><summary><a href="#c4"><span>04</span>JVM OOM 与生产故障排查</a></summary><div><a href="#c4-s1">核心知识与原理</a><a href="#c4-s6">源码级解析与调用链</a><a href="#c4-s8">面试官三层追问</a><a href="#c4-s15">模拟生产案例：异步日志持有 ByteBuf</a><a href="#c4-s16">面试回答与核心总结</a><a href="#c4-s20">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c5"><summary><a href="#c5"><span>05</span>Spring 核心原理与事务</a></summary><div><a href="#c5-s1">核心知识与原理</a><a href="#c5-s7">源码级解析与调用链</a><a href="#c5-s8">面试官三层追问</a><a href="#c5-s15">模拟生产案例：新事务耗尽连接池</a><a href="#c5-s16">面试回答与核心总结</a><a href="#c5-s20">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c6"><summary><a href="#c6"><span>06</span>数据库事务、MVCC 与性能优化</a></summary><div><a href="#c6-s1">核心知识与原理</a><a href="#c6-s7">源码级解析与调用链</a><a href="#c6-s8">面试官三层追问</a><a href="#c6-s15">模拟生产案例：长快照拖住 Undo</a><a href="#c6-s16">面试回答与核心总结</a><a href="#c6-s20">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c7"><summary><a href="#c7"><span>07</span>RocketMQ 消息队列</a></summary><div><a href="#c7-s1">核心知识与原理</a><a href="#c7-s7">源码级解析与调用链</a><a href="#c7-s9">面试官三层追问</a><a href="#c7-s16">模拟生产案例：支付成功重复发保单</a><a href="#c7-s17">面试回答与核心总结</a><a href="#c7-s21">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c8"><summary><a href="#c8"><span>08</span>Redis 与分布式缓存</a></summary><div><a href="#c8-s1">核心知识与原理</a><a href="#c8-s8">源码级解析与调用链</a><a href="#c8-s9">面试官三层追问</a><a href="#c8-s16">模拟生产案例：锁超期导致重复扣库存</a><a href="#c8-s17">面试回答与核心总结</a><a href="#c8-s21">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c9"><summary><a href="#c9"><span>09</span>分布式事务与数据一致性</a></summary><div><a href="#c9-s1">核心知识与原理</a><a href="#c9-s6">源码级解析与调用链</a><a href="#c9-s8">面试官三层追问</a><a href="#c9-s15">模拟生产案例：Outbox 已发未标记</a><a href="#c9-s16">面试回答与核心总结</a><a href="#c9-s20">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c10"><summary><a href="#c10"><span>10</span>微服务、高并发与系统稳定性</a></summary><div><a href="#c10-s1">核心知识与原理</a><a href="#c10-s7">源码级解析与调用链</a><a href="#c10-s8">面试官三层追问</a><a href="#c10-s15">模拟生产案例：认证过滤器阻塞事件循环</a><a href="#c10-s16">面试回答与核心总结</a><a href="#c10-s20">官方资料与版本来源</a></div></details><a class="route-link" href="#review-route">90 分钟复习路线</a></nav><main id="main" tabindex="-1"><section class="intro"><h1>Java 高级开发与架构师面试</h1><p>从具体问题读原理，再对照源码。十个专题都附有追问、故障排查和可直接口述的回答。面试前可切到速查模式。</p><noscript><p>JavaScript 已关闭，正文、问答与图表仍可阅读；搜索、复制和模式切换需要启用它。</p></noscript></section><section class="route" id="review-route"><h2>90 分钟复习路线</h2><p>按下面顺序复习，先用 60 秒回答口述，再展开重点追问；RocketMQ 留 15 分钟。</p><ol><li><time>0–8 分钟</time><a href="#c1">JMM、AQS 与线程池准入</a></li><li><time>8–15 分钟</time><a href="#c2">CHM 迁移协议与原子 API</a></li><li><time>15–24 分钟</time><a href="#c3">CMS/G1 正常、失败与恢复</a></li><li><time>24–32 分钟</time><a href="#c4">OOM 分类与证据链</a></li><li><time>32–40 分钟</time><a href="#c5">代理、事务与连接预算</a></li><li><time>40–49 分钟</time><a href="#c6">MVCC、锁与执行计划</a></li><li><time>49–64 分钟</time><a href="#c7">RocketMQ 五类失败边界</a></li><li><time>64–72 分钟</time><a href="#c8">缓存一致性与锁租约</a></li><li><time>72–81 分钟</time><a href="#c9">Outbox、幂等与补偿</a></li><li><time>81–90 分钟</time><a href="#c10">EventLoop、重试与容量</a></li></ol></section><article class="chapter" data-title="Java 并发编程与锁机制" id="c1"><div class="chapter-title"><p class="eyebrow">专题 01 / 完整阅读</p><h1>Java 并发编程与锁机制</h1></div><div class="study">
+<div class="layout"><nav aria-label="技术专题" id="left-nav"><p class="nav-label">学习目录 / 10 个专题</p><details class="chapter-nav" data-chapter="c1"><summary><a href="#c1"><span>01</span>Java 并发编程与锁机制</a></summary><div><a href="#c1-s1">核心知识与原理</a><a href="#c1-s6">源码级解析与调用链</a><a href="#c1-s7">三层原理问答</a><a href="#c1-s14">模拟生产案例：队列吞噬内存</a><a href="#c1-s15">知识梳理与核心总结</a><a href="#c1-s19">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c2"><summary><a href="#c2"><span>02</span>HashMap 与 ConcurrentHashMap</a></summary><div><a href="#c2-s1">核心知识与原理</a><a href="#c2-s6">源码级解析与调用链</a><a href="#c2-s7">三层原理问答</a><a href="#c2-s14">模拟生产案例：缓存加载造成桶级阻塞</a><a href="#c2-s15">知识梳理与核心总结</a><a href="#c2-s19">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c3"><summary><a href="#c3"><span>03</span>JVM 内存管理、CMS 与 G1</a></summary><div><a href="#c3-s1">核心知识与原理</a><a href="#c3-s7">源码级解析与调用链</a><a href="#c3-s8">三层原理问答</a><a href="#c3-s15">模拟生产案例：大报表使 G1 退化</a><a href="#c3-s16">知识梳理与核心总结</a><a href="#c3-s20">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c4"><summary><a href="#c4"><span>04</span>JVM OOM 与生产故障排查</a></summary><div><a href="#c4-s1">核心知识与原理</a><a href="#c4-s6">源码级解析与调用链</a><a href="#c4-s8">三层原理问答</a><a href="#c4-s15">模拟生产案例：异步日志持有 ByteBuf</a><a href="#c4-s16">知识梳理与核心总结</a><a href="#c4-s20">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c5"><summary><a href="#c5"><span>05</span>Spring 核心原理与事务</a></summary><div><a href="#c5-s1">核心知识与原理</a><a href="#c5-s7">源码级解析与调用链</a><a href="#c5-s8">三层原理问答</a><a href="#c5-s15">模拟生产案例：新事务耗尽连接池</a><a href="#c5-s16">知识梳理与核心总结</a><a href="#c5-s20">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c6"><summary><a href="#c6"><span>06</span>数据库事务、MVCC 与性能优化</a></summary><div><a href="#c6-s1">核心知识与原理</a><a href="#c6-s7">源码级解析与调用链</a><a href="#c6-s8">三层原理问答</a><a href="#c6-s15">模拟生产案例：长快照拖住 Undo</a><a href="#c6-s16">知识梳理与核心总结</a><a href="#c6-s20">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c7"><summary><a href="#c7"><span>07</span>RocketMQ 消息队列</a></summary><div><a href="#c7-s1">核心知识与原理</a><a href="#c7-s7">源码级解析与调用链</a><a href="#c7-s9">三层原理问答</a><a href="#c7-s16">模拟生产案例：支付成功重复发保单</a><a href="#c7-s17">知识梳理与核心总结</a><a href="#c7-s21">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c8"><summary><a href="#c8"><span>08</span>Redis 与分布式缓存</a></summary><div><a href="#c8-s1">核心知识与原理</a><a href="#c8-s8">源码级解析与调用链</a><a href="#c8-s9">三层原理问答</a><a href="#c8-s16">模拟生产案例：锁超期导致重复扣库存</a><a href="#c8-s17">知识梳理与核心总结</a><a href="#c8-s21">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c9"><summary><a href="#c9"><span>09</span>分布式事务与数据一致性</a></summary><div><a href="#c9-s1">核心知识与原理</a><a href="#c9-s6">源码级解析与调用链</a><a href="#c9-s8">三层原理问答</a><a href="#c9-s15">模拟生产案例：Outbox 已发未标记</a><a href="#c9-s16">知识梳理与核心总结</a><a href="#c9-s20">官方资料与版本来源</a></div></details><details class="chapter-nav" data-chapter="c10"><summary><a href="#c10"><span>10</span>微服务、高并发与系统稳定性</a></summary><div><a href="#c10-s1">核心知识与原理</a><a href="#c10-s7">源码级解析与调用链</a><a href="#c10-s8">三层原理问答</a><a href="#c10-s15">模拟生产案例：认证过滤器阻塞事件循环</a><a href="#c10-s16">知识梳理与核心总结</a><a href="#c10-s20">官方资料与版本来源</a></div></details><a class="route-link" href="#review-route">90分钟回顾路线</a></nav><main id="main" tabindex="-1"><section class="intro"><h1>Java核心技术与架构实践</h1><p>从具体问题读原理，再对照源码。十个专题都附有追问、故障排查和便于回顾的知识总结。回顾知识时可切到要点速览模式。</p><noscript><p>JavaScript 已关闭，正文、问答与图表仍可阅读；搜索、复制和模式切换需要启用它。</p></noscript></section><section class="route" id="review-route"><h2>90分钟回顾路线</h2><p>按下面顺序复习，先回顾核心要点，再展开原理问答；RocketMQ 留 15 分钟。</p><ol><li><time>0–8 分钟</time><a href="#c1">JMM、AQS 与线程池准入</a></li><li><time>8–15 分钟</time><a href="#c2">CHM 迁移协议与原子 API</a></li><li><time>15–24 分钟</time><a href="#c3">CMS/G1 正常、失败与恢复</a></li><li><time>24–32 分钟</time><a href="#c4">OOM 分类与证据链</a></li><li><time>32–40 分钟</time><a href="#c5">代理、事务与连接预算</a></li><li><time>40–49 分钟</time><a href="#c6">MVCC、锁与执行计划</a></li><li><time>49–64 分钟</time><a href="#c7">RocketMQ 五类失败边界</a></li><li><time>64–72 分钟</time><a href="#c8">缓存一致性与锁租约</a></li><li><time>72–81 分钟</time><a href="#c9">Outbox、幂等与补偿</a></li><li><time>81–90 分钟</time><a href="#c10">EventLoop、重试与容量</a></li></ol></section><article class="chapter" data-title="Java 并发编程与锁机制" id="c1"><div class="chapter-title"><p class="eyebrow">专题 01 / 完整阅读</p><h1>Java 并发编程与锁机制</h1></div><div class="study">
 <p>本章使用 OpenJDK 8u462-b08 和 HotSpot 8。先从一个容易写错的计数器说起，再看线程拿不到锁时到底发生了什么。</p>
 <h2 id="c1-s1" tabindex="-1">核心知识与原理</h2>
 <h3 id="c1-s2" tabindex="-1">JMM 与 happens-before</h3>
@@ -101,7 +315,7 @@
  F --&gt; G["release / unparkSuccessor"]
  G --&gt; E
 </code></pre></details></figure>
-<h2 id="c1-s7" tabindex="-1">面试官三层追问</h2>
+<h2 id="c1-s7" tabindex="-1">三层原理问答</h2>
 <details class="question"><summary><h3 id="c1-s8" tabindex="-1">1. volatile 能替代锁吗？</h3></summary><div class="answer">
 <p>不能全面替代。volatile 适合状态开关和完整配置的引用发布。<code>count++</code> 即使读写可见，两个线程仍可能各自读到同一个旧值，再写回相同结果。要把检查和修改一起保护，才应使用锁或原子操作。</p>
 <p><strong>配置字段为什么也能被读到？</strong> 构造配置时先写字段，再写 volatile 引用；另一个线程读取这个引用后，相关先前写入通过 happens-before 对它可见。AtomicInteger 的自增则走原子读改写，与普通 volatile 自增不同。</p>
@@ -137,16 +351,16 @@
 <p>先连续记录 activeCount、queue.size、完成速率和数据库响应时间，再看工作线程的栈。若是无界队列加慢数据库，应该能看到队列持续增长，工作线程多在等查询；dump 中则能追到队列持有请求对象。这些信息一起出现，才支持这个解释。</p>
 <p>原因是 core 满后任务优先进队列，没有触发增加非核心线程；数据库变慢又降低完成率。先暂停或限制新导出，之后改成有界队列、明确拒绝和异步导出结果查询。增加线程前核对数据库连接能力。</p>
 <p>验证时重放相同慢依赖条件，检查内存是否稳定、拒绝是否可预期、用户能否知道任务未被接受。长期监控排队时间，处理取消与异常，避免客户端收到拒绝后立即大量重试。</p>
-<h2 id="c1-s15" tabindex="-1">面试回答与核心总结</h2>
-<h3 id="c1-s16" tabindex="-1">60 秒快速回答</h3>
+<h2 id="c1-s15" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c1-s16" tabindex="-1">一分钟要点回顾</h3>
 <p>volatile 能让状态修改按规则被其他线程看到，但不能把 count++ 变成一个动作。锁用于保护一起完成的检查和修改，CAS 用于一个状态的原子更新。ReentrantLock 拿不到锁时由 AQS 排队，被唤醒后还要再抢。线程池要注意先 core、再队列、最后 max，所以无界队列会隐藏过载。我会先看谁持锁、谁在排队、下游完成多少，再决定改锁还是改容量。</p>
-<h3 id="c1-s17" tabindex="-1">2～3 分钟深入回答</h3>
+<h3 id="c1-s17" tabindex="-1">深入理解与机制串联</h3>
 <p>我会先把可见性和原子性分开。两个线程各执行 count++，即使 count 是 volatile，也可能都读到 0、都写回 1。volatile 更适合发布一个已构造完整的配置引用；若要检查库存并扣减，就得把这两步一起保护。</p>
 <p>ReentrantLock 用 AQS 的 state 记录获取次数，再记录谁持锁。当前线程已经持有时可以重入，别人获取失败就进入同步队列。等待前设置前驱 SIGNAL，让释放方知道需要唤醒后继。醒来后仍调用 tryAcquire，不能把一次 unpark 当成锁已交给自己。Condition 则先在另一条队列等，signal 后转回同步队列，重新拿锁再检查条件。</p>
 <p>公平锁会考虑前面有没有等待者，非公平锁允许新到线程先试一下；但公平实例的无参数 tryLock 也可能插队。选型要看吞吐和最长等待，不是只看名字。高并发统计可用 LongAdder 分散写入，不过 sum 不是一个瞬间的快照，不能用于最后一张票的判断。</p>
 <p>线程池我会具体看 execute：core 不足先加线程，之后先入队，队列满才试 max。无界队列下，max 调大可能没用。如果慢数据库让任务堆积，要先限制排队和回源，给拒绝明确业务处理。CallerRuns 在普通提交线程上能减速，但放到网关事件线程上可能拖累其他请求。</p>
 <p>最后用连续线程栈、队列变化、完成率和尾延迟验证原因。锁内慢 IO、线程池父任务等子任务、真正循环死锁，需要不同改法。关闭和取消也要处理资源释放；调用方超时不代表任务已经停止。</p>
-<h3 id="c1-s18" tabindex="-1">高频追问、常见错误与速记</h3>
+<h3 id="c1-s18" tabindex="-1">延伸问题、常见误解与速记</h3>
 <ul>
 <li>高频追问：Condition 为什么用 while？公平 tryLock 会不会插队？Future 里的异常谁来处理？</li>
 <li>容易答错：把 volatile 说成互斥；把唤醒说成拿锁；认为 LongAdder.sum 精确；只加线程不看连接池。</li>
@@ -159,7 +373,7 @@
 <li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.java">AbstractQueuedSynchronizer.acquire · OpenJDK 8u462-b08</a></li>
 <li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/locks/ReentrantLock.java">ReentrantLock.Sync.nonfairTryAcquire · OpenJDK 8u462-b08</a></li>
 <li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ThreadPoolExecutor.java">ThreadPoolExecutor.execute · OpenJDK 8u462-b08</a></li>
-</ul></div><section aria-label="面试速查" class="quick"><h2 id="c1-quick-core">先记住这几件事</h2><ul><li>volatile 让相关写入可见，但 count++ 仍可能被两个线程交错执行。</li><li>AQS 获取失败后排队，被唤醒后还要再次尝试拿锁。</li><li>公平 ReentrantLock 的无参数 tryLock 仍可能插队。</li><li>LongAdder 适合统计，不适合检查余额后扣款。</li><li>线程池先 core，再队列，队列满才试 max；无界队列会积压。</li></ul><h2 id="c1-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. volatile 能替代锁吗？</span></summary><div class="answer">
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c1-quick-core">先记住这几件事</h2><ul><li>volatile 让相关写入可见，但 count++ 仍可能被两个线程交错执行。</li><li>AQS 获取失败后排队，被唤醒后还要再次尝试拿锁。</li><li>公平 ReentrantLock 的无参数 tryLock 仍可能插队。</li><li>LongAdder 适合统计，不适合检查余额后扣款。</li><li>线程池先 core，再队列，队列满才试 max；无界队列会积压。</li></ul><h2 id="c1-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. volatile 能替代锁吗？</span></summary><div class="answer">
 <p>不能全面替代。volatile 适合状态开关和完整配置的引用发布。<code>count++</code> 即使读写可见，两个线程仍可能各自读到同一个旧值，再写回相同结果。要把检查和修改一起保护，才应使用锁或原子操作。</p>
 <p><strong>配置字段为什么也能被读到？</strong> 构造配置时先写字段，再写 volatile 引用；另一个线程读取这个引用后，相关先前写入通过 happens-before 对它可见。AtomicInteger 的自增则走原子读改写，与普通 volatile 自增不同。</p>
 <p><strong>库存怎么处理？</strong> 如果要求库存足够才扣减，必须将条件和扣减做成一个原子动作。可用 CAS 循环，涉及持久业务时通常用数据库条件 UPDATE。单给库存字段加 volatile 还不够。</p>
@@ -175,7 +389,7 @@
 <p>多个线程反复修改同一个计数器，会争抢同一处更新。LongAdder 高竞争时把写入分散到多个 Cell，最后求和，减少这种争抢。AtomicInteger 则更适合需要精确单值更新的地方。</p>
 <p><strong>sum 为什么不能当快照？</strong> Striped64.longAccumulate 根据线程 probe 选 Cell，失败后可能换槽或扩容。sum 逐个读 base 和 Cell 时，其他线程仍在修改它们，因此这些值不一定来自同一个瞬间。</p>
 <p><strong>能不能用于抢票？</strong> 请求总量统计允许短时偏差，可以用它；判断还有没有最后一张票，需要检查和扣减一起成功，不能先 sum 再减。应选精确 CAS 或数据库条件更新。</p>
-</div></details><h2 id="c1-quick-answer">一分钟回答</h2><p>volatile 能让状态修改按规则被其他线程看到，但不能把 count++ 变成一个动作。锁用于保护一起完成的检查和修改，CAS 用于一个状态的原子更新。ReentrantLock 拿不到锁时由 AQS 排队，被唤醒后还要再抢。线程池要注意先 core、再队列、最后 max，所以无界队列会隐藏过载。我会先看谁持锁、谁在排队、下游完成多少，再决定改锁还是改容量。</p><h2 id="c1-quick-errors">容易答错的地方与源码</h2><ul>
+</div></details><h2 id="c1-quick-answer">核心要点</h2><p>volatile 能让状态修改按规则被其他线程看到，但不能把 count++ 变成一个动作。锁用于保护一起完成的检查和修改，CAS 用于一个状态的原子更新。ReentrantLock 拿不到锁时由 AQS 排队，被唤醒后还要再抢。线程池要注意先 core、再队列、最后 max，所以无界队列会隐藏过载。我会先看谁持锁、谁在排队、下游完成多少，再决定改锁还是改容量。</p><h2 id="c1-quick-errors">常见误解与源码</h2><ul>
 <li>高频追问：Condition 为什么用 while？公平 tryLock 会不会插队？Future 里的异常谁来处理？</li>
 <li>容易答错：把 volatile 说成互斥；把唤醒说成拿锁；认为 LongAdder.sum 精确；只加线程不看连接池。</li>
 <li>常看的源码：<code>AQS.acquire/acquireQueued/release</code>、<code>ReentrantLock.Sync</code>、<code>Striped64.longAccumulate</code>、<code>ThreadPoolExecutor.execute/runWorker</code>。</li>
@@ -286,7 +500,7 @@
  A --&gt; E["TreeBin"]
  E --&gt; F["红黑树 TreeNode / 双向链"]
 </code></pre></details></figure>
-<h2 id="c2-s7" tabindex="-1">面试官三层追问</h2>
+<h2 id="c2-s7" tabindex="-1">三层原理问答</h2>
 <details class="question"><summary><h3 id="c2-s8" tabindex="-1">1. 为什么用 2 的幂容量和 hash 扰动？</h3></summary><div class="answer">
 <p>长度为 2 的幂时，可以用位与取下标，扩容也只需看新增的一位。扰动把 hashCode 的高位混到低位，避免只看低几位时一些 key 都进同一个桶。</p>
 <p><strong>扩容为什么不用重新算 hashCode？</strong> 节点已经保存扰动后的 hash。长度翻倍时检查 hash &amp; oldCap，就能决定留在原下标还是移到原下标加 oldCap。完整 hash 不需要重算。</p>
@@ -322,16 +536,16 @@
 <p>先比较阻塞线程的 Monitor 地址和调用栈，再检查 key 的 hash 分布。若多个不同 key 碰撞到同一桶，应该能看到一个线程在映射函数里等网络，其他线程等同一个 Node Monitor。线程池总体有余量，也不排除这种局部阻塞。</p>
 <p>改成快速安装加载 Future，再由有界执行器做 IO。失败时只删除自己安装的那个 Future，设置超时与缓存上限。改善 hashCode 能减少碰撞，但不能代替移出慢操作。</p>
 <p>可在测试中使用固定 hashCode 的 key 和慢加载器对照：改后不同 key 不再因为桶锁一起等，重复同 key 仍按预定方式合并。以后测试热点和碰撞，不只测试均匀随机 key。</p>
-<h2 id="c2-s15" tabindex="-1">面试回答与核心总结</h2>
-<h3 id="c2-s16" tabindex="-1">60 秒快速回答</h3>
+<h2 id="c2-s15" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c2-s16" tabindex="-1">一分钟要点回顾</h3>
 <p>HashMap 用数组找桶，碰撞用链表，长链且容量足够时换树。扩容翻倍后只需看旧容量那一位，决定留原桶还是加旧容量。JDK 8 HashMap 仍不适合无同步并发写。CHM 空桶 CAS、有节点时锁桶，搬完的旧桶放 ForwardingNode，读去新表找、写可帮忙搬。size 是并发估计，computeIfAbsent 不适合慢 IO；单个 Map 操作正确，也不等于多个业务步骤有事务。</p>
-<h3 id="c2-s17" tabindex="-1">2～3 分钟深入回答</h3>
+<h3 id="c2-s17" tabindex="-1">深入理解与机制串联</h3>
 <p>我会从一个 put 讲起。HashMap 先扰动 hash，把高位信息混到低位，再用长度减一做位与定位桶。桶空就插入，有节点就比较 key，相同则更新，否则追加。链长到触发条件时还要看容量，表不足 64 会先扩容，不是背一个 8 就结束。</p>
 <p>扩容可以手算：旧长度 16，hash 3 和 19 都在桶 3。长度变 32 后，3 的新增位是 0，仍在 3；19 的新增位是 1，去 19。HashMap 拆链保留分组内相对顺序，解决了旧头插迁移形成环的一类问题，但没有增加并发保护，覆盖写和 size 错误仍可能发生。</p>
 <p>CHM 的空槽用 CAS 安装，非空桶锁住头节点后重查，防止等待期间桶已经变化。读取通过带 volatile 语义的槽和链接查找。扩容先把新桶放好，再在旧桶放 ForwardingNode；读者沿它转向新表，写者还可以协助。transferIndex 分配搬迁区间，最后收尾发布新 table。</p>
 <p>计数用 baseCount 和 CounterCell 分散更新，size 求和没有暂停其他线程，所以不能先 size 小于限额再插入。computeIfAbsent 也只负责映射操作，慢计算可能挡住同桶 key，失败还可能再次计算，不能借它保证付款只执行一次。</p>
 <p>实际做缓存，我会检查 key 是否稳定、hash 分布、加载耗时和容量。需要多 key 一起变化时另设计同步或数据库事务；加载 IO 则与快速安装占位分开，并测试超时、失败和旧任务清理。</p>
-<h3 id="c2-s18" tabindex="-1">高频追问、常见错误与速记</h3>
+<h3 id="c2-s18" tabindex="-1">延伸问题、常见误解与速记</h3>
 <ul>
 <li>高频追问：为什么 CHM 不接受 null？扩容什么时候发布新表？key 改了为什么查不到？</li>
 <li>容易答错：CHM 完全无锁；负 sizeCtl 就是负线程数；HashMap 没环就线程安全；映射函数外部副作用只执行一次。</li>
@@ -343,7 +557,7 @@
 <ul>
 <li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/HashMap.java">HashMap.hash · OpenJDK 8u462-b08</a></li>
 <li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java">ConcurrentHashMap.transfer · OpenJDK 8u462-b08</a></li>
-</ul></div><section aria-label="面试速查" class="quick"><h2 id="c2-quick-core">先记住这几件事</h2><ul><li>扩容翻倍后，元素留在原桶，或移到原下标加旧容量。</li><li>容量不足 64 时优先扩容，不能只用链长 8 判断树化。</li><li>JDK 8 HashMap 仍可能并发覆盖，fail-fast 不保护写入。</li><li>CHM 空桶用 CAS，非空桶锁桶，旧桶用 ForwardingNode 指向新表。</li><li>size 不是并发快照，computeIfAbsent 避免慢 IO。</li></ul><h2 id="c2-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. 为什么用 2 的幂容量和 hash 扰动？</span></summary><div class="answer">
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c2-quick-core">先记住这几件事</h2><ul><li>扩容翻倍后，元素留在原桶，或移到原下标加旧容量。</li><li>容量不足 64 时优先扩容，不能只用链长 8 判断树化。</li><li>JDK 8 HashMap 仍可能并发覆盖，fail-fast 不保护写入。</li><li>CHM 空桶用 CAS，非空桶锁桶，旧桶用 ForwardingNode 指向新表。</li><li>size 不是并发快照，computeIfAbsent 避免慢 IO。</li></ul><h2 id="c2-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. 为什么用 2 的幂容量和 hash 扰动？</span></summary><div class="answer">
 <p>长度为 2 的幂时，可以用位与取下标，扩容也只需看新增的一位。扰动把 hashCode 的高位混到低位，避免只看低几位时一些 key 都进同一个桶。</p>
 <p><strong>扩容为什么不用重新算 hashCode？</strong> 节点已经保存扰动后的 hash。长度翻倍时检查 hash &amp; oldCap，就能决定留在原下标还是移到原下标加 oldCap。完整 hash 不需要重算。</p>
 <p><strong>容量怎么定？</strong> 预估元素数量和负载因子，减少峰值期间迁移。过度预分配也占内存、拖慢某些遍历。若用户 key 的 hashCode 本身很差，还要检查分布和碰撞，不能只扩容。</p>
@@ -359,7 +573,7 @@
 <p>迁移完的旧桶会变成 ForwardingNode，告诉读线程到新表继续找。因此 get 不必等全表搬完。还没迁移的桶仍按原来的结构查询。</p>
 <p><strong>发布顺序有什么讲究？</strong> transfer 先在 nextTable 放好低、高两组，再把旧槽放成 forwarding。写线程遇到 MOVED 可协助迁移，读通过 find 转到新表。不能先给路标，再迟迟没有目的数据。</p>
 <p><strong>两次 get 能保证一起吗？</strong> 不能。每次查询正常，不代表两次之间没人修改。需要多 key 一致状态时，应保存一个整体不可变对象、用外部同步或数据库事务。容量预估只是减少迁移成本。</p>
-</div></details><h2 id="c2-quick-answer">一分钟回答</h2><p>HashMap 用数组找桶，碰撞用链表，长链且容量足够时换树。扩容翻倍后只需看旧容量那一位，决定留原桶还是加旧容量。JDK 8 HashMap 仍不适合无同步并发写。CHM 空桶 CAS、有节点时锁桶，搬完的旧桶放 ForwardingNode，读去新表找、写可帮忙搬。size 是并发估计，computeIfAbsent 不适合慢 IO；单个 Map 操作正确，也不等于多个业务步骤有事务。</p><h2 id="c2-quick-errors">容易答错的地方与源码</h2><ul>
+</div></details><h2 id="c2-quick-answer">核心要点</h2><p>HashMap 用数组找桶，碰撞用链表，长链且容量足够时换树。扩容翻倍后只需看旧容量那一位，决定留原桶还是加旧容量。JDK 8 HashMap 仍不适合无同步并发写。CHM 空桶 CAS、有节点时锁桶，搬完的旧桶放 ForwardingNode，读去新表找、写可帮忙搬。size 是并发估计，computeIfAbsent 不适合慢 IO；单个 Map 操作正确，也不等于多个业务步骤有事务。</p><h2 id="c2-quick-errors">常见误解与源码</h2><ul>
 <li>高频追问：为什么 CHM 不接受 null？扩容什么时候发布新表？key 改了为什么查不到？</li>
 <li>容易答错：CHM 完全无锁；负 sizeCtl 就是负线程数；HashMap 没环就线程安全；映射函数外部副作用只执行一次。</li>
 <li>常看的源码：<code>HashMap.hash/putVal/resize/treeifyBin</code>、<code>ConcurrentHashMap.putVal/transfer/helpTransfer/addCount/sumCount/computeIfAbsent</code>。</li>
@@ -483,7 +697,7 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
  F -.-&gt; H
  H --&gt; I["失败处理 / 必要时 JDK8 单线程 Full GC"]
 </code></pre></details></figure>
-<h2 id="c3-s8" tabindex="-1">面试官三层追问</h2>
+<h2 id="c3-s8" tabindex="-1">三层原理问答</h2>
 <details class="question"><summary><h3 id="c3-s9" tabindex="-1">1. TLAB 会不会导致线程间对象无法访问？</h3></summary><div class="answer">
 <p>不会。TLAB 是堆里暂时分给线程的一块分配空间，目的是减少分配指针竞争。对象分配完后，仍然可以由其他线程引用。</p>
 <p><strong>用完 TLAB 怎么办？</strong> 线程尝试申请下一块，或走慢分配路径，必要时触发 GC。TLAB 的分配所有权和对象能否被其他线程看见是两件事，发布仍要遵守 JMM。</p>
@@ -519,16 +733,16 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
 <p>检查 Region 大小、大数组尺寸、Humongous 占用、存活量和搬迁日志。若每份报表都先拼成巨大 byte[]，应该能看到数组超过半个 Region，且高并发时目的空间紧张。仅有总空闲字节不能解释是否满足这些分配。</p>
 <p>先限制并发，改分批查询和流式输出，减少同时存活的大数组。再依据日志评估标记启动和搬迁预留，不先盲目增堆，挤占本地内存。</p>
 <p>用相同数据量、慢客户端和并发对照，看 Humongous、Old 与目的空间失败是否下降，业务吞吐是否仍可接受。以后把大报表纳入容量测试，同时监控进程 RSS。</p>
-<h2 id="c3-s16" tabindex="-1">面试回答与核心总结</h2>
-<h3 id="c3-s17" tabindex="-1">60 秒快速回答</h3>
+<h2 id="c3-s16" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c3-s17" tabindex="-1">一分钟要点回顾</h3>
 <p>JDK 8 对象通常在 Eden/TLAB 分配，GC 从 Roots 判断是否可达。CMS 老年代并发标记清扫，初标和重标会暂停，需防碎片与回收来不及。G1 按 Region 回收，RSet 找外部引用，SATB 记录旧引用；Young 和 Mixed 都会暂停搬对象，Mixed 只带部分 Old。暂停目标不是保证，JDK 8 G1 Full GC 单线程。调优先看分配、存活和可用空间，再比较暂停与吞吐。</p>
-<h3 id="c3-s18" tabindex="-1">2～3 分钟深入回答</h3>
+<h3 id="c3-s18" tabindex="-1">深入理解与机制串联</h3>
 <p>我先看对象为什么会活到 GC。Roots 仍能到达的对象不能回收，互相引用但整体不可达的对象可以回收。小对象通常在 Eden，通过 TLAB 减少分配竞争；TLAB 还是堆，对象也可以被其他线程使用。晋升既看年龄，也看 Survivor 空间，不是永远等固定次数。</p>
 <p>CMS 主要回收老年代。初始标记暂停，接着并发标记和预清理，重新标记暂停补齐应用改引用期间的工作，再并发清扫。清扫没有把存活对象紧凑搬到一起，所以有碎片；后来才变成垃圾的一部分对象留下本轮，也是浮动垃圾。回收周期里仍有分配和晋升，剩余空间不足就可能 Concurrent Mode Failure。</p>
 <p>G1 用等大 Region，Young 时复制存活对象。只回收部分区域，就靠 RSet 找外面指进来的引用；并发标记的 SATB 写前记录旧引用，保持开始时的可达信息。标记完成后根据垃圾和成本，Mixed 分批回收 Young 及部分 Old。</p>
 <p>暂停时间根据历史预测，若存活突然增多或 CPU 变少，预测就可能失准。目的空间不足会增加失败处理，严重时进入 JDK 8 单线程 Full GC。Humongous 大对象还有连续区域需求，所以总空闲不少也可能出问题。</p>
 <p>调优时我会用一轮周期内的新增量解释余量。例如四秒周期、每秒新增两百 MB，就不能只剩三百 MB 才开始。再对照同负载的暂停分位数、GC CPU 和业务延迟。换收集器不能让被静态缓存长期引用的对象消失；有增长趋势仍要查持有代码。</p>
-<h3 id="c3-s19" tabindex="-1">高频追问、常见错误与速记</h3>
+<h3 id="c3-s19" tabindex="-1">延伸问题、常见误解与速记</h3>
 <ul>
 <li>高频追问：Mixed 和 Full GC 的区别？CMS failure 与晋升失败什么关系？安全点等待算在哪段？</li>
 <li>容易答错：JDK 8 默认 G1；G1 Full GC 已并行；SATB 记录新引用；RSet 是完整的对象引用图。</li>
@@ -541,7 +755,7 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
 <li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp">CMSCollector::collect_in_background · HotSpot 8u462-b08</a></li>
 <li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp">G1CollectedHeap::do_collection_pause_at_safepoint · HotSpot 8u462-b08</a></li>
 <li><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/vm/gctuning/">Oracle JDK8 GC Tuning Guide</a></li>
-</ul></div><section aria-label="面试速查" class="quick"><h2 id="c3-quick-core">先记住这几件事</h2><ul><li>TLAB 在堆里，只优化分配，对象仍能交给其他线程。</li><li>CMS 初标和重标暂停，正常周期清扫不整理，要留分配余量。</li><li>G1 RSet 找外部引用，SATB 记录被覆盖的旧引用。</li><li>Mixed 回收 Young 与部分 Old；暂停目标不是每次保证。</li><li>JDK 8 G1 Full GC 单线程，大对象和搬迁空间要单独检查。</li></ul><h2 id="c3-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. TLAB 会不会导致线程间对象无法访问？</span></summary><div class="answer">
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c3-quick-core">先记住这几件事</h2><ul><li>TLAB 在堆里，只优化分配，对象仍能交给其他线程。</li><li>CMS 初标和重标暂停，正常周期清扫不整理，要留分配余量。</li><li>G1 RSet 找外部引用，SATB 记录被覆盖的旧引用。</li><li>Mixed 回收 Young 与部分 Old；暂停目标不是每次保证。</li><li>JDK 8 G1 Full GC 单线程，大对象和搬迁空间要单独检查。</li></ul><h2 id="c3-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. TLAB 会不会导致线程间对象无法访问？</span></summary><div class="answer">
 <p>不会。TLAB 是堆里暂时分给线程的一块分配空间，目的是减少分配指针竞争。对象分配完后，仍然可以由其他线程引用。</p>
 <p><strong>用完 TLAB 怎么办？</strong> 线程尝试申请下一块，或走慢分配路径，必要时触发 GC。TLAB 的分配所有权和对象能否被其他线程看见是两件事，发布仍要遵守 JMM。</p>
 <p><strong>性能上怎么观察？</strong> 看分配速度、TLAB waste 和 GC 时间。如果只是跨线程传对象，不需要关 TLAB；盲目关闭反而可能增加分配竞争。</p>
@@ -557,7 +771,7 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
 <p>RSet 帮助回收某些 Region 时找到外部指向它们的引用；SATB 帮助并发标记记住开始时还可达的对象。一个解决局部扫描，一个解决标记期间引用变化。</p>
 <p><strong>屏障记录什么？</strong> SATB 写前记录被覆盖的旧引用；卡记录和 refinement 帮助维护跨 Region 的引用信息。RSet 粒度与卡有关，并非逐对象的精确全引用图。</p>
 <p><strong>耗时高怎样查？</strong> remembered set 扫描与并发标记分开看。长寿命大容器反复指向短命对象，会提高相关工作量。先看对象布局和引用变化，再决定是否调 Region 参数。</p>
-</div></details><h2 id="c3-quick-answer">一分钟回答</h2><p>JDK 8 对象通常在 Eden/TLAB 分配，GC 从 Roots 判断是否可达。CMS 老年代并发标记清扫，初标和重标会暂停，需防碎片与回收来不及。G1 按 Region 回收，RSet 找外部引用，SATB 记录旧引用；Young 和 Mixed 都会暂停搬对象，Mixed 只带部分 Old。暂停目标不是保证，JDK 8 G1 Full GC 单线程。调优先看分配、存活和可用空间，再比较暂停与吞吐。</p><h2 id="c3-quick-errors">容易答错的地方与源码</h2><ul>
+</div></details><h2 id="c3-quick-answer">核心要点</h2><p>JDK 8 对象通常在 Eden/TLAB 分配，GC 从 Roots 判断是否可达。CMS 老年代并发标记清扫，初标和重标会暂停，需防碎片与回收来不及。G1 按 Region 回收，RSet 找外部引用，SATB 记录旧引用；Young 和 Mixed 都会暂停搬对象，Mixed 只带部分 Old。暂停目标不是保证，JDK 8 G1 Full GC 单线程。调优先看分配、存活和可用空间，再比较暂停与吞吐。</p><h2 id="c3-quick-errors">常见误解与源码</h2><ul>
 <li>高频追问：Mixed 和 Full GC 的区别？CMS failure 与晋升失败什么关系？安全点等待算在哪段？</li>
 <li>容易答错：JDK 8 默认 G1；G1 Full GC 已并行；SATB 记录新引用；RSet 是完整的对象引用图。</li>
 <li>常看的源码：<code>CMSCollector::collect_in_background</code>、<code>G1CollectedHeap::do_collection_pause_at_safepoint</code>、<code>G1CollectorPolicy</code>、<code>ConcurrentMark</code>。</li>
@@ -698,7 +912,7 @@ jmap -dump:format=b,file=heap.hprof PID
  G --&gt; H["小范围修复 / 相同负载对照"]
  H --&gt; I["长期稳定曲线 + 故障注入"]
 </code></pre></details></figure>
-<h2 id="c4-s8" tabindex="-1">面试官三层追问</h2>
+<h2 id="c4-s8" tabindex="-1">三层原理问答</h2>
 <details class="question"><summary><h3 id="c4-s9" tabindex="-1">1. heap OOM 如何证明是泄漏？</h3></summary><div class="answer">
 <p>先比较相似负载下，GC 后的存活占用是否长期上升。再证明这些对象已不需要，却仍被某处持有。仅看到堆用得多，不能排除合理数据量或一次大分配。</p>
 <p><strong>dump 里找什么？</strong> MAT 的 dominator 和 GC Roots 能显示无界队列、静态 Map、ThreadLocal 等持有关系。找到 byte[] 排名第一还不够，要追到它属于哪个业务对象。</p>
@@ -734,16 +948,16 @@ jmap -dump:format=b,file=heap.hprof PID
 <p>按 eventId 对齐拒绝时间和 allocator 指标，审查 retain 后的每个出口。若提交失败分支缺 release，应该能看到新增引用没有任务接手；泄漏检测的分配栈可辅助定位，而不是仅凭 RSS 下结论。</p>
 <p>把提交失败时的额外 release 补齐。若日志只用几个字段，考虑复制小片段，不要长期持有整个网络缓冲。还需核对 handler 是否自动释放，避免修复后双重释放。</p>
 <p>测试里主动让执行器拒绝、任务异常和取消，检查引用计数与业务读写。长期区分池保留量和实际在用量，避免将稳定池容量误认为泄漏。</p>
-<h2 id="c4-s16" tabindex="-1">面试回答与核心总结</h2>
-<h3 id="c4-s17" tabindex="-1">60 秒快速回答</h3>
+<h2 id="c4-s16" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c4-s17" tabindex="-1">一分钟要点回顾</h3>
 <p>OOM 先按完整报错分类型。heap 查存活趋势、dump 和持有链，Metaspace 查类与 loader，Direct 查 Bits/Cleaner 与 Netty 引用计数，创建线程失败查线程数和系统限额。RSS 与堆、NMT 都不是同一个数字。根因要能指到谁持有资源，并用相同负载验证修复；重启和增内存可以止血，却不足以证明已修好。</p>
-<h3 id="c4-s18" tabindex="-1">2～3 分钟深入回答</h3>
+<h3 id="c4-s18" tabindex="-1">深入理解与机制串联</h3>
 <p>我会先保存完整报错和时间线，而不是遇到所有内存问题都要 heap dump。Java heap space、Metaspace、Direct buffer memory 和 native thread 失败，对应资源不同；容器 OOMKilled 还可能完全没有 Java OOM。</p>
 <p>heap 先比较相近负载下 GC 后最低占用，再用 MAT 找 dominator 和 GC Roots。占用最大的是 byte[] 只是起点，还要追到队列、缓存或请求，说明为什么不该继续持有。合法的大数据集超出容量，与已结束请求仍被引用，是不同问题。</p>
 <p>Direct 的包装在堆，数据在 native。JDK 8 Bits 计容量，Cleaner 释放；Netty 则有额外 retain/release。异步转交时正常任务会释放，不代表提交被拒绝也会释放。池归还后 RSS 可能仍高，一些 allocator 又不完全反映在标准 Direct 指标里，必须一起看。</p>
 <p>Metaspace 我会区分一个 loader 动态类越来越多，和很多旧 loader 无法卸载。ThreadLocal、线程 contextClassLoader、静态注册表是常见持有来源。旧 XStream 的问题还要确认实际 ReflectionProvider 和构造器缓存，不能把所有反射归因于同一个阈值。</p>
 <p>最后看进程预算和系统限额，NMT reserved、committed 与 RSS 分开理解。取 dump 前考虑停顿和空间。修复测试覆盖拒绝、异常、取消与重复请求，证明占用不再增长，同时没有提前释放或上下文串扰。</p>
-<h3 id="c4-s19" tabindex="-1">高频追问、常见错误与速记</h3>
+<h3 id="c4-s19" tabindex="-1">延伸问题、常见误解与速记</h3>
 <ul>
 <li>高频追问：Cleaner 为什么不是马上执行？池化内存归还后 RSS 为何不降？ThreadLocal key 弱引用还要 remove 吗？</li>
 <li>容易答错：NMT 等于 RSS；heap 空闲就没有内存问题；一条 Full GC 能证明泄漏；增加堆能解决线程创建失败。</li>
@@ -756,7 +970,7 @@ jmap -dump:format=b,file=heap.hprof PID
 <li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/nio/Bits.java">Bits.tryReserveMemory · OpenJDK 8u462-b08</a></li>
 <li><a href="https://raw.githubusercontent.com/x-stream/xstream/c4c71226515fa42809a48d9ae702756e2831f379/xstream/src/java/com/thoughtworks/xstream/converters/reflection/Sun14ReflectionProvider.java">Sun14ReflectionProvider.getMungedConstructor · XStream 1.4.4 / c4c7122</a></li>
 <li><a href="https://netty.io/wiki/reference-counted-objects.html">Netty 引用计数指南</a></li>
-</ul></div><section aria-label="面试速查" class="quick"><h2 id="c4-quick-core">先记住这几件事</h2><ul><li>先按完整 OOM 报错区分堆、类元数据、Direct、线程与容器限额。</li><li>用 GC 后占用、MAT 持有链和代码解释为什么对象仍活着。</li><li>Cleaner 与 ByteBuf 引用计数是不同释放机制。</li><li>NMT reserved、committed 与 RSS 不是同一个数字。</li><li>修复后重放相同条件，还要测拒绝、异常和取消。</li></ul><h2 id="c4-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. heap OOM 如何证明是泄漏？</span></summary><div class="answer">
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c4-quick-core">先记住这几件事</h2><ul><li>先按完整 OOM 报错区分堆、类元数据、Direct、线程与容器限额。</li><li>用 GC 后占用、MAT 持有链和代码解释为什么对象仍活着。</li><li>Cleaner 与 ByteBuf 引用计数是不同释放机制。</li><li>NMT reserved、committed 与 RSS 不是同一个数字。</li><li>修复后重放相同条件，还要测拒绝、异常和取消。</li></ul><h2 id="c4-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. heap OOM 如何证明是泄漏？</span></summary><div class="answer">
 <p>先比较相似负载下，GC 后的存活占用是否长期上升。再证明这些对象已不需要，却仍被某处持有。仅看到堆用得多，不能排除合理数据量或一次大分配。</p>
 <p><strong>dump 里找什么？</strong> MAT 的 dominator 和 GC Roots 能显示无界队列、静态 Map、ThreadLocal 等持有关系。找到 byte[] 排名第一还不够，要追到它属于哪个业务对象。</p>
 <p><strong>如何确认修好了？</strong> 相同触发条件下复现，修改持有或清理代码，再验证占用稳定且结果正确。把缓存清空或增堆可能缓解症状，却没有证明原生命周期错误消失。</p>
@@ -772,7 +986,7 @@ jmap -dump:format=b,file=heap.hprof PID
 <p>通常不行，堆变大还可能减少本地可用空间。先看线程数量、系统 pids/ulimit、线程栈和 RSS，确认创建失败受哪个条件限制。</p>
 <p><strong>每条线程消耗什么？</strong> 除了 Java Thread 对象，还有栈及 native 结构。失败可能发生在堆仍有余量的时候，heap dump 无法单独解释系统为什么拒绝创建。</p>
 <p><strong>怎样控制？</strong> 限制线程池、连接和并行任务，不每请求新建线程。降低 Xss 前检查实际调用深度，避免换成 StackOverflowError；连接数也要按下游容量控制。</p>
-</div></details><h2 id="c4-quick-answer">一分钟回答</h2><p>OOM 先按完整报错分类型。heap 查存活趋势、dump 和持有链，Metaspace 查类与 loader，Direct 查 Bits/Cleaner 与 Netty 引用计数，创建线程失败查线程数和系统限额。RSS 与堆、NMT 都不是同一个数字。根因要能指到谁持有资源，并用相同负载验证修复；重启和增内存可以止血，却不足以证明已修好。</p><h2 id="c4-quick-errors">容易答错的地方与源码</h2><ul>
+</div></details><h2 id="c4-quick-answer">核心要点</h2><p>OOM 先按完整报错分类型。heap 查存活趋势、dump 和持有链，Metaspace 查类与 loader，Direct 查 Bits/Cleaner 与 Netty 引用计数，创建线程失败查线程数和系统限额。RSS 与堆、NMT 都不是同一个数字。根因要能指到谁持有资源，并用相同负载验证修复；重启和增内存可以止血，却不足以证明已修好。</p><h2 id="c4-quick-errors">常见误解与源码</h2><ul>
 <li>高频追问：Cleaner 为什么不是马上执行？池化内存归还后 RSS 为何不降？ThreadLocal key 弱引用还要 remove 吗？</li>
 <li>容易答错：NMT 等于 RSS；heap 空闲就没有内存问题；一条 Full GC 能证明泄漏；增加堆能解决线程创建失败。</li>
 <li>常看的源码：<code>Bits.reserveMemory/tryReserveMemory</code>、<code>DirectByteBuffer.Deallocator.run</code>、<code>AbstractReferenceCountedByteBuf.release</code>、<code>ThreadLocalMap.expungeStaleEntry</code>。</li>
@@ -913,7 +1127,7 @@ spring:
  H -.-&gt; D
  G --&gt; I["容器关闭 / 销毁回调"]
 </code></pre></details></figure>
-<h2 id="c5-s8" tabindex="-1">面试官三层追问</h2>
+<h2 id="c5-s8" tabindex="-1">三层原理问答</h2>
 <details class="question"><summary><h3 id="c5-s9" tabindex="-1">1. 为什么三级缓存而非简单提前放对象？</h3></summary><div class="answer">
 <p>提前给 B 一个原始 A，后面 A 又被做成代理，B 就可能绕过增强。三级缓存中的工厂允许按需生成早期代理，并与最终引用协调。</p>
 <p><strong>getSingleton 按什么顺序找？</strong> 先找 singletonObjects；创建中再找 earlySingletonObjects；允许早期引用时调用 singletonFactories，得到结果后移入第二层并移除工厂。getEarlyBeanReference 让相关后处理器参与。</p>
@@ -949,16 +1163,16 @@ spring:
 <p>看连接池 active/pending，线程是否停在 borrowConnection，再确认外层事务仍持连接。如果数据库几乎没有执行新 SQL，不能简单认为是 SQL 慢；请求可能还没有拿到连接。</p>
 <p>原因是挂起外层事务不等于归还连接，每个请求内层还要再借一条。先限制这类请求并发；是否增加池，要看数据库能力。审计也可按业务改同事务，或通过 Outbox 异步写，明确成功和失败时要留下什么。</p>
 <p>测试用屏障让外层同时进入内层，检查是否可有界完成。以后把嵌套事务纳入连接需求，分别设置获取连接和事务超时，避免配置只看正常单层请求。</p>
-<h2 id="c5-s16" tabindex="-1">面试回答与核心总结</h2>
-<h3 id="c5-s17" tabindex="-1">60 秒快速回答</h3>
+<h2 id="c5-s16" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c5-s17" tabindex="-1">一分钟要点回顾</h3>
 <p>Spring 先创建和注入 Bean，再通过后处理器做代理。三级缓存只帮助部分单例循环，Boot 2.7 默认禁止循环引用。事务必须经过代理，manager 决定创建或加入，JDBC 连接通常绑定当前线程。自调用、捕获异常和异步换线程都要检查。REQUIRES_NEW 独立提交却再占连接，NESTED 常用保存点。排查沿代理、manager、连接和异常一路看，不只确认注解在不在。</p>
-<h3 id="c5-s18" tabindex="-1">2～3 分钟深入回答</h3>
+<h3 id="c5-s18" tabindex="-1">深入理解与机制串联</h3>
 <p>我会先说明对象创建和方法增强是两个过程。Spring 按 BeanDefinition 实例化、注入，再执行初始化与 BeanPostProcessor。提前暴露单例时用工厂生成早期引用，让循环中拿到的引用尽量与最终代理协调，但这不解决构造器循环，Boot 2.7 默认也禁止。</p>
 <p>事务的真正入口是代理里的 TransactionInterceptor。它读属性、选择 manager，创建或加入事务，执行方法，最后提交或按异常规则回滚。JDBC manager 把连接绑定当前线程，所以自己新连接或另起线程，不会自动加入原事务。this 调用没有经过代理，是常见失效原因。</p>
 <p>默认运行时异常和 Error 回滚，checked exception 需要规则。异常被业务方法吞掉，拦截器可能看到成功；内层 REQUIRED 已标 rollback-only，外层捕获又不能清掉这个标记，最后仍会失败。</p>
 <p>传播要看物理资源。REQUIRED 共用现有事务，内层声明隔离不一定重新生效。REQUIRES_NEW 挂起外层并借新连接，外层还占一条；NESTED 在支持时用保存点，外层回滚仍撤销它。连接池要考虑嵌套并发。</p>
 <p>排查时我会依次确认调用经过代理、manager 匹配、DAO 使用绑定连接、异常传播与最终状态。提交后通知下游，也不能只靠内存回调：宕机仍可漏消息，需要可靠待发记录。自动配置则从候选和条件报告查起，MVC 按 handler、adapter、参数和返回值处理解释请求去向。</p>
-<h3 id="c5-s19" tabindex="-1">高频追问、常见错误与速记</h3>
+<h3 id="c5-s19" tabindex="-1">延伸问题、常见误解与速记</h3>
 <ul>
 <li>高频追问：checked exception 默认回滚吗？捕获异常为何仍提交失败？Boot 2.7 是否仍读 spring.factories？</li>
 <li>容易答错：三级缓存解决所有循环；有接口一定 JDK 代理；挂起释放外层连接；把同一事务连接交给异步线程。</li>
@@ -971,7 +1185,7 @@ spring:
 <li><a href="https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-beans/src/main/java/org/springframework/beans/factory/support/DefaultSingletonBeanRegistry.java">DefaultSingletonBeanRegistry.getSingleton · Spring Framework 5.3.31</a></li>
 <li><a href="https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java">TransactionAspectSupport.invokeWithinTransaction · Spring Framework 5.3.31</a></li>
 <li><a href="https://raw.githubusercontent.com/spring-projects/spring-boot/v2.7.18/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java">AutoConfigurationImportSelector.getCandidateConfigurations · Spring Boot 2.7.18</a></li>
-</ul></div><section aria-label="面试速查" class="quick"><h2 id="c5-quick-core">先记住这几件事</h2><ul><li>Bean 实例化与注入之后，初始化和后处理器参与代理。</li><li>三级缓存只解决部分单例循环，Boot 2.7 默认禁止循环引用。</li><li>事务入口在代理，this 自调用和异步线程不会自动经过它。</li><li>REQUIRES_NEW 再借一条连接，NESTED 常用同事务保存点。</li><li>Boot 2.7 同时读取两类自动配置候选，排查先看条件报告。</li></ul><h2 id="c5-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. 为什么三级缓存而非简单提前放对象？</span></summary><div class="answer">
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c5-quick-core">先记住这几件事</h2><ul><li>Bean 实例化与注入之后，初始化和后处理器参与代理。</li><li>三级缓存只解决部分单例循环，Boot 2.7 默认禁止循环引用。</li><li>事务入口在代理，this 自调用和异步线程不会自动经过它。</li><li>REQUIRES_NEW 再借一条连接，NESTED 常用同事务保存点。</li><li>Boot 2.7 同时读取两类自动配置候选，排查先看条件报告。</li></ul><h2 id="c5-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. 为什么三级缓存而非简单提前放对象？</span></summary><div class="answer">
 <p>提前给 B 一个原始 A，后面 A 又被做成代理，B 就可能绕过增强。三级缓存中的工厂允许按需生成早期代理，并与最终引用协调。</p>
 <p><strong>getSingleton 按什么顺序找？</strong> 先找 singletonObjects；创建中再找 earlySingletonObjects；允许早期引用时调用 singletonFactories，得到结果后移入第二层并移除工厂。getEarlyBeanReference 让相关后处理器参与。</p>
 <p><strong>需要靠它设计循环吗？</strong> 不建议。它只解决部分单例注入循环，构造器和 prototype 不同。Boot 2.7 默认禁止，先拆职责或显式延迟，初始化过程更容易测试。</p>
@@ -987,7 +1201,7 @@ spring:
 <p>REQUIRES_NEW 是独立物理事务，外层失败不一定撤销已提交的内层。NESTED 常是在同一事务中建立保存点，外层回滚仍会把内层结果一起撤销。</p>
 <p><strong>管理器怎样支持？</strong> DataSourceTransactionManager 在允许且驱动支持时可用 savepoint；其他 manager 不一定相同。新事务挂起外层资源后，再借连接，外层连接仍占着。</p>
 <p><strong>如何选择？</strong> 独立审计需要单独提交时可以考虑新事务；同一批工作中局部失败可考虑保存点。按极端并发检查连接需求和锁持有，不把传播选项当成无成本开关。</p>
-</div></details><h2 id="c5-quick-answer">一分钟回答</h2><p>Spring 先创建和注入 Bean，再通过后处理器做代理。三级缓存只帮助部分单例循环，Boot 2.7 默认禁止循环引用。事务必须经过代理，manager 决定创建或加入，JDBC 连接通常绑定当前线程。自调用、捕获异常和异步换线程都要检查。REQUIRES_NEW 独立提交却再占连接，NESTED 常用保存点。排查沿代理、manager、连接和异常一路看，不只确认注解在不在。</p><h2 id="c5-quick-errors">容易答错的地方与源码</h2><ul>
+</div></details><h2 id="c5-quick-answer">核心要点</h2><p>Spring 先创建和注入 Bean，再通过后处理器做代理。三级缓存只帮助部分单例循环，Boot 2.7 默认禁止循环引用。事务必须经过代理，manager 决定创建或加入，JDBC 连接通常绑定当前线程。自调用、捕获异常和异步换线程都要检查。REQUIRES_NEW 独立提交却再占连接，NESTED 常用保存点。排查沿代理、manager、连接和异常一路看，不只确认注解在不在。</p><h2 id="c5-quick-errors">常见误解与源码</h2><ul>
 <li>高频追问：checked exception 默认回滚吗？捕获异常为何仍提交失败？Boot 2.7 是否仍读 spring.factories？</li>
 <li>容易答错：三级缓存解决所有循环；有接口一定 JDK 代理；挂起释放外层连接；把同一事务连接交给异步线程。</li>
 <li>常看的源码：<code>doCreateBean/getSingleton/getEarlyBeanReference</code>、<code>TransactionInterceptor.invoke</code>、<code>invokeWithinTransaction</code>、<code>AutoConfigurationImportSelector</code>、<code>DispatcherServlet.doDispatch</code>。</li>
@@ -1091,7 +1305,7 @@ CREATE INDEX idx_order_tenant_time ON orders(tenant_id, created_at, id);
  B --&gt; E{"再次检查"}
  E --&gt;|可见| F["返回快照版本"]
 </code></pre></details></figure>
-<h2 id="c6-s8" tabindex="-1">面试官三层追问</h2>
+<h2 id="c6-s8" tabindex="-1">三层原理问答</h2>
 <details class="question"><summary><h3 id="c6-s9" tabindex="-1">1. RR 快照什么时候建立？</h3></summary><div class="answer">
 <p>InnoDB RR 一般在第一次一致性读时建立快照，后续复用；BEGIN 本身不一定已经创建。RC 则通常每次一致性读更新快照。</p>
 <p><strong>为什么能读旧值？</strong> ReadView::changes_visible 判断当前版本所属事务是否可见，不可见时沿 Undo 重建旧版本。显式 consistent snapshot 和锁定读走不同流程。</p>
@@ -1127,16 +1341,16 @@ CREATE INDEX idx_order_tenant_time ON orders(tenant_id, created_at, id);
 <p>先看 innodb_trx 中事务年龄、report 连接和 history list，再检查 purge 是否追得上。如果有一个报表很早建立快照却一直不提交，它可能仍需要历史版本，不能只怪更新量大。</p>
 <p>受控结束该报表事务后，应观察 purge 是否逐渐追赶，这是检验假设的重要对照。改成明确的批次或分析读取方式，但先决定业务是否必须看到同一时点，避免拆批后结果含义变化。</p>
 <p>长期设事务年龄告警和报表超时，检查连接复用时是否完成事务。备份、迁移的大快照同样需要评估保留历史版本的代价。</p>
-<h2 id="c6-s16" tabindex="-1">面试回答与核心总结</h2>
-<h3 id="c6-s17" tabindex="-1">60 秒快速回答</h3>
+<h2 id="c6-s16" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c6-s17" tabindex="-1">一分钟要点回顾</h3>
 <p>InnoDB 普通一致性读用 Read View 判断当前版本，不可见就沿 Undo 读旧版。RC 通常每条读新快照，RR 通常首次一致读后复用；FOR UPDATE 和写操作则读当前状态。索引决定扫描和锁范围，不能只看返回行数。Redo、Undo、binlog 分别负责不同恢复工作。慢查询看实际扫描、回表和等待；迁移还要验证数据含义、CDC 位点和业务结果，不能只比行数。</p>
-<h3 id="c6-s18" tabindex="-1">2～3 分钟深入回答</h3>
+<h3 id="c6-s18" tabindex="-1">深入理解与机制串联</h3>
 <p>我会从一个未提交余额修改讲 MVCC。别人把 100 改成 80 尚未提交，普通读可以借 Undo 看到旧 100。Read View 根据版本事务、活跃集合和界限判断可见性，必要时沿历史链回退。</p>
 <p>RC 每次一致性读通常换快照，RR 则通常首次读后复用，不一定 BEGIN 时已经创建。SELECT FOR UPDATE、UPDATE 要看可锁定的当前状态，不能把它们和普通 SELECT 当同一快照。长事务还会保留旧版本，阻碍 purge。</p>
 <p>索引方面，主键叶子存整行，二级索引带主键，非覆盖时要回表。联合索引先用等值前缀，再用范围，后续列可能参与过滤或 ICP。范围锁沿实际访问路径建立，缺好索引会扫描和锁更多记录；唯一完整等值命中与未命中也要分别看。</p>
 <p>慢 SQL 先看计划、实际 rows 和 loops，再查锁等待、IO 和返回量。EXPLAIN ANALYZE 会执行，需要控制影响。死锁按整个事务有界重试，重新读和判断，不能只补最后一条。</p>
 <p>跨库我不会把 InnoDB Undo 当所有 MVCC 的实现。PG 用 tuple 与 VACUUM，Oracle 用 SCN/Undo，OceanBase 还有分布式协调。迁移先核对时区、NULL、精度和约束，再保证全量与 CDC 位点衔接，按范围比内容和业务金额状态。切换与回退预演过，才说明方案可以恢复。</p>
-<h3 id="c6-s19" tabindex="-1">高频追问、常见错误与速记</h3>
+<h3 id="c6-s19" tabindex="-1">延伸问题、常见误解与速记</h3>
 <ul>
 <li>高频追问：RR 快照何时创建？长事务为何拖 purge？唯一未命中锁什么？范围后哪些列还有用？</li>
 <li>容易答错：所有数据库默认 RR；快照读和当前读相同；PG 用 InnoDB Undo；有索引一定快；副本就是备份。</li>
@@ -1151,7 +1365,7 @@ CREATE INDEX idx_order_tenant_time ON orders(tenant_id, created_at, id);
 <li><a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/data-concurrency-and-consistency.html">Oracle19c 并发与一致性</a></li>
 <li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html">MySQL 一致性读</a></li>
 <li><a href="https://en.oceanbase.com/docs">OceanBase 官方文档（须选择实际租户版本）</a></li>
-</ul></div><section aria-label="面试速查" class="quick"><h2 id="c6-quick-core">先记住这几件事</h2><ul><li>Read View 判断版本可见性，不可见沿 Undo 找旧版本。</li><li>RC 通常逐语句快照，RR 通常第一次一致性读后复用。</li><li>普通快照读与 UPDATE/FOR UPDATE 的当前读不同。</li><li>实际索引扫描决定成本和锁范围，不只是最终返回行数。</li><li>跨库要核对数据与隔离含义，迁移保证快照、CDC 与对账。</li></ul><h2 id="c6-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. RR 快照什么时候建立？</span></summary><div class="answer">
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c6-quick-core">先记住这几件事</h2><ul><li>Read View 判断版本可见性，不可见沿 Undo 找旧版本。</li><li>RC 通常逐语句快照，RR 通常第一次一致性读后复用。</li><li>普通快照读与 UPDATE/FOR UPDATE 的当前读不同。</li><li>实际索引扫描决定成本和锁范围，不只是最终返回行数。</li><li>跨库要核对数据与隔离含义，迁移保证快照、CDC 与对账。</li></ul><h2 id="c6-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. RR 快照什么时候建立？</span></summary><div class="answer">
 <p>InnoDB RR 一般在第一次一致性读时建立快照，后续复用；BEGIN 本身不一定已经创建。RC 则通常每次一致性读更新快照。</p>
 <p><strong>为什么能读旧值？</strong> ReadView::changes_visible 判断当前版本所属事务是否可见，不可见时沿 Undo 重建旧版本。显式 consistent snapshot 和锁定读走不同流程。</p>
 <p><strong>长事务会怎样？</strong> 旧快照可能还要用历史数据，purge 不敢清理它们。报表要控制事务时长，跨批次读也要先想清楚是否接受不同时点的数据。</p>
@@ -1167,7 +1381,7 @@ CREATE INDEX idx_order_tenant_time ON orders(tenant_id, created_at, id);
 <p>它们面向不同工作。Redo 帮崩溃恢复重做修改，Undo 帮回滚和重建旧版本，binlog 主要用于复制及逻辑恢复，不能互相替代。</p>
 <p><strong>提交为什么要协调？</strong> 相关 WAL 先于数据页落盘，InnoDB 与 binlog 还要协调提交结果，避免崩溃后两层日志对成功事务产生分歧。刷盘配置决定具体的持久承诺。</p>
 <p><strong>高可用够不够？</strong> 还要看副本确认、备份、恢复速度和演练。异步副本可能落后，也会复制错误删除，所以它既不是零丢失保证，也不是完整备份。</p>
-</div></details><h2 id="c6-quick-answer">一分钟回答</h2><p>InnoDB 普通一致性读用 Read View 判断当前版本，不可见就沿 Undo 读旧版。RC 通常每条读新快照，RR 通常首次一致读后复用；FOR UPDATE 和写操作则读当前状态。索引决定扫描和锁范围，不能只看返回行数。Redo、Undo、binlog 分别负责不同恢复工作。慢查询看实际扫描、回表和等待；迁移还要验证数据含义、CDC 位点和业务结果，不能只比行数。</p><h2 id="c6-quick-errors">容易答错的地方与源码</h2><ul>
+</div></details><h2 id="c6-quick-answer">核心要点</h2><p>InnoDB 普通一致性读用 Read View 判断当前版本，不可见就沿 Undo 读旧版。RC 通常每条读新快照，RR 通常首次一致读后复用；FOR UPDATE 和写操作则读当前状态。索引决定扫描和锁范围，不能只看返回行数。Redo、Undo、binlog 分别负责不同恢复工作。慢查询看实际扫描、回表和等待；迁移还要验证数据含义、CDC 位点和业务结果，不能只比行数。</p><h2 id="c6-quick-errors">常见误解与源码</h2><ul>
 <li>高频追问：RR 快照何时创建？长事务为何拖 purge？唯一未命中锁什么？范围后哪些列还有用？</li>
 <li>容易答错：所有数据库默认 RR；快照读和当前读相同；PG 用 InnoDB Undo；有索引一定快；副本就是备份。</li>
 <li>常看的源码：<code>ReadView::changes_visible</code>、<code>row_search_mvcc</code>、<code>row_vers_build_for_consistent_read</code>、<code>trx_assign_read_view</code>。</li>
@@ -1324,7 +1538,7 @@ CREATE INDEX idx_order_tenant_time ON orders(tenant_id, created_at, id);
 </tbody>
 </table>
 <p>Kafka 以 partition 日志为主要组织与并行单位，配合 ISR、acks、幂等 producer/transaction 支持其定义范围内语义；Kafka 事务也不会自然包住任意外部数据库。Pulsar 分离 broker 与 BookKeeper 持久层，通过 ledger 与 subscription cursor 管理存储/订阅，分层扩容代价与运维模型不同。RocketMQ 的统一 CommitLog 与独立消费索引、业务事务回查和经典队列模型更贴近本网站场景，但技术选型仍要比较吞吐、延迟、运维能力和恢复演练，而非靠“谁一定更快”。</p>
-<h2 id="c7-s9" tabindex="-1">面试官三层追问</h2>
+<h2 id="c7-s9" tabindex="-1">三层原理问答</h2>
 <details class="question"><summary><h3 id="c7-s10" tabindex="-1">1. 数据库提交成功但发送消息失败，怎么办？</h3></summary><div class="answer">
 <p>普通的提交后发送存在宕机间隙。新设计可以用 Outbox，把业务与待发事件同事务保存；或用事务消息先 Half，再执行本地事务，由回查补齐未知结果。</p>
 <p><strong>失败怎样补回来？</strong> Outbox 任务从持久记录继续发，发出但没标成功可能重复；事务回查根据数据库状态决定提交或回滚。两种方式都仍需要消费端识别重复。</p>
@@ -1360,16 +1574,16 @@ CREATE INDEX idx_order_tenant_time ON orders(tenant_id, created_at, id);
 <p>按稳定 eventId 对齐队列 offset、数据库提交和进程退出时间，先排除两个合法不同事件。若生成逻辑是查不到再插入，又无唯一约束，两次执行可能都成功。</p>
 <p>为付款事件与保单结果建立正确的业务唯一约束，并让处理记录与业务写入同一事务。外部发单接口也使用稳定幂等键。上线约束前先检查历史重复，不让建索引失败掩盖已有错误。</p>
 <p>在测试中将进程停在 DB commit 之后，重放同一事件，预期只留下一个合法结果。以后把这个宕机点、乱序和 DLQ 重放纳入测试；去重记录保留期要覆盖允许的重放时间。</p>
-<h2 id="c7-s17" tabindex="-1">面试回答与核心总结</h2>
-<h3 id="c7-s18" tabindex="-1">60 秒快速回答</h3>
+<h2 id="c7-s17" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c7-s18" tabindex="-1">一分钟要点回顾</h3>
 <p>RocketMQ 先取路由，Broker 追加 CommitLog，再建立消费索引。发送成功包含哪些保障取决于刷盘与副本配置，超时可能已写入。4.x Push 底层拉取，业务提交与 offset 保存之间会重复，消费应同事务识别事件。顺序局限在队列和实际业务执行，积压要让完成率超过到达率。事务消息用 Half 与回查补生产端结果，消费者仍需幂等，对账还要覆盖长期未完成记录。</p>
-<h3 id="c7-s19" tabindex="-1">2～3 分钟深入回答</h3>
+<h3 id="c7-s19" tabindex="-1">深入理解与机制串联</h3>
 <p>我先沿发送过程说明成功的含义。Producer 从 NameServer 取路由后直连 Broker，消息主体进入 CommitLog，ConsumeQueue 保存队列到主体的索引，IndexFile 用于 key 查询。同步刷盘和同步副本等待是两件事，配置和返回状态决定当次承诺。</p>
 <p>Broker 已写入而响应丢失时，Producer 只看到超时，重试可能重复。消费端也有相似间隙：业务数据库提交了，消费位置还没保存就宕机，恢复后又收同一事件。所以事件 ID 唯一记录和业务修改要同事务；外部付款还要稳定幂等键与查询结果。</p>
 <p>数据库成功但普通发送失败，可用 Outbox 或事务消息。Outbox 保存待发记录；事务消息先 Half，再本地事务，最后确认。确认丢失由回查读取持久业务结果，但查不到不能乱提交，也有次数与保留限制。它不包住消费者自己的事务。</p>
 <p>顺序消息需要同 key 队列、顺序消费，还要防多 Producer、重试、队列变化和异步回调破坏实际顺序。业务版本能检查重复和缺序列，毒消息则要有受控恢复。</p>
 <p>积压先找真正耗时点，再算净处理速度。经典消费者超过队列数不会无限增速，数据库过载时加线程可能更慢。Broker 故障则按具体 HA 模式演练刷盘、复制落后和切换，保留稳定事件重试和对账。最后明确 4.x offset 与 5.x POP ACK 不混讲，DLQ 和历史重放必须有人负责。</p>
-<h3 id="c7-s20" tabindex="-1">高频追问、常见错误与速记</h3>
+<h3 id="c7-s20" tabindex="-1">延伸问题、常见误解与速记</h3>
 <ul>
 <li>高频追问：发送超时能否直接重发？消费成功后何时保存位置？回查查不到怎样答？积压多久能清空？</li>
 <li>容易答错：Push 没有 Pull；事务消息包住消费者数据库；同步复制自动等于共识选主；加消费者永远能提速。</li>
@@ -1384,7 +1598,7 @@ CREATE INDEX idx_order_tenant_time ON orders(tenant_id, created_at, id);
 <li><a href="https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java">TransactionalMessageServiceImpl.check · RocketMQ 4.9.8</a></li>
 <li><a href="https://rocketmq.apache.org/docs/featureBehavior/04transactionmessage/">RocketMQ 5.x 事务消息与版本边界</a></li>
 <li><a href="https://github.com/apache/rocketmq/tree/rocketmq-all-5.3.4">RocketMQ 5.3.4 源码对照</a></li>
-</ul></div><section aria-label="面试速查" class="quick"><h2 id="c7-quick-core">先记住这几件事</h2><ul><li>CommitLog 存主体，ConsumeQueue 存队列索引，IndexFile 帮 key 查询。</li><li>发送超时可能已写入，刷盘与复制确认是不同保障。</li><li>业务提交后未保存消费位置可能重收，消费去重与业务同事务。</li><li>同 key 队列加顺序消费，还要防异步处理和版本乱序。</li><li>Half 后的结果要可持久回查，清积压靠完成率真正超过到达率。</li></ul><h2 id="c7-quick-qa">五个重点问题</h2><details class="question"><summary><span class="question-title">1. 数据库提交成功但发送消息失败，怎么办？</span></summary><div class="answer">
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c7-quick-core">先记住这几件事</h2><ul><li>CommitLog 存主体，ConsumeQueue 存队列索引，IndexFile 帮 key 查询。</li><li>发送超时可能已写入，刷盘与复制确认是不同保障。</li><li>业务提交后未保存消费位置可能重收，消费去重与业务同事务。</li><li>同 key 队列加顺序消费，还要防异步处理和版本乱序。</li><li>Half 后的结果要可持久回查，清积压靠完成率真正超过到达率。</li></ul><h2 id="c7-quick-qa">五个重点问题</h2><details class="question"><summary><span class="question-title">1. 数据库提交成功但发送消息失败，怎么办？</span></summary><div class="answer">
 <p>普通的提交后发送存在宕机间隙。新设计可以用 Outbox，把业务与待发事件同事务保存；或用事务消息先 Half，再执行本地事务，由回查补齐未知结果。</p>
 <p><strong>失败怎样补回来？</strong> Outbox 任务从持久记录继续发，发出但没标成功可能重复；事务回查根据数据库状态决定提交或回滚。两种方式都仍需要消费端识别重复。</p>
 <p><strong>已经漏掉的订单呢？</strong> 新方案不会自动补历史缺口，要按已完成业务与下游结果扫描补发。给待发事件设置重试、积压年龄告警、保留期和人工处理方式。</p>
@@ -1404,7 +1618,7 @@ CREATE INDEX idx_order_tenant_time ON orders(tenant_id, created_at, id);
 <p>根据能接受的丢失范围，配置刷盘和副本确认，并检查发送返回状态。异步应答可能早于落盘或复制，故障后不一定保留。</p>
 <p><strong>同步就万无一失吗？</strong> 同步刷盘超时仍可能已经写入；传统同步主从与 DLedger、Controller 不是同一种选主协议。切换前要核对可用副本位置和复制延迟。</p>
 <p><strong>如何验证可靠性？</strong> 演练主故障、响应丢失和副本落后，验证稳定 eventId 的重试与对账。备份和错误删除恢复仍要单独设计，复制不能覆盖所有损坏。</p>
-</div></details><h2 id="c7-quick-answer">一分钟回答</h2><p>RocketMQ 先取路由，Broker 追加 CommitLog，再建立消费索引。发送成功包含哪些保障取决于刷盘与副本配置，超时可能已写入。4.x Push 底层拉取，业务提交与 offset 保存之间会重复，消费应同事务识别事件。顺序局限在队列和实际业务执行，积压要让完成率超过到达率。事务消息用 Half 与回查补生产端结果，消费者仍需幂等，对账还要覆盖长期未完成记录。</p><h2 id="c7-quick-errors">容易答错的地方与源码</h2><ul>
+</div></details><h2 id="c7-quick-answer">核心要点</h2><p>RocketMQ 先取路由，Broker 追加 CommitLog，再建立消费索引。发送成功包含哪些保障取决于刷盘与副本配置，超时可能已写入。4.x Push 底层拉取，业务提交与 offset 保存之间会重复，消费应同事务识别事件。顺序局限在队列和实际业务执行，积压要让完成率超过到达率。事务消息用 Half 与回查补生产端结果，消费者仍需幂等，对账还要覆盖长期未完成记录。</p><h2 id="c7-quick-errors">常见误解与源码</h2><ul>
 <li>高频追问：发送超时能否直接重发？消费成功后何时保存位置？回查查不到怎样答？积压多久能清空？</li>
 <li>容易答错：Push 没有 Pull；事务消息包住消费者数据库；同步复制自动等于共识选主；加消费者永远能提速。</li>
 <li>常看的源码：<code>sendDefaultImpl/sendMessageInTransaction</code>、<code>CommitLog.asyncPutMessage</code>、<code>ReputMessageService.doReput</code>、<code>TransactionalMessageServiceImpl.check</code>、<code>processConsumeResult</code>。</li>
@@ -1491,7 +1705,7 @@ return 0
  A-&gt;&gt;R: 写回旧值
  Note over A,R: 旧值会保留到何时，取决于 TTL、版本或失效通知
 </code></pre></details></figure>
-<h2 id="c8-s9" tabindex="-1">面试官三层追问</h2>
+<h2 id="c8-s9" tabindex="-1">三层原理问答</h2>
 <details class="question"><summary><h3 id="c8-s10" tabindex="-1">1. Redis 是单线程为什么还能快？</h3></summary><div class="answer">
 <p>常见操作在内存里完成，结构选择合理，事件驱动减少阻塞切换，主命令线程也避免了一些锁竞争。但速度来自这些具体条件，不是“单线程”三个字。</p>
 <p><strong>多线程到底在哪？</strong> 网络 IO 可以多线程，持久化、lazyfree 也有别的进程或线程。大范围命令和慢脚本仍可能挡住命令执行，所以其他请求会跟着慢。</p>
@@ -1527,16 +1741,16 @@ return 0
 <p>对齐租期、GC/暂停、获得锁和 DB 写入时间，核对 token 解锁。即使 Lua 解锁正确，A 的数据库操作也没有因此被阻止。只看两条“加锁成功”日志不会发现原因。</p>
 <p>库存修改加条件与事件唯一约束，确认重复请求只能产生一次效果。Redis 锁用来降低竞争。若采用 fencing，还需资源端拒绝旧编号，以及可靠的编号授予方式。</p>
 <p>测试主动暂停旧持有者、触发续期失败和副本切换，观察业务结果。长期监控锁失败与业务重复，不把 Watchdog 当作永不失效的互斥保证。</p>
-<h2 id="c8-s17" tabindex="-1">面试回答与核心总结</h2>
-<h3 id="c8-s18" tabindex="-1">60 秒快速回答</h3>
+<h2 id="c8-s17" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c8-s18" tabindex="-1">一分钟要点回顾</h3>
 <p>Redis 常见操作靠内存结构和事件循环，网络 IO 多线程不代表命令全部并行。缓存写库后删仍可能被慢读回填旧值，双删只是减少问题，不能承诺强一致。SET NX PX 加 token 和 Lua 防误删，但锁过期或切换后旧线程仍能写，关键数据用数据库条件或 fencing 保护。缓存故障还要限制回源，RDB、AOF 和异步复制都有各自恢复窗口。</p>
-<h3 id="c8-s19" tabindex="-1">2～3 分钟深入回答</h3>
+<h3 id="c8-s19" tabindex="-1">深入理解与机制串联</h3>
 <p>我从 Cache Aside 的正常读写开始：读 miss 就查库并填缓存，写提交 DB 后删缓存。这个顺序常用，却仍有慢读先拿旧值、等新写完成并删后才回填的情况。TTL、版本和可靠失效事件可以按业务接受的陈旧时间选择，固定双删延迟无法覆盖所有暂停。</p>
 <p>热点失效要合并同 key 加载，但整缓存宕机还需要全局回源限额和降级，否则数据库也会倒。恢复分批预热。大 key 的扫描、序列化、复制和删除成本要单独处理，UNLINK 只把一部分回收放后台。</p>
 <p>锁方面 SET NX PX 原子创建并带租期，随机 token 表示 owner，Lua 比较后删防止错删。A 暂停过租期后，B 可以拿新锁，A 恢复仍可能写数据库。Watchdog 续期也可能失败，所以资源需要自己的条件约束，或验可靠的递增 fencing 编号。</p>
 <p>持久化方面，RDB 是快照，fork 写多会有 COW；AOF fsync 决定窗口，Redis 7 是 multipart 文件组织。复制异步，Sentinel 提升不能补回未复制写入，WAIT 也不是完整强一致承诺。</p>
 <p>最后按真实命令、value 大小和连接数测 p99，SLOWLOG 与网络排队分开看。容量不只算 used_memory，还包括复制、客户端缓冲、COW 和碎片。关键金额从数据库确认，不依赖缓存或租约独自保证。</p>
-<h3 id="c8-s20" tabindex="-1">高频追问、常见错误与速记</h3>
+<h3 id="c8-s20" tabindex="-1">延伸问题、常见误解与速记</h3>
 <ul>
 <li>高频追问：WAIT 为什么不够？UNLINK 后 RSS 为何仍高？Lua 解锁能否阻止旧 owner？整缓存故障怎样保护 DB？</li>
 <li>容易答错：Redis 7 小结构统一 ziplist；延迟双删必然一致；Watchdog 保证永不失锁；SLOWLOG 包含所有网络延迟。</li>
@@ -1550,7 +1764,7 @@ return 0
 <li><a href="https://raw.githubusercontent.com/redis/redis/7.2.4/src/t_string.c">setGenericCommand · Redis 7.2.4</a></li>
 <li><a href="https://redis.io/docs/latest/develop/use/patterns/distributed-locks/">Redis 分布式锁边界</a></li>
 <li><a href="https://redisson.pro/docs/data-and-services/locks-and-synchronizers/">Redisson 锁与 Watchdog</a></li>
-</ul></div><section aria-label="面试速查" class="quick"><h2 id="c8-quick-core">先记住这几件事</h2><ul><li>主命令线程串行，IO 多线程不表示命令全部并行。</li><li>RDB、AOF 与异步复制各有恢复和丢失窗口。</li><li>写库后删缓存仍可能被慢读回填，双删不是绝对保证。</li><li>token 和 Lua 防误删，租期过后旧 owner 仍可能写业务。</li><li>热点合并与总回源限额一起做，缓存宕机也要保护数据库。</li></ul><h2 id="c8-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. Redis 是单线程为什么还能快？</span></summary><div class="answer">
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c8-quick-core">先记住这几件事</h2><ul><li>主命令线程串行，IO 多线程不表示命令全部并行。</li><li>RDB、AOF 与异步复制各有恢复和丢失窗口。</li><li>写库后删缓存仍可能被慢读回填，双删不是绝对保证。</li><li>token 和 Lua 防误删，租期过后旧 owner 仍可能写业务。</li><li>热点合并与总回源限额一起做，缓存宕机也要保护数据库。</li></ul><h2 id="c8-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. Redis 是单线程为什么还能快？</span></summary><div class="answer">
 <p>常见操作在内存里完成，结构选择合理，事件驱动减少阻塞切换，主命令线程也避免了一些锁竞争。但速度来自这些具体条件，不是“单线程”三个字。</p>
 <p><strong>多线程到底在哪？</strong> 网络 IO 可以多线程，持久化、lazyfree 也有别的进程或线程。大范围命令和慢脚本仍可能挡住命令执行，所以其他请求会跟着慢。</p>
 <p><strong>性能怎么测？</strong> 使用真实命令比例、value 大小和连接数，看热点及 p99。SLOWLOG 没慢命令时也查网络和排队，再决定优化命令、合并请求还是分片。</p>
@@ -1566,7 +1780,7 @@ return 0
 <p>RDB 保存快照，恢复较直接但会丢快照之后的写入；AOF 记录写操作，可按 fsync 策略缩短丢失窗口。常组合使用，并安排备份。</p>
 <p><strong>性能代价在哪？</strong> fork 后写多会增加 COW 内存，fsync 和重写依赖磁盘性能。Redis 7 的 multipart AOF 有 base、incr、manifest，不是一个旧单文件的全部流程。</p>
 <p><strong>怎样选择？</strong> 若只是可重建缓存，接受窗口可能不同；若当主数据使用，先定义 RPO 并做恢复演练。开启持久化不能替代数据库和消息链的可靠设计。</p>
-</div></details><h2 id="c8-quick-answer">一分钟回答</h2><p>Redis 常见操作靠内存结构和事件循环，网络 IO 多线程不代表命令全部并行。缓存写库后删仍可能被慢读回填旧值，双删只是减少问题，不能承诺强一致。SET NX PX 加 token 和 Lua 防误删，但锁过期或切换后旧线程仍能写，关键数据用数据库条件或 fencing 保护。缓存故障还要限制回源，RDB、AOF 和异步复制都有各自恢复窗口。</p><h2 id="c8-quick-errors">容易答错的地方与源码</h2><ul>
+</div></details><h2 id="c8-quick-answer">核心要点</h2><p>Redis 常见操作靠内存结构和事件循环，网络 IO 多线程不代表命令全部并行。缓存写库后删仍可能被慢读回填旧值，双删只是减少问题，不能承诺强一致。SET NX PX 加 token 和 Lua 防误删，但锁过期或切换后旧线程仍能写，关键数据用数据库条件或 fencing 保护。缓存故障还要限制回源，RDB、AOF 和异步复制都有各自恢复窗口。</p><h2 id="c8-quick-errors">常见误解与源码</h2><ul>
 <li>高频追问：WAIT 为什么不够？UNLINK 后 RSS 为何仍高？Lua 解锁能否阻止旧 owner？整缓存故障怎样保护 DB？</li>
 <li>容易答错：Redis 7 小结构统一 ziplist；延迟双删必然一致；Watchdog 保证永不失锁；SLOWLOG 包含所有网络延迟。</li>
 <li>常看的源码：<code>setGenericCommand</code>、<code>dbDelete/dbAsyncDelete</code>、<code>dictRehash</code>、<code>aeMain</code> 与 <code>replication.c</code>。</li>
@@ -1697,7 +1911,7 @@ COMMIT;
  Cancelled --&gt; Cancelled: 晚到 Try 不再执行
  Confirmed --&gt; Confirmed: 重复 Confirm
 </code></pre></details></figure>
-<h2 id="c9-s8" tabindex="-1">面试官三层追问</h2>
+<h2 id="c9-s8" tabindex="-1">三层原理问答</h2>
 <details class="question"><summary><h3 id="c9-s9" tabindex="-1">1. 最终一致是否意味着可以不设计失败路径？</h3></summary><div class="answer">
 <p>不能。失败动作必须被保存，之后有人继续处理，或按业务规则补偿。消息已经永久丢失，不会因为过了半小时就自动恢复。</p>
 <p><strong>机制如何配合？</strong> Outbox 或事务消息保存待完成工作；唯一事件和状态检查识别重复；任务重试和对账处理未完成记录。任何一步无人接手，都可能永久卡住。</p>
@@ -1733,16 +1947,16 @@ COMMIT;
 <p>按 eventId、领取租期和发送记录查看任务。若 MQ 已收到，Outbox 仍为待处理状态，过期重新领取就是合理恢复；没有消费幂等才会产生重复业务。</p>
 <p>保持先发再标，不为了消除重复改成先标后发。消费端用同事务唯一事件与业务写入，外部接口传相同幂等键。检查历史重复结果，并按业务修复。</p>
 <p>测试在每个提交和发送间隙停进程，重启后检查不漏事件、结果不重复。监控最老待发时间与失败重试，定期对账已付无保单、重复保单，保留人工处理入口。</p>
-<h2 id="c9-s16" tabindex="-1">面试回答与核心总结</h2>
-<h3 id="c9-s17" tabindex="-1">60 秒快速回答</h3>
+<h2 id="c9-s16" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c9-s17" tabindex="-1">一分钟要点回顾</h3>
 <p>分布式事务先明确哪些业务结果必须一起成立。2PC 需要协议和恢复资源，TCC 要能预留、确认、取消，Saga 是新的补偿动作。DB 与 MQ 常用同事务 Outbox 或 Half/回查，仍允许重复，所以消费去重与业务一起提交。超时是未知，稳定 requestId 查询恢复。最终完成需要持久记录、有限重试、对账和人工处理，不会靠等待自动发生。</p>
-<h3 id="c9-s18" tabindex="-1">2～3 分钟深入回答</h3>
+<h3 id="c9-s18" tabindex="-1">深入理解与机制串联</h3>
 <p>我先用支付提交后通知失败说明问题：数据库已经成功，普通发消息之前宕机，就没有下游通知。解决重点是成功时留下可恢复的待办。Outbox 把业务和事件同事务保存；事务消息先 Half，再本地事务，再报告，未知时回查持久结果。</p>
 <p>Outbox 发送成功未标 SENT 时会重发，先标再发则可能丢失，所以应选择能识别的重复。消费记录和业务必须同事务，数据库失败时记录也撤销。外部支付不能纳入这条本地事务，则使用稳定幂等键和 UNKNOWN 查询，避免换 ID 再做一遍。</p>
 <p>2PC 适合支持协议且确实需要协调提交的参与者，代价是 prepared 资源和故障等待。TCC 是业务预留，Cancel 先到要留取消记录，晚到 Try 不再执行；Confirm 和 Cancel 也要幂等。Saga 逐步提交，补偿是退款等新动作，补偿也可能失败，已经发出短信不能物理回滚。</p>
 <p>订单支付保单要各有允许的状态变化和事件版本。重复支付不能重复记账，未来版本先到不能随手丢掉；已生效保单需要合规撤销流程，不是删行。每个宕机点都应明确留下什么、哪个组件继续、多久报警。</p>
 <p>最后设置重试、记录保留和人工处理时间，对账按业务条件查有支付无保单、无支付有保单及重复结果。这样才有可检验的最终完成，而不是把“最终一致”当一句保证。</p>
-<h3 id="c9-s19" tabindex="-1">高频追问、常见错误与速记</h3>
+<h3 id="c9-s19" tabindex="-1">延伸问题、常见误解与速记</h3>
 <ul>
 <li>高频追问：发送后标记前死了怎么办？空回滚如何挡迟到 Try？补偿失败谁处理？支付超时为何不能换 ID？</li>
 <li>容易答错：CAP 随时任选两个；Outbox 没重复；Saga 没中间态；Redis 标去重后 DB 可独立失败；超时就是未执行。</li>
@@ -1755,7 +1969,7 @@ COMMIT;
 <li><a href="https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java">TransactionAspectSupport.invokeWithinTransaction · Spring Framework 5.3.31</a></li>
 <li><a href="https://raw.githubusercontent.com/apache/rocketmq/rocketmq-all-4.9.8/broker/src/main/java/org/apache/rocketmq/broker/transaction/queue/TransactionalMessageServiceImpl.java">TransactionalMessageServiceImpl.check · RocketMQ 4.9.8</a></li>
 <li><a href="https://groups.csail.mit.edu/tds/papers/Gilbert/Brewer2.pdf">CAP 原论文 Gilbert/Lynch</a></li>
-</ul></div><section aria-label="面试速查" class="quick"><h2 id="c9-quick-core">先记住这几件事</h2><ul><li>先说明支付、订单和保单有哪些结果必须成立。</li><li>2PC 需协议；TCC 预留可确认撤销；Saga 补偿是新业务动作。</li><li>Outbox 同事务保存待发事件，发送后标记前死机会重复。</li><li>消费唯一事件与业务同事务，外部调用用稳定幂等键。</li><li>超时是未知，保留查询、重试、对账和人工恢复办法。</li></ul><h2 id="c9-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. 最终一致是否意味着可以不设计失败路径？</span></summary><div class="answer">
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c9-quick-core">先记住这几件事</h2><ul><li>先说明支付、订单和保单有哪些结果必须成立。</li><li>2PC 需协议；TCC 预留可确认撤销；Saga 补偿是新业务动作。</li><li>Outbox 同事务保存待发事件，发送后标记前死机会重复。</li><li>消费唯一事件与业务同事务，外部调用用稳定幂等键。</li><li>超时是未知，保留查询、重试、对账和人工恢复办法。</li></ul><h2 id="c9-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. 最终一致是否意味着可以不设计失败路径？</span></summary><div class="answer">
 <p>不能。失败动作必须被保存，之后有人继续处理，或按业务规则补偿。消息已经永久丢失，不会因为过了半小时就自动恢复。</p>
 <p><strong>机制如何配合？</strong> Outbox 或事务消息保存待完成工作；唯一事件和状态检查识别重复；任务重试和对账处理未完成记录。任何一步无人接手，都可能永久卡住。</p>
 <p><strong>对用户怎么说明？</strong> 定义处理中、失败和完成状态，以及多久报警、多久人工处理。下游仍在失败时，不让同步返回的“成功”掩盖尚未完成的业务。</p>
@@ -1771,7 +1985,7 @@ COMMIT;
 <p>因为前面本地事务已提交，别人可能已看到结果。退款是一笔新交易，不是让过去扣款从未发生；短信也无法收回。</p>
 <p><strong>补偿为什么也会失败？</strong> 它仍要访问数据库和外部系统，而且当前状态可能已有后续合法变化。需要自己的幂等键、检查和重试，不是无条件反向 UPDATE。</p>
 <p><strong>流程怎么安排？</strong> 记录每步及补偿结果，给不可逆动作合适位置，失败可进入人工处理。Saga 允许中间状态，用户与下游要能识别它，不要包装成瞬时原子操作。</p>
-</div></details><h2 id="c9-quick-answer">一分钟回答</h2><p>分布式事务先明确哪些业务结果必须一起成立。2PC 需要协议和恢复资源，TCC 要能预留、确认、取消，Saga 是新的补偿动作。DB 与 MQ 常用同事务 Outbox 或 Half/回查，仍允许重复，所以消费去重与业务一起提交。超时是未知，稳定 requestId 查询恢复。最终完成需要持久记录、有限重试、对账和人工处理，不会靠等待自动发生。</p><h2 id="c9-quick-errors">容易答错的地方与源码</h2><ul>
+</div></details><h2 id="c9-quick-answer">核心要点</h2><p>分布式事务先明确哪些业务结果必须一起成立。2PC 需要协议和恢复资源，TCC 要能预留、确认、取消，Saga 是新的补偿动作。DB 与 MQ 常用同事务 Outbox 或 Half/回查，仍允许重复，所以消费去重与业务一起提交。超时是未知，稳定 requestId 查询恢复。最终完成需要持久记录、有限重试、对账和人工处理，不会靠等待自动发生。</p><h2 id="c9-quick-errors">常见误解与源码</h2><ul>
 <li>高频追问：发送后标记前死了怎么办？空回滚如何挡迟到 Try？补偿失败谁处理？支付超时为何不能换 ID？</li>
 <li>容易答错：CAP 随时任选两个；Outbox 没重复；Saga 没中间态；Redis 标去重后 DB 可独立失败；超时就是未执行。</li>
 <li>常看的入口：<code>invokeWithinTransaction</code>、<code>sendMessageInTransaction</code>、<code>TransactionalMessageServiceImpl.check</code>，以及业务唯一约束、条件 UPDATE 和领取租期。</li>
@@ -1896,7 +2110,7 @@ Mono&lt;Order&gt; load(long id) {
  H --&gt; C
  G --&gt;|否| I["降级 / 明确失败"]
 </code></pre></details></figure>
-<h2 id="c10-s8" tabindex="-1">面试官三层追问</h2>
+<h2 id="c10-s8" tabindex="-1">三层原理问答</h2>
 <details class="question"><summary><h3 id="c10-s9" tabindex="-1">1. Gateway 用了 Reactor，为何还会全站卡顿？</h3></summary><div class="answer">
 <p>因为 reactive 不会把同步调用自动变成非阻塞。EventLoop 内执行 JDBC，数据库慢时同一线程负责的多个连接都会等。</p>
 <p><strong>怎样定位到这段代码？</strong> 多次线程栈看到 reactor-http-nio 停在同步查询或 read，而不是继续处理 NioEventLoop 的事件。trace 再确认时间确实花在认证依赖。</p>
@@ -1932,16 +2146,16 @@ Mono&lt;Order&gt; load(long id) {
 <p>看 trace 里认证时间，连续线程栈看 reactor-http-nio 是否停在同步查询，再看连接池 pending 和客户端重试。若其他路由也由这些 EventLoop 处理，就能解释为什么影响扩大。</p>
 <p>用异步客户端，或把必要阻塞操作移到有界工作池，并限制认证并发和连接等待。根据安全要求设计缓存与失败响应，不把所有失败直接放行。减少多层重复重试，逐步恢复流量。</p>
 <p>用慢 DAO 验证无关路由能继续处理，认证则按设定时间明确失败。以后测试依赖变慢、取消后任务残留与 Context 传播，同时监控 EventLoop 延迟和总重试量。</p>
-<h2 id="c10-s16" tabindex="-1">面试回答与核心总结</h2>
-<h3 id="c10-s17" tabindex="-1">60 秒快速回答</h3>
+<h2 id="c10-s16" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c10-s17" tabindex="-1">一分钟要点回顾</h3>
 <p>一个 Netty EventLoop 服务多个连接，阻塞 JDBC 会让其他连接一起等。Reactor 用需求和队列协调处理，subscribeOn 与 publishOn 位置不同，返回 Mono 不自动非阻塞。稳定性要限制总等待、重试与并发，持续故障时熔断和降级，按依赖隔离资源。容量用实际吞吐和耗时估算并压测，灰度还需标签传播、数据兼容和真实回退，代码回滚不会撤销已写数据。</p>
-<h3 id="c10-s18" tabindex="-1">2～3 分钟深入回答</h3>
+<h3 id="c10-s18" tabindex="-1">深入理解与机制串联</h3>
 <p>我先解释线程模型：EventLoop 轮流处理多个 channel 的 IO 和任务，不是一连接一线程。Gateway 过滤器若在里面做同步 JDBC，数据库慢会让这一批连接都不能及时继续。返回 Mono 只是类型，已执行的阻塞代码不会自动改变。</p>
 <p>阻塞源可以用 fromCallable 延迟，再用 subscribeOn 放到合适工作线程；publishOn 主要影响后续信号。队列、预取和 request 协调背压，但无限 buffer 仍能占满内存，外部来源也需单独限量。timeout 取消后 JDBC 可能仍占连接，线程上下文要正确转成订阅 Context。</p>
 <p>当一个依赖变慢，平均并发需求约为到达率乘耗时。1000QPS 从 20ms 变 500ms，需要的平均并发从 20 变 500，池不够开始排队；再加重试就更坏。先限制准入、等待和总尝试，退避带抖动，只对可重试且幂等操作执行。持续故障用熔断，按依赖隔离线程或并发，非关键功能降级。</p>
 <p>容量测试找吞吐拐点与业务 p99，覆盖缓存故障、慢依赖和一台实例退出。不要让闭环工具自动降到达率后误以为稳定，也不要只增加线程和连接。</p>
 <p>发布则稳定分用户或租户，标签传到异步消息，数据库和事件先保证新旧兼容。回退条件用错误率、尾延迟和业务结果；写错数据要有修复方案。最后通过 trace、队列、连接和线程栈定位等待发生在哪一段，再决定改法。</p>
-<h3 id="c10-s19" tabindex="-1">高频追问、常见错误与速记</h3>
+<h3 id="c10-s19" tabindex="-1">延伸问题、常见误解与速记</h3>
 <ul>
 <li>高频追问：timeout 会停止 SQL 吗？发布后哪些线程处理信号？MDC 怎么传？闭环压测会漏什么？</li>
 <li>容易答错：一连接一线程；返回 Mono 就非阻塞；boundedElastic 无限；背压不会 OOM；多加连接一定快；代码回滚恢复数据。</li>
@@ -1955,7 +2169,7 @@ Mono&lt;Order&gt; load(long id) {
 <li><a href="https://raw.githubusercontent.com/reactor/reactor-core/v3.4.34/reactor-core/src/main/java/reactor/core/publisher/FluxPublishOn.java">FluxPublishOn.onNext · Reactor 3.4.34</a></li>
 <li><a href="https://raw.githubusercontent.com/spring-cloud/spring-cloud-gateway/v3.1.8/spring-cloud-gateway-server/src/main/java/org/springframework/cloud/gateway/handler/FilteringWebHandler.java">FilteringWebHandler.handle · Spring Cloud Gateway 3.1.8</a></li>
 <li><a href="https://projectreactor.io/docs/core/3.4.34/reference/">Reactor 3.4.34 Reference</a></li>
-</ul></div><section aria-label="面试速查" class="quick"><h2 id="c10-quick-core">先记住这几件事</h2><ul><li>一个 EventLoop 处理多个连接，阻塞 JDBC 会影响其他连接。</li><li>subscribeOn 影响源执行，publishOn 影响后续信号。</li><li>背压仍需有界队列，timeout 不保证底层 SQL 已停。</li><li>重试会放大工作量，限制总次数、等待和依赖并发。</li><li>容量按实际耗时验证，灰度保证标签传播和数据可回退。</li></ul><h2 id="c10-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. Gateway 用了 Reactor，为何还会全站卡顿？</span></summary><div class="answer">
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c10-quick-core">先记住这几件事</h2><ul><li>一个 EventLoop 处理多个连接，阻塞 JDBC 会影响其他连接。</li><li>subscribeOn 影响源执行，publishOn 影响后续信号。</li><li>背压仍需有界队列，timeout 不保证底层 SQL 已停。</li><li>重试会放大工作量，限制总次数、等待和依赖并发。</li><li>容量按实际耗时验证，灰度保证标签传播和数据可回退。</li></ul><h2 id="c10-quick-qa">四个重点问题</h2><details class="question"><summary><span class="question-title">1. Gateway 用了 Reactor，为何还会全站卡顿？</span></summary><div class="answer">
 <p>因为 reactive 不会把同步调用自动变成非阻塞。EventLoop 内执行 JDBC，数据库慢时同一线程负责的多个连接都会等。</p>
 <p><strong>怎样定位到这段代码？</strong> 多次线程栈看到 reactor-http-nio 停在同步查询或 read，而不是继续处理 NioEventLoop 的事件。trace 再确认时间确实花在认证依赖。</p>
 <p><strong>怎么修？</strong> 采用异步客户端，必要阻塞调用放有界工作池，配独立并发与连接超时。慢依赖压测看其他路由是否受影响，不只加 Netty 线程。</p>
@@ -1971,11 +2185,171 @@ Mono&lt;Order&gt; load(long id) {
 <p>它把新增工作发给一个已经忙不过来的依赖，原来超时的请求还可能继续执行。多个层分别重试，又会把次数相乘。</p>
 <p><strong>抖动解决什么？</strong> 固定等待会让许多调用一起再次冲击，随机抖动把它们错开。但它不能使超载系统突然有更多能力，还需要限制总次数和总时间。</p>
 <p><strong>如何配合其他措施？</strong> 只在合适的一层做幂等、有界重试，持续失败时熔断，按依赖隔离并发，过载时限流和降级。监控重试占比，不等失败后无限补调用。</p>
-</div></details><h2 id="c10-quick-answer">一分钟回答</h2><p>一个 Netty EventLoop 服务多个连接，阻塞 JDBC 会让其他连接一起等。Reactor 用需求和队列协调处理，subscribeOn 与 publishOn 位置不同，返回 Mono 不自动非阻塞。稳定性要限制总等待、重试与并发，持续故障时熔断和降级，按依赖隔离资源。容量用实际吞吐和耗时估算并压测，灰度还需标签传播、数据兼容和真实回退，代码回滚不会撤销已写数据。</p><h2 id="c10-quick-errors">容易答错的地方与源码</h2><ul>
+</div></details><h2 id="c10-quick-answer">核心要点</h2><p>一个 Netty EventLoop 服务多个连接，阻塞 JDBC 会让其他连接一起等。Reactor 用需求和队列协调处理，subscribeOn 与 publishOn 位置不同，返回 Mono 不自动非阻塞。稳定性要限制总等待、重试与并发，持续故障时熔断和降级，按依赖隔离资源。容量用实际吞吐和耗时估算并压测，灰度还需标签传播、数据兼容和真实回退，代码回滚不会撤销已写数据。</p><h2 id="c10-quick-errors">常见误解与源码</h2><ul>
 <li>高频追问：timeout 会停止 SQL 吗？发布后哪些线程处理信号？MDC 怎么传？闭环压测会漏什么？</li>
 <li>容易答错：一连接一线程；返回 Mono 就非阻塞；boundedElastic 无限；背压不会 OOM；多加连接一定快；代码回滚恢复数据。</li>
 <li>常看的源码：<code>FilteringWebHandler.handle</code>、<code>DefaultGatewayFilterChain.filter</code>、<code>NioEventLoop.run/runAllTasks</code>、<code>FluxPublishOn.onNext</code> 和 request 处理。</li>
 <li>顺着一次请求看它在哪等，资源被谁占，再决定限流、隔离还是改调用方式。</li>
 </ul></section></article></main><aside aria-label="当前专题目录" id="right-toc"><div class="reading"><span id="progress-text">阅读进度 0%</span><span id="current-label"></span></div><p class="nav-label">本篇目录</p><nav id="toc"></nav></aside></div>
-<dialog aria-labelledby="search-title" id="search-dialog"><div class="search-head"><h2 id="search-title">全文搜索</h2><button aria-label="关闭搜索" id="search-close">关闭</button></div><label for="search-input">搜索关键词、源码方法或面试问题</label><input autocomplete="off" id="search-input" placeholder="例如：sizeCtl、事务回查、Direct buffer" type="search"/><p aria-live="polite" id="search-status" role="status">输入关键词，搜索十个专题的完整正文与答案。</p><div id="search-results"></div></dialog><div aria-live="polite" id="toast" role="status"></div>
-<footer>按章标注源码版本 · 故障案例为模拟情境 · <a href="./handbook.md">下载 Markdown 正文</a> · <a href="./VERIFICATION.md">验证范围</a></footer></body></html>
+<dialog aria-labelledby="search-title" id="search-dialog"><div class="search-head"><h2 id="search-title">全文搜索</h2><button aria-label="关闭搜索" id="search-close">关闭</button></div><label for="search-input">搜索关键词、源码方法或学习问题</label><input autocomplete="off" id="search-input" placeholder="例如：sizeCtl、事务回查、Direct buffer" type="search"/><p aria-live="polite" id="search-status" role="status">输入关键词，搜索十个专题的完整正文与答案。</p><div id="search-results"></div></dialog><div aria-live="polite" id="toast" role="status"></div>
+<footer>按章标注源码版本 · 故障案例为模拟情境 · <a href="./handbook.md">下载 Markdown 正文</a> · <a href="./VERIFICATION.md">验证范围</a></footer><dialog id="diagram-dialog" aria-label="图解放大"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];}
+  function makeToc() {
+    sections=visibleHeadings();$('#toc').replaceChildren();
+    sections.forEach(h=>{const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';$('#toc').append(a);});
+    $('#current-label').textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)$('#review-route').scrollIntoView({block:'start'});closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      requestAnimationFrame(()=>{target.scrollIntoView({block:'start'});if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();});
+    }
+    updateReading();
+  }
+  function updateReading() {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;const box=active.getBoundingClientRect();
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('#toc a,.chapter-nav div a').forEach(a=>a.classList.toggle('current',!!current && a.hash==='#'+current.id));
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{const canvas=$('#diagram-content');canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));canvas.querySelectorAll('[id]').forEach(el=>{el.id='zoom-'+el.id});canvas.querySelectorAll('*').forEach(el=>{for(const attr of ['style','fill','stroke','marker-end','marker-start','clip-path']){const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.replace(/url\(#/g,'url(#zoom-'));}});scale(1);viewer.showModal();});
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
+})();
+</script></body></html>

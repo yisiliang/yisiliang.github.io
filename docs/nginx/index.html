@@ -3,122 +3,221 @@
 
 /* Wrap fixed-SHA source links without overflowing small reading viewports. */
 main p,main li,main blockquote{overflow-wrap:anywhere}
-</style><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script><style id="reader-design">/* Shared reading design: CAP / BASE palette, typography and page geometry. */
-:root,html.dark,body.reader-page,body.reader-page.dark,body.reader-page.light {
-  color-scheme:dark;--bg:#111c2b;--paper:#18263a;--panel:#18263a;--ink:#e8eaf1;
-  --muted:#aab5c9;--accent:#c0afff;--blue:#c0afff;--line:#344157;
-  --code:#1e2d43;--quote:#18263a;--head:#e8eaf1;--shadow:none;
-}
-body.reader-page.reader-light {
-  color-scheme:light;--bg:#f6f7fb;--paper:#edeff7;--panel:#edeff7;--ink:#263248;
-  --muted:#606c82;--accent:#67529e;--blue:#67529e;--line:#d4d8e5;--code:#e9edf5;
-  --quote:#edeff7;--head:#263248;
-}
-html{scroll-padding-top:24px}
-body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif}
-.reader-page a,.reader-page.dark a{color:var(--accent)}
-.reader-page p,.reader-page li{overflow-wrap:anywhere}
-.reader-page p{margin:18px 0}
-.reader-page button,.reader-page input{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
-.reader-page button{cursor:pointer;font-size:13px}
-.reader-page a:focus-visible,.reader-page button:focus-visible,.reader-page input:focus-visible,.reader-page summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
-.reader-page .reader-wrap{width:calc(100% - 80px);max-width:1240px;margin:auto}
-.reader-page header.reader-header{height:auto;position:static;inset:auto;display:block;padding:32px 0 50px;border:0;border-bottom:1px solid var(--line);background:linear-gradient(125deg,#1c2940,var(--bg));backdrop-filter:none;color:var(--ink)}
-.reader-page.reader-light header.reader-header{background:linear-gradient(125deg,#ebe7f6,var(--bg))}
-.reader-header .home{font-size:14px}
-.reader-page .reader-header .hero{max-width:none;padding:0;margin:0;background:none;box-shadow:none;border:0;border-radius:0;color:var(--ink)}
-.reader-page .reader-header .eyebrow,.reader-page .reader-header small{display:block;font-size:11px;letter-spacing:2px;color:var(--accent);margin:26px 0 10px}
-.reader-page .reader-header h1{font:600 clamp(40px,6vw,72px)/1.2 Georgia,'Songti SC',serif;margin:14px 0 22px;padding:0;border:0;max-width:1100px;color:var(--ink)}
-.reader-page .reader-header .lead,.reader-page .reader-header .subtitle{font-size:23px;color:var(--accent);margin:0 0 16px;opacity:1}
-.reader-page .reader-header p:not(.lead){color:var(--muted);max-width:820px;opacity:1}
-.reader-page .reader-header .hero-meta,.reader-page .reader-header .stats,.reader-page .reader-header .badges{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0}
-.reader-page .reader-header .hero-meta span,.reader-page .reader-header .stats span,.reader-page .reader-header .badges span{font-size:12px;padding:4px 12px;border:1px solid var(--line);border-radius:20px;color:var(--ink);background:none}
-.reader-page .reader-header .links,.reader-page .reader-header .actions{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:14px}
-.reader-page .reader-header .links a,.reader-page .reader-header .start{padding:0;background:none;border:0;border-radius:0;color:var(--accent);font-size:14px}
-.reader-page .reader-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px;padding-top:36px}
-.reader-page .reader-layout>aside,.reader-page .reader-layout>nav{position:sticky;inset:auto;top:24px;align-self:start;display:block;width:auto;height:auto;max-height:calc(100vh - 48px);overflow:auto;background:none;border:0;padding:0 8px 0 0;box-shadow:none;z-index:auto;font-size:13px}
-.reader-page .reader-layout>main{margin:0;padding:0 0 60px;min-width:0;width:auto;max-width:none}
-.reader-page main article{max-width:none;margin:0;padding:0;background:none;border:0;border-radius:0;box-shadow:none;color:var(--ink)}
-.reader-page .reader-tools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
-.reader-page .reader-tools #menu{display:none}
-/* Keep the field and actions together; status gets its own full-width row. */
-.reader-page .search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:0 0 18px;align-items:stretch}
-.reader-page .search:has(#find){grid-template-columns:minmax(0,1fr) auto auto}
-.reader-page .search input{grid-column:1;grid-row:1;width:100%;min-width:0;margin:0;box-sizing:border-box}
-.reader-page .search button{grid-row:1;margin:0;white-space:nowrap}
-.reader-page .search #next{display:block}
-.reader-page .search #search-status{grid-column:1/-1;grid-row:2;margin:0;min-width:0;overflow-wrap:anywhere}
-.reader-page .search #search-status:empty{display:none}
-.reader-page aside>input{width:100%;min-width:0;margin-bottom:6px}
-/* Sidebar scroll containers clip outward outlines, so draw these inside. */
-.reader-page .search input:focus-visible,.reader-page .search button:focus-visible,.reader-page aside>input:focus-visible{outline-offset:-3px}
-.reader-page .nav-head,.reader-page .sidebar-label,.reader-page nav>strong{display:block;font-size:12px;letter-spacing:1px;color:var(--accent);padding:0;margin:0 0 12px}
-.reader-page .nav-head span,.reader-page .nav-note{display:block;color:var(--muted);font-size:12px}
-.reader-page aside nav{position:static;max-height:none;padding:0;font-size:13px}
-.reader-page nav a{display:block;color:var(--muted);padding:8px 0;border:0;border-radius:0;line-height:1.7;font-size:13px}
-.reader-page nav a:hover,.reader-page nav a.active{color:var(--accent);background:var(--panel)}
-.reader-page nav a span{color:var(--accent);margin-right:8px}
-.reader-page nav details{padding:0;margin:0;border:0;background:none}
-.reader-page nav summary{padding:0;color:var(--muted)}
-.reader-page nav summary a{display:inline}
-.reader-page .nav-sub{border-left:1px solid var(--line);margin:0 0 10px 6px;padding-left:12px}
-.reader-page .jump{padding:0;margin:14px 0;background:none;border-color:var(--line)}
-.reader-page main h1,.reader-page main h2{font:600 28px/1.5 'Songti SC',serif;color:var(--ink);border-color:var(--line);margin:38px 0 22px}
-.reader-page main h3{font-size:20px;color:var(--ink)}
-.reader-page main section,.reader-page .chapter{padding-bottom:38px;margin-bottom:38px;border-color:var(--line)}
-.reader-page blockquote,.reader-page .callout,.reader-page .note{margin:26px 0;padding:18px 22px;border:0;border-left:3px solid var(--accent);background:var(--panel);color:var(--ink);border-radius:0}
-.reader-page code{font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent);background:var(--code);padding:2px 5px;border-radius:4px}
-.reader-page pre,.reader-page pre code{color:#d7e0ed;background:#152236;font-size:13px;line-height:1.7}
-.reader-page pre code{padding:0;border-radius:0;overflow-wrap:normal}
-.reader-page .source-card,.reader-page .source,.reader-page .source-block,.reader-page .source-box{border-color:var(--line);background:var(--panel);box-shadow:none}
-.reader-page .source-head,.reader-page .source-bar,.reader-page .source-meta,.reader-page .source-label{background:var(--panel);color:var(--muted);border-color:var(--line)}
-.reader-page .hljs-comment,.reader-page .comment{color:#a5b6ce}
-.reader-page .hljs-keyword,.reader-page .keyword{color:#dbb9ff}
-.reader-page .hljs-string{color:#a8d8b0}
-.reader-page .hljs-title,.reader-page .hljs-type{color:#9ccfff}
-.reader-page .hljs-number,.reader-page .hljs-literal{color:#ffd59b}
-.reader-page figure,.reader-page .diagram,.reader-page .mechanism{margin:28px 0;padding:20px;border:1px solid var(--line);border-radius:12px;background:#152236;overflow:auto}
-/* Fixed-source SVGs keep their own light canvas and color legends. */
-.reader-page figure svg{background:#f6f8fc;border-radius:6px}
-.reader-page figcaption{font-size:12px;color:var(--muted);background:none;padding:16px 0 0}
-.reader-page table{border-collapse:collapse;width:100%;font-size:14px;color:var(--ink)}
-.reader-page th,.reader-page td{border:1px solid var(--line);padding:14px;text-align:left;vertical-align:top;background:none;color:var(--ink)}
-.reader-page th{background:var(--panel);color:var(--accent)}
-.reader-page .table-wrap,.reader-page .table-scroll{overflow:auto;margin:26px 0}
-.reader-page main article>table{display:block;overflow:auto}
-.reader-page mark{background:#d5b35b;color:#152236}
-.reader-page footer{font-size:13px;color:var(--muted);background:none;border-color:var(--line)}
-.reader-page .reader-skip{position:absolute;top:-80px;left:20px;padding:12px;background:var(--panel);z-index:50}
-.reader-page .reader-skip:focus{top:8px}
-.reader-page #progress{display:none}
-@media(max-width:950px){.reader-page .reader-layout{grid-template-columns:180px minmax(0,1fr);gap:26px}.reader-page .reader-wrap{width:calc(100% - 48px)}}
-@media(max-width:700px){
- .reader-page .reader-wrap{width:calc(100% - 36px)}
- .reader-page header.reader-header{padding-bottom:32px}
- .reader-page .reader-header .lead,.reader-page .reader-header .subtitle{font-size:20px}
- .reader-page .reader-layout{display:block;padding-top:24px}
- .reader-page .reader-layout>aside,.reader-page .reader-layout>nav{position:static;display:block;max-height:none;width:auto;padding:0 0 20px;margin-bottom:28px;border-bottom:1px solid var(--line)}
- .reader-page .reader-tools #menu{display:block}
- .reader-page .reader-layout>aside nav{max-height:360px;overflow:auto}
- .reader-page.reader-collapsed aside nav,.reader-page.reader-collapsed aside .jump{display:none}
- .reader-page main h1,.reader-page main h2{font-size:25px}
- .reader-page figure,.reader-page .diagram,.reader-page .mechanism{padding:16px}
- .reader-page blockquote,.reader-page .callout{padding:16px}
-}
+</style><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script><style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="java-architect-interview"] .diagram svg .edgePath path,[data-reader="java-architect-interview"] .diagram svg .flowchart-link,[data-reader="java-architect-interview"] .diagram svg .messageLine0,[data-reader="java-architect-interview"] .diagram svg .messageLine1,[data-reader="java-architect-interview"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel span,[data-reader="java-architect-interview"] .diagram svg .messageText,[data-reader="java-architect-interview"] .diagram svg .loopText,[data-reader="java-architect-interview"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled .chapter:not(.active){display:none}.js-enabled .route{display:none}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}.js-enabled.show-route .chapter{display:none}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-@media print{
- body.reader-page{background:white;color:#20324d;--ink:#20324d;--muted:#62718a;--line:#dde5f0;--panel:#f1f4fa;--accent:#67529e}
- .reader-page header.reader-header,.reader-page .reader-layout>aside,.reader-page .reader-layout>nav,.reader-page .reader-skip{display:none}
- .reader-page .reader-layout{display:block;width:100%;padding:0}
- .reader-page .reader-layout>main{padding:0}
- .reader-page pre,.reader-page pre code{background:#f1f4fa;color:#20324d;white-space:pre-wrap}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
 }
-.reader-page[data-reader="nacos"] figure svg{background:#152236}
-.reader-page .reader-tools #theme,.reader-page .reader-tools #print{display:block}
-.reader-page aside nav{border:0;background:none}
-.reader-page nav a.hide,.reader-page nav a.hidden{display:none}
-.reader-page h1,.reader-page h2,.reader-page h3,.reader-page h4{overflow-wrap:anywhere}
-</style></head><body class="reader-page" data-reader="nginx"><a class="reader-skip" href="#reader-content">跳至正文</a><header class="reader-header"><div class="reader-wrap"><a class="home" href="../">← 源码学习库</a><div class="hero"><p class="eyebrow">NETWORK / TRAFFIC</p><h1>NGINX</h1><p class="lead">沿一条HTTP请求，读懂事件驱动与流量治理。</p><p>从连接与事件循环，到代理、路由、缓存和限流，追踪真实调用链与失败边界。</p><div class="hero-meta"><span>NGINX1.28.0</span><span>24章机制分析</span><span>24幅图解</span><span>24段真实源码</span></div><div class="links"><a href="./nginx-offline.zip" download>下载离线阅读包 ↓</a><a href="./handbook.md">Markdown手册</a></div></div></div></header><div class="reader-layout reader-wrap"><aside class="sidebar" id="toc-panel"><div class="reader-tools"><button id="menu" class="mobile-menu" aria-controls="toc-panel" aria-expanded="false">目录</button><button id="theme" aria-label="切换明暗主题">明暗</button></div><div id="progress"></div><div class="sidebar-label">NETWORK / TRAFFIC</div><label for="search" class="sidebar-label">章节全文检索</label><input id="search" type="search" placeholder="搜索字段、函数、机制…"><div id="search-status" aria-live="polite"></div><nav aria-label="章节目录"><a href="#chapter-01"><span>01</span>阅读坐标：进程、连接、请求三层对象</a><a href="#chapter-02"><span>02</span>配置不是每次请求重新解释</a><a href="#chapter-03"><span>03</span>master、信号与worker退出</a><a href="#chapter-04"><span>04</span>reload与二进制热升级</a><a href="#chapter-05"><span>05</span>事件循环：就绪、投递、超时</a><a href="#chapter-06"><span>06</span>epoll与kqueue：就绪不是完成</a><a href="#chapter-07"><span>07</span>timer红黑树与超时语义</a><a href="#chapter-08"><span>08</span>accept、惊群与接入公平性</a><a href="#chapter-09"><span>09</span>connection池：为什么连接数不等于请求数</a><a href="#chapter-10"><span>10</span>pool、buffer、chain：异步所有权</a><a href="#chapter-11"><span>11</span>HTTP请求行：分片输入与状态保存</a><a href="#chapter-12"><span>12</span>server与location：树查找不是按书写顺序扫描</a><a href="#chapter-13"><span>13</span>phase engine：模块如何组合</a><a href="#chapter-14"><span>14</span>rewrite与内部跳转：重入有预算</a><a href="#chapter-15"><span>15</span>请求体：buffering与可重放性</a><a href="#chapter-16"><span>16</span>upstream：把后端变成事件状态机</a><a href="#chapter-17"><span>17</span>负载均衡：平滑加权与失败状态</a><a href="#chapter-18"><span>18</span>重试：字节重放与业务重复</a><a href="#chapter-19"><span>19</span>上游keepalive与DNS边界</a><a href="#chapter-20"><span>20</span>proxy buffer与背压：两边速度不一致</a><a href="#chapter-21"><span>21</span>输出filter与sendfile：剩余链就是进度</a><a href="#chapter-22"><span>22</span>文件缓存：索引共享，内容在磁盘</a><a href="#chapter-23"><span>23</span>限流：共享内存漏桶与延迟事件</a><a href="#chapter-24"><span>24</span>TLS、终结与性能诊断</a></nav><p class="note">开源NGINX1.28.0<br>24章 / 24图 / 固定源码<br>离线无外部依赖</p><a href="#top">返回阅读地图 ↑</a></aside><main id="reader-content"><div class="eyebrow">SOURCE NOTES / NGINX 1.28.0</div><p><a id="top"></a></p>
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script></head><body class="learning-reader" data-layout="learning-v2" data-reader="nginx"><a class="skip" href="#main">跳到正文</a><header class="topbar"><button id="menu" class="mobile" aria-label="打开章节导航" aria-expanded="false" aria-controls="left-nav">目录</button><div class="brand"><a class="library-home" href="../">← 学习库</a>NGINX学习手册<span>1.28.0</span></div><div class="tools"><button id="search-open" aria-label="打开全文搜索">搜索 <kbd>/</kbd></button><button id="print" type="button">打印</button><button id="theme" aria-label="切换主题">主题：系统</button></div></header><div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div><div id="drawer-backdrop" hidden></div><div class="layout"><nav id="left-nav" aria-label="章节目录"><p class="nav-label">学习目录 / 24章</p><details class="chapter-nav" data-chapter="reading-001"><summary><a href="#reading-001"><span>01</span>01 · 阅读坐标：进程、连接、请求三层对象</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-002"><summary><a href="#reading-002"><span>02</span>02 · 配置不是每次请求重新解释</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-003"><summary><a href="#reading-003"><span>03</span>03 · master、信号与worker退出</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-004"><summary><a href="#reading-004"><span>04</span>04 · reload与二进制热升级</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-005"><summary><a href="#reading-005"><span>05</span>05 · 事件循环：就绪、投递、超时</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-006"><summary><a href="#reading-006"><span>06</span>06 · epoll与kqueue：就绪不是完成</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-007"><summary><a href="#reading-007"><span>07</span>07 · timer红黑树与超时语义</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-008"><summary><a href="#reading-008"><span>08</span>08 · accept、惊群与接入公平性</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-009"><summary><a href="#reading-009"><span>09</span>09 · connection池：为什么连接数不等于请求数</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-010"><summary><a href="#reading-010"><span>10</span>10 · pool、buffer、chain：异步所有权</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-011"><summary><a href="#reading-011"><span>11</span>11 · HTTP请求行：分片输入与状态保存</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-012"><summary><a href="#reading-012"><span>12</span>12 · server与location：树查找不是按书写顺序扫描</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-013"><summary><a href="#reading-013"><span>13</span>13 · phase engine：模块如何组合</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-014"><summary><a href="#reading-014"><span>14</span>14 · rewrite与内部跳转：重入有预算</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-015"><summary><a href="#reading-015"><span>15</span>15 · 请求体：buffering与可重放性</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-016"><summary><a href="#reading-016"><span>16</span>16 · upstream：把后端变成事件状态机</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-017"><summary><a href="#reading-017"><span>17</span>17 · 负载均衡：平滑加权与失败状态</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-018"><summary><a href="#reading-018"><span>18</span>18 · 重试：字节重放与业务重复</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-019"><summary><a href="#reading-019"><span>19</span>19 · 上游keepalive与DNS边界</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-020"><summary><a href="#reading-020"><span>20</span>20 · proxy buffer与背压：两边速度不一致</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-021"><summary><a href="#reading-021"><span>21</span>21 · 输出filter与sendfile：剩余链就是进度</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-022"><summary><a href="#reading-022"><span>22</span>22 · 文件缓存：索引共享，内容在磁盘</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-023"><summary><a href="#reading-023"><span>23</span>23 · 限流：共享内存漏桶与延迟事件</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-024"><summary><a href="#reading-024"><span>24</span>24 · TLS、终结与性能诊断</a></summary><div></div></details></nav><main id="main" tabindex="-1"><span id="reader-content"></span><section class="intro"><h1>NGINX学习手册</h1><p>沿一条HTTP请求，读懂事件驱动与流量治理。</p><div class="reader-downloads"><a href="./nginx-offline.zip" download>下载离线阅读包 ↓</a><a href="./handbook.md">Markdown手册</a></div><details class="reader-preface"><summary>版本、来源与学习路线</summary><div class="eyebrow">SOURCE NOTES / NGINX 1.28.0</div><p><a id="top"></a></p>
 <h1>NGINX源码学习手册</h1>
 <blockquote>
 <p>源码之下，系统之上。沿一条HTTP请求，读懂事件驱动、多进程、反向代理与流量治理的边界。</p>
@@ -182,8 +281,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <li><a href="#chapter-23">23 · 限流：共享内存漏桶与延迟事件</a></li>
 <li><a href="#chapter-24">24 · TLS、终结与性能诊断</a></li>
 </ul>
-<section class="chapter" data-chapter="chapter-01"><p><a id="chapter-01"></a></p>
-<h1>01 · 阅读坐标：进程、连接、请求三层对象</h1>
+</details></section><article class="chapter" id="reading-001" data-title="01 · 阅读坐标：进程、连接、请求三层对象"><div class="chapter-title"><p class="eyebrow">章节01 / 完整阅读</p><h1>01 · 阅读坐标：进程、连接、请求三层对象</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-01"><p><a id="chapter-01"></a></p>
+
 <p><strong>先画清责任，再进入函数</strong></p>
 <p>NGINX1.28.0是本书的固定阅读基线，不是对最新发行版的声明。范围是开源版HTTP/1.x反向代理的Unix实现，必要时解释HTTP/2、HTTP/3与Windows边界。源码树中<code>core</code>放基础对象，<code>event</code>放通知、计时与异步传输，<code>http</code>放协议和模块，<code>os/unix</code>封装进程、系统调用与平台差异。沿目录分类读完代码，仍可能不知道一次请求为何结束；本书选择沿对象生命周期组织。</p>
 <p>启动链是<code>main → ngx_init_cycle → ngx_master_process_cycle → ngx_start_worker_processes → ngx_spawn_process → ngx_worker_process_cycle</code>。master创建配置周期并管理子进程，worker接入、解析、代理、发送；启用文件缓存时还有cache manager/loader等辅助进程。<code>ngx_cycle_t</code>属于一轮配置，<code>ngx_connection_t</code>属于一个socket，<code>ngx_http_request_t</code>属于一次请求。HTTP/1.x keepalive可以让同一连接串行承载多次请求；HTTP/2、HTTP/3则允许多流，不能将本书HTTP/1.x状态机直接套到每条流的连接管理上。</p>
@@ -218,8 +317,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>失败推演：</strong>一个worker进程崩溃，其现有连接不能自动迁到其他worker；master可以重生进程，但只能承接后续请求。负载均衡的多进程提升隔离程度，不提供请求执行的事务恢复。</p>
 <p><strong>纸面检查：</strong>把“master、worker、共享区、内核socket”各画一个框，逐一放入配置、free_connections、限流计数、listen fd。实验前先执行<code>nginx -V</code>确认构建选项，不能凭二进制名称断言包含SSL或stub_status模块。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-02"><p><a id="chapter-02"></a></p>
-<h1>02 · 配置不是每次请求重新解释</h1>
+</section></div></article><article class="chapter" id="reading-002" data-title="02 · 配置不是每次请求重新解释"><div class="chapter-title"><p class="eyebrow">章节02 / 完整阅读</p><h1>02 · 配置不是每次请求重新解释</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-02"><p><a id="chapter-02"></a></p>
+
 <p><strong>指令表把文本编译成运行期结构</strong></p>
 <p>配置路径<code>ngx_init_cycle → ngx_conf_parse → ngx_conf_read_token → ngx_conf_handler</code>把词法片段装进<code>cf-&gt;args</code>，查模块的<code>ngx_command_t</code>指令表。<code>cmd-&gt;type</code>同时编码允许的上下文、参数数目和是否是block；<code>cmd-&gt;set</code>才执行具体字段赋值或复杂解析。<code>http</code>块入口创建HTTP模块的main/server/location配置数组，各模块按<code>ctx_index</code>定位自己的槽位。</p>
 <p>因此把<code>proxy_pass</code>放进<code>events</code>块不是运行时“找不到后端”，而是配置阶段上下文检查失败；缺少分号、括号、参数数目错误也在这里拒绝。简单字符串setter、数值setter与upstream复杂setter承担不同校验。模块的create/merge回调负责创建默认值、合并上层配置；“所有指令无条件继承”并不存在，某些数组只在本层未配置时整体继承。</p>
@@ -255,10 +354,10 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 </code></pre>
 <p><strong>字段变化：</strong>解析前字段常设为<code>NGX_CONF_UNSET</code>；setter写入配置值，merge阶段填缺省或继承上级值，初始化阶段构造hash、location树与phase数组。随后请求通过<code>r-&gt;main_conf / srv_conf / loc_conf</code>读取对应结构。</p>
 <p><strong>失败后果与实验：</strong><code>nginx -t -p "$LAB/" -c conf/nginx.conf</code>只做配置与资源检查，不证明上游能连接、不证明业务路由正确。把lab中的<code>proxy_pass</code>临时移到<code>http</code>块，应得到上下文错误；恢复后再测试。<code>nginx -T</code>包含配置内容，适合本地虚构实验，不要将真实密钥路径和内网拓扑作为公开教程样本。</p>
-<p><strong>面试复述：</strong>配置在cycle创建时解析、合并和预计算；请求只切换配置指针。reload是创建新的cycle，而不是在旧配置结构上到处修改字段。</p>
+<p><strong>知识回顾：</strong>配置在cycle创建时解析、合并和预计算；请求只切换配置指针。reload是创建新的cycle，而不是在旧配置结构上到处修改字段。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-03"><p><a id="chapter-03"></a></p>
-<h1>03 · master、信号与worker退出</h1>
+</section></div></article><article class="chapter" id="reading-003" data-title="03 · master、信号与worker退出"><div class="chapter-title"><p class="eyebrow">章节03 / 完整阅读</p><h1>03 · master、信号与worker退出</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-03"><p><a id="chapter-03"></a></p>
+
 <p><strong>信号设置意图，主循环执行生命周期操作</strong></p>
 <p>Unix信号处理器根据进程角色设置<code>ngx_reconfigure、ngx_quit、ngx_terminate、ngx_reopen</code>等标志。master主循环在合适位置检查这些标志，worker自己的循环也检查退出与日志重开标志。HUP用于重新加载配置，QUIT用于优雅结束，TERM/INT用于快速结束，USR1用于重开日志。不要把给master发HUP与给某个worker发HUP混为一谈。</p>
 <p>worker接到QUIT后设置<code>ngx_exiting</code>，关闭监听socket和空闲连接，处理已投递事件；下一轮继续运行事件循环，直到非可取消timer等退出条件满足。已有活动请求有机会完成，新连接由其他正常worker接入。若设置<code>worker_shutdown_timeout</code>，超时会触发关闭；长连接、慢请求和第三方模块都可能拉长优雅退出过程。</p>
@@ -283,8 +382,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>运行lab后，记录<code>ps</code>中的master/worker PID，发<code>nginx -p "$LAB/" -c conf/nginx.conf -s quit</code>，查看<code>error.log</code>里的“gracefully shutting down”和退出记录。实验应只对lab实例操作。先启动lab后端的<code>/slow</code>请求再QUIT，可以观察短请求完成；本书未在NGINX进程上实际执行信号实验。</p>
 <p><strong>失败推演：</strong>客户端看见连接断开，只能证明传输结束；不能证明上游没处理POST。优雅退出也不是业务幂等性的替代品。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-04"><p><a id="chapter-04"></a></p>
-<h1>04 · reload与二进制热升级</h1>
+</section></div></article><article class="chapter" id="reading-004" data-title="04 · reload与二进制热升级"><div class="chapter-title"><p class="eyebrow">章节04 / 完整阅读</p><h1>04 · reload与二进制热升级</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-04"><p><a id="chapter-04"></a></p>
+
 <p><strong>两代配置可以重叠，状态迁移有边界</strong></p>
 <p>HUP路径<code>ngx_master_process_cycle → ngx_init_cycle(old_cycle)</code>尝试解析新配置、打开文件、准备监听和共享区。创建失败返回NULL时master保留旧cycle并继续服务；创建成功后设置新<code>ngx_cycle</code>，启动新worker，再向旧worker发优雅退出信号。新配置接管后续请求，旧worker仍持有自己的配置视图与已有连接。因此reload不是一个瞬间覆盖所有请求的原子配置切换。</p>
 <p>旧监听socket在地址和选项允许时可以复用。共享内存区是否复用取决于名字、tag、尺寸、noreuse和模块初始化逻辑；内存池与请求对象不会从老worker搬到新worker。新旧worker短时间并存会提高内存和fd需求。<code>worker_shutdown_timeout</code>能限制旧进程拖延，但代价可能是未完成传输终止。</p>
@@ -317,8 +416,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>lab中更改<code>/version</code>的返回字符串，先<code>-t</code>，再<code>-s reload</code>，随后用新的curl连接读取新值；同时保留之前的<code>/slow</code>传输，观察旧worker排空。将端口改为不允许绑定的地址或制造语法错误，比较<code>-t</code>失败与error日志。NGINX实际reload还可能受资源、权限变化影响，预检查通过仍不是成功证据。</p>
 <p><strong>官方规则依据：</strong><a href="https://nginx.org/en/docs/control.html">Controlling nginx</a>。文档是滚动页，版本行为应以本书固定C源码为最终核对对象。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-05"><p><a id="chapter-05"></a></p>
-<h1>05 · 事件循环：就绪、投递、超时</h1>
+</section></div></article><article class="chapter" id="reading-005" data-title="05 · 事件循环：就绪、投递、超时"><div class="chapter-title"><p class="eyebrow">章节05 / 完整阅读</p><h1>05 · 事件循环：就绪、投递、超时</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-05"><p><a id="chapter-05"></a></p>
+
 <p><strong>一个循环有明确的调度顺序</strong></p>
 <p>事件循环并非“epoll拿到列表后挨个执行”这么短。<code>ngx_process_events_and_timers</code>先找最近timer，处理accept mutex与next posted事件，调用事件后端，再处理posted accept事件、解锁accept mutex、到期timer和普通posted事件。<code>ngx_posted_next_events</code>非空时会让本轮等待超时为0，以便让延期到下一轮的任务继续推进。</p>
 <p><code>ngx_event_t</code>将read/write事件、handler、ready、active、timedout、delayed、timer_set、instance等状态放在一起。<code>active</code>表示向通知系统注册，不等于“当前有数据”；<code>ready</code>表示本轮可尝试I/O，不保证一次能处理完；<code>timedout</code>由timer路径设置。不同模块更换handler意味着同一事件对象进入新的协议阶段。</p>
@@ -348,8 +447,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>失败后果：</strong>handler做CPU密集计算、同步DNS或阻塞文件读取时，该worker后面的所有事件和timer都延后；timer并没有独立抢占线程。增大<code>worker_connections</code>只增加容纳量，不会消除阻塞。</p>
 <p><strong>实验：</strong>在包含debug能力的隔离构建中设置<code>error_log ... debug</code>，观察“worker cycle / event timer / http”的时间顺序；debug日志本身会改变I/O负载。生产诊断更适合第24章的时延分段。本文仅验证源码路径，未测吞吐或延迟。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-06"><p><a id="chapter-06"></a></p>
-<h1>06 · epoll与kqueue：就绪不是完成</h1>
+</section></div></article><article class="chapter" id="reading-006" data-title="06 · epoll与kqueue：就绪不是完成"><div class="chapter-title"><p class="eyebrow">章节06 / 完整阅读</p><h1>06 · epoll与kqueue：就绪不是完成</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-06"><p><a id="chapter-06"></a></p>
+
 <p><strong>平台适配共享事件抽象</strong></p>
 <p>Linux路径由<code>ngx_epoll_process_events</code>调用<code>epoll_wait</code>，将内核返回的数据指针还原为connection，并校验fd与<code>instance</code>。回收connection槽位时read/write事件instance翻转，避免同一轮中旧socket的陈旧通知误处理复用槽位的新连接。仅比较fd数字不够：操作系统能快速复用fd。</p>
 <p>epoll实现设置clear-event能力，对普通连接的注册路径使用边沿通知语义；监听socket还涉及EPOLLEXCLUSIVE、reuseport等独立分支，不能宣称所有fd都使用完全相同flag。handler应读取/写入直到EAGAIN或业务/调度边界，再正确重新注册或保留事件。当本地buffer已满时，不能无限读取；要保持进度并让消费者推进。</p>
@@ -380,8 +479,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>失败推演：</strong>边沿模式中只读一小段便无条件忘掉剩余数据，可能等不到新的边沿；反过来不停忽略EAGAIN会造成忙等。自定义模块必须遵守NGINX事件辅助函数的返回和能力标志。</p>
 <p><strong>平台实验：</strong>在Linux看<code>nginx -V</code>与启动notice里的“using the epoll event method”；在macOS通常应是kqueue，除非显式构建/选择其他后端。可用Linux <code>strace -f -e epoll_wait,epoll_ctl,accept4,recvfrom,sendfile</code>仅附着lab实例。本书没有执行平台系统调用跟踪，不据此给跨平台性能结论。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-07"><p><a id="chapter-07"></a></p>
-<h1>07 · timer红黑树与超时语义</h1>
+</section></div></article><article class="chapter" id="reading-007" data-title="07 · timer红黑树与超时语义"><div class="chapter-title"><p class="eyebrow">章节07 / 完整阅读</p><h1>07 · timer红黑树与超时语义</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-07"><p><a id="chapter-07"></a></p>
+
 <p><strong>timeout是事件间隔，触发仍靠循环</strong></p>
 <p>计时不是为每条连接建立线程。<code>ngx_event_add_timer</code>用<code>ngx_current_msec + timer</code>构造key，将事件内嵌的红黑树节点插入全局timer树；<code>ngx_event_find_timer</code>取最小key，作为事件等待上限。到期处理反复取最小节点，删除节点、清timer_set、设timedout，然后调用原handler。此“全局”仍是在一个worker的普通内存里。</p>
 <p><code>timer_set</code>防止同一节点重复插入。更新timer时，差值小于<code>NGX_TIMER_LAZY_DELAY</code>可以保留旧值，减少树操作；固定源码宏为300ms，因此不能拿debug日志里的timer更新时间当作每字节严格重设的合同。毫秒差用有符号差值比较以处理正常计时范围内的wrap，墙钟变化也需结合NGINX时间缓存实现读。</p>
@@ -420,8 +519,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>lab的<code>/slow?gap=2</code>每块间隔2秒；配置<code>proxy_read_timeout 1s</code>应在读等待期间超时。换为<code>gap=0.2</code>，即使整体传输超过1秒也可能继续完成。若已将响应头写给客户端，则后续超时通常表现为截断，不能重新发一个干净的504响应。</p>
 <p><strong>证据定位：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_timer.h#L56-L86"><code>ngx_event_add_timer · L56–L86</code></a>。测试时必须同时看curl exit code、收到字节数和error日志。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-08"><p><a id="chapter-08"></a></p>
-<h1>08 · accept、惊群与接入公平性</h1>
+</section></div></article><article class="chapter" id="reading-008" data-title="08 · accept、惊群与接入公平性"><div class="chapter-title"><p class="eyebrow">章节08 / 完整阅读</p><h1>08 · accept、惊群与接入公平性</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-08"><p><a id="chapter-08"></a></p>
+
 <p><strong>监听竞争与连接容量分别治理</strong></p>
 <p>worker继承监听socket，内核新连接进入监听队列后触发accept handler。<code>ngx_event_accept</code>在支持时使用<code>accept4(...SOCK_NONBLOCK)</code>；ENOSYS会退回accept路径，并另外处理非阻塞设置。EAGAIN意味着此时队列取空，并非一次业务失败。ECONNABORTED、EMFILE、ENFILE有不同日志等级与恢复处理。</p>
 <p>接入竞争有多种机制：accept mutex协调worker监听事件注册；支持的Linux可使用EPOLLEXCLUSIVE减少同时唤醒；<code>listen ... reuseport</code>给worker各自socket并由内核分配。<code>accept_mutex</code>在本基线默认off，不能用古老版本的“所有worker必抢一把accept锁”解释现代配置。多种机制的有效组合取决于构建、系统和配置。</p>
@@ -454,8 +553,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>在lab启动日志确认后端；用多进程并发curl比较worker PID日志分布。<code>reuseport</code>实验必须在支持的平台与隔离端口，预期是监听方式改变，不承诺严格均匀。本文未实测惊群或accept公平性。</p>
 <p><strong>推导题：</strong>若upstream连接也占槽，1000个反向代理客户端可能需要接近2000个活动connection对象，加上空闲上游、监听和内部连接。这个估算不是硬性QPS公式。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-09"><p><a id="chapter-09"></a></p>
-<h1>09 · connection池：为什么连接数不等于请求数</h1>
+</section></div></article><article class="chapter" id="reading-009" data-title="09 · connection池：为什么连接数不等于请求数"><div class="chapter-title"><p class="eyebrow">章节09 / 完整阅读</p><h1>09 · connection池：为什么连接数不等于请求数</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-09"><p><a id="chapter-09"></a></p>
+
 <p><strong>槽位复用与fd生命周期联动</strong></p>
 <p><code>ngx_get_connection</code>先尝试排空可复用空闲连接，再从<code>cycle-&gt;free_connections</code>链取槽，减<code>free_connection_n</code>。槽位存有read/write事件指针，清零connection后保留这些指针，重新设置fd、log、data和instance。<code>ngx_free_connection</code>把槽还给链表；关闭系统socket、注销通知与归还槽位是关联但不同的步骤。</p>
 <p>一个客户端keepalive请求结束后，request pool可以释放而connection仍存在。反向代理还需要上游connection；上游keepalive缓存中的空闲socket也占fd和worker连接资源。HTTP/2每个stream是request，但多stream共享client connection；不能把同一公式用于HTTP/1.x、HTTP/2和HTTP/3。</p>
@@ -501,8 +600,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>纸面实例：</strong>一个worker，1024个槽位，500个客户端加500个上游已接近饱和；再留256个idle upstream会超过数组容量。这是保守容量练习，实际要扣监听、内部channel等占用并看负载。</p>
 <p><strong>实验：</strong>lab配置1024，改变为很小的值后先<code>-t</code>，并发持续<code>/slow</code>。观察错误日志与fd数，而不是只看curl成功次数。勿用这个局部压测推算生产容量；本书未执行并发容量测试。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-10"><p><a id="chapter-10"></a></p>
-<h1>10 · pool、buffer、chain：异步所有权</h1>
+</section></div></article><article class="chapter" id="reading-010" data-title="10 · pool、buffer、chain：异步所有权"><div class="chapter-title"><p class="eyebrow">章节10 / 完整阅读</p><h1>10 · pool、buffer、chain：异步所有权</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-10"><p><a id="chapter-10"></a></p>
+
 <p><strong>内存会集中释放，数据进度单独推进</strong></p>
 <p>NGINX小对象频繁分配但多以请求为生命周期。<code>ngx_palloc_small</code>从pool当前块的<code>d.last</code>向后划分空间，按需对齐，块不够则走next或创建块；大块分配另记在large链。销毁pool统一运行cleanup并释放大块与pool blocks。它减少逐个malloc/free的管理成本，但小对象通常不能逐个归还，内存仍随pool保留。</p>
 <p><code>ngx_buf_t</code>表示一段数据：内存用<code>pos / last</code>表示待消费区间，容量用<code>start / end</code>；文件用<code>file_pos / file_last</code>，同时有in_file、temporary、flush、sync、last_buf等标志。<code>ngx_chain_t</code>是指向buffer的链，不等于复制了一份数据。output filters推进pos/file_pos，而pool决定内存什么时候真正释放。</p>
@@ -534,8 +633,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>失败推演：</strong>慢客户端让busy buffer长期不能复用，放大每请求内存；pool泄漏常表现为请求无法完成/引用计数不归零，未必是malloc忘free。持有request pool指针到长期配置是悬空指针风险。</p>
 <p><strong>练习：</strong>画出一个buffer<code>pos=100、last=500</code>，本轮发送150字节后为<code>pos=250</code>，仍欠250字节。链节点可回收与底层内存可复用必须分别判断。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-11"><p><a id="chapter-11"></a></p>
-<h1>11 · HTTP请求行：分片输入与状态保存</h1>
+</section></div></article><article class="chapter" id="reading-011" data-title="11 · HTTP请求行：分片输入与状态保存"><div class="chapter-title"><p class="eyebrow">章节11 / 完整阅读</p><h1>11 · HTTP请求行：分片输入与状态保存</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-11"><p><a id="chapter-11"></a></p>
+
 <p><strong>TCP没有一请求一包的边界</strong></p>
 <p>连接的read handler从等待请求切到<code>ngx_http_process_request_line</code>，读取header buffer后调用<code>ngx_http_parse_request_line(r,b)</code>。解析器逐字符推进enum状态：method、URI、协议版本、CRLF等。<code>r-&gt;state</code>在下次进入时恢复，<code>b-&gt;pos</code>指向已消费位置，字段指针记录method与URI等边界。NGX_AGAIN表示当前输入不足，不表示请求被拒绝。</p>
 <p>TCP可能把请求行拆成任意多个片段，也可能把header和body一起送来。解析器不能用一次recv等于完整消息的假设。遇到无效method、协议字符、URI问题等返回具体解析错误，调用者转为协议错误处理；完整请求行还要经<code>ngx_http_process_request_uri</code>做规范化和安全检查，Host及headers另有解析步骤。</p>
@@ -568,8 +667,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>lab中使用Python socket分两次发送<code>GET /ver</code>与<code>sion HTTP/1.1...</code>，组成合法<code>/version</code>；完整split实验见<code>experiments.md</code>。记录返回状态；再发送小写method或故意损坏HTTP版本，比较error日志。不要把畸形输入发送到线上站点。</p>
 <p><strong>思考：</strong>解析字段经常指向header buffer内部，没有复制字符串；移动/扩大buffer必须相应修正指针。这解释了为什么buffer生命周期与请求状态机必须一起读。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-12"><p><a id="chapter-12"></a></p>
-<h1>12 · server与location：树查找不是按书写顺序扫描</h1>
+</section></div></article><article class="chapter" id="reading-012" data-title="12 · server与location：树查找不是按书写顺序扫描"><div class="chapter-title"><p class="eyebrow">章节12 / 完整阅读</p><h1>12 · server与location：树查找不是按书写顺序扫描</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-12"><p><a id="chapter-12"></a></p>
+
 <p><strong>静态树、正则数组和嵌套递归</strong></p>
 <p>请求进入server上下文后，<code>ngx_http_core_find_config_phase</code>调用<code>ngx_http_core_find_location</code>。静态location经初始化阶段整理为树，用URI比较寻找精确与前缀候选；精确匹配可直接结束，最长前缀可继续进入嵌套层。对当前层，若允许regex，按该层regex数组顺序测试，并把<code>r-&gt;loc_conf</code>切到命中的配置。</p>
 <p>普通顶层配置可用“精确优先，最长前缀候选，候选^~时跳过当前层正则，否则按正则声明顺序”的路径推演。嵌套配置必须沿真实递归读：内层成功匹配可能先返回，外层是否继续正则受各层noregex等状态控制。把^~说成整个配置任意层的永久正则关闭开关会误导。</p>
@@ -601,8 +700,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>lab有<code>location = /version</code>、<code>location /prefix/</code>、<code>location ~ \.txt$</code>。分别curl<code>/version?x=1</code>、<code>/prefix/a.txt</code>，后者顶层regex可胜出；将前缀改成<code>^~ /prefix/</code>并reload后再试，应改走prefix内容。返回值实验只用于路由，限流实验不能用return绕过PREACCESS。</p>
 <p><strong>失败后果：</strong>匹配落到错误location，可能改变认证、缓存key、proxy_pass、日志等一整套模块配置。诊断应记录<code>$uri</code>与<code>$request_uri</code>，同时查看实际命中处理器。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-13"><p><a id="chapter-13"></a></p>
-<h1>13 · phase engine：模块如何组合</h1>
+</section></div></article><article class="chapter" id="reading-013" data-title="13 · phase engine：模块如何组合"><div class="chapter-title"><p class="eyebrow">章节13 / 完整阅读</p><h1>13 · phase engine：模块如何组合</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-13"><p><a id="chapter-13"></a></p>
+
 <p><strong>checker控制流程，handler处理业务</strong></p>
 <p>HTTP初始化<code>ngx_http_init_phase_handlers</code>把模块注册的handlers整理为可执行数组，包含每个阶段checker、业务handler和next索引。请求由<code>r-&gt;phase_handler</code>记录当前程序计数器，<code>ngx_http_core_run_phases</code>反复调用checker。server rewrite、find config、location rewrite、post rewrite、preaccess、access、content有不同控制规则；LOG阶段在请求释放路径执行，不能理解为这个循环中最后一个同步handler。</p>
 <p>generic checker里handler返回NGX_OK意味着跳到ph-&gt;next，NGX_DECLINED表示换下一个handler，NGX_AGAIN/NGX_DONE表示暂停或异步已接管；checker本身又把这些结果转成循环控制码。因此“NGX_OK总是继续”或“NGX_AGAIN总是报错”都不成立，必须区分返回者与接收者。</p>
@@ -634,8 +733,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>lab<code>/limit/</code>通过proxy产生内容，保证PREACCESS里的limit_req有机会运行；而<code>/version</code>仅用于rewrite return与路由观察。若把limit_req放在含return的location，看见“无限通过”不能据此断言限流算法失效。</p>
 <p><strong>源码范围：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http.c#L491-L552"><code>phase assembly · L491–L552</code></a>。理解checker的跳转，才知道模块注册顺序为何不等于nginx.conf书写顺序。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-14"><p><a id="chapter-14"></a></p>
-<h1>14 · rewrite与内部跳转：重入有预算</h1>
+</section></div></article><article class="chapter" id="reading-014" data-title="14 · rewrite与内部跳转：重入有预算"><div class="chapter-title"><p class="eyebrow">章节14 / 完整阅读</p><h1>14 · rewrite与内部跳转：重入有预算</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-14"><p><a id="chapter-14"></a></p>
+
 <p><strong>URI改写要同步配置上下文</strong></p>
 <p>rewrite模块把配置编译为script指令数组，<code>ngx_http_rewrite_handler</code>初始化script engine并解释这些指令。改URI、设置变量、return和跳转的作用不同。<code>last</code>结束当前rewrite序列并触发按新URI重新寻找location，<code>break</code>停止本轮序列且留在当前location；外部redirect生成3xx让客户端发新请求，并不等于内部跳转。</p>
 <p>post rewrite checker看<code>r-&gt;uri_changed</code>，未变化则继续；变化后递减<code>uri_changes</code>，将<code>phase_handler</code>设为find-config索引，并恢复server级loc_conf起点。本基线request初始化为<code>NGX_HTTP_MAX_URI_CHANGES+1</code>，宏是10；预算还会被其他内部重定向路径消耗，不能理解为所有场景均允许任意11次rewrite。</p>
@@ -662,10 +761,10 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 </code></pre>
 <p><strong>失败推演：</strong><code>/a → /b → /a</code>内部循环耗尽预算，日志明确记录“rewrite or internal redirection cycle”，最终500。正则性能不佳则可能在worker事件线程上消耗CPU，HTTP并发下降但未必马上报错。</p>
 <p><strong>实验：</strong>lab<code>/old</code>rewrite last到<code>/version</code>，比较日志中<code>request_uri=/old</code>与<code>uri=/version</code>；临时加入两个互相last的location，curl预期500，恢复配置再reload。这里只给隔离复现实验，未在NGINX上执行。</p>
-<p><strong>面试复述：</strong>rewrite修改的是当前请求URI和程序计数器，last意味着重新选择配置，redirect则生成客户端下一次请求。是否继续body、鉴权、内容阶段，要沿checker跳转判断。</p>
+<p><strong>知识回顾：</strong>rewrite修改的是当前请求URI和程序计数器，last意味着重新选择配置，redirect则生成客户端下一次请求。是否继续body、鉴权、内容阶段，要沿checker跳转判断。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-15"><p><a id="chapter-15"></a></p>
-<h1>15 · 请求体：buffering与可重放性</h1>
+</section></div></article><article class="chapter" id="reading-015" data-title="15 · 请求体：buffering与可重放性"><div class="chapter-title"><p class="eyebrow">章节15 / 完整阅读</p><h1>15 · 请求体：buffering与可重放性</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-15"><p><a id="chapter-15"></a></p>
+
 <p><strong>读请求体是异步任务，完成靠回调</strong></p>
 <p>proxy handler创建<code>r-&gt;upstream</code>、绑定请求生成器和响应解析回调，然后调用<code>ngx_http_read_client_request_body(r, ngx_http_upstream_init)</code>。读体入口增加主请求count，创建<code>ngx_http_request_body_t</code>，保存post_handler。body可能已部分存在header buffer，也可能需要更多read事件；完成才调用upstream_init，不能用handler函数返回的时间代表body已收齐。</p>
 <p>默认请求buffering允许在客户端与上游之间解耦：body先进入内存或temp file，再发送给后端。<code>proxy_request_buffering off</code>在符合条件时设置<code>request_body_no_buffering</code>，上游可以更早接收数据，慢上传也可能长时间占用上游连接。chunked上传还受proxy_http_version等条件影响，本基线显式判断HTTP/1.1。</p>
@@ -694,8 +793,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>用<code>curl --data-binary @payload.bin --limit-rate 16k .../echo</code>观察默认buffering下后端接收的启动时点，再改为off比较。lab后端将返回接收到的字节数；测试chunked需要独立构造Transfer-Encoding并核对HTTP/1.1，不能凭Content-Length上传推论全部协议。</p>
 <p><strong>失败边界：</strong>NGINX认为可重试，不代表业务可重试；body缓冲让字节可重放，业务幂等键才能让订单/扣款可安全重放。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-16"><p><a id="chapter-16"></a></p>
-<h1>16 · upstream：把后端变成事件状态机</h1>
+</section></div></article><article class="chapter" id="reading-016" data-title="16 · upstream：把后端变成事件状态机"><div class="chapter-title"><p class="eyebrow">章节16 / 完整阅读</p><h1>16 · upstream：把后端变成事件状态机</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-16"><p><a id="chapter-16"></a></p>
+
 <p><strong>连接、发送、读头和读体各有回调</strong></p>
 <p>proxy模块通过<code>u-&gt;create_request、reinit_request、process_header、abort_request、finalize_request</code>提供协议特化，upstream核心承担连接与超时调度。<code>ngx_http_upstream_init_request</code>准备peer和请求buffer，<code>ngx_http_upstream_connect</code>为本次尝试建立<code>u-&gt;state</code>，记录start_time，调用<code>ngx_event_connect_peer</code>。peer的get回调先选择地址，socket非阻塞connect可能返回NGX_AGAIN，后续write事件才判断连接结果。</p>
 <p>连接对象的read/write handler都可指向<code>ngx_http_upstream_handler</code>，再由<code>u-&gt;read_event_handler / write_event_handler</code>选择阶段。目前初始化为send_request_handler与process_header，之后切到body处理器。<code>u-&gt;state</code>记录connect_time、header_time、response_time与peer；每次重试新增记录，日志可体现多次尝试。</p>
@@ -721,8 +820,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>lab<code>/retry/</code>第一个peer故意使用无人监听端口，backup可用；日志可看到连接拒绝与两次peer尝试。<code>upstream_connect_time</code>、<code>upstream_header_time</code>、<code>upstream_response_time</code>不是统一“后端计算时间”，包含连接/等待/传输且可能多值。</p>
 <p><strong>阅读检查：</strong>找到下一阶段handler写入点，再找同一字段的调用点，比只找函数名更容易串起异步调用链。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-17"><p><a id="chapter-17"></a></p>
-<h1>17 · 负载均衡：平滑加权与失败状态</h1>
+</section></div></article><article class="chapter" id="reading-017" data-title="17 · 负载均衡：平滑加权与失败状态"><div class="chapter-title"><p class="eyebrow">章节17 / 完整阅读</p><h1>17 · 负载均衡：平滑加权与失败状态</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-17"><p><a id="chapter-17"></a></p>
+
 <p><strong>不是按权重机械复制列表</strong></p>
 <p>默认round-robin实现用平滑加权算法。每个候选增加effective_weight到current_weight，总计effective_weight，选current_weight最大者，再对选中者减总权重。<code>weight</code>是配置目标权重，<code>effective_weight</code>可以因失败降低并逐步恢复，<code>current_weight</code>控制短期平滑。这比把A复制五次B复制一次再轮询更能均匀分散顺序。</p>
 <p>选择前跳过本请求tried位图中的peer、down节点、处于max_fails/fail_timeout限制中的节点与达到max_conns的节点。当前请求在重试时不会无条件绕回同一已尝试peer。选中后维护连接数、引用等状态；失败释放peer时更新fails、时间与effective_weight。backup在主peer组无法服务时进入候补流程。</p>
@@ -750,8 +849,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>补充源码：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/ngx_http_upstream_round_robin.c#L764-L778"><code>tried与减权 · L764–L778</code></a>。least_conn、ip_hash、hash等有独立选择器，不应把round-robin字段变化直接代入。</p>
 <p><strong>实验：</strong>起两个lab后端并设置2:1，单worker、顺序curl若干次记录upstream_addr。并发、多worker、失败、keepalive复用都可改变观察序列；本文未执行这个分布测试。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-18"><p><a id="chapter-18"></a></p>
-<h1>18 · 重试：字节重放与业务重复</h1>
+</section></div></article><article class="chapter" id="reading-018" data-title="18 · 重试：字节重放与业务重复"><div class="chapter-title"><p class="eyebrow">章节18 / 完整阅读</p><h1>18 · 重试：字节重放与业务重复</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-18"><p><a id="chapter-18"></a></p>
+
 <p><strong>next_upstream是条件集合，不是保证</strong></p>
 <p><code>ngx_http_upstream_next</code>接收失败类型bitmask，释放当前peer并映射状态。连接错误、timeout、invalid_header与被配置的HTTP响应状态有不同mask。之后同时检查剩余tries、允许重试的mask、已发送非buffered body以及next_upstream总尝试时间。只有所有条件满足，才重新连接另一个peer。</p>
 <p>对已发送POST/LOCK/PATCH，代码加<code>NGX_HTTP_UPSTREAM_FT_NON_IDEMPOTENT</code>，需显式允许相应行为才能跨过mask判断。即便GET在协议语义上应安全，如果业务错误地用GET执行扣款，NGINX并不知道。接收响应头和向客户端发出响应是不同边界；一旦已经向客户端发送响应内容，无法撤回旧响应再完整替换，后续body失败通常走finalize而不是干净的新响应。</p>
@@ -774,10 +873,10 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 </code></pre>
 <p><strong>失败推演：</strong>后端已写入订单但连接在响应前断开，代理只知道“未得到成功响应”。允许重试可能产生第二次提交；禁止重试也不能断言第一次失败。业务需要幂等键与查询补偿来确定结果。</p>
 <p><strong>实验：</strong>lab的失联primary+可用backup，用GET观察重试列表；POST实验必须用只统计字节的<code>/echo</code>虚构端点。将<code>proxy_next_upstream off</code>应直接暴露primary连接错误，将<code>... error timeout</code>恢复后GET可切backup。默认非幂等保护与“请求是否已发送”的时点必须通过日志确认，不预设POST必然或绝不重试。</p>
-<p><strong>面试复述：</strong>重试资格由失败类型、请求阶段、可重放性和预算共同决定；NGINX处理网络重试，业务处理一次性效果。</p>
+<p><strong>知识回顾：</strong>重试资格由失败类型、请求阶段、可重放性和预算共同决定；NGINX处理网络重试，业务处理一次性效果。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-19"><p><a id="chapter-19"></a></p>
-<h1>19 · 上游keepalive与DNS边界</h1>
+</section></div></article><article class="chapter" id="reading-019" data-title="19 · 上游keepalive与DNS边界"><div class="chapter-title"><p class="eyebrow">章节19 / 完整阅读</p><h1>19 · 上游keepalive与DNS边界</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-19"><p><a id="chapter-19"></a></p>
+
 <p><strong>连接缓存通常在每个worker内部</strong></p>
 <p>upstream keepalive模块包装原来的peer get/free回调。先进行负载选择，再按socket地址在本worker缓存队列找可复用连接；命中时从cache队列移到free队列，清idle、恢复log、删除idle read timer，设置<code>pc-&gt;connection</code>和cached标志，返回NGX_DONE。它是已有socket复用，不是一次新connect的完成通知。</p>
 <p><code>keepalive N</code>限制每worker保存的空闲连接数量，不等于所有活动连接上限，也不是客户端keepalive超时。HTTP代理要正确使用<code>proxy_http_version 1.1</code>并清除Connection header，避免上游主动关闭。在本书1.28.0基线中显式写这两项，不能拿较新版本默认值代替固定基线。server关闭、EOF、超过请求数或时间上限会让连接不能进缓存。</p>
@@ -805,8 +904,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>lab app upstream设置keepalive16，重复请求看<code>upstream_connect_time</code>与后端连接来源端口；单凭<code>0.000</code>不能严谨证明复用，也可能是新连接极快。后端日志或debug cache-hit消息更有说服力。DNS实验需自建可控解析器，本书未执行。</p>
 <p><strong>官方辅助入口：</strong><a href="https://nginx.org/en/docs/http/ngx_http_upstream_module.html">upstream模块</a>。教程不借用商业模块能力补全开源基线。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-20"><p><a id="chapter-20"></a></p>
-<h1>20 · proxy buffer与背压：两边速度不一致</h1>
+</section></div></article><article class="chapter" id="reading-020" data-title="20 · proxy buffer与背压：两边速度不一致"><div class="chapter-title"><p class="eyebrow">章节20 / 完整阅读</p><h1>20 · proxy buffer与背压：两边速度不一致</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-20"><p><a id="chapter-20"></a></p>
+
 <p><strong>响应缓冲和请求缓冲是两套开关</strong></p>
 <p><code>proxy_buffering on</code>进入event pipe路径，<code>ngx_event_pipe</code>循环推进上游读取和下游输出；<code>bufs、busy、free、in、out</code>以及temp_file跟踪缓冲和所有权。<code>proxy_buffer_size</code>主要影响首段/响应头，<code>proxy_buffers</code>提供body缓冲，<code>proxy_busy_buffers_size</code>控制用于发送的忙缓冲量。响应头过大需要看header buffer，不应盲增所有body buffer。</p>
 <p>快上游、慢客户端时，缓冲让上游更早释放；内存不够可写临时文件，受max_temp_file_size等配置限制。temp file空间、权限、磁盘吞吐可能成为瓶颈。写盘与cache/store并不是一回事：临时缓冲文件未必是可复用缓存。配置buffering off换成non-buffered read/write handlers，仍有有限buffer与输出链，并非“完全不分配内存”。</p>
@@ -830,8 +929,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>用lab<code>/slow?gap=0.2</code>配<code>curl -N</code>看流式响应；用<code>/blob?size=8388608</code>配curl限速，观察temp目录和后端发送完成时点。配置<code>proxy_max_temp_file_size 0</code>限制临时落盘并不等于禁用cache，也不是内存无限增长承诺。</p>
 <p><strong>源码补充：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/event/ngx_event_pipe.c#L23-L66"><code>event_pipe loop · L23–L66</code></a>。本文未执行慢消费者或磁盘压力测试。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-21"><p><a id="chapter-21"></a></p>
-<h1>21 · 输出filter与sendfile：剩余链就是进度</h1>
+</section></div></article><article class="chapter" id="reading-021" data-title="21 · 输出filter与sendfile：剩余链就是进度"><div class="chapter-title"><p class="eyebrow">章节21 / 完整阅读</p><h1>21 · 输出filter与sendfile：剩余链就是进度</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-21"><p><a id="chapter-21"></a></p>
+
 <p><strong>返回成功不代表客户端已收到全部</strong></p>
 <p><code>ngx_http_output_filter</code>把body链交给<code>ngx_http_top_body_filter</code>，模块按初始化时的挂接顺序组成链。gzip、range、chunked、copy等模块根据编译和响应条件参与处理，最终write filter调用连接<code>send_chain</code>。header filter是另一条链，先生成状态行与headers；启用HTTP/2/3时还会转为对应协议帧，不是简单沿HTTP/1.1文本输出。</p>
 <p>write filter收集<code>r-&gt;out</code>，检查flush/last/缓冲标志，计算limit与sendfile_max_chunk，调用<code>c-&gt;send_chain(c,r-&gt;out,limit)</code>。返回链指向尚未发送的部分，发送错误才是NGX_CHAIN_ERROR。输出到socket发送缓冲也不等于远端应用已经处理；连接层只保证按自身传输进度推进。</p>
@@ -857,8 +956,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>lab生成静态文件，<code>curl --limit-rate 32k /static/large.bin</code>看多个write推进；Linux可跟踪sendfile/writev，HTTPS应另读SSL调用。只要客户端收到字节不足，即使access日志已出现2xx，仍需检查body截断和curl退出值。</p>
 <p><strong>失败后果：</strong>下游关闭、内核写错、filter内存分配失败会终止传输。响应头已发出时，不能再把原来200完整替换成500。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-22"><p><a id="chapter-22"></a></p>
-<h1>22 · 文件缓存：索引共享，内容在磁盘</h1>
+</section></div></article><article class="chapter" id="reading-022" data-title="22 · 文件缓存：索引共享，内容在磁盘"><div class="chapter-title"><p class="eyebrow">章节22 / 完整阅读</p><h1>22 · 文件缓存：索引共享，内容在磁盘</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-22"><p><a id="chapter-22"></a></p>
+
 <p><strong>cache hit是多阶段判断，不是一张map</strong></p>
 <p>proxy cache至少两层：共享keys_zone里保存索引、状态、引用等，磁盘文件保存headers/body。<code>ngx_http_file_cache_open</code>通过r-&gt;cache检查waiting/reading，查询共享节点，再决定是否打开磁盘文件、读取header与有效期。cold启动期间loader逐步恢复索引；manager控制容量和失效清理。keys_zone容量不等于body缓存容量，max_size也不是请求buffer上限。</p>
 <p>cache key由proxy配置生成，默认和scheme、proxy_host、request_uri等有关；用户自定义key必须包含业务隔离维度。请求Cookie本身不会自动禁止缓存，也不会自动进入默认cache key；响应Set-Cookie默认阻止保存，Authorization、Cache-Control与Vary另有资格或变体规则。不能把这几种头混成同一条规则，也不能仅凭GET+200就断言会落缓存。忽略响应缓存头可能缓存私人数据，教程采用无账号的虚构端点。</p>
@@ -895,8 +994,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>实验：</strong>lab<code>/cache/</code>两次curl <code>-i</code>，看<code>X-Lab-Cache</code>从MISS到HIT；等待有效期再请求观察过期路径，后端时间值帮助判断内容复用。并发首请求用于lock实验需控制上游变慢，不能只凭HIT比例证明没有重复回源。</p>
 <p><strong>失败边界：</strong>cache key漏租户维度比缓存未命中严重得多；服务不可用时use_stale提高可用性，但内容过旧的业务后果由应用决定。对登录态请求要按业务定义同一个绕过条件，分别配置proxy_cache_bypass（不读缓存）和proxy_no_cache（不保存响应）；只禁保存仍可能读到已有缓存，只禁读取仍可能把私人响应存进去。本书未执行缓存流程，配置和预期依据固定代码。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-23"><p><a id="chapter-23"></a></p>
-<h1>23 · 限流：共享内存漏桶与延迟事件</h1>
+</section></div></article><article class="chapter" id="reading-023" data-title="23 · 限流：共享内存漏桶与延迟事件"><div class="chapter-title"><p class="eyebrow">章节23 / 完整阅读</p><h1>23 · 限流：共享内存漏桶与延迟事件</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-23"><p><a id="chapter-23"></a></p>
+
 <p><strong>excess是固定精度负债，不是请求数队列</strong></p>
 <p>limit_req在PREACCESS注册handler，计算配置的complex key，hash查共享红黑树，使用共享slab mutex保护节点。相同hash还比较key字节，不能把CRC碰撞视为相同用户。节点保留last、excess、count和队列链接；队列帮助回收过期状态，slab负责共享区内存分配。</p>
 <p>命中节点后计算<code>excess = old_excess - rate * ms / 1000 + 1000</code>并下限截0。rate/excess以千分之一请求为精度，<code>+1000</code>代表当前请求，内部burst也已相应缩放。超burst返回BUSY；未超时再决定delay。<code>nodelay</code>允许burst范围内尽快处理，但excess负债仍在后续请求中消减，它不是取消速率限制。</p>
@@ -928,8 +1027,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p><strong>第二证据：</strong><a href="https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L322-L328"><code>timer delay · L322–L328</code></a>。数据跨worker共享必须锁；普通worker计数器不能提供同样全局限额。</p>
 <p><strong>实验：</strong>lab <code>/limit/</code>走proxy，顺序短间隔curl，查看状态码和<code>$limit_req_status</code>；并发curl可能有PASSED/REJECTED，数量取决于真实时序，不承诺固定第几次拒绝。key采用<code>$binary_remote_addr</code>，同一NAT共享额度；trusted realip配置错误又会造成伪造或误限。</p>
 <p><a href="#top">返回目录</a></p>
-</section><section class="chapter" data-chapter="chapter-24"><p><a id="chapter-24"></a></p>
-<h1>24 · TLS、终结与性能诊断</h1>
+</section></div></article><article class="chapter" id="reading-024" data-title="24 · TLS、终结与性能诊断"><div class="chapter-title"><p class="eyebrow">章节24 / 完整阅读</p><h1>24 · TLS、终结与性能诊断</h1></div><div class="study"><section class="original-chapter" data-chapter="chapter-24"><p><a id="chapter-24"></a></p>
+
 <p><strong>连接的最后一步也是状态机的一部分</strong></p>
 <p>SSL握手通过<code>SSL_do_handshake</code>推进，<code>SSL_ERROR_WANT_READ/WRITE</code>分别清ready、设置read/write握手handler并注册事件，返回NGX_AGAIN。握手不是同步调用一次就结束；证书解析、OpenSSL版本、会话复用、OCSP、kTLS和协议模块能力取决于构建与配置。SNI在HTTP Host前发生，证书选择与HTTP路由要分别诊断。</p>
 <p>reload加载新的SSL配置，旧worker现有SSL连接继续使用旧对象；新连接才进入新的SSL上下文。更新证书后必须确认配置检测、reload日志和新连接实际证书，不能看文件已写入就宣布全部连接切换。TLS终止后代理到HTTP上游是独立连接；上游HTTPS认证与SNI又由proxy_ssl配置控制，本书不假设默认自动验证后端证书。</p>
@@ -977,16 +1076,164 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <li><a href="https://nginx.org/en/docs/http/ngx_http_limit_req_module.html">limit_req模块</a></li>
 <li><a href="https://nginx.org/en/docs/http/ngx_http_ssl_module.html">SSL模块</a></li>
 </ul>
-<p>官方文档为滚动更新页面，本书不是其全文翻译。解释依据固定源码，配置指令按基线核对；升级或部署前需要重新查官方变更与安全公告。</p></section><p class="footer">源码归属与许可见<a href="./source-notices.txt">来源说明</a>与<a href="./nginx-license.txt">上游LICENSE</a>。实验执行范围见<a href="./VERIFICATION.md">核验记录</a>。</p></main></div><script>
-(()=>{const side=document.querySelector('.sidebar'),nav=[...document.querySelectorAll('nav a')],chapters=[...document.querySelectorAll('.chapter')];document.querySelector('#menu').onclick=()=>{side.classList.toggle('open');document.querySelector('#menu').setAttribute('aria-expanded',side.classList.contains('open'))};nav.forEach(a=>a.addEventListener('click',()=>side.classList.remove('open')));const theme=document.querySelector('#theme');try{if(localStorage.getItem('nginx-theme')==='light')document.body.classList.add('light')}catch(e){}theme.onclick=()=>{document.body.classList.toggle('light');try{localStorage.setItem('nginx-theme',document.body.classList.contains('light')?'light':'dark')}catch(e){}};document.querySelector('#search').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();nav.forEach((a,i)=>a.classList.toggle('hidden',!!q&&!chapters[i]?.textContent.toLowerCase().includes(q)));document.querySelector('#search-status').textContent=q?nav.filter(a=>!a.classList.contains('hidden')).length+'个相关章节':''});document.querySelectorAll('.copy').forEach(b=>b.onclick=async()=>{const t=b.parentNode.querySelector('code').textContent;try{await navigator.clipboard.writeText(t);b.textContent='已复制'}catch(e){const r=document.createRange();r.selectNodeContents(b.parentNode.querySelector('code'));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='已选择，请复制'}setTimeout(()=>b.textContent='复制代码',1800)});const update=()=>{const denom=document.documentElement.scrollHeight-innerHeight;document.querySelector('#progress').style.width=(denom>0?100*scrollY/denom:0)+'%';let current='';chapters.forEach(s=>{if(s.getBoundingClientRect().top<150)current=s.dataset.chapter});nav.forEach(a=>a.classList.toggle('active',a.hash==='#'+current))};addEventListener('scroll',update,{passive:true});update()})();
-</script><script id="reader-controls">/* Shared appearance and mobile navigation; existing search/diagram handlers stay. */
-(()=>{
- const body=document.body, theme=document.getElementById('theme'), menu=document.getElementById('menu');
- try{body.classList.toggle('reader-light',localStorage.getItem('source-library-theme')==='light')}catch(e){}
- function label(){if(theme)theme.textContent=body.classList.contains('reader-light')?'深色阅读':'浅色阅读'}
- label();
- if(theme)theme.onclick=()=>{body.classList.toggle('reader-light');label();try{localStorage.setItem('source-library-theme',body.classList.contains('reader-light')?'light':'dark')}catch(e){}};
- if(menu){body.classList.add('reader-collapsed');menu.setAttribute('aria-expanded','false');menu.textContent='展开目录';menu.onclick=()=>{body.classList.toggle('reader-collapsed');const open=!body.classList.contains('reader-collapsed');menu.setAttribute('aria-expanded',String(open));menu.textContent=open?'收起目录':'展开目录'};}
- document.querySelectorAll('nav a').forEach(a=>a.addEventListener('click',()=>{if(innerWidth<=700&&menu){body.classList.add('reader-collapsed');menu.setAttribute('aria-expanded','false');menu.textContent='展开目录'}}));
+<p>官方文档为滚动更新页面，本书不是其全文翻译。解释依据固定源码，配置指令按基线核对；升级或部署前需要重新查官方变更与安全公告。</p></section><p class="footer">源码归属与许可见<a href="./source-notices.txt">来源说明</a>与<a href="./nginx-license.txt">上游LICENSE</a>。实验执行范围见<a href="./VERIFICATION.md">核验记录</a>。</p></div></article></main><aside id="right-toc" aria-label="当前章节目录"><div class="reading"><span id="progress-text">阅读进度0%</span><span id="current-label"></span></div><p class="nav-label">本篇目录</p><nav id="toc"></nav></aside></div><dialog id="search-dialog" aria-labelledby="search-title"><div class="search-head"><h2 id="search-title">全文搜索</h2><button id="search-close" aria-label="关闭搜索">关闭</button></div><label for="search-input">搜索关键词、源码方法或原理问题</label><input id="search-input" type="search" placeholder="输入关键词，搜索完整正文" autocomplete="off"><p id="search-status" role="status" aria-live="polite">输入关键词，搜索完整正文。</p><div id="search-results"></div></dialog><div id="toast" role="status" aria-live="polite"></div><dialog id="diagram-dialog" aria-label="图解放大"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];}
+  function makeToc() {
+    sections=visibleHeadings();$('#toc').replaceChildren();
+    sections.forEach(h=>{const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';$('#toc').append(a);});
+    $('#current-label').textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)$('#review-route').scrollIntoView({block:'start'});closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      requestAnimationFrame(()=>{target.scrollIntoView({block:'start'});if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();});
+    }
+    updateReading();
+  }
+  function updateReading() {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;const box=active.getBoundingClientRect();
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('#toc a,.chapter-nav div a').forEach(a=>a.classList.toggle('current',!!current && a.hash==='#'+current.id));
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{const canvas=$('#diagram-content');canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));canvas.querySelectorAll('[id]').forEach(el=>{el.id='zoom-'+el.id});canvas.querySelectorAll('*').forEach(el=>{for(const attr of ['style','fill','stroke','marker-end','marker-start','clip-path']){const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.replace(/url\(#/g,'url(#zoom-'));}});scale(1);viewer.showModal();});
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
 })();
 </script></body></html>

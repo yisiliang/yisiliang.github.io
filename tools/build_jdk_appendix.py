@@ -83,13 +83,17 @@ def build():
 </section>
 {END}'''
     page_path = BOOK / 'index.html'
-    page = replace_block(page_path.read_text(), section, '</article>')
+    original_page = page_path.read_text()
+    if 'data-layout="learning-v2"' in original_page:
+        # Keep the already adapted chapter title instead of duplicating its ID.
+        section = re.sub(r'<h1 id="'+re.escape(ANCHOR)+r'-title">.*?</h1>', '', section, count=1)
+    page = replace_block(original_page, section, '</article>')
     # Generic type parameters in existing headings must remain text. Otherwise
     # the browser treats <U> as an unclosed underline element across the appendix.
     page = re.sub(r'<h4\b[^>]*>.*?</h4>',
                   lambda m: m[0].replace('<U>', '&lt;U&gt;'), page, flags=re.S)
     nav = f'<a href="#{ANCHOR}">附录A · ThreadLocal与偶发SQL异常</a>'
-    if nav not in page:
+    if nav not in page and 'data-layout="learning-v2"' not in page:
         page = page.replace('</nav>', nav + '</nav>', 1)
     if f'<a href="#{ANCHOR}">附录</a>' not in page:
         page = page.replace('<a href="#chapter-38">追问检查</a></div>',

@@ -67,7 +67,7 @@ class Page(HTMLParser):
     def handle_starttag(self,tag,attrs):
         attrs=dict(attrs)
         if 'id' in attrs:self.ids.append(attrs['id'])
-        if tag=='section':self.sections+=1
+        if tag=='article' and attrs.get('class')=='chapter':self.sections+=1
         for k in ('href','src'):
             if k in attrs:self.links.append(attrs[k])
 p=Page();p.feed((ROOT/'index.html').read_text())

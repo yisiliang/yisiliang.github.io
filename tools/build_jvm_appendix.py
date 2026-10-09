@@ -28,6 +28,10 @@ def build():
 </section>
 {END}'''
     source = PAGE.read_text()
+    learning_layout = 'data-layout="learning-v2"' in source
+    if learning_layout:
+        # The existing chapter header already owns this heading and anchor.
+        section = re.sub(r'<h1 id="appendix-xstream-title">.*?</h1>', '', section, count=1)
     if START in source:
         source = re.sub(re.escape(START) + r'.*?' + re.escape(END), lambda _: section, source, count=1, flags=re.S)
     else:
@@ -35,7 +39,7 @@ def build():
     nav = '<a href="#appendix-xstream">附录A · XStream1.4.4与CMS回收压力</a>'
     if re.search(r'<nav>.*?<a href="#appendix-xstream">', source, re.S):
         source = re.sub(r'<a href="#appendix-xstream">附录A[^<]*</a>', lambda _: nav, source, count=1)
-    else:
+    elif not learning_layout:
         source = source.replace('</nav>', nav + '</nav>', 1)
     source = source.replace('76节 · 62张图', '76节 · 1篇附录 · 62张图')
     source = source.replace('<a href="#chapter-73">阅读案例</a></div>', '<a href="#chapter-73">阅读案例</a><a href="#appendix-xstream">附录</a></div>', 1)

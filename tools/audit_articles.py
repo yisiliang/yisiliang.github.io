@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check all eight reviewed articles and the content of their existing offline ZIPs.
+"""Check all catalog articles and the content of their existing offline ZIPs.
 
 This is a publication check, not a proof of technical explanations or runtime behavior.
 Run per-book source verifiers separately with the matching upstream checkouts.
@@ -13,8 +13,7 @@ import re
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-BOOKS = ('mysql', 'nginx', 'springboot', 'nacos', 'distributed',
-         'transformer', 'jvm', 'jdk-source')
+BOOKS = tuple(b['path'] for group in json.loads((ROOT/'tools/homepage/catalog.json').read_text()) for b in group['books'])
 
 
 class Page(HTMLParser):

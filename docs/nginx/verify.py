@@ -20,7 +20,7 @@ class Check(HTMLParser):
   a=dict(attrs)
   if 'id' in a:self.ids.append(a['id'])
   if tag=='figure':self.figures+=1
-  if tag=='section' and a.get('class')=='chapter':self.sections+=1
+  if tag in ('section','article') and a.get('class')=='chapter':self.sections+=1
   if tag=='pre':self.pre+=1
   if tag=='a':
    h=a.get('href','')

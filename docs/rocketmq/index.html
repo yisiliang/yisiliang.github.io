@@ -18,125 +18,224 @@ body.dark{--bg:#101827;--paper:#172337;--ink:#e0e8f4;--muted:#9cabbe;--line:#304
 
 .hero,article{min-width:0;overflow-wrap:anywhere}.search{min-width:0}.search input{min-width:0}@media(max-width:800px){.search{flex:1;position:relative}.search input{width:100%}#search-status{position:absolute;right:3px;top:100%;background:var(--paper);font-size:11px}.brand{flex-shrink:0}}
 </style><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script>
-<style id="reader-design">/* Shared reading design: CAP / BASE palette, typography and page geometry. */
-:root,html.dark,body.reader-page,body.reader-page.dark,body.reader-page.light {
-  color-scheme:dark;--bg:#111c2b;--paper:#18263a;--panel:#18263a;--ink:#e8eaf1;
-  --muted:#aab5c9;--accent:#c0afff;--blue:#c0afff;--line:#344157;
-  --code:#1e2d43;--quote:#18263a;--head:#e8eaf1;--shadow:none;
-}
-body.reader-page.reader-light {
-  color-scheme:light;--bg:#f6f7fb;--paper:#edeff7;--panel:#edeff7;--ink:#263248;
-  --muted:#606c82;--accent:#67529e;--blue:#67529e;--line:#d4d8e5;--code:#e9edf5;
-  --quote:#edeff7;--head:#263248;
-}
-html{scroll-padding-top:24px}
-body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif}
-.reader-page a,.reader-page.dark a{color:var(--accent)}
-.reader-page p,.reader-page li{overflow-wrap:anywhere}
-.reader-page p{margin:18px 0}
-.reader-page button,.reader-page input{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
-.reader-page button{cursor:pointer;font-size:13px}
-.reader-page a:focus-visible,.reader-page button:focus-visible,.reader-page input:focus-visible,.reader-page summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
-.reader-page .reader-wrap{width:calc(100% - 80px);max-width:1240px;margin:auto}
-.reader-page header.reader-header{height:auto;position:static;inset:auto;display:block;padding:32px 0 50px;border:0;border-bottom:1px solid var(--line);background:linear-gradient(125deg,#1c2940,var(--bg));backdrop-filter:none;color:var(--ink)}
-.reader-page.reader-light header.reader-header{background:linear-gradient(125deg,#ebe7f6,var(--bg))}
-.reader-header .home{font-size:14px}
-.reader-page .reader-header .hero{max-width:none;padding:0;margin:0;background:none;box-shadow:none;border:0;border-radius:0;color:var(--ink)}
-.reader-page .reader-header .eyebrow,.reader-page .reader-header small{display:block;font-size:11px;letter-spacing:2px;color:var(--accent);margin:26px 0 10px}
-.reader-page .reader-header h1{font:600 clamp(40px,6vw,72px)/1.2 Georgia,'Songti SC',serif;margin:14px 0 22px;padding:0;border:0;max-width:1100px;color:var(--ink)}
-.reader-page .reader-header .lead,.reader-page .reader-header .subtitle{font-size:23px;color:var(--accent);margin:0 0 16px;opacity:1}
-.reader-page .reader-header p:not(.lead){color:var(--muted);max-width:820px;opacity:1}
-.reader-page .reader-header .hero-meta,.reader-page .reader-header .stats,.reader-page .reader-header .badges{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0}
-.reader-page .reader-header .hero-meta span,.reader-page .reader-header .stats span,.reader-page .reader-header .badges span{font-size:12px;padding:4px 12px;border:1px solid var(--line);border-radius:20px;color:var(--ink);background:none}
-.reader-page .reader-header .links,.reader-page .reader-header .actions{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:14px}
-.reader-page .reader-header .links a,.reader-page .reader-header .start{padding:0;background:none;border:0;border-radius:0;color:var(--accent);font-size:14px}
-.reader-page .reader-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px;padding-top:36px}
-.reader-page .reader-layout>aside,.reader-page .reader-layout>nav{position:sticky;inset:auto;top:24px;align-self:start;display:block;width:auto;height:auto;max-height:calc(100vh - 48px);overflow:auto;background:none;border:0;padding:0 8px 0 0;box-shadow:none;z-index:auto;font-size:13px}
-.reader-page .reader-layout>main{margin:0;padding:0 0 60px;min-width:0;width:auto;max-width:none}
-.reader-page main article{max-width:none;margin:0;padding:0;background:none;border:0;border-radius:0;box-shadow:none;color:var(--ink)}
-.reader-page .reader-tools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
-.reader-page .reader-tools #menu{display:none}
-/* Keep the field and actions together; status gets its own full-width row. */
-.reader-page .search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:0 0 18px;align-items:stretch}
-.reader-page .search:has(#find){grid-template-columns:minmax(0,1fr) auto auto}
-.reader-page .search input{grid-column:1;grid-row:1;width:100%;min-width:0;margin:0;box-sizing:border-box}
-.reader-page .search button{grid-row:1;margin:0;white-space:nowrap}
-.reader-page .search #next{display:block}
-.reader-page .search #search-status{grid-column:1/-1;grid-row:2;margin:0;min-width:0;overflow-wrap:anywhere}
-.reader-page .search #search-status:empty{display:none}
-.reader-page aside>input{width:100%;min-width:0;margin-bottom:6px}
-/* Sidebar scroll containers clip outward outlines, so draw these inside. */
-.reader-page .search input:focus-visible,.reader-page .search button:focus-visible,.reader-page aside>input:focus-visible{outline-offset:-3px}
-.reader-page .nav-head,.reader-page .sidebar-label,.reader-page nav>strong{display:block;font-size:12px;letter-spacing:1px;color:var(--accent);padding:0;margin:0 0 12px}
-.reader-page .nav-head span,.reader-page .nav-note{display:block;color:var(--muted);font-size:12px}
-.reader-page aside nav{position:static;max-height:none;padding:0;font-size:13px}
-.reader-page nav a{display:block;color:var(--muted);padding:8px 0;border:0;border-radius:0;line-height:1.7;font-size:13px}
-.reader-page nav a:hover,.reader-page nav a.active{color:var(--accent);background:var(--panel)}
-.reader-page nav a span{color:var(--accent);margin-right:8px}
-.reader-page nav details{padding:0;margin:0;border:0;background:none}
-.reader-page nav summary{padding:0;color:var(--muted)}
-.reader-page nav summary a{display:inline}
-.reader-page .nav-sub{border-left:1px solid var(--line);margin:0 0 10px 6px;padding-left:12px}
-.reader-page .jump{padding:0;margin:14px 0;background:none;border-color:var(--line)}
-.reader-page main h1,.reader-page main h2{font:600 28px/1.5 'Songti SC',serif;color:var(--ink);border-color:var(--line);margin:38px 0 22px}
-.reader-page main h3{font-size:20px;color:var(--ink)}
-.reader-page main section,.reader-page .chapter{padding-bottom:38px;margin-bottom:38px;border-color:var(--line)}
-.reader-page blockquote,.reader-page .callout,.reader-page .note{margin:26px 0;padding:18px 22px;border:0;border-left:3px solid var(--accent);background:var(--panel);color:var(--ink);border-radius:0}
-.reader-page code{font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent);background:var(--code);padding:2px 5px;border-radius:4px}
-.reader-page pre,.reader-page pre code{color:#d7e0ed;background:#152236;font-size:13px;line-height:1.7}
-.reader-page pre code{padding:0;border-radius:0;overflow-wrap:normal}
-.reader-page .source-card,.reader-page .source,.reader-page .source-block,.reader-page .source-box{border-color:var(--line);background:var(--panel);box-shadow:none}
-.reader-page .source-head,.reader-page .source-bar,.reader-page .source-meta,.reader-page .source-label{background:var(--panel);color:var(--muted);border-color:var(--line)}
-.reader-page .hljs-comment,.reader-page .comment{color:#a5b6ce}
-.reader-page .hljs-keyword,.reader-page .keyword{color:#dbb9ff}
-.reader-page .hljs-string{color:#a8d8b0}
-.reader-page .hljs-title,.reader-page .hljs-type{color:#9ccfff}
-.reader-page .hljs-number,.reader-page .hljs-literal{color:#ffd59b}
-.reader-page figure,.reader-page .diagram,.reader-page .mechanism{margin:28px 0;padding:20px;border:1px solid var(--line);border-radius:12px;background:#152236;overflow:auto}
-/* Fixed-source SVGs keep their own light canvas and color legends. */
-.reader-page figure svg{background:#f6f8fc;border-radius:6px}
-.reader-page figcaption{font-size:12px;color:var(--muted);background:none;padding:16px 0 0}
-.reader-page table{border-collapse:collapse;width:100%;font-size:14px;color:var(--ink)}
-.reader-page th,.reader-page td{border:1px solid var(--line);padding:14px;text-align:left;vertical-align:top;background:none;color:var(--ink)}
-.reader-page th{background:var(--panel);color:var(--accent)}
-.reader-page .table-wrap,.reader-page .table-scroll{overflow:auto;margin:26px 0}
-.reader-page main article>table{display:block;overflow:auto}
-.reader-page mark{background:#d5b35b;color:#152236}
-.reader-page footer{font-size:13px;color:var(--muted);background:none;border-color:var(--line)}
-.reader-page .reader-skip{position:absolute;top:-80px;left:20px;padding:12px;background:var(--panel);z-index:50}
-.reader-page .reader-skip:focus{top:8px}
-.reader-page #progress{display:none}
-@media(max-width:950px){.reader-page .reader-layout{grid-template-columns:180px minmax(0,1fr);gap:26px}.reader-page .reader-wrap{width:calc(100% - 48px)}}
-@media(max-width:700px){
- .reader-page .reader-wrap{width:calc(100% - 36px)}
- .reader-page header.reader-header{padding-bottom:32px}
- .reader-page .reader-header .lead,.reader-page .reader-header .subtitle{font-size:20px}
- .reader-page .reader-layout{display:block;padding-top:24px}
- .reader-page .reader-layout>aside,.reader-page .reader-layout>nav{position:static;display:block;max-height:none;width:auto;padding:0 0 20px;margin-bottom:28px;border-bottom:1px solid var(--line)}
- .reader-page .reader-tools #menu{display:block}
- .reader-page .reader-layout>aside nav{max-height:360px;overflow:auto}
- .reader-page.reader-collapsed aside nav,.reader-page.reader-collapsed aside .jump{display:none}
- .reader-page main h1,.reader-page main h2{font-size:25px}
- .reader-page figure,.reader-page .diagram,.reader-page .mechanism{padding:16px}
- .reader-page blockquote,.reader-page .callout{padding:16px}
-}
+<style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="java-architect-interview"] .diagram svg .edgePath path,[data-reader="java-architect-interview"] .diagram svg .flowchart-link,[data-reader="java-architect-interview"] .diagram svg .messageLine0,[data-reader="java-architect-interview"] .diagram svg .messageLine1,[data-reader="java-architect-interview"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel span,[data-reader="java-architect-interview"] .diagram svg .messageText,[data-reader="java-architect-interview"] .diagram svg .loopText,[data-reader="java-architect-interview"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled .chapter:not(.active){display:none}.js-enabled .route{display:none}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}.js-enabled.show-route .chapter{display:none}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-@media print{
- body.reader-page{background:white;color:#20324d;--ink:#20324d;--muted:#62718a;--line:#dde5f0;--panel:#f1f4fa;--accent:#67529e}
- .reader-page header.reader-header,.reader-page .reader-layout>aside,.reader-page .reader-layout>nav,.reader-page .reader-skip{display:none}
- .reader-page .reader-layout{display:block;width:100%;padding:0}
- .reader-page .reader-layout>main{padding:0}
- .reader-page pre,.reader-page pre code{background:#f1f4fa;color:#20324d;white-space:pre-wrap}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
 }
-.reader-page[data-reader="nacos"] figure svg{background:#152236}
-.reader-page .reader-tools #theme,.reader-page .reader-tools #print{display:block}
-.reader-page aside nav{border:0;background:none}
-.reader-page nav a.hide,.reader-page nav a.hidden{display:none}
-.reader-page h1,.reader-page h2,.reader-page h3,.reader-page h4{overflow-wrap:anywhere}
-</style></head><body class="reader-page" data-reader="rocketmq"><a class="reader-skip" href="#reader-content">跳至正文</a><header class="reader-header"><div class="reader-wrap"><a class="home" href="../">← 源码学习库</a><div class="hero"><div class="eyebrow">READING ROCKETMQ SOURCE</div><h1>RocketMQ</h1><p class="lead">先串消息主线，再读源码状态</p><p>三本账与完整旅程 · 具体offset推演 · 字段、不变量与失败交接</p><div class="hero-meta"><span>固定4.9.8与5.3.4</span><span>126张内嵌SVG</span><span>139段带行号源码</span><span>纯阅读 / 离线</span></div><a class="start" href="#reading-ledgers">从三本账与消息旅程开始 →</a><div class="links"><a href="./rocketmq-offline.zip" download>下载离线阅读包 ↓</a><a href="./handbook.md">Markdown手册</a></div></div></div></header><div class="reader-layout reader-wrap"><aside><div class="reader-tools"><button id="menu" aria-label="打开章节目录">☰</button><button id="theme">浅色 / 深色</button><button id="print">打印</button></div><div class="search"><input id="search" type="search" placeholder="查找类名、方法、机制…" aria-label="查找全文"><span id="search-status"></span><button id="next" title="下一个结果">↓</button></div><div class="nav-head">源码阅读目录<span>34章 · 126张图 · 139段源码</span></div><div class="jump"><a href="#reading-ledgers">主线导读</a><a href="#chapter-33">版本差异</a><a href="#chapter-31">面试复述</a></div><nav><details class="chapter-nav"><summary><a href="#chapter-0">0. 先选阅读路线，再选实现分支</a></summary><div class="nav-sub"><a href="#chapter-0-section-173">0.1 这本手册怎样读</a><a href="#chapter-0-section-190">0.2 四组容易混淆的路径</a><a href="#chapter-0-section-207">0.3 源码目录对应哪些职责</a><a href="#chapter-0-section-224">0.4 4.x与5.x对照：两个基线与“升级”究竟比较什么</a><a href="#chapter-0-section-276">0.5 先把RocketMQ看成三本账</a><a href="#chapter-0-section-369">0.6 用四条消息手算：为什么三个offset不能互换</a><a href="#chapter-0-section-496">0.7 一次send成功经过了什么，哪些动作仍在后面</a><a href="#chapter-0-section-605">0.8 三个写入位置：画清wrote、committed、flushed</a><a href="#chapter-0-section-681">0.9 消费不是一个ACK：先追本地缓存，再追远端进度</a><a href="#chapter-0-section-796">0.10 失败由谁接手：把重试、事务回查与POP恢复分开</a><a href="#chapter-0-section-894">0.11 把顺序、吞吐和可靠性放在同一张因果表里</a></div></details><details class="chapter-nav"><summary><a href="#chapter-1">1. 架构、消息模型与三种offset</a></summary><div class="nav-sub"><a href="#chapter-1-section-1074">1.1 Queue是逻辑序列，CommitLog是物理日志</a><a href="#chapter-1-section-1091">1.2 queueOffset、commitLogOffset、consumerOffset</a><a href="#chapter-1-section-1108">1.3 Group才是消费进度的命名空间</a><a href="#chapter-1-section-1125">1.4 4.x与5.x对照：消息类型与Topic约束</a></div></details><details class="chapter-nav"><summary><a href="#chapter-2">2. NameServer：路由注册、查询与过期</a></summary><div class="nav-sub"><a href="#chapter-2-section-1172">2.1 注册一次Broker会更新哪些表</a><a href="#chapter-2-section-1189">2.2 查询路由返回快照，不传消息体</a><a href="#chapter-2-section-1206">2.3 心跳超时与连接断开怎样清理</a><a href="#chapter-2-section-1223">2.4 4.x与5.x对照：路由层定位没变，版本信息与部署职责扩展</a></div></details><details class="chapter-nav"><summary><a href="#chapter-3">3. Broker生命周期与线程分工</a></summary><div class="nav-sub"><a href="#chapter-3-section-1298">3.1 先恢复存储，再对外提供服务</a><a href="#chapter-3-section-1315">3.2 请求码怎样找到处理器</a><a href="#chapter-3-section-1332">3.3 排队时延也是可靠性问题</a></div></details><details class="chapter-nav"><summary><a href="#chapter-4">4. Producer：启动、路由与发送预算</a></summary><div class="nav-sub"><a href="#chapter-4-section-1375">4.1 Producer怎样共享客户端基础设施</a><a href="#chapter-4-section-1392">4.2 sendDefaultImpl是发送控制环</a><a href="#chapter-4-section-1409">4.3 重试为什么可能换Broker</a><a href="#chapter-4-section-1426">4.4 消息真正进入RPC之前会发生什么</a><a href="#chapter-4-section-1443">4.5 4.x与5.x对照：发送重试仍有总预算，5.3.4增加单次预算控制</a></div></details><details class="chapter-nav"><summary><a href="#chapter-5">5. Remoting：协议帧、Future与并发限流</a></summary><div class="nav-sub"><a href="#chapter-5-section-1614">5.1 协议帧里各字段的职责</a><a href="#chapter-5-section-1631">5.2 responseTable如何兑现异步结果</a><a href="#chapter-5-section-1648">5.3 许可释放必须只发生一次</a></div></details><details class="chapter-nav"><summary><a href="#chapter-6">6. SendMessageProcessor：Broker接收与响应映射</a></summary><div class="nav-sub"><a href="#chapter-6-section-1691">6.1 接收端先校验与构造内部消息</a><a href="#chapter-6-section-1708">6.2 PUT_OK怎样变成发送响应</a><a href="#chapter-6-section-1725">6.3 重试消息与DLQ在发送侧也有分支</a></div></details><details class="chapter-nav"><summary><a href="#chapter-7">7. CommitLog：追加、编码、锁与文件滚动</a></summary><div class="nav-sub"><a href="#chapter-7-section-1768">7.1 追加的锁保护什么</a><a href="#chapter-7-section-1791">7.2 文件尾不够放一条消息怎么办</a><a href="#chapter-7-section-1808">7.3 记录格式为何包含两种offset</a><a href="#chapter-7-section-1825">7.4 4.x与5.x对照：CommitLog锁与offset管理的重构</a></div></details><details class="chapter-nav"><summary><a href="#chapter-8">8. MappedFile：写、commit、flush与引用释放</a></summary><div class="nav-sub"><a href="#chapter-8-section-1968">8.1 追加写入与暂存缓冲</a><a href="#chapter-8-section-1985">8.2 commit提交不等于flush落盘</a><a href="#chapter-8-section-2002">8.3 flush与读取引用的收尾</a><a href="#chapter-8-section-2019">8.4 4.x与5.x对照：MappedFile从具体类向接口体系演进</a></div></details><details class="chapter-nav"><summary><a href="#chapter-9">9. 刷盘与复制确认：SEND_OK的边界</a></summary><div class="nav-sub"><a href="#chapter-9-section-2172">9.1 两个Future怎样合并为结果</a><a href="#chapter-9-section-2189">9.2 同步刷盘等待的是目标字节位置</a><a href="#chapter-9-section-2206">9.3 复制确认与刷盘确认不能互相替代</a><a href="#chapter-9-section-2223">9.4 4.x与5.x对照：复制确认从传统从节点进度扩展到同步集合</a></div></details><details class="chapter-nav"><summary><a href="#chapter-10">10. Reput、ConsumeQueue与可见性</a></summary><div class="nav-sub"><a href="#chapter-10-section-2380">10.1 Reput怎样从日志派生索引</a><a href="#chapter-10-section-2397">10.2 文件CQ为什么固定20字节</a><a href="#chapter-10-section-2414">10.3 事务状态决定是否进入业务CQ</a><a href="#chapter-10-section-2431">10.4 RocksDB CQ和迁移双写需要单独读</a><a href="#chapter-10-section-2448">10.5 4.x与5.x对照：文件CQ基础保留，KV与双写成为可选分支</a></div></details><details class="chapter-nav"><summary><a href="#chapter-11">11. IndexFile：按Key查询与冲突验证</a></summary><div class="nav-sub"><a href="#chapter-11-section-2546">11.1 哈希槽与链式索引结构</a><a href="#chapter-11-section-2563">11.2 查询沿槽链向后追溯</a><a href="#chapter-11-section-2580">11.3 最终结果为何还要读消息体</a><a href="#chapter-11-section-2597">11.4 查询精确核验实际在MQAdminImpl这一层</a></div></details><details class="chapter-nav"><summary><a href="#chapter-12">12. Broker拉取与长轮询</a></summary><div class="nav-sub"><a href="#chapter-12-section-2637">12.1 拉取请求先确认什么</a><a href="#chapter-12-section-2654">12.2 getMessage扫描索引再取日志</a><a href="#chapter-12-section-2671">12.3 长轮询不需要线程一直阻塞等待</a><a href="#chapter-12-section-2688">12.4 到达通知也需要判断过滤条件</a></div></details><details class="chapter-nav"><summary><a href="#chapter-13">13. Rebalance与ProcessQueue：队列处理权</a></summary><div class="nav-sub"><a href="#chapter-13-section-2731">13.1 同Group成员怎样算出分配结果</a><a href="#chapter-13-section-2748">13.2 撤销队列先标记dropped</a><a href="#chapter-13-section-2765">13.3 ProcessQueue如何保存未完成消息</a><a href="#chapter-13-section-2782">13.4 4.x与5.x对照：队列分配与消息分配：并发模型变化</a></div></details><details class="chapter-nav"><summary><a href="#chapter-14">14. 经典PushConsumer：拉取循环与流控</a></summary><div class="nav-sub"><a href="#chapter-14-section-2920">14.1 拉取前为何检查缓存与跨度</a><a href="#chapter-14-section-2937">14.2 Pull回调怎样连接到消费线程</a><a href="#chapter-14-section-2954">14.3 并发消费如何切分批次</a></div></details><details class="chapter-nav"><summary><a href="#chapter-15">15. 并发消费：ackIndex、回送与安全位点</a></summary><div class="nav-sub"><a href="#chapter-15-section-2997">15.1 ackIndex表示成功前缀</a><a href="#chapter-15-section-3017">15.2 集群失败回送，广播路径不同</a><a href="#chapter-15-section-3034">15.3 removeMessage返回最早未完成位置</a></div></details><details class="chapter-nav"><summary><a href="#chapter-16">16. 顺序消费：路由、队列锁与失败阻塞</a></summary><div class="nav-sub"><a href="#chapter-16-section-3111">16.1 同队列消费串行靠哪些锁</a><a href="#chapter-16-section-3128">16.2 成功提交，失败先放回本地</a><a href="#chapter-16-section-3145">16.3 顺序重试次数不是固定16次</a><a href="#chapter-16-section-3162">16.4 4.x与5.x对照：顺序消费保障延续，POP FIFO不能靠旧锁流程说明</a></div></details><details class="chapter-nav"><summary><a href="#chapter-17">17. 消费位点：内存、Broker、本地文件与重置</a></summary><div class="nav-sub"><a href="#chapter-17-section-3237">17.1 远端位点也先在客户端内存更新</a><a href="#chapter-17-section-3254">17.2 persistAll与撤销队列的清理</a><a href="#chapter-17-section-3271">17.3 经典广播常用本地文件位点</a><a href="#chapter-17-section-3288">17.4 5.xFIFO消息组与经典固定Queue的衔接</a></div></details><details class="chapter-nav"><summary><a href="#chapter-18">18. 重试与死信：把失败责任安全交接</a></summary><div class="nav-sub"><a href="#chapter-18-section-3328">18.1 回送失败还有兜底发送</a><a href="#chapter-18-section-3345">18.2 Broker如何生成重试或死信消息</a><a href="#chapter-18-section-3362">18.3 DLQ与普通消费位点不互相替代</a></div></details><details class="chapter-nav"><summary><a href="#chapter-19">19. 消息过滤：Tag、SQL与两阶段判断</a></summary><div class="nav-sub"><a href="#chapter-19-section-3397">19.1 CQ预过滤为何必须保守</a><a href="#chapter-19-section-3414">19.2 属性表达式在CommitLog阶段计算</a><a href="#chapter-19-section-3431">19.3 经典客户端还会核对真实Tag</a></div></details><details class="chapter-nav"><summary><a href="#chapter-20">20. 事务消息：half、op、提交与回查</a></summary><div class="nav-sub"><a href="#chapter-20-section-3474">20.1 Producer先发半消息再执行本地事务</a><a href="#chapter-20-section-3491">20.2 half怎样被改写到内部Topic</a><a href="#chapter-20-section-3508">20.3 提交先写最终消息，再标记half已处理</a><a href="#chapter-20-section-3525">20.4 回查怎样跳过已有op并延后未知状态</a><a href="#chapter-20-section-3542">20.5 4.x与5.x对照：half/op协议是延续，事务不是5.x才有</a></div></details><details class="chapter-nav"><summary><a href="#chapter-21">21. 延迟与定时消息：两套调度路径</a></summary><div class="nav-sub"><a href="#chapter-21-section-3706">21.1 delayLevel映射到内部延迟队列</a><a href="#chapter-21-section-3723">21.2 延迟到期不是直接给消费者推送</a><a href="#chapter-21-section-3740">21.3 TimerWheel和TimerLog怎样组织到期任务</a><a href="#chapter-21-section-3757">21.4 到期任务恢复原Topic仍可能再次滚动</a><a href="#chapter-21-section-3774">21.5 4.x与5.x对照：等级延迟到时间轮：精度与调度结构改变</a></div></details><details class="chapter-nav"><summary><a href="#chapter-22">22. 传统HA：传日志、报进度与故障窗口</a></summary><div class="nav-sub"><a href="#chapter-22-section-3901">22.1 HA服务组织连接与等待请求</a><a href="#chapter-22-section-3918">22.2 主节点发送的是物理字节范围</a><a href="#chapter-22-section-3935">22.3 从节点进度不是业务消费位点</a></div></details><details class="chapter-nav"><summary><a href="#chapter-23">23. Controller与DLedger：两条高可用路线</a></summary><div class="nav-sub"><a href="#chapter-23-section-3978">23.1 Controller参与的是角色与元数据决策</a><a href="#chapter-23-section-3995">23.2 AutoSwitchHA限制候选同步集合</a><a href="#chapter-23-section-4012">23.3 DLedgerCommitLog不是普通HA的另一个参数</a><a href="#chapter-23-section-4029">23.4 4.x与5.x对照：4.x已有DLedger，5.xController是另一种自动切换</a></div></details><details class="chapter-nav"><summary><a href="#chapter-24">24. Proxy与gRPC：计算入口和协议转换</a></summary><div class="nav-sub"><a href="#chapter-24-section-4096">24.1 Local与Cluster的依赖创建不同</a><a href="#chapter-24-section-4113">24.2 ReceiveMessage怎样变成POP请求</a><a href="#chapter-24-section-4130">24.3 Proxy的Processor只是编排层</a><a href="#chapter-24-section-4147">24.4 4.x与5.x对照：Proxy/gRPC提供新的接入与部署边界</a></div></details><details class="chapter-nav"><summary><a href="#chapter-25">25. POP消费：取出、不可见、ACK与Revive</a></summary><div class="nav-sub"><a href="#chapter-25-section-4222">25.1 POP取出后为什么不能只推进offset</a><a href="#chapter-25-section-4239">25.2 ACK和checkpoint怎样合并</a><a href="#chapter-25-section-4256">25.3 Revive恢复的是未确认消息</a><a href="#chapter-25-section-4273">25.4 恢复失败时进度不能随意跳过</a><a href="#chapter-25-section-4290">25.5 4.x与5.x对照：位点确认到逐消息ACK：在途状态迁移</a></div></details><details class="chapter-nav"><summary><a href="#chapter-26">26. POP KV存储与ReceiptHandle：另一条实现分支</a></summary><div class="nav-sub"><a href="#chapter-26-section-4443">26.1 配置决定是否走新POP服务</a><a href="#chapter-26-section-4460">26.2 KV ACK删除的是特定取出记录</a><a href="#chapter-26-section-4477">26.3 到期扫描与续期依赖记录时间</a><a href="#chapter-26-section-4494">26.4 ReceiptHandle比消息ID包含更多上下文</a><a href="#chapter-26-section-4511">26.5 4.x与5.x对照：5.x内部也有演进：不能把KV POP当4→5唯一变化</a></div></details><details class="chapter-nav"><summary><a href="#chapter-27">27. 恢复、保留与积压：日志不是永久保险箱</a></summary><div class="nav-sub"><a href="#chapter-27-section-4656">27.1 正常恢复与异常恢复读取不同边界</a><a href="#chapter-27-section-4673">27.2 保留周期还受磁盘压力影响</a><a href="#chapter-27-section-4690">27.3 dispatchBehind、flushBehind与消费lag不同</a></div></details><details class="chapter-nav"><summary><a href="#chapter-28">28. 端到端可靠性与幂等：六个故障窗口</a></summary><div class="nav-sub"><a href="#chapter-28-section-4733">28.1 发送响应丢失：超时是未知结果</a><a href="#chapter-28-section-4750">28.2 业务提交与消费确认之间的裂缝</a><a href="#chapter-28-section-4767">28.3 副本切换与日志删除也有边界</a><a href="#chapter-28-section-4784">28.4 4.x与5.x对照：可靠性结论哪些变、哪些不变</a></div></details><details class="chapter-nav"><summary><a href="#chapter-29">29. 性能与故障推演：按链路定位</a></summary><div class="nav-sub"><a href="#chapter-29-section-4887">29.1 发送慢先拆开时间预算</a><a href="#chapter-29-section-4904">29.2 消费慢先区分Broker和本地缓存</a><a href="#chapter-29-section-4921">29.3 批量、压缩与零拷贝都有条件</a></div></details><details class="chapter-nav"><summary><a href="#chapter-30">30. 只看也能学会：完整消息生命周期推演</a></summary><div class="nav-sub"><a href="#chapter-30-section-4956">30.1 普通消息从发送到完成消费</a><a href="#chapter-30-section-4973">30.2 事务事件的未知状态怎样收敛</a><a href="#chapter-30-section-4990">30.3 POP超时重投怎样避免重复效果</a></div></details><details class="chapter-nav"><summary><a href="#chapter-31">31. 面试复述与常见误解</a></summary><div class="nav-sub"><a href="#chapter-31-section-5025">31.1 为什么高吞吐，是否就是零拷贝</a><a href="#chapter-31-section-5042">31.2 为什么不需要每条消息经过NameServer</a><a href="#chapter-31-section-5059">31.3 怎样回答不丢、重复与顺序</a></div></details><a href="#chapter-32">32. 源码索引、许可证与阅读自检</a><a href="#chapter-33">33. 4.x与5.x差异速查地图</a></nav></aside><main id="reader-content"><article><p><a id="handbook-title"></a></p>
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script></head><body class="learning-reader" data-layout="learning-v2" data-reader="rocketmq"><a class="skip" href="#main">跳到正文</a><header class="topbar"><button id="menu" class="mobile" aria-label="打开章节导航" aria-expanded="false" aria-controls="left-nav">目录</button><div class="brand"><a class="library-home" href="../">← 学习库</a>RocketMQ学习手册<span>4.x / 5.x对照</span></div><div class="tools"><button id="search-open" aria-label="打开全文搜索">搜索 <kbd>/</kbd></button><button id="print" type="button">打印</button><button id="theme" aria-label="切换主题">主题：系统</button></div></header><div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div><div id="drawer-backdrop" hidden></div><div class="layout"><nav id="left-nav" aria-label="章节目录"><p class="nav-label">学习目录 / 34章</p><details class="chapter-nav" data-chapter="reading-000"><summary><a href="#reading-000"><span>01</span>0. 先选阅读路线，再选实现分支</a></summary><div><a href="#chapter-0-section-173">0.1 这本手册怎样读</a><a href="#chapter-0-section-190">0.2 四组容易混淆的路径</a><a href="#chapter-0-section-207">0.3 源码目录对应哪些职责</a><a href="#chapter-0-section-224">0.4 4.x与5.x对照：两个基线与“升级”究竟比较什么</a><a href="#chapter-0-section-276">0.5 先把RocketMQ看成三本账</a><a href="#chapter-0-section-369">0.6 用四条消息手算：为什么三个offset不能互换</a><a href="#chapter-0-section-496">0.7 一次send成功经过了什么，哪些动作仍在后面</a><a href="#chapter-0-section-605">0.8 三个写入位置：画清wrote、committed、flushed</a><a href="#chapter-0-section-681">0.9 消费不是一个ACK：先追本地缓存，再追远端进度</a><a href="#chapter-0-section-796">0.10 失败由谁接手：把重试、事务回查与POP恢复分开</a><a href="#chapter-0-section-894">0.11 把顺序、吞吐和可靠性放在同一张因果表里</a><a href="#chapter-0-section-1048">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-001"><summary><a href="#reading-001"><span>02</span>1. 架构、消息模型与三种offset</a></summary><div><a href="#chapter-1-section-1074">1.1 Queue是逻辑序列，CommitLog是物理日志</a><a href="#chapter-1-section-1091">1.2 queueOffset、commitLogOffset、consumerOffset</a><a href="#chapter-1-section-1108">1.3 Group才是消费进度的命名空间</a><a href="#chapter-1-section-1125">1.4 4.x与5.x对照：消息类型与Topic约束</a><a href="#chapter-1-section-1146">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-002"><summary><a href="#reading-002"><span>03</span>2. NameServer：路由注册、查询与过期</a></summary><div><a href="#chapter-2-section-1172">2.1 注册一次Broker会更新哪些表</a><a href="#chapter-2-section-1189">2.2 查询路由返回快照，不传消息体</a><a href="#chapter-2-section-1206">2.3 心跳超时与连接断开怎样清理</a><a href="#chapter-2-section-1223">2.4 4.x与5.x对照：路由层定位没变，版本信息与部署职责扩展</a><a href="#chapter-2-section-1272">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-003"><summary><a href="#reading-003"><span>04</span>3. Broker生命周期与线程分工</a></summary><div><a href="#chapter-3-section-1298">3.1 先恢复存储，再对外提供服务</a><a href="#chapter-3-section-1315">3.2 请求码怎样找到处理器</a><a href="#chapter-3-section-1332">3.3 排队时延也是可靠性问题</a><a href="#chapter-3-section-1349">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-004"><summary><a href="#reading-004"><span>05</span>4. Producer：启动、路由与发送预算</a></summary><div><a href="#chapter-4-section-1375">4.1 Producer怎样共享客户端基础设施</a><a href="#chapter-4-section-1392">4.2 sendDefaultImpl是发送控制环</a><a href="#chapter-4-section-1409">4.3 重试为什么可能换Broker</a><a href="#chapter-4-section-1426">4.4 消息真正进入RPC之前会发生什么</a><a href="#chapter-4-section-1443">4.5 4.x与5.x对照：发送重试仍有总预算，5.3.4增加单次预算控制</a><a href="#chapter-4-section-1492">状态展开：一次发送的预算纸面计算</a><a href="#chapter-4-section-1588">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-005"><summary><a href="#reading-005"><span>06</span>5. Remoting：协议帧、Future与并发限流</a></summary><div><a href="#chapter-5-section-1614">5.1 协议帧里各字段的职责</a><a href="#chapter-5-section-1631">5.2 responseTable如何兑现异步结果</a><a href="#chapter-5-section-1648">5.3 许可释放必须只发生一次</a><a href="#chapter-5-section-1665">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-006"><summary><a href="#reading-006"><span>07</span>6. SendMessageProcessor：Broker接收与响应映射</a></summary><div><a href="#chapter-6-section-1691">6.1 接收端先校验与构造内部消息</a><a href="#chapter-6-section-1708">6.2 PUT_OK怎样变成发送响应</a><a href="#chapter-6-section-1725">6.3 重试消息与DLQ在发送侧也有分支</a><a href="#chapter-6-section-1742">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-007"><summary><a href="#reading-007"><span>08</span>7. CommitLog：追加、编码、锁与文件滚动</a></summary><div><a href="#chapter-7-section-1768">7.1 追加的锁保护什么</a><a href="#chapter-7-section-1791">7.2 文件尾不够放一条消息怎么办</a><a href="#chapter-7-section-1808">7.3 记录格式为何包含两种offset</a><a href="#chapter-7-section-1825">7.4 4.x与5.x对照：CommitLog锁与offset管理的重构</a><a href="#chapter-7-section-1874">状态展开：追加位置与队列位置推演</a><a href="#chapter-7-section-1942">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-008"><summary><a href="#reading-008"><span>09</span>8. MappedFile：写、commit、flush与引用释放</a></summary><div><a href="#chapter-8-section-1968">8.1 追加写入与暂存缓冲</a><a href="#chapter-8-section-1985">8.2 commit提交不等于flush落盘</a><a href="#chapter-8-section-2002">8.3 flush与读取引用的收尾</a><a href="#chapter-8-section-2019">8.4 4.x与5.x对照：MappedFile从具体类向接口体系演进</a><a href="#chapter-8-section-2068">状态展开：三个位置的约束与例外</a><a href="#chapter-8-section-2146">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-009"><summary><a href="#reading-009"><span>10</span>9. 刷盘与复制确认：SEND_OK的边界</a></summary><div><a href="#chapter-9-section-2172">9.1 两个Future怎样合并为结果</a><a href="#chapter-9-section-2189">9.2 同步刷盘等待的是目标字节位置</a><a href="#chapter-9-section-2206">9.3 复制确认与刷盘确认不能互相替代</a><a href="#chapter-9-section-2223">9.4 4.x与5.x对照：复制确认从传统从节点进度扩展到同步集合</a><a href="#chapter-9-section-2272">状态展开：确认保证矩阵</a><a href="#chapter-9-section-2354">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-010"><summary><a href="#reading-010"><span>11</span>10. Reput、ConsumeQueue与可见性</a></summary><div><a href="#chapter-10-section-2380">10.1 Reput怎样从日志派生索引</a><a href="#chapter-10-section-2397">10.2 文件CQ为什么固定20字节</a><a href="#chapter-10-section-2414">10.3 事务状态决定是否进入业务CQ</a><a href="#chapter-10-section-2431">10.4 RocksDB CQ和迁移双写需要单独读</a><a href="#chapter-10-section-2448">10.5 4.x与5.x对照：文件CQ基础保留，KV与双写成为可选分支</a><a href="#chapter-10-section-2497">状态展开：日志、索引与消费进度的三个完成点</a><a href="#chapter-10-section-2520">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-011"><summary><a href="#reading-011"><span>12</span>11. IndexFile：按Key查询与冲突验证</a></summary><div><a href="#chapter-11-section-2546">11.1 哈希槽与链式索引结构</a><a href="#chapter-11-section-2563">11.2 查询沿槽链向后追溯</a><a href="#chapter-11-section-2580">11.3 最终结果为何还要读消息体</a><a href="#chapter-11-section-2597">11.4 查询精确核验实际在MQAdminImpl这一层</a><a href="#chapter-11-section-2611">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-012"><summary><a href="#reading-012"><span>13</span>12. Broker拉取与长轮询</a></summary><div><a href="#chapter-12-section-2637">12.1 拉取请求先确认什么</a><a href="#chapter-12-section-2654">12.2 getMessage扫描索引再取日志</a><a href="#chapter-12-section-2671">12.3 长轮询不需要线程一直阻塞等待</a><a href="#chapter-12-section-2688">12.4 到达通知也需要判断过滤条件</a><a href="#chapter-12-section-2705">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-013"><summary><a href="#reading-013"><span>14</span>13. Rebalance与ProcessQueue：队列处理权</a></summary><div><a href="#chapter-13-section-2731">13.1 同Group成员怎样算出分配结果</a><a href="#chapter-13-section-2748">13.2 撤销队列先标记dropped</a><a href="#chapter-13-section-2765">13.3 ProcessQueue如何保存未完成消息</a><a href="#chapter-13-section-2782">13.4 4.x与5.x对照：队列分配与消息分配：并发模型变化</a><a href="#chapter-13-section-2831">状态展开：四Queue、三成员到五成员的经典分配</a><a href="#chapter-13-section-2894">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-014"><summary><a href="#reading-014"><span>15</span>14. 经典PushConsumer：拉取循环与流控</a></summary><div><a href="#chapter-14-section-2920">14.1 拉取前为何检查缓存与跨度</a><a href="#chapter-14-section-2937">14.2 Pull回调怎样连接到消费线程</a><a href="#chapter-14-section-2954">14.3 并发消费如何切分批次</a><a href="#chapter-14-section-2971">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-015"><summary><a href="#reading-015"><span>16</span>15. 并发消费：ackIndex、回送与安全位点</a></summary><div><a href="#chapter-15-section-2997">15.1 ackIndex表示成功前缀</a><a href="#chapter-15-section-3017">15.2 集群失败回送，广播路径不同</a><a href="#chapter-15-section-3034">15.3 removeMessage返回最早未完成位置</a><a href="#chapter-15-section-3054">状态展开：五条消息的ackIndex推演</a><a href="#chapter-15-section-3085">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-016"><summary><a href="#reading-016"><span>17</span>16. 顺序消费：路由、队列锁与失败阻塞</a></summary><div><a href="#chapter-16-section-3111">16.1 同队列消费串行靠哪些锁</a><a href="#chapter-16-section-3128">16.2 成功提交，失败先放回本地</a><a href="#chapter-16-section-3145">16.3 顺序重试次数不是固定16次</a><a href="#chapter-16-section-3162">16.4 4.x与5.x对照：顺序消费保障延续，POP FIFO不能靠旧锁流程说明</a><a href="#chapter-16-section-3211">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-017"><summary><a href="#reading-017"><span>18</span>17. 消费位点：内存、Broker、本地文件与重置</a></summary><div><a href="#chapter-17-section-3237">17.1 远端位点也先在客户端内存更新</a><a href="#chapter-17-section-3254">17.2 persistAll与撤销队列的清理</a><a href="#chapter-17-section-3271">17.3 经典广播常用本地文件位点</a><a href="#chapter-17-section-3288">17.4 5.xFIFO消息组与经典固定Queue的衔接</a><a href="#chapter-17-section-3302">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-018"><summary><a href="#reading-018"><span>19</span>18. 重试与死信：把失败责任安全交接</a></summary><div><a href="#chapter-18-section-3328">18.1 回送失败还有兜底发送</a><a href="#chapter-18-section-3345">18.2 Broker如何生成重试或死信消息</a><a href="#chapter-18-section-3362">18.3 DLQ与普通消费位点不互相替代</a><a href="#chapter-18-section-3379">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-019"><summary><a href="#reading-019"><span>20</span>19. 消息过滤：Tag、SQL与两阶段判断</a></summary><div><a href="#chapter-19-section-3397">19.1 CQ预过滤为何必须保守</a><a href="#chapter-19-section-3414">19.2 属性表达式在CommitLog阶段计算</a><a href="#chapter-19-section-3431">19.3 经典客户端还会核对真实Tag</a><a href="#chapter-19-section-3448">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-020"><summary><a href="#reading-020"><span>21</span>20. 事务消息：half、op、提交与回查</a></summary><div><a href="#chapter-20-section-3474">20.1 Producer先发半消息再执行本地事务</a><a href="#chapter-20-section-3491">20.2 half怎样被改写到内部Topic</a><a href="#chapter-20-section-3508">20.3 提交先写最终消息，再标记half已处理</a><a href="#chapter-20-section-3525">20.4 回查怎样跳过已有op并延后未知状态</a><a href="#chapter-20-section-3542">20.5 4.x与5.x对照：half/op协议是延续，事务不是5.x才有</a><a href="#chapter-20-section-3591">状态展开：事务故障表：判断依赖哪个事实</a><a href="#chapter-20-section-3680">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-021"><summary><a href="#reading-021"><span>22</span>21. 延迟与定时消息：两套调度路径</a></summary><div><a href="#chapter-21-section-3706">21.1 delayLevel映射到内部延迟队列</a><a href="#chapter-21-section-3723">21.2 延迟到期不是直接给消费者推送</a><a href="#chapter-21-section-3740">21.3 TimerWheel和TimerLog怎样组织到期任务</a><a href="#chapter-21-section-3757">21.4 到期任务恢复原Topic仍可能再次滚动</a><a href="#chapter-21-section-3774">21.5 4.x与5.x对照：等级延迟到时间轮：精度与调度结构改变</a><a href="#chapter-21-section-3823">状态展开：两种时间概念与业务到达延迟</a><a href="#chapter-21-section-3883">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-022"><summary><a href="#reading-022"><span>23</span>22. 传统HA：传日志、报进度与故障窗口</a></summary><div><a href="#chapter-22-section-3901">22.1 HA服务组织连接与等待请求</a><a href="#chapter-22-section-3918">22.2 主节点发送的是物理字节范围</a><a href="#chapter-22-section-3935">22.3 从节点进度不是业务消费位点</a><a href="#chapter-22-section-3952">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-023"><summary><a href="#reading-023"><span>24</span>23. Controller与DLedger：两条高可用路线</a></summary><div><a href="#chapter-23-section-3978">23.1 Controller参与的是角色与元数据决策</a><a href="#chapter-23-section-3995">23.2 AutoSwitchHA限制候选同步集合</a><a href="#chapter-23-section-4012">23.3 DLedgerCommitLog不是普通HA的另一个参数</a><a href="#chapter-23-section-4029">23.4 4.x与5.x对照：4.x已有DLedger，5.xController是另一种自动切换</a><a href="#chapter-23-section-4078">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-024"><summary><a href="#reading-024"><span>25</span>24. Proxy与gRPC：计算入口和协议转换</a></summary><div><a href="#chapter-24-section-4096">24.1 Local与Cluster的依赖创建不同</a><a href="#chapter-24-section-4113">24.2 ReceiveMessage怎样变成POP请求</a><a href="#chapter-24-section-4130">24.3 Proxy的Processor只是编排层</a><a href="#chapter-24-section-4147">24.4 4.x与5.x对照：Proxy/gRPC提供新的接入与部署边界</a><a href="#chapter-24-section-4196">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-025"><summary><a href="#reading-025"><span>26</span>25. POP消费：取出、不可见、ACK与Revive</a></summary><div><a href="#chapter-25-section-4222">25.1 POP取出后为什么不能只推进offset</a><a href="#chapter-25-section-4239">25.2 ACK和checkpoint怎样合并</a><a href="#chapter-25-section-4256">25.3 Revive恢复的是未确认消息</a><a href="#chapter-25-section-4273">25.4 恢复失败时进度不能随意跳过</a><a href="#chapter-25-section-4290">25.5 4.x与5.x对照：位点确认到逐消息ACK：在途状态迁移</a><a href="#chapter-25-section-4339">状态展开：POP不可见时间的纸面时序</a><a href="#chapter-25-section-4417">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-026"><summary><a href="#reading-026"><span>27</span>26. POP KV存储与ReceiptHandle：另一条实现分支</a></summary><div><a href="#chapter-26-section-4443">26.1 配置决定是否走新POP服务</a><a href="#chapter-26-section-4460">26.2 KV ACK删除的是特定取出记录</a><a href="#chapter-26-section-4477">26.3 到期扫描与续期依赖记录时间</a><a href="#chapter-26-section-4494">26.4 ReceiptHandle比消息ID包含更多上下文</a><a href="#chapter-26-section-4511">26.5 4.x与5.x对照：5.x内部也有演进：不能把KV POP当4→5唯一变化</a><a href="#chapter-26-section-4560">状态展开：哪些标识稳定，哪些随投递变化</a><a href="#chapter-26-section-4638">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-027"><summary><a href="#reading-027"><span>28</span>27. 恢复、保留与积压：日志不是永久保险箱</a></summary><div><a href="#chapter-27-section-4656">27.1 正常恢复与异常恢复读取不同边界</a><a href="#chapter-27-section-4673">27.2 保留周期还受磁盘压力影响</a><a href="#chapter-27-section-4690">27.3 dispatchBehind、flushBehind与消费lag不同</a><a href="#chapter-27-section-4707">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-028"><summary><a href="#reading-028"><span>29</span>28. 端到端可靠性与幂等：六个故障窗口</a></summary><div><a href="#chapter-28-section-4733">28.1 发送响应丢失：超时是未知结果</a><a href="#chapter-28-section-4750">28.2 业务提交与消费确认之间的裂缝</a><a href="#chapter-28-section-4767">28.3 副本切换与日志删除也有边界</a><a href="#chapter-28-section-4784">28.4 4.x与5.x对照：可靠性结论哪些变、哪些不变</a><a href="#chapter-28-section-4833">状态展开：幂等设计的四个追问</a><a href="#chapter-28-section-4861">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-029"><summary><a href="#reading-029"><span>30</span>29. 性能与故障推演：按链路定位</a></summary><div><a href="#chapter-29-section-4887">29.1 发送慢先拆开时间预算</a><a href="#chapter-29-section-4904">29.2 消费慢先区分Broker和本地缓存</a><a href="#chapter-29-section-4921">29.3 批量、压缩与零拷贝都有条件</a><a href="#chapter-29-section-4938">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-030"><summary><a href="#reading-030"><span>31</span>30. 只看也能学会：完整消息生命周期推演</a></summary><div><a href="#chapter-30-section-4956">30.1 普通消息从发送到完成消费</a><a href="#chapter-30-section-4973">30.2 事务事件的未知状态怎样收敛</a><a href="#chapter-30-section-4990">30.3 POP超时重投怎样避免重复效果</a><a href="#chapter-30-section-5007">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-031"><summary><a href="#reading-031"><span>32</span>31. 知识回顾与常见误解</a></summary><div><a href="#chapter-31-section-5025">31.1 为什么高吞吐，是否就是零拷贝</a><a href="#chapter-31-section-5042">31.2 为什么不需要每条消息经过NameServer</a><a href="#chapter-31-section-5059">31.3 怎样回答不丢、重复与顺序</a><a href="#chapter-31-section-5076">本章纸面推演</a></div></details><details class="chapter-nav" data-chapter="reading-032"><summary><a href="#reading-032"><span>33</span>32. 源码索引、许可证与阅读自检</a></summary><div><a href="#chapter-32-section-5088">常见误解对照</a><a href="#chapter-32-section-5201">六个自检题与答案</a><a href="#chapter-32-section-5236">上游与归属</a><a href="#chapter-32-section-5269">按版本与文件查阅</a></div></details><details class="chapter-nav" data-chapter="reading-033"><summary><a href="#reading-033"><span>34</span>33. 4.x与5.x差异速查地图</a></summary><div><a href="#chapter-33-section-5827">变化的四层含义</a></div></details></nav><main id="main" tabindex="-1"><span id="reader-content"></span><section class="intro"><h1>RocketMQ学习手册</h1><p>先串消息主线，再读源码状态</p><div class="reader-downloads"><a href="./rocketmq-offline.zip" download>下载离线阅读包 ↓</a><a href="./handbook.md">Markdown手册</a></div><details class="reader-preface"><summary>版本、来源与学习路线</summary><p><a id="handbook-title"></a></p>
 <h1>RocketMQ源码速读图解手册</h1>
 <blockquote>
-<p>固定基线：Apache RocketMQ5.3.4，标签rocketmq-all-5.3.4。面向只读学习：真实源码、机制图、状态推演与面试复述；无需实验。</p>
+<p>固定基线：Apache RocketMQ5.3.4，标签rocketmq-all-5.3.4。面向只读学习：真实源码、机制图、状态推演与知识回顾；无需实验。</p>
 </blockquote>
 <p><a href="./rocketmq-offline.zip">下载完整离线版</a> · <a href="./rocketmq-source.zip">下载本文引用的原始源码</a> · <a href="./apache-license.txt">Apache许可</a> · <a href="./apache-notice.txt">上游NOTICE</a> · <a href="./source-notices.txt">源码归属说明</a></p>
 <p>本文是独立的公开源码导读，所有案例均为虚构，不含个人履历、业务系统细节、生产配置、账号或本地路径。页面图、样式、搜索与语法高亮均内嵌；打开源码外链时才需要网络。搜索和主题设置在本地处理，不上传阅读内容。</p>
@@ -204,8 +303,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 </tr>
 </tbody>
 </table>
-<p><a id="chapter-0"></a></p>
-<h1>0. 先选阅读路线，再选实现分支</h1>
+</details></section><article class="chapter" id="reading-000" data-title="0. 先选阅读路线，再选实现分支"><div class="chapter-title"><p class="eyebrow">章节01 / 完整阅读</p><p><a id="chapter-0"></a></p>
+<h1>0. 先选阅读路线，再选实现分支</h1></div><div class="study">
 <p><strong>适用范围：</strong>RocketMQ4.9.8与5.3.4固定提交；以5.3.4为主线。</p>
 <p><strong>本章目标：</strong>先把组件、协议、存储和消费方式分开，避免从一个类推断所有部署模式。</p>
 <h2 id="chapter-0-section-173">0.1 这本手册怎样读</h2>
@@ -648,7 +747,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <th>设计选择</th>
 <th>为什么这样做</th>
 <th>由此产生的代价</th>
-<th>面试追问怎么接</th>
+<th>延伸问题怎么接</th>
 </tr>
 </thead>
 <tbody>
@@ -705,8 +804,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>第一轮读到这里，应能画出消息和三本账的关系；第二轮回到各章的源码卡，验证每一次状态前进的条件；第三轮读版本对照和特殊路径，检查哪些前提已经变化。详细源码保留在原章，不要求逐行背诵，也不要求搭建集群或运行实验。</p>
 <h2 id="chapter-0-section-1048">本章纸面推演</h2>
 <p>第一遍沿发送→CommitLog→CQ→拉取→消费位点读完；第二遍补事务、定时、HA、Proxy与POP。遇到复杂分支，先写下自己的客户端协议和Broker配置，再进入对应章节。</p>
-<p><a id="chapter-1"></a></p>
-<h1>1. 架构、消息模型与三种offset</h1>
+</div></article><article class="chapter" id="reading-001" data-title="1. 架构、消息模型与三种offset"><div class="chapter-title"><p class="eyebrow">章节02 / 完整阅读</p><p><a id="chapter-1"></a></p>
+<h1>1. 架构、消息模型与三种offset</h1></div><div class="study">
 <p><strong>适用范围：</strong>所有路径的概念层；布局示例以文件存储为准。</p>
 <p><strong>本章目标：</strong>建立Topic、Queue、Group与物理日志之间的对应关系。</p>
 <blockquote>
@@ -1014,8 +1113,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
             messageQueue,
             messageList,</code></pre></div></section><h2 id="chapter-1-section-1146">本章纸面推演</h2>
 <p>Topic有4个Queue，两组消费者都要读全量业务事件：每个Group各自推进位点；同一Group内分摊队列。增加Group不会复制一份CommitLog，主要增加订阅、位点与消费负载。</p>
-<p><a id="chapter-2"></a></p>
-<h1>2. NameServer：路由注册、查询与过期</h1>
+</div></article><article class="chapter" id="reading-002" data-title="2. NameServer：路由注册、查询与过期"><div class="chapter-title"><p class="eyebrow">章节03 / 完整阅读</p><p><a id="chapter-2"></a></p>
+<h1>2. NameServer：路由注册、查询与过期</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典路由；Namesrv RouteInfoManager。</p>
 <p><strong>本章目标：</strong>读懂路由表的来源与失效，而不是把路由服务当成消息主节点。</p>
 <blockquote>
@@ -1353,8 +1452,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
             }</code></pre></div></section><p><strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。</p>
 <h2 id="chapter-2-section-1272">本章纸面推演</h2>
 <p>Broker停止心跳以后，NameServer过期扫描移除路由需要时间；客户端也有缓存刷新周期。在这个窗口里客户端可能连接旧地址并失败，再依靠重试、刷新和故障规避恢复。</p>
-<p><a id="chapter-3"></a></p>
-<h1>3. Broker生命周期与线程分工</h1>
+</div></article><article class="chapter" id="reading-003" data-title="3. Broker生命周期与线程分工"><div class="chapter-title"><p class="eyebrow">章节04 / 完整阅读</p><p><a id="chapter-3"></a></p>
+<h1>3. Broker生命周期与线程分工</h1></div><div class="study">
 <p><strong>适用范围：</strong>BrokerController与Remoting请求处理。</p>
 <p><strong>本章目标：</strong>把初始化、恢复、启动、注册与真正请求执行连接起来。</p>
 <blockquote>
@@ -1676,8 +1775,8 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
             <span class="hljs-string">&quot;[OVERLOAD]system busy, start flow control for a while&quot;</span>);</code></pre></div></section><p><strong>逐段阅读抓手：</strong>关注rejectRequest与线程池提交失败的响应；繁忙错误不等于消息必然未写入。</p>
 <h2 id="chapter-3-section-1349">本章纸面推演</h2>
 <p>发送线程池排队很长时，客户端会超时，即使磁盘还能写。反过来，业务线程池正常但刷盘Future迟迟不完成，也会增加发送RT。先定位哪个阶段等待，才知道瓶颈在哪里。</p>
-<p><a id="chapter-4"></a></p>
-<h1>4. Producer：启动、路由与发送预算</h1>
+</div></article><article class="chapter" id="reading-004" data-title="4. Producer：启动、路由与发送预算"><div class="chapter-title"><p class="eyebrow">章节05 / 完整阅读</p><p><a id="chapter-4"></a></p>
+<h1>4. Producer：启动、路由与发送预算</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典DefaultMQProducerImpl；SYNC/ASYNC/ONEWAY。</p>
 <p><strong>本章目标：</strong>一章串起发送对象、路由缓存、重试、故障规避和超时预算。</p>
 <blockquote>
@@ -2340,8 +2439,8 @@ String[] brokersSent = <span class="hljs-keyword">new</span> <span class="hljs-t
 <p>假设启用单次请求上限1000ms，第一轮可能先使用1000ms，但这个上限只在对应可重试条件下生效。具体超时还经过RPC层和调度，表只是控制预算推演，不是RT测量。</p>
 <h2 id="chapter-4-section-1588">本章纸面推演</h2>
 <p>总预算3秒，第一轮耗时2.8秒后失败，后续重试只能使用剩余预算；不是每次重试都额外获得3秒。第一次响应丢失时，Broker可能已经存储，第二次发送可能产生重复。</p>
-<p><a id="chapter-5"></a></p>
-<h1>5. Remoting：协议帧、Future与并发限流</h1>
+</div></article><article class="chapter" id="reading-005" data-title="5. Remoting：协议帧、Future与并发限流"><div class="chapter-title"><p class="eyebrow">章节06 / 完整阅读</p><p><a id="chapter-5"></a></p>
+<h1>5. Remoting：协议帧、Future与并发限流</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典Netty Remoting；gRPC另见Proxy章。</p>
 <p><strong>本章目标：</strong>弄清请求关联、响应回调、发送完成和业务确认的区别。</p>
 <blockquote>
@@ -2511,8 +2610,8 @@ String[] brokersSent = <span class="hljs-keyword">new</span> <span class="hljs-t
 }</code></pre></div></section><p><strong>逐段阅读抓手：</strong>AtomicBoolean比较设置控制本地回调；不要把此处once翻译成消息Exactly Once。</p>
 <h2 id="chapter-5-section-1665">本章纸面推演</h2>
 <p>Channel的writeAndFlush成功说明网络写入步骤成功，不能说明Broker已经PUT_OK。responseTable中的Future等到带同一opaque的响应后，才有请求层面的结果；超时清理并不能撤销服务端已经执行的写入。</p>
-<p><a id="chapter-6"></a></p>
-<h1>6. SendMessageProcessor：Broker接收与响应映射</h1>
+</div></article><article class="chapter" id="reading-006" data-title="6. SendMessageProcessor：Broker接收与响应映射"><div class="chapter-title"><p class="eyebrow">章节07 / 完整阅读</p><p><a id="chapter-6"></a></p>
+<h1>6. SendMessageProcessor：Broker接收与响应映射</h1></div><div class="study">
 <p><strong>适用范围：</strong>Broker经典发送请求；普通消息为主。</p>
 <p><strong>本章目标：</strong>区分验证失败、日志追加成功、刷盘结果和客户端状态。</p>
 <blockquote>
@@ -2904,8 +3003,8 @@ String[] brokersSent = <span class="hljs-keyword">new</span> <span class="hljs-t
     <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;</code></pre></div></section><p><strong>逐段阅读抓手：</strong>关注reconsumeTimes与maxReconsumeTimes；Producer发送次数并不进入这个计数。</p>
 <h2 id="chapter-6-section-1742">本章纸面推演</h2>
 <p>同步刷盘超时返回FLUSH_DISK_TIMEOUT时，消息可能已经追加，甚至稍后刷盘成功。应用把该响应简单当成“绝对没存进去”并无限重发，会扩大重复。</p>
-<p><a id="chapter-7"></a></p>
-<h1>7. CommitLog：追加、编码、锁与文件滚动</h1>
+</div></article><article class="chapter" id="reading-007" data-title="7. CommitLog：追加、编码、锁与文件滚动"><div class="chapter-title"><p class="eyebrow">章节08 / 完整阅读</p><p><a id="chapter-7"></a></p>
+<h1>7. CommitLog：追加、编码、锁与文件滚动</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典CommitLog；非DLedger覆盖路径。</p>
 <p><strong>本章目标：</strong>理解日志写入的连续性和逻辑offset分配。</p>
 <blockquote>
@@ -3567,8 +3666,8 @@ String[] brokersSent = <span class="hljs-keyword">new</span> <span class="hljs-t
 <p>Queue1逻辑连续的100、101之间，物理日志插入了另一Topic的消息。消费者按CQ定位，不应假设Queue1每条记录在CommitLog中物理紧邻。物理位置示例与记录长度为虚构，真实长度由编码决定。</p>
 <h2 id="chapter-7-section-1942">本章纸面推演</h2>
 <p>文件剩余空间不足时，会写空白结束标记并切换下一MappedFile，再追加同一条消息。物理offset因此可以跳过文件尾空白；逻辑queueOffset不应被这个空白占用。</p>
-<p><a id="chapter-8"></a></p>
-<h1>8. MappedFile：写、commit、flush与引用释放</h1>
+</div></article><article class="chapter" id="reading-008" data-title="8. MappedFile：写、commit、flush与引用释放"><div class="chapter-title"><p class="eyebrow">章节09 / 完整阅读</p><p><a id="chapter-8"></a></p>
+<h1>8. MappedFile：写、commit、flush与引用释放</h1></div><div class="study">
 <p><strong>适用范围：</strong>DefaultMappedFile；经典文件路径。</p>
 <p><strong>本章目标：</strong>把内存可见和持久化分开，并理解TransientStorePool。</p>
 <blockquote>
@@ -3986,8 +4085,8 @@ String[] brokersSent = <span class="hljs-keyword">new</span> <span class="hljs-t
 <p>启用writeBuffer时，理解flushed≤committed≤wrote的主要状态关系；未启用暂存时，readPosition通常跟随wrote，committed字段不再承担同样角色。图示不能把后一场景硬套进三段复制流程。</p>
 <h2 id="chapter-8-section-2146">本章纸面推演</h2>
 <p>假设wrotePosition=8192、committedPosition=4096、flushedPosition=0：在启用暂存缓冲的路径里，后半段尚未提交到文件侧可读位置，前半段也尚未达到已记录的刷盘位置。不能把8192都称为已持久化。</p>
-<p><a id="chapter-9"></a></p>
-<h1>9. 刷盘与复制确认：SEND_OK的边界</h1>
+</div></article><article class="chapter" id="reading-009" data-title="9. 刷盘与复制确认：SEND_OK的边界"><div class="chapter-title"><p class="eyebrow">章节10 / 完整阅读</p><p><a id="chapter-9"></a></p>
+<h1>9. 刷盘与复制确认：SEND_OK的边界</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典CommitLog；同步/异步刷盘与HA组合。</p>
 <p><strong>本章目标：</strong>分别回答本地追加、本地持久化与副本复制是否等待。</p>
 <blockquote>
@@ -4411,8 +4510,8 @@ topicQueueLock.lock(topicQueueKey);
 <p>Controller模式需再叠加同步集合、最小副本数、确认数、角色等条件；DLedger应换用其实现。表格描述主线，所有结论都受waitStoreMsgOK与具体部署限制。</p>
 <h2 id="chapter-9-section-2354">本章纸面推演</h2>
 <p>异步刷盘且异步复制时，SEND_OK主要说明这条路径的追加和处理成功，并不表示消息已同步落盘且复制到从节点。同步刷盘加同步复制提供更强等待条件，但仍需考虑超时、故障域、切换规则和业务幂等。</p>
-<p><a id="chapter-10"></a></p>
-<h1>10. Reput、ConsumeQueue与可见性</h1>
+</div></article><article class="chapter" id="reading-010" data-title="10. Reput、ConsumeQueue与可见性"><div class="chapter-title"><p class="eyebrow">章节11 / 完整阅读</p><p><a id="chapter-10"></a></p>
+<h1>10. Reput、ConsumeQueue与可见性</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典文件CQ；RocksDB与双写分支独立说明。</p>
 <p><strong>本章目标：</strong>从日志事实重建面向消费的逻辑索引。</p>
 <blockquote>
@@ -4900,8 +4999,8 @@ topicQueueLock.lock(topicQueueKey);
 <p>这三个阶段由不同线程或服务推进，不能拿其中一个offset替另一个阶段作证明。如果发送成功却短暂拉不到，先核对Topic/Queue、订阅过滤、Reput滞后和offset范围，再判断数据事实。</p>
 <h2 id="chapter-10-section-2520">本章纸面推演</h2>
 <p>CommitLog成功追加后，Reput仍可能暂时落后，CQ尚未出现新消息。Producer成功和Consumer立即可拉到消息之间存在分发阶段；索引滞后要看dispatchBehind，而不能直接断言消息丢了。</p>
-<p><a id="chapter-11"></a></p>
-<h1>11. IndexFile：按Key查询与冲突验证</h1>
+</div></article><article class="chapter" id="reading-011" data-title="11. IndexFile：按Key查询与冲突验证"><div class="chapter-title"><p class="eyebrow">章节12 / 完整阅读</p><p><a id="chapter-11"></a></p>
+<h1>11. IndexFile：按Key查询与冲突验证</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典哈希IndexFile；不是消费主路径。</p>
 <p><strong>本章目标：</strong>理解业务Key查询为何是候选索引，而非唯一性约束。</p>
 <blockquote>
@@ -5319,8 +5418,8 @@ topicQueueLock.lock(topicQueueKey);
     <span class="hljs-keyword">for</span> (MessageExt messageExt : messageList) {
         messageExt.setTopic(NamespaceUtil.withoutNamespace(messageExt.getTopic(), <span class="hljs-built_in">this</span>.mQClientFactory.getClientConfig().getNamespace()));</code></pre></div></section><h2 id="chapter-11-section-2611">本章纸面推演</h2>
 <p>两个不同Key的hash相同，索引查询可能给出相同候选物理位置。经典MQAdminImpl在收到候选消息后核验真实Topic和Key等条件；哈希命中不能证明就是目标消息。</p>
-<p><a id="chapter-12"></a></p>
-<h1>12. Broker拉取与长轮询</h1>
+</div></article><article class="chapter" id="reading-012" data-title="12. Broker拉取与长轮询"><div class="chapter-title"><p class="eyebrow">章节13 / 完整阅读</p><p><a id="chapter-12"></a></p>
+<h1>12. Broker拉取与长轮询</h1></div><div class="study">
 <p><strong>适用范围：</strong>PullMessageProcessor；经典Pull协议。</p>
 <p><strong>本章目标：</strong>连起订阅过滤、CQ扫描、消息读取和挂起唤醒。</p>
 <blockquote>
@@ -5637,8 +5736,8 @@ topicQueueLock.lock(topicQueueKey);
 }</code></pre></div></section><p><strong>逐段阅读抓手：</strong>cloneListAndClear与replayList配合，理解取出、检查和重新加入的状态变化。</p>
 <h2 id="chapter-12-section-2705">本章纸面推演</h2>
 <p>客户端请求offset等于队列末尾时，Broker可以挂起请求等待新消息。新消息分发到CQ后触发通知，再重新执行拉取；网络请求仍由客户端发起，所以经典PushConsumer底层是长轮询Pull。</p>
-<p><a id="chapter-13"></a></p>
-<h1>13. Rebalance与ProcessQueue：队列处理权</h1>
+</div></article><article class="chapter" id="reading-013" data-title="13. Rebalance与ProcessQueue：队列处理权"><div class="chapter-title"><p class="eyebrow">章节14 / 完整阅读</p><p><a id="chapter-13"></a></p>
+<h1>13. Rebalance与ProcessQueue：队列处理权</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典队列分配；Broker分配分支须区分。</p>
 <p><strong>本章目标：</strong>理解分配算法、撤销、位点恢复和本地缓存的责任。</p>
 <blockquote>
@@ -6331,8 +6430,8 @@ topicQueueLock.lock(topicQueueKey);
 <p>实际归属取决于稳定排序与分配策略，表仅示例。新增成员可能先触发心跳、成员查询和Rebalance，旧任务收尾与新任务启动存在窗口。POP消息分配不是这张经典Queue拥有者表，FIFO同样不能无条件放开并发。</p>
 <h2 id="chapter-13-section-2894">本章纸面推演</h2>
 <p>4个Queue与3个消费者分配可能为2/1/1。扩到5个消费者也不会让4条Queue同时变成5个经典队列拥有者；新增消费者可能没有分配。迁移时旧实例尚在处理，仍存在重复业务执行窗口。</p>
-<p><a id="chapter-14"></a></p>
-<h1>14. 经典PushConsumer：拉取循环与流控</h1>
+</div></article><article class="chapter" id="reading-014" data-title="14. 经典PushConsumer：拉取循环与流控"><div class="chapter-title"><p class="eyebrow">章节15 / 完整阅读</p><p><a id="chapter-14"></a></p>
+<h1>14. 经典PushConsumer：拉取循环与流控</h1></div><div class="study">
 <p><strong>适用范围：</strong>DefaultMQPushConsumerImpl的Pull分支。</p>
 <p><strong>本章目标：</strong>把“Push”表层API还原为缓存、回调与调度。</p>
 <blockquote>
@@ -6730,8 +6829,8 @@ topicQueueLock.lock(topicQueueKey);
 }</code></pre></div></section><p><strong>逐段阅读抓手：</strong>Executor拒绝不是业务Listener失败；看延迟重提如何保留消息列表。</p>
 <h2 id="chapter-14-section-2971">本章纸面推演</h2>
 <p>本地缓存已经超阈值时继续拉取会消耗堆内存，却不增加业务处理能力。流控延后PullRequest，让消费线程消化缓存；Broker积压仍可能增长，这表明业务吞吐不足，不意味着流控失效。</p>
-<p><a id="chapter-15"></a></p>
-<h1>15. 并发消费：ackIndex、回送与安全位点</h1>
+</div></article><article class="chapter" id="reading-015" data-title="15. 并发消费：ackIndex、回送与安全位点"><div class="chapter-title"><p class="eyebrow">章节16 / 完整阅读</p><p><a id="chapter-15"></a></p>
+<h1>15. 并发消费：ackIndex、回送与安全位点</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典ConsumeMessageConcurrentlyService；CLUSTERING/BROADCASTING分开。</p>
 <p><strong>本章目标：</strong>解释批次部分成功和乱序完成怎样影响进度。</p>
 <blockquote>
@@ -6980,8 +7079,8 @@ topicQueueLock.lock(topicQueueKey);
 <p>ackIndex只表达成功前缀。若业务实际成功集合是100、102、104，就不能用一个ackIndex完整表达，应调整批次事务策略或返回保守失败并依赖幂等。</p>
 <h2 id="chapter-15-section-3085">本章纸面推演</h2>
 <p>缓存含100、101、102；102先完成后被删除，但100仍未完成，安全位点不能跳到103。100完成后若101仍在，位点最多到101。否则重启后可能跳过未处理的101。</p>
-<p><a id="chapter-16"></a></p>
-<h1>16. 顺序消费：路由、队列锁与失败阻塞</h1>
+</div></article><article class="chapter" id="reading-016" data-title="16. 顺序消费：路由、队列锁与失败阻塞"><div class="chapter-title"><p class="eyebrow">章节17 / 完整阅读</p><p><a id="chapter-16"></a></p>
+<h1>16. 顺序消费：路由、队列锁与失败阻塞</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典ConsumeMessageOrderlyService；POP FIFO另有实现。</p>
 <p><strong>本章目标：</strong>把生产顺序、存储顺序和处理顺序串成端到端约束。</p>
 <blockquote>
@@ -7459,8 +7558,8 @@ topicQueueLock.lock(topicQueueKey);
 }</code></pre></div></section><p><strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。</p>
 <h2 id="chapter-16-section-3211">本章纸面推演</h2>
 <p>同订单的创建、支付、关闭被发往不同Queue时，即使Listener是顺序型也不能提供订单内顺序。固定同一Queue后，失败暂停会阻塞后续消息，因此一个毒消息会拖住该队列。</p>
-<p><a id="chapter-17"></a></p>
-<h1>17. 消费位点：内存、Broker、本地文件与重置</h1>
+</div></article><article class="chapter" id="reading-017" data-title="17. 消费位点：内存、Broker、本地文件与重置"><div class="chapter-title"><p class="eyebrow">章节18 / 完整阅读</p><p><a id="chapter-17"></a></p>
+<h1>17. 消费位点：内存、Broker、本地文件与重置</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典OffsetStore；POP进度不是同一模型。</p>
 <p><strong>本章目标：</strong>读懂持久化周期与宕机重复窗口。</p>
 <blockquote>
@@ -7684,8 +7783,8 @@ topicQueueLock.lock(topicQueueKey);
     MessageAccessor.putProperty(messageWithHeader, MessageConst.PROPERTY_BORN_HOST, bornHost);
 }</code></pre></div></section><h2 id="chapter-17-section-3302">本章纸面推演</h2>
 <p>业务处理完第100条后，内存位点已到101，但远端仍是100；此时进程崩溃，重启可能再处理100。若先提交远端101而业务未提交，重启反而可能跳过100。通常选择先业务后确认，并以幂等处理重复。</p>
-<p><a id="chapter-18"></a></p>
-<h1>18. 重试与死信：把失败责任安全交接</h1>
+</div></article><article class="chapter" id="reading-018" data-title="18. 重试与死信：把失败责任安全交接"><div class="chapter-title"><p class="eyebrow">章节19 / 完整阅读</p><p><a id="chapter-18"></a></p>
+<h1>18. 重试与死信：把失败责任安全交接</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典回送路径；POP重试另见POP章。</p>
 <p><strong>本章目标：</strong>区分生产重试、消费重试和DLQ人工处置。</p>
 <blockquote>
@@ -8021,8 +8120,8 @@ topicQueueLock.lock(topicQueueKey);
     <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;</code></pre></div></section><p><strong>逐段阅读抓手：</strong>物理存储身份变化与业务事件身份不一致，这是重复处理设计的重要边界。</p>
 <h2 id="chapter-18-section-3379">本章纸面推演</h2>
 <p>失败事件进入重试Topic后，原Queue可以继续前进；重试消息晚到可能改变业务观察顺序。因此对顺序敏感事件不能把所有失败都转入旁路再直接处理后续消息。</p>
-<p><a id="chapter-19"></a></p>
-<h1>19. 消息过滤：Tag、SQL与两阶段判断</h1>
+</div></article><article class="chapter" id="reading-019" data-title="19. 消息过滤：Tag、SQL与两阶段判断"><div class="chapter-title"><p class="eyebrow">章节20 / 完整阅读</p><p><a id="chapter-19"></a></p>
+<h1>19. 消息过滤：Tag、SQL与两阶段判断</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典Broker过滤与客户端结果处理。</p>
 <p><strong>本章目标：</strong>避免把哈希/Bloom预筛当成最终精确匹配。</p>
 <h2 id="chapter-19-section-3397">19.1 CQ预过滤为何必须保守</h2>
@@ -8382,8 +8481,8 @@ topicQueueLock.lock(topicQueueKey);
         }</code></pre></div></section><p><strong>逐段阅读抓手：</strong>观察tagsSet.contains(msg.getTags())；不要把预筛选返回的候选全部当成最终匹配。</p>
 <h2 id="chapter-19-section-3448">本章纸面推演</h2>
 <p>Tag字符串不同但hash碰撞时，Broker CQ预过滤可能认为匹配，经典客户端还会按真实Tag字符串筛选。SQL过滤则需要消息属性和表达式计算；不能说只比较CQ中的一个数字就完成所有过滤。</p>
-<p><a id="chapter-20"></a></p>
-<h1>20. 事务消息：half、op、提交与回查</h1>
+</div></article><article class="chapter" id="reading-020" data-title="20. 事务消息：half、op、提交与回查"><div class="chapter-title"><p class="eyebrow">章节21 / 完整阅读</p><p><a id="chapter-20"></a></p>
+<h1>20. 事务消息：half、op、提交与回查</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典事务消息实现；不是数据库与MQ的XA。</p>
 <p><strong>本章目标：</strong>用最终确认和回查连接业务事务与消息可见性。</p>
 <blockquote>
@@ -9007,8 +9106,8 @@ topicQueueLock.lock(topicQueueKey);
 <p>回查查询必须区分“确定未提交”和“暂时查不到”。读数据库副本的延迟、事务尚在执行或历史结果清理，都可能使简单的exists查询无法立刻给出可靠事实。</p>
 <h2 id="chapter-20-section-3680">本章纸面推演</h2>
 <p>半消息发送成功→数据库提交成功→事务结束请求丢失：Broker仍保留不确定状态，后续回查需要从持久化业务记录判断COMMIT。回查只看进程内变量，重启后就可能判断错误。</p>
-<p><a id="chapter-21"></a></p>
-<h1>21. 延迟与定时消息：两套调度路径</h1>
+</div></article><article class="chapter" id="reading-021" data-title="21. 延迟与定时消息：两套调度路径"><div class="chapter-title"><p class="eyebrow">章节22 / 完整阅读</p><p><a id="chapter-21"></a></p>
+<h1>21. 延迟与定时消息：两套调度路径</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典delayLevel与TimerMessageStore；固定5.3.4。</p>
 <p><strong>本章目标：</strong>分清相对延迟等级和时间轮定时消息。</p>
 <blockquote>
@@ -9501,8 +9600,8 @@ topicQueueLock.lock(topicQueueKey);
 <p>到期以后发生积压时，晚处理不等于定时参数编码错误。读取调度位置、内部队列进度与业务Queue lag，才能区分定时服务慢还是消费者慢。</p>
 <h2 id="chapter-21-section-3883">本章纸面推演</h2>
 <p>消息到期只是开始投递到业务Topic的时间条件，不保证业务Listener在精确毫秒执行。调度线程积压、刷盘、分发、网络与消费能力都可能引入到期后的延迟。</p>
-<p><a id="chapter-22"></a></p>
-<h1>22. 传统HA：传日志、报进度与故障窗口</h1>
+</div></article><article class="chapter" id="reading-022" data-title="22. 传统HA：传日志、报进度与故障窗口"><div class="chapter-title"><p class="eyebrow">章节23 / 完整阅读</p><p><a id="chapter-22"></a></p>
+<h1>22. 传统HA：传日志、报进度与故障窗口</h1></div><div class="study">
 <p><strong>适用范围：</strong>DefaultHAService及DefaultHAConnection/Client。</p>
 <p><strong>本章目标：</strong>把复制数据平面和主节点选举分开。</p>
 <h2 id="chapter-22-section-3901">22.1 HA服务组织连接与等待请求</h2>
@@ -9750,8 +9849,8 @@ topicQueueLock.lock(topicQueueKey);
 }</code></pre></div></section><p><strong>逐段阅读抓手：</strong>offset不一致时的分支关系到恢复和截断；不能直接无视后追加数据。</p>
 <h2 id="chapter-22-section-3952">本章纸面推演</h2>
 <p>主节点异步复制落后1MB后永久损坏，从节点即使成为可用服务，也无法凭路由更新重建缺失的尾部。同步确认降低特定窗口风险，但还要确认副本和主节点是否位于独立故障域。</p>
-<p><a id="chapter-23"></a></p>
-<h1>23. Controller与DLedger：两条高可用路线</h1>
+</div></article><article class="chapter" id="reading-023" data-title="23. Controller与DLedger：两条高可用路线"><div class="chapter-title"><p class="eyebrow">章节24 / 完整阅读</p><p><a id="chapter-23"></a></p>
+<h1>23. Controller与DLedger：两条高可用路线</h1></div><div class="study">
 <p><strong>适用范围：</strong>固定版本中的可选部署；独立于传统HA基础路径。</p>
 <p><strong>本章目标：</strong>辨清选主元数据、复制同步集合与共识日志。</p>
 <blockquote>
@@ -10261,8 +10360,8 @@ topicQueueLock.lock(topicQueueKey);
 }</code></pre></div></section><p><strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。</p>
 <h2 id="chapter-23-section-4078">本章纸面推演</h2>
 <p>三个副本都“在线”并不意味着三个副本都允许被选为新主。落后副本是否在SyncStateSet、选举策略是否允许不干净选主、旧主epoch是否有效，都会影响可用性与数据安全。</p>
-<p><a id="chapter-24"></a></p>
-<h1>24. Proxy与gRPC：计算入口和协议转换</h1>
+</div></article><article class="chapter" id="reading-024" data-title="24. Proxy与gRPC：计算入口和协议转换"><div class="chapter-title"><p class="eyebrow">章节25 / 完整阅读</p><p><a id="chapter-24"></a></p>
+<h1>24. Proxy与gRPC：计算入口和协议转换</h1></div><div class="study">
 <p><strong>适用范围：</strong>5.x服务端Proxy；客户端SDK仓库单独固定版本才可推其内部行为。</p>
 <p><strong>本章目标：</strong>从ReceiveMessage入口进入POP，而不借用经典Pull消费解释一切。</p>
 <h2 id="chapter-24-section-4096">24.1 Local与Cluster的依赖创建不同</h2>
@@ -10614,8 +10713,8 @@ topicQueueLock.lock(topicQueueKey);
 }</code></pre></div></section><p><strong>对照读法：</strong>先找输入条件，再标记状态保存在哪个组件，最后比较成功确认和故障恢复的触发点。类名变化不一定表示协议改变；新增分支也不代表旧路径消失。</p>
 <h2 id="chapter-24-section-4196">本章纸面推演</h2>
 <p>Proxy Cluster模式单独扩容入口层后，Broker磁盘瓶颈仍存在。Local模式与Broker同进程减少一段远程调用，但故障域与资源争用也更贴近；不能把两种部署画成完全相同网络拓扑。</p>
-<p><a id="chapter-25"></a></p>
-<h1>25. POP消费：取出、不可见、ACK与Revive</h1>
+</div></article><article class="chapter" id="reading-025" data-title="25. POP消费：取出、不可见、ACK与Revive"><div class="chapter-title"><p class="eyebrow">章节26 / 完整阅读</p><p><a id="chapter-25"></a></p>
+<h1>25. POP消费：取出、不可见、ACK与Revive</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典POP checkpoint/revive路径；KV分支下一章。</p>
 <p><strong>本章目标：</strong>理解按消息确认与经典队列位点推进的不同。</p>
 <blockquote>
@@ -11398,8 +11497,8 @@ topicQueueLock.lock(topicQueueKey);
 <p>处理能力、不可见时长和续期策略需要匹配。无限加大不可见时间会拖慢故障后的再处理；过短则放大重投与并发重复。顺序POP还要考虑队列阻塞状态。</p>
 <h2 id="chapter-25-section-4417">本章纸面推演</h2>
 <p>消息取出后不可见30秒，业务执行35秒却没有及时续期：到期后系统可能重投，旧任务还在运行。延长不可见时间可以缩小并行重复窗口，但旧收据、续期失败和宕机都仍需幂等。</p>
-<p><a id="chapter-26"></a></p>
-<h1>26. POP KV存储与ReceiptHandle：另一条实现分支</h1>
+</div></article><article class="chapter" id="reading-026" data-title="26. POP KV存储与ReceiptHandle：另一条实现分支"><div class="chapter-title"><p class="eyebrow">章节27 / 完整阅读</p><p><a id="chapter-26"></a></p>
+<h1>26. POP KV存储与ReceiptHandle：另一条实现分支</h1></div><div class="study">
 <p><strong>适用范围：</strong>5.3.4可选PopConsumerService/RocksDB；Proxy收据。</p>
 <p><strong>本章目标：</strong>避免只背checkpoint Topic模型，却忽略实际配置。</p>
 <blockquote>
@@ -11876,8 +11975,8 @@ topicQueueLock.lock(topicQueueKey);
 <p>去重键还需区分事件类型和业务版本。例如同一订单的创建与关闭是两件事件，不能只用订单号把它们全部挡掉。</p>
 <h2 id="chapter-26-section-4638">本章纸面推演</h2>
 <p>启用KV POP路径时，ACK删除对应消费记录；修改不可见时间需要重建记录身份/到期信息。拿一份旧收据持续ACK或续期，未必对应当前有效取出状态。</p>
-<p><a id="chapter-27"></a></p>
-<h1>27. 恢复、保留与积压：日志不是永久保险箱</h1>
+</div></article><article class="chapter" id="reading-027" data-title="27. 恢复、保留与积压：日志不是永久保险箱"><div class="chapter-title"><p class="eyebrow">章节28 / 完整阅读</p><p><a id="chapter-27"></a></p>
+<h1>27. 恢复、保留与积压：日志不是永久保险箱</h1></div><div class="study">
 <p><strong>适用范围：</strong>经典文件Store；不同后端恢复细节不同。</p>
 <p><strong>本章目标：</strong>理解异常退出、派生状态恢复和容量限制。</p>
 <h2 id="chapter-27-section-4656">27.1 正常恢复与异常恢复读取不同边界</h2>
@@ -11953,8 +12052,8 @@ topicQueueLock.lock(topicQueueKey);
 }</code></pre></div></section><p><strong>逐段阅读抓手：</strong>不要把字节差与消息数差放进同一个告警阈值；时间滞后也要单独观察。</p>
 <h2 id="chapter-27-section-4707">本章纸面推演</h2>
 <p>消费者停机超过日志保留周期后，consumerOffset可能落到minOffset之前。恢复服务不可能从已删除的CommitLog字节还原消息；消费进度只是引用，不会自动阻止所有数据清理。</p>
-<p><a id="chapter-28"></a></p>
-<h1>28. 端到端可靠性与幂等：六个故障窗口</h1>
+</div></article><article class="chapter" id="reading-028" data-title="28. 端到端可靠性与幂等：六个故障窗口"><div class="chapter-title"><p class="eyebrow">章节29 / 完整阅读</p><p><a id="chapter-28"></a></p>
+<h1>28. 端到端可靠性与幂等：六个故障窗口</h1></div><div class="study">
 <p><strong>适用范围：</strong>跨组件推理；保证限定到具体协议与部署配置。</p>
 <p><strong>本章目标：</strong>把至少一次投递与业务只执行一次区分开。</p>
 <blockquote>
@@ -12122,8 +12221,8 @@ topicQueueLock.lock(topicQueueKey);
 <p>这是应用层方案的阅读案例，不是要求你做实验，也不是声称一张去重表就无条件覆盖所有分布式副作用。</p>
 <h2 id="chapter-28-section-4861">本章纸面推演</h2>
 <p>读一条事件E：发送可能重复，日志可复制，CQ可派生，业务数据库可提交，ACK或offset仍可丢失。要让业务效果只出现一次，通常以稳定事件ID和业务更新在同一个本地事务内做幂等，而不是只要求Broker绝不重投。</p>
-<p><a id="chapter-29"></a></p>
-<h1>29. 性能与故障推演：按链路定位</h1>
+</div></article><article class="chapter" id="reading-029" data-title="29. 性能与故障推演：按链路定位"><div class="chapter-title"><p class="eyebrow">章节30 / 完整阅读</p><p><a id="chapter-29"></a></p>
+<h1>29. 性能与故障推演：按链路定位</h1></div><div class="study">
 <p><strong>适用范围：</strong>只读诊断方法；不要求运行命令或实验。</p>
 <p><strong>本章目标：</strong>把性能问题与具体等待点对应，避免背调参清单。</p>
 <blockquote>
@@ -12271,8 +12370,8 @@ topicQueueLock.lock(topicQueueKey);
 }</code></pre></div></section><p><strong>逐段阅读抓手：</strong>看阈值、批消息例外及压缩标记；“支持压缩”不意味着每条消息都压缩。</p>
 <h2 id="chapter-29-section-4938">本章纸面推演</h2>
 <p>每秒进入20000条，业务只处理12000条，净积压每秒8000条。只增加Pull批量可能让客户端内存先爆；只有提高真实业务吞吐、限流输入或扩展有效分区并发，才能改变长期净积压。</p>
-<p><a id="chapter-30"></a></p>
-<h1>30. 只看也能学会：完整消息生命周期推演</h1>
+</div></article><article class="chapter" id="reading-030" data-title="30. 只看也能学会：完整消息生命周期推演"><div class="chapter-title"><p class="eyebrow">章节31 / 完整阅读</p><p><a id="chapter-30"></a></p>
+<h1>30. 只看也能学会：完整消息生命周期推演</h1></div><div class="study">
 <p><strong>适用范围：</strong>纸面案例；所有名字与数字为虚构。</p>
 <p><strong>本章目标：</strong>用一条事件串起源码里的状态，形成可口述的完整链路。</p>
 <h2 id="chapter-30-section-4956">30.1 普通消息从发送到完成消费</h2>
@@ -12504,8 +12603,8 @@ topicQueueLock.lock(topicQueueKey);
 }</code></pre></div></section><p><strong>逐段阅读抓手：</strong>revive读取原消息并重试；业务完成记录由应用维护，不在PopConsumerRecord中。</p>
 <h2 id="chapter-30-section-5007">本章纸面推演</h2>
 <p>建议每章读完后不用背所有方法名，先闭眼复述：谁持有状态、哪个条件让它前进、失败后谁负责重做。再对照下面的自检答案。</p>
-<p><a id="chapter-31"></a></p>
-<h1>31. 面试复述与常见误解</h1>
+</div></article><article class="chapter" id="reading-031" data-title="31. 知识回顾与常见误解"><div class="chapter-title"><p class="eyebrow">章节32 / 完整阅读</p><p><a id="chapter-31"></a></p>
+<h1>31. 知识回顾与常见误解</h1></div><div class="study">
 <p><strong>适用范围：</strong>概念对照；答案基于正文固定路径。</p>
 <p><strong>本章目标：</strong>给出能说明原理与边界的答案，避免只报组件名称。</p>
 <h2 id="chapter-31-section-5025">31.1 为什么高吞吐，是否就是零拷贝</h2>
@@ -12655,8 +12754,8 @@ topicQueueLock.lock(topicQueueKey);
 }</code></pre></div></section><p><strong>逐段阅读抓手：</strong>sendMessageBack返回成功表示交接结果，仍需理解其内部请求和持久化路径。</p>
 <h2 id="chapter-31-section-5076">本章纸面推演</h2>
 <p>每题按“实现路径→状态变化→故障边界”回答，先说结论，再给一条源码线索。如果对方改变协议或部署配置，应先换到对应分支再回答。</p>
-<p><a id="chapter-32"></a></p>
-<h1>32. 源码索引、许可证与阅读自检</h1>
+</div></article><article class="chapter" id="reading-032" data-title="32. 源码索引、许可证与阅读自检"><div class="chapter-title"><p class="eyebrow">章节33 / 完整阅读</p><p><a id="chapter-32"></a></p>
+<h1>32. 源码索引、许可证与阅读自检</h1></div><div class="study">
 <h2 id="chapter-32-section-5088">常见误解对照</h2>
 <table>
 <thead>
@@ -12808,8 +12907,8 @@ topicQueueLock.lock(topicQueueKey);
 <li><a href="https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/queue/RocksDBConsumeQueueStore.java">store/src/main/java/org/apache/rocketmq/store/queue/RocksDBConsumeQueueStore.java</a></li>
 <li><a href="https://github.com/apache/rocketmq/blob/63d20eb92a4aa685ae0d0696b419d3ffb6ca1738/store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java">store/src/main/java/org/apache/rocketmq/store/timer/TimerMessageStore.java</a></li>
 </ul>
-<p><a id="chapter-33"></a></p>
-<h1>33. 4.x与5.x差异速查地图</h1>
+</div></article><article class="chapter" id="reading-033" data-title="33. 4.x与5.x差异速查地图"><div class="chapter-title"><p class="eyebrow">章节34 / 完整阅读</p><p><a id="chapter-33"></a></p>
+<h1>33. 4.x与5.x差异速查地图</h1></div><div class="study">
 <table>
 <thead>
 <tr>
@@ -12908,45 +13007,164 @@ topicQueueLock.lock(topicQueueKey);
 </table>
 <h2 id="chapter-33-section-5827">变化的四层含义</h2>
 <figure class="diagram"><div class="diagram-tools"><span>图126</span><button class="expand" type="button">放大查看 ↗</button></div><div class="diagram-scroll"><svg id="diagram-126-my-svg" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" style="max-width: 744px; background-color: white;" viewBox="4 4 744 376" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#diagram-126-my-svg{font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;font-size:16px;fill:#173358;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#diagram-126-my-svg .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#diagram-126-my-svg .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#diagram-126-my-svg .error-icon{fill:#fff3d9;}#diagram-126-my-svg .error-text{fill:#000c26;stroke:#000c26;}#diagram-126-my-svg .edge-thickness-normal{stroke-width:1px;}#diagram-126-my-svg .edge-thickness-thick{stroke-width:3.5px;}#diagram-126-my-svg .edge-pattern-solid{stroke-dasharray:0;}#diagram-126-my-svg .edge-thickness-invisible{stroke-width:0;fill:none;}#diagram-126-my-svg .edge-pattern-dashed{stroke-dasharray:3;}#diagram-126-my-svg .edge-pattern-dotted{stroke-dasharray:2;}#diagram-126-my-svg .marker{fill:#6480a3;stroke:#6480a3;}#diagram-126-my-svg .marker.cross{stroke:#6480a3;}#diagram-126-my-svg svg{font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;font-size:16px;}#diagram-126-my-svg p{margin:0;}#diagram-126-my-svg .label{font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;color:#173358;}#diagram-126-my-svg .cluster-label text{fill:#000c26;}#diagram-126-my-svg .cluster-label span{color:#000c26;}#diagram-126-my-svg .cluster-label span p{background-color:transparent;}#diagram-126-my-svg .label text,#diagram-126-my-svg span{fill:#173358;color:#173358;}#diagram-126-my-svg .node rect,#diagram-126-my-svg .node circle,#diagram-126-my-svg .node ellipse,#diagram-126-my-svg .node polygon,#diagram-126-my-svg .node path{fill:#eaf2ff;stroke:#7399c9;stroke-width:1px;}#diagram-126-my-svg .rough-node .label text,#diagram-126-my-svg .node .label text,#diagram-126-my-svg .image-shape .label,#diagram-126-my-svg .icon-shape .label{text-anchor:middle;}#diagram-126-my-svg .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#diagram-126-my-svg .rough-node .label,#diagram-126-my-svg .node .label,#diagram-126-my-svg .image-shape .label,#diagram-126-my-svg .icon-shape .label{text-align:center;}#diagram-126-my-svg .node.clickable{cursor:pointer;}#diagram-126-my-svg .root .anchor path{fill:#6480a3!important;stroke-width:0;stroke:#6480a3;}#diagram-126-my-svg .arrowheadPath{fill:#0b0b0b;}#diagram-126-my-svg .edgePaths .path{stroke:#6480a3;stroke-width:1px;}#diagram-126-my-svg .flowchart-link{stroke:#6480a3;fill:none;}#diagram-126-my-svg .edgeLabel{background-color:#e6f5ef;text-align:center;}#diagram-126-my-svg .edgeLabel p{background-color:#e6f5ef;}#diagram-126-my-svg .edgeLabel rect{opacity:0.5;background-color:#e6f5ef;fill:#e6f5ef;}#diagram-126-my-svg .labelBkg{background-color:rgba(230, 245, 239, 0.5);}#diagram-126-my-svg .cluster rect{fill:#fff3d9;stroke:hsl(41.0526315789, 60%, 82.5490196078%);stroke-width:1px;}#diagram-126-my-svg .cluster text{fill:#000c26;}#diagram-126-my-svg .cluster span{color:#000c26;}#diagram-126-my-svg .node .collapsed-indicator{fill:hsl(41.0526315789, 60%, 82.5490196078%);stroke:none;opacity:0.6;}#diagram-126-my-svg .node .collapsed-separator{stroke:hsl(41.0526315789, 60%, 82.5490196078%);stroke-width:0.75px;}#diagram-126-my-svg div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:PingFang SC,Microsoft YaHei,Arial,sans-serif;font-size:12px;background:#fff3d9;border:1px solid hsl(41.0526315789, 60%, 82.5490196078%);border-radius:2px;pointer-events:none;z-index:100;}#diagram-126-my-svg .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#173358;}#diagram-126-my-svg rect.text{fill:none;stroke-width:0;}#diagram-126-my-svg .icon-shape,#diagram-126-my-svg .image-shape{background-color:#e6f5ef;text-align:center;}#diagram-126-my-svg .icon-shape p,#diagram-126-my-svg .image-shape p{background-color:#e6f5ef;padding:2px;}#diagram-126-my-svg .icon-shape .label rect,#diagram-126-my-svg .image-shape .label rect{opacity:0.5;background-color:#e6f5ef;fill:#e6f5ef;}#diagram-126-my-svg .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#diagram-126-my-svg .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#diagram-126-my-svg .node .neo-node{stroke:#7399c9;}#diagram-126-my-svg [data-look="neo"].node rect,#diagram-126-my-svg [data-look="neo"].cluster rect,#diagram-126-my-svg [data-look="neo"].node polygon{stroke:url(#diagram-126-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-126-my-svg [data-look="neo"].swimlane.cluster rect{filter:none;}#diagram-126-my-svg [data-look="neo"].node path{stroke:url(#diagram-126-my-svg-gradient);stroke-width:1px;}#diagram-126-my-svg [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-126-my-svg [data-look="neo"].node .neo-line path{stroke:#7399c9;filter:none;}#diagram-126-my-svg [data-look="neo"].node circle{stroke:url(#diagram-126-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-126-my-svg [data-look="neo"].node circle .state-start{fill:#000000;}#diagram-126-my-svg [data-look="neo"].icon-shape .icon{fill:url(#diagram-126-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-126-my-svg [data-look="neo"].icon-shape .icon-neo path{stroke:url(#diagram-126-my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#diagram-126-my-svg :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="diagram-126-my-svg_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-126-my-svg_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-126-my-svg_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-126-my-svg_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-126-my-svg_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-126-my-svg_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-126-my-svg_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-126-my-svg_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-126-my-svg_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-126-my-svg_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="diagram-126-my-svg_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"/></marker><marker id="diagram-126-my-svg_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"/></marker><g class="root"><g class="clusters"/><g class="edges edgePaths"><path d="M336.4,60L336.4,72.92893218813452Q336.4,80 329.3289321881345,80L95.07106781186548,80Q88,80 88,87.07106781186548L88,116" id="diagram-126-my-svg-L_A_B_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 295.0716857910156 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-126-L_A_B_0" data-points="W3sieCI6MzM2LjQsInkiOjYwfSx7IngiOjMzNi40LCJ5Ijo4MH0seyJ4Ijo4OCwieSI6ODB9LHsieCI6ODgsInkiOjEyMH1d" data-look="neo" marker-end="url(#diagram-126-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M362.8,60L362.8,92.92893218813452Q362.8,100 355.72893218813454,100L287.0710678118655,100Q280,100 280,107.07106781186548L280,116" id="diagram-126-my-svg-L_A_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 129.47169494628906 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-126-L_A_C_0" data-points="W3sieCI6MzYyLjgsInkiOjYwfSx7IngiOjM2Mi44LCJ5IjoxMDB9LHsieCI6MjgwLCJ5IjoxMDB9LHsieCI6MjgwLCJ5IjoxMjB9XQ==" data-look="neo" marker-end="url(#diagram-126-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M389.2,60L389.2,92.92893218813452Q389.2,100 396.27106781186546,100L464.9289321881345,100Q472,100 472,107.07106781186548L472,116" id="diagram-126-my-svg-L_A_D_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 129.47171020507812 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-126-L_A_D_0" data-points="W3sieCI6Mzg5LjIsInkiOjYwfSx7IngiOjM4OS4yLCJ5IjoxMDB9LHsieCI6NDcyLCJ5IjoxMDB9LHsieCI6NDcyLCJ5IjoxMjB9XQ==" data-look="neo" marker-end="url(#diagram-126-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M415.6,60L415.6,72.92893218813452Q415.6,80 422.6710678118655,80L656.9289321881345,80Q664,80 664,87.07106781186548L664,116" id="diagram-126-my-svg-L_A_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 295.07171630859375 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-126-L_A_E_0" data-points="W3sieCI6NDE1LjYsInkiOjYwfSx7IngiOjQxNS42LCJ5Ijo4MH0seyJ4Ijo2NjQsInkiOjgwfSx7IngiOjY2NCwieSI6MTIwfV0=" data-look="neo" marker-end="url(#diagram-126-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M88,216L88,248.92893218813452Q88,256 95.07106781186548,256L329.3289321881345,256Q336.4,256 336.4,263.0710678118655L336.4,272" id="diagram-126-my-svg-L_B_F_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 295.0716857910156 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-126-L_B_F_0" data-points="W3sieCI6ODgsInkiOjIxNn0seyJ4Ijo4OCwieSI6MjU2fSx7IngiOjMzNi40LCJ5IjoyNTZ9LHsieCI6MzM2LjQsInkiOjI3Nn1d" data-look="neo" marker-end="url(#diagram-126-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M280,216L280,228.92893218813452Q280,236 287.0710678118655,236L355.72893218813454,236Q362.8,236 362.8,243.07106781186548L362.8,272" id="diagram-126-my-svg-L_C_F_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 129.47171020507812 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-126-L_C_F_0" data-points="W3sieCI6MjgwLCJ5IjoyMTZ9LHsieCI6MjgwLCJ5IjoyMzZ9LHsieCI6MzYyLjgsInkiOjIzNn0seyJ4IjozNjIuOCwieSI6Mjc2fV0=" data-look="neo" marker-end="url(#diagram-126-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M472,216L472,228.92893218813452Q472,236 464.9289321881345,236L396.27106781186546,236Q389.2,236 389.2,243.07106781186548L389.2,272" id="diagram-126-my-svg-L_D_F_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 129.47171020507812 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-126-L_D_F_0" data-points="W3sieCI6NDcyLCJ5IjoyMTZ9LHsieCI6NDcyLCJ5IjoyMzZ9LHsieCI6Mzg5LjIsInkiOjIzNn0seyJ4IjozODkuMiwieSI6Mjc2fV0=" data-look="neo" marker-end="url(#diagram-126-my-svg_flowchart-v2-pointEnd-margin)"/><path d="M664,216L664,248.92893218813452Q664,256 656.9289321881345,256L422.6710678118655,256Q415.6,256 415.6,263.0710678118655L415.6,272" id="diagram-126-my-svg-L_E_F_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 295.07171630859375 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="diagram-126-L_E_F_0" data-points="W3sieCI6NjY0LCJ5IjoyMTZ9LHsieCI6NjY0LCJ5IjoyNTZ9LHsieCI6NDE1LjYsInkiOjI1Nn0seyJ4Ijo0MTUuNiwieSI6Mjc2fV0=" data-look="neo" marker-end="url(#diagram-126-my-svg_flowchart-v2-pointEnd-margin)"/></g><g class="edgeLabels"/><g class="nodes"><g class="node default" id="diagram-126-my-svg-flowchart-A-0" data-look="neo" transform="translate(376, 36)"><rect class="basic label-container" style="" x="-76" y="-24" width="152" height="48"/><g class="label" style="" transform="translate(-60, -12)"><rect/><foreignObject width="120" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: nowrap; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>版本号变化</p></span></div></foreignObject></g></g><g class="node default" id="diagram-126-my-svg-flowchart-B-1" data-look="neo" transform="translate(88, 168)"><rect class="basic label-container" style="" x="-76" y="-48" width="152" height="96"/><g class="label" style="" transform="translate(-60, -36)"><rect/><foreignObject width="120" height="72"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>兼容路径继续：经典客户端与存储</p></span></div></foreignObject></g></g><g class="node default" id="diagram-126-my-svg-flowchart-C-3" data-look="neo" transform="translate(280, 168)"><rect class="basic label-container" style="" x="-76" y="-48" width="152" height="96"/><g class="label" style="" transform="translate(-60, -36)"><rect/><foreignObject width="120" height="72"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>可选后端变化：CQ或POP持久化</p></span></div></foreignObject></g></g><g class="node default" id="diagram-126-my-svg-flowchart-D-5" data-look="neo" transform="translate(472, 168)"><rect class="basic label-container" style="" x="-76" y="-48" width="152" height="96"/><g class="label" style="" transform="translate(-60, -36)"><rect/><foreignObject width="120" height="72"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>接入消费模型变化：Proxy gRPC POP</p></span></div></foreignObject></g></g><g class="node default" id="diagram-126-my-svg-flowchart-E-7" data-look="neo" transform="translate(664, 168)"><rect class="basic label-container" style="" x="-76" y="-48" width="152" height="96"/><g class="label" style="" transform="translate(-60, -36)"><rect/><foreignObject width="120" height="72"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>高可用路径变化：Controller与同步集合</p></span></div></foreignObject></g></g><g class="node default" id="diagram-126-my-svg-flowchart-F-9" data-look="neo" transform="translate(376, 324)"><rect class="basic label-container" style="" x="-76" y="-48" width="152" height="96"/><g class="label" style="" transform="translate(-60, -36)"><rect/><foreignObject width="120" height="72"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>必须同时明确客户端 / 协议 / 配置 / 后端</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="diagram-126-my-svg-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><defs><filter id="diagram-126-my-svg-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><linearGradient id="diagram-126-my-svg-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#7399c9" stop-opacity="1"/><stop offset="100%" stop-color="hsl(156, 2.8571428571%, 83.137254902%)" stop-opacity="1"/></linearGradient></svg></div><figcaption>图示用于机制导读 · 可滚动，支持放大缩小</figcaption></figure><p><strong>复述模板：</strong>“在4.9.8的某条路径里，状态由A保存，成功依赖条件X；在5.3.4启用某分支时，状态改由B保存，成功依赖条件Y。这样解决了Z问题，但W边界仍在。”如果只是代码抽象变化，就明确说核心语义延续，不要硬凑一个版本革命。</p>
-</article><footer>公开Apache RocketMQ源码导读 · 无外部依赖 · <a href="../jvm/">JVM图解</a> · <a href="../jdk-source/">JDK源码图解</a> · <a href="./handbook.md">Markdown正文</a></footer></main></div><button id="up" aria-label="回到顶部">↑</button><dialog id="viewer"><div class="viewer-bar"><strong>图解详情</strong><div><button id="zoom-out">−</button><button id="zoom-reset">100%</button><button id="zoom-in">＋</button><button id="close-viewer">关闭 ✕</button></div></div><div id="viewer-body"></div></dialog><script>const $=s=>document.querySelector(s);
-$('#menu').onclick=()=>document.body.classList.toggle('nav-open');
-$('#theme').onclick=()=>{document.body.classList.toggle('dark');try{localStorage.setItem('rocketmq-reader-dark',document.body.classList.contains('dark')?'1':'0');}catch(e){}};
-try{if(localStorage.getItem('rocketmq-reader-dark')==='1')document.body.classList.add('dark');}catch(e){}
-$('#print').onclick=()=>window.print();
-$('#up').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
-document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>document.body.classList.remove('nav-open'));
-const anchors=[...document.querySelectorAll('article a[id^="chapter-"]')];
-const observer=new IntersectionObserver(entries=>{for(const e of entries)if(e.isIntersecting){document.querySelectorAll('nav a.active').forEach(a=>a.classList.remove('active'));const a=document.querySelector('nav a[href="#'+e.target.id+'"]');if(a)a.classList.add('active');}},{rootMargin:'-75px 0px -75% 0px'});
-anchors.forEach(a=>observer.observe(a));
-let scale=1,originalWidth=0,svg;
-function zoom(value){scale=Math.max(.3,Math.min(4,value));if(svg){svg.style.width=originalWidth*scale+'px';svg.style.height='auto';}$('#zoom-reset').textContent=Math.round(scale*100)+'%';}
-document.querySelectorAll('.expand').forEach(b=>b.onclick=()=>{const source=b.closest('figure').querySelector('svg');const holder=$('#viewer-body');holder.innerHTML='';svg=source.cloneNode(true);holder.append(svg);originalWidth=svg.viewBox.baseVal.width||source.getBoundingClientRect().width;scale=1;zoom(1);$('#viewer').showModal();});
-$('#zoom-in').onclick=()=>zoom(scale*1.2);
-$('#zoom-out').onclick=()=>zoom(scale/1.2);
-$('#zoom-reset').onclick=()=>zoom(1);
-$('#close-viewer').onclick=()=>$('#viewer').close();
-$('#viewer').onclick=e=>{if(e.target===$('#viewer'))$('#viewer').close();};
-let matches=[],index=-1,timer;
-function clearSearch(){document.querySelectorAll('article mark').forEach(m=>m.replaceWith(document.createTextNode(m.textContent)));$('article').normalize();matches=[];index=-1;$('#search-status').textContent='';}
-function goNext(){if(!matches.length)return;if(index>=0)matches[index].classList.remove('current');index=(index+1)%matches.length;matches[index].classList.add('current');matches[index].scrollIntoView({block:'center',behavior:'smooth'});$('#search-status').textContent=(index+1)+'/'+matches.length;}
-function search(){clearSearch();const term=$('#search').value.trim();if(term.length<2)return;const walk=document.createTreeWalker($('article'),NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement.closest('svg,script,style,button,details:not([open])')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});const nodes=[];while(walk.nextNode())nodes.push(walk.currentNode);for(const n of nodes){const lower=n.textContent.toLowerCase(),query=term.toLowerCase();let at=0,start=lower.indexOf(query);if(start<0)continue;const fragment=document.createDocumentFragment();while(start>=0){fragment.append(document.createTextNode(n.textContent.slice(at,start)));const mark=document.createElement('mark');mark.textContent=n.textContent.slice(start,start+term.length);fragment.append(mark);matches.push(mark);at=start+term.length;start=lower.indexOf(query,at);}fragment.append(document.createTextNode(n.textContent.slice(at)));n.replaceWith(fragment);}$('#search-status').textContent=matches.length?'共'+matches.length+'处':'未找到';}
-$('#search').oninput=()=>{clearTimeout(timer);timer=setTimeout(search,250);};
-$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();goNext();}if(e.key==='Escape'){$('#search').value='';clearSearch();}};
-$('#next').onclick=goNext;
-
-document.querySelectorAll('.copy-source').forEach(button=>button.onclick=async()=>{
- const text=button.closest('.source-card').querySelector('code').textContent;
- try{await navigator.clipboard.writeText(text);button.textContent='已复制';setTimeout(()=>button.textContent='复制源码',1600);}
- catch(e){button.textContent='请选中代码复制';setTimeout(()=>button.textContent='复制源码',2200);}
-});
-</script><script id="reader-controls">/* Shared appearance and mobile navigation; existing search/diagram handlers stay. */
-(()=>{
- const body=document.body, theme=document.getElementById('theme'), menu=document.getElementById('menu');
- try{body.classList.toggle('reader-light',localStorage.getItem('source-library-theme')==='light')}catch(e){}
- function label(){if(theme)theme.textContent=body.classList.contains('reader-light')?'深色阅读':'浅色阅读'}
- label();
- if(theme)theme.onclick=()=>{body.classList.toggle('reader-light');label();try{localStorage.setItem('source-library-theme',body.classList.contains('reader-light')?'light':'dark')}catch(e){}};
- if(menu){body.classList.add('reader-collapsed');menu.setAttribute('aria-expanded','false');menu.textContent='展开目录';menu.onclick=()=>{body.classList.toggle('reader-collapsed');const open=!body.classList.contains('reader-collapsed');menu.setAttribute('aria-expanded',String(open));menu.textContent=open?'收起目录':'展开目录'};}
- document.querySelectorAll('nav a').forEach(a=>a.addEventListener('click',()=>{if(innerWidth<=700&&menu){body.classList.add('reader-collapsed');menu.setAttribute('aria-expanded','false');menu.textContent='展开目录'}}));
+</div></article></main><aside id="right-toc" aria-label="当前章节目录"><div class="reading"><span id="progress-text">阅读进度0%</span><span id="current-label"></span></div><p class="nav-label">本篇目录</p><nav id="toc"></nav></aside></div><dialog id="search-dialog" aria-labelledby="search-title"><div class="search-head"><h2 id="search-title">全文搜索</h2><button id="search-close" aria-label="关闭搜索">关闭</button></div><label for="search-input">搜索关键词、源码方法或原理问题</label><input id="search-input" type="search" placeholder="输入关键词，搜索完整正文" autocomplete="off"><p id="search-status" role="status" aria-live="polite">输入关键词，搜索完整正文。</p><div id="search-results"></div></dialog><div id="toast" role="status" aria-live="polite"></div><footer>公开Apache RocketMQ源码导读 · 无外部依赖 · <a href="../jvm/">JVM图解</a> · <a href="../jdk-source/">JDK源码图解</a> · <a href="./handbook.md">Markdown正文</a></footer><dialog id="diagram-dialog" aria-label="图解放大"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];}
+  function makeToc() {
+    sections=visibleHeadings();$('#toc').replaceChildren();
+    sections.forEach(h=>{const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';$('#toc').append(a);});
+    $('#current-label').textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)$('#review-route').scrollIntoView({block:'start'});closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      requestAnimationFrame(()=>{target.scrollIntoView({block:'start'});if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();});
+    }
+    updateReading();
+  }
+  function updateReading() {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;const box=active.getBoundingClientRect();
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('#toc a,.chapter-nav div a').forEach(a=>a.classList.toggle('current',!!current && a.hash==='#'+current.id));
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{const canvas=$('#diagram-content');canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));canvas.querySelectorAll('[id]').forEach(el=>{el.id='zoom-'+el.id});canvas.querySelectorAll('*').forEach(el=>{for(const attr of ['style','fill','stroke','marker-end','marker-start','clip-path']){const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.replace(/url\(#/g,'url(#zoom-'));}});scale(1);viewer.showModal();});
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
 })();
 </script></body></html>

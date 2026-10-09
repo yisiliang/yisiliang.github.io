@@ -147,7 +147,7 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 
 **失败后果与实验：**`nginx -t -p "$LAB/" -c conf/nginx.conf`只做配置与资源检查，不证明上游能连接、不证明业务路由正确。把lab中的`proxy_pass`临时移到`http`块，应得到上下文错误；恢复后再测试。`nginx -T`包含配置内容，适合本地虚构实验，不要将真实密钥路径和内网拓扑作为公开教程样本。
 
-**面试复述：**配置在cycle创建时解析、合并和预计算；请求只切换配置指针。reload是创建新的cycle，而不是在旧配置结构上到处修改字段。
+**知识回顾：**配置在cycle创建时解析、合并和预计算；请求只切换配置指针。reload是创建新的cycle，而不是在旧配置结构上到处修改字段。
 
 [返回目录](#top)
 
@@ -722,7 +722,7 @@ post rewrite checker看`r->uri_changed`，未变化则继续；变化后递减`u
 
 **实验：**lab`/old`rewrite last到`/version`，比较日志中`request_uri=/old`与`uri=/version`；临时加入两个互相last的location，curl预期500，恢复配置再reload。这里只给隔离复现实验，未在NGINX上执行。
 
-**面试复述：**rewrite修改的是当前请求URI和程序计数器，last意味着重新选择配置，redirect则生成客户端下一次请求。是否继续body、鉴权、内容阶段，要沿checker跳转判断。
+**知识回顾：**rewrite修改的是当前请求URI和程序计数器，last意味着重新选择配置，redirect则生成客户端下一次请求。是否继续body、鉴权、内容阶段，要沿checker跳转判断。
 
 [返回目录](#top)
 
@@ -890,7 +890,7 @@ proxy模块通过`u->create_request、reinit_request、process_header、abort_re
 
 **实验：**lab的失联primary+可用backup，用GET观察重试列表；POST实验必须用只统计字节的`/echo`虚构端点。将`proxy_next_upstream off`应直接暴露primary连接错误，将`... error timeout`恢复后GET可切backup。默认非幂等保护与“请求是否已发送”的时点必须通过日志确认，不预设POST必然或绝不重试。
 
-**面试复述：**重试资格由失败类型、请求阶段、可重放性和预算共同决定；NGINX处理网络重试，业务处理一次性效果。
+**知识回顾：**重试资格由失败类型、请求阶段、可重放性和预算共同决定；NGINX处理网络重试，业务处理一次性效果。
 
 [返回目录](#top)
 

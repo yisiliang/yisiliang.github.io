@@ -2,7 +2,7 @@
 
 # RocketMQ源码速读图解手册
 
-> 固定基线：Apache RocketMQ5.3.4，标签rocketmq-all-5.3.4。面向只读学习：真实源码、机制图、状态推演与面试复述；无需实验。
+> 固定基线：Apache RocketMQ5.3.4，标签rocketmq-all-5.3.4。面向只读学习：真实源码、机制图、状态推演与知识回顾；无需实验。
 
 [下载完整离线版](./rocketmq-offline.zip) · [下载本文引用的原始源码](./rocketmq-source.zip) · [Apache许可](./apache-license.txt) · [上游NOTICE](./apache-notice.txt) · [源码归属说明](./source-notices.txt)
 
@@ -382,7 +382,7 @@ ReceiptHandle带本次投递的上下文，业务事件ID表达“这件业务�
 
 ## 0.11 把顺序、吞吐和可靠性放在同一张因果表里
 
-|设计选择|为什么这样做|由此产生的代价|面试追问怎么接|
+|设计选择|为什么这样做|由此产生的代价|延伸问题怎么接|
 |---|---|---|---|
 |共享CommitLog顺序追加|汇聚写入，减少分散随机写|物理追加仍要协调，共享路径可能形成瓶颈|先拆队列锁与物理追加锁，再谈锁内工作|
 |CQ异步派生|把日志事实与消费索引解耦|追加到可见之间有分发滞后|发送成功但拉不到，先确认CQ与分发位置|
@@ -9323,7 +9323,7 @@ public CompletableFuture<Boolean> revive(PopConsumerRecord record) {
 
 <a id="chapter-31"></a>
 
-# 31. 面试复述与常见误解
+# 31. 知识回顾与常见误解
 
 <strong>适用范围：</strong>概念对照；答案基于正文固定路径。
 

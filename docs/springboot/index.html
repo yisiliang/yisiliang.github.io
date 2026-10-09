@@ -8,122 +8,221 @@
 article,main,.hero,footer{min-width:0}article p,article li,article a,article h1,article h2,article h3,article blockquote,article td,article th,footer{overflow-wrap:anywhere}article pre{max-width:100%;min-width:0;white-space:pre;overflow-wrap:normal;word-break:normal}article pre code,article pre mark{white-space:pre;overflow-wrap:normal;word-break:normal}article p code,article li code,article a code,article mark{overflow-wrap:anywhere}article table{width:100%;max-width:100%;overflow-x:auto}article figure,.diagram,.diagram-wrap{max-width:100%;min-width:0}.diagram-wrap{width:100%;overflow-x:auto}.diagram svg{max-width:none}button{white-space:nowrap;flex-shrink:0}input{min-width:0}
 @media(max-width:720px){html{scroll-padding-top:116px}.topbar{height:104px;display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:38px 42px;gap:4px 10px;padding:8px 12px}#menu{grid-column:1;grid-row:1}.brand{grid-column:2;grid-row:1}#theme{grid-column:3;grid-row:1}.search{grid-column:1/-1;grid-row:2;margin-left:0;width:100%;min-width:0;gap:7px}.search input{flex:1;width:0;min-width:60px;height:36px}.search button{flex-shrink:0;height:36px}.search #search-status{display:inline-block;flex-shrink:0;max-width:52px;font-size:11px}aside{top:104px}main{margin-top:104px}.hero,article{width:100%}.diagram{overflow:visible}.diagram-wrap{overflow:auto}dialog{max-width:calc(100vw - 16px);padding:10px}dialog .viewer-body{max-width:100%;overflow:auto}}
 @media print{.topbar,aside,.top,.copy,.diagram button{display:none}main{margin:0;padding:0}article{border:0;padding:0}.hero{background:#fff;color:#20324d;border:1px solid #ddd}.hero a{color:#215b96}pre{white-space:pre-wrap;overflow:visible}h2{break-before:page}}
-</style><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script><style id="reader-design">/* Shared reading design: CAP / BASE palette, typography and page geometry. */
-:root,html.dark,body.reader-page,body.reader-page.dark,body.reader-page.light {
-  color-scheme:dark;--bg:#111c2b;--paper:#18263a;--panel:#18263a;--ink:#e8eaf1;
-  --muted:#aab5c9;--accent:#c0afff;--blue:#c0afff;--line:#344157;
-  --code:#1e2d43;--quote:#18263a;--head:#e8eaf1;--shadow:none;
-}
-body.reader-page.reader-light {
-  color-scheme:light;--bg:#f6f7fb;--paper:#edeff7;--panel:#edeff7;--ink:#263248;
-  --muted:#606c82;--accent:#67529e;--blue:#67529e;--line:#d4d8e5;--code:#e9edf5;
-  --quote:#edeff7;--head:#263248;
-}
-html{scroll-padding-top:24px}
-body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif}
-.reader-page a,.reader-page.dark a{color:var(--accent)}
-.reader-page p,.reader-page li{overflow-wrap:anywhere}
-.reader-page p{margin:18px 0}
-.reader-page button,.reader-page input{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
-.reader-page button{cursor:pointer;font-size:13px}
-.reader-page a:focus-visible,.reader-page button:focus-visible,.reader-page input:focus-visible,.reader-page summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
-.reader-page .reader-wrap{width:calc(100% - 80px);max-width:1240px;margin:auto}
-.reader-page header.reader-header{height:auto;position:static;inset:auto;display:block;padding:32px 0 50px;border:0;border-bottom:1px solid var(--line);background:linear-gradient(125deg,#1c2940,var(--bg));backdrop-filter:none;color:var(--ink)}
-.reader-page.reader-light header.reader-header{background:linear-gradient(125deg,#ebe7f6,var(--bg))}
-.reader-header .home{font-size:14px}
-.reader-page .reader-header .hero{max-width:none;padding:0;margin:0;background:none;box-shadow:none;border:0;border-radius:0;color:var(--ink)}
-.reader-page .reader-header .eyebrow,.reader-page .reader-header small{display:block;font-size:11px;letter-spacing:2px;color:var(--accent);margin:26px 0 10px}
-.reader-page .reader-header h1{font:600 clamp(40px,6vw,72px)/1.2 Georgia,'Songti SC',serif;margin:14px 0 22px;padding:0;border:0;max-width:1100px;color:var(--ink)}
-.reader-page .reader-header .lead,.reader-page .reader-header .subtitle{font-size:23px;color:var(--accent);margin:0 0 16px;opacity:1}
-.reader-page .reader-header p:not(.lead){color:var(--muted);max-width:820px;opacity:1}
-.reader-page .reader-header .hero-meta,.reader-page .reader-header .stats,.reader-page .reader-header .badges{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0}
-.reader-page .reader-header .hero-meta span,.reader-page .reader-header .stats span,.reader-page .reader-header .badges span{font-size:12px;padding:4px 12px;border:1px solid var(--line);border-radius:20px;color:var(--ink);background:none}
-.reader-page .reader-header .links,.reader-page .reader-header .actions{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:14px}
-.reader-page .reader-header .links a,.reader-page .reader-header .start{padding:0;background:none;border:0;border-radius:0;color:var(--accent);font-size:14px}
-.reader-page .reader-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px;padding-top:36px}
-.reader-page .reader-layout>aside,.reader-page .reader-layout>nav{position:sticky;inset:auto;top:24px;align-self:start;display:block;width:auto;height:auto;max-height:calc(100vh - 48px);overflow:auto;background:none;border:0;padding:0 8px 0 0;box-shadow:none;z-index:auto;font-size:13px}
-.reader-page .reader-layout>main{margin:0;padding:0 0 60px;min-width:0;width:auto;max-width:none}
-.reader-page main article{max-width:none;margin:0;padding:0;background:none;border:0;border-radius:0;box-shadow:none;color:var(--ink)}
-.reader-page .reader-tools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
-.reader-page .reader-tools #menu{display:none}
-/* Keep the field and actions together; status gets its own full-width row. */
-.reader-page .search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:0 0 18px;align-items:stretch}
-.reader-page .search:has(#find){grid-template-columns:minmax(0,1fr) auto auto}
-.reader-page .search input{grid-column:1;grid-row:1;width:100%;min-width:0;margin:0;box-sizing:border-box}
-.reader-page .search button{grid-row:1;margin:0;white-space:nowrap}
-.reader-page .search #next{display:block}
-.reader-page .search #search-status{grid-column:1/-1;grid-row:2;margin:0;min-width:0;overflow-wrap:anywhere}
-.reader-page .search #search-status:empty{display:none}
-.reader-page aside>input{width:100%;min-width:0;margin-bottom:6px}
-/* Sidebar scroll containers clip outward outlines, so draw these inside. */
-.reader-page .search input:focus-visible,.reader-page .search button:focus-visible,.reader-page aside>input:focus-visible{outline-offset:-3px}
-.reader-page .nav-head,.reader-page .sidebar-label,.reader-page nav>strong{display:block;font-size:12px;letter-spacing:1px;color:var(--accent);padding:0;margin:0 0 12px}
-.reader-page .nav-head span,.reader-page .nav-note{display:block;color:var(--muted);font-size:12px}
-.reader-page aside nav{position:static;max-height:none;padding:0;font-size:13px}
-.reader-page nav a{display:block;color:var(--muted);padding:8px 0;border:0;border-radius:0;line-height:1.7;font-size:13px}
-.reader-page nav a:hover,.reader-page nav a.active{color:var(--accent);background:var(--panel)}
-.reader-page nav a span{color:var(--accent);margin-right:8px}
-.reader-page nav details{padding:0;margin:0;border:0;background:none}
-.reader-page nav summary{padding:0;color:var(--muted)}
-.reader-page nav summary a{display:inline}
-.reader-page .nav-sub{border-left:1px solid var(--line);margin:0 0 10px 6px;padding-left:12px}
-.reader-page .jump{padding:0;margin:14px 0;background:none;border-color:var(--line)}
-.reader-page main h1,.reader-page main h2{font:600 28px/1.5 'Songti SC',serif;color:var(--ink);border-color:var(--line);margin:38px 0 22px}
-.reader-page main h3{font-size:20px;color:var(--ink)}
-.reader-page main section,.reader-page .chapter{padding-bottom:38px;margin-bottom:38px;border-color:var(--line)}
-.reader-page blockquote,.reader-page .callout,.reader-page .note{margin:26px 0;padding:18px 22px;border:0;border-left:3px solid var(--accent);background:var(--panel);color:var(--ink);border-radius:0}
-.reader-page code{font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent);background:var(--code);padding:2px 5px;border-radius:4px}
-.reader-page pre,.reader-page pre code{color:#d7e0ed;background:#152236;font-size:13px;line-height:1.7}
-.reader-page pre code{padding:0;border-radius:0;overflow-wrap:normal}
-.reader-page .source-card,.reader-page .source,.reader-page .source-block,.reader-page .source-box{border-color:var(--line);background:var(--panel);box-shadow:none}
-.reader-page .source-head,.reader-page .source-bar,.reader-page .source-meta,.reader-page .source-label{background:var(--panel);color:var(--muted);border-color:var(--line)}
-.reader-page .hljs-comment,.reader-page .comment{color:#a5b6ce}
-.reader-page .hljs-keyword,.reader-page .keyword{color:#dbb9ff}
-.reader-page .hljs-string{color:#a8d8b0}
-.reader-page .hljs-title,.reader-page .hljs-type{color:#9ccfff}
-.reader-page .hljs-number,.reader-page .hljs-literal{color:#ffd59b}
-.reader-page figure,.reader-page .diagram,.reader-page .mechanism{margin:28px 0;padding:20px;border:1px solid var(--line);border-radius:12px;background:#152236;overflow:auto}
-/* Fixed-source SVGs keep their own light canvas and color legends. */
-.reader-page figure svg{background:#f6f8fc;border-radius:6px}
-.reader-page figcaption{font-size:12px;color:var(--muted);background:none;padding:16px 0 0}
-.reader-page table{border-collapse:collapse;width:100%;font-size:14px;color:var(--ink)}
-.reader-page th,.reader-page td{border:1px solid var(--line);padding:14px;text-align:left;vertical-align:top;background:none;color:var(--ink)}
-.reader-page th{background:var(--panel);color:var(--accent)}
-.reader-page .table-wrap,.reader-page .table-scroll{overflow:auto;margin:26px 0}
-.reader-page main article>table{display:block;overflow:auto}
-.reader-page mark{background:#d5b35b;color:#152236}
-.reader-page footer{font-size:13px;color:var(--muted);background:none;border-color:var(--line)}
-.reader-page .reader-skip{position:absolute;top:-80px;left:20px;padding:12px;background:var(--panel);z-index:50}
-.reader-page .reader-skip:focus{top:8px}
-.reader-page #progress{display:none}
-@media(max-width:950px){.reader-page .reader-layout{grid-template-columns:180px minmax(0,1fr);gap:26px}.reader-page .reader-wrap{width:calc(100% - 48px)}}
-@media(max-width:700px){
- .reader-page .reader-wrap{width:calc(100% - 36px)}
- .reader-page header.reader-header{padding-bottom:32px}
- .reader-page .reader-header .lead,.reader-page .reader-header .subtitle{font-size:20px}
- .reader-page .reader-layout{display:block;padding-top:24px}
- .reader-page .reader-layout>aside,.reader-page .reader-layout>nav{position:static;display:block;max-height:none;width:auto;padding:0 0 20px;margin-bottom:28px;border-bottom:1px solid var(--line)}
- .reader-page .reader-tools #menu{display:block}
- .reader-page .reader-layout>aside nav{max-height:360px;overflow:auto}
- .reader-page.reader-collapsed aside nav,.reader-page.reader-collapsed aside .jump{display:none}
- .reader-page main h1,.reader-page main h2{font-size:25px}
- .reader-page figure,.reader-page .diagram,.reader-page .mechanism{padding:16px}
- .reader-page blockquote,.reader-page .callout{padding:16px}
-}
+</style><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script><style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="java-architect-interview"] .diagram svg .edgePath path,[data-reader="java-architect-interview"] .diagram svg .flowchart-link,[data-reader="java-architect-interview"] .diagram svg .messageLine0,[data-reader="java-architect-interview"] .diagram svg .messageLine1,[data-reader="java-architect-interview"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel span,[data-reader="java-architect-interview"] .diagram svg .messageText,[data-reader="java-architect-interview"] .diagram svg .loopText,[data-reader="java-architect-interview"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled .chapter:not(.active){display:none}.js-enabled .route{display:none}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}.js-enabled.show-route .chapter{display:none}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-@media print{
- body.reader-page{background:white;color:#20324d;--ink:#20324d;--muted:#62718a;--line:#dde5f0;--panel:#f1f4fa;--accent:#67529e}
- .reader-page header.reader-header,.reader-page .reader-layout>aside,.reader-page .reader-layout>nav,.reader-page .reader-skip{display:none}
- .reader-page .reader-layout{display:block;width:100%;padding:0}
- .reader-page .reader-layout>main{padding:0}
- .reader-page pre,.reader-page pre code{background:#f1f4fa;color:#20324d;white-space:pre-wrap}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
 }
-.reader-page[data-reader="nacos"] figure svg{background:#152236}
-.reader-page .reader-tools #theme,.reader-page .reader-tools #print{display:block}
-.reader-page aside nav{border:0;background:none}
-.reader-page nav a.hide,.reader-page nav a.hidden{display:none}
-.reader-page h1,.reader-page h2,.reader-page h3,.reader-page h4{overflow-wrap:anywhere}
-</style></head><body class="reader-page" data-reader="springboot"><a class="reader-skip" href="#reader-content">跳至正文</a><header class="reader-header"><div class="reader-wrap"><a class="home" href="../">← 源码学习库</a><div class="hero"><div class="eyebrow">READING SPRING BOOT SOURCE</div><h1>Spring Boot</h1><p class="lead">先串启动旅程，再看容器状态</p><p>配置源 → 自动配置候选 → Bean定义 → 实例与WebServer → 业务就绪</p><div class="hero-meta"><span>固定3.5.16 / 2.7.18</span><span>Framework6.2.19边界</span><span>27幅内嵌图解</span><span>56段固定SHA源码</span></div><p><a href="#chapter-01">从责任边界开始 →</a></p><div class="links"><a href="./springboot-offline.zip" download>下载离线阅读包 ↓</a><a href="./handbook.md">Markdown手册</a></div></div></div></header><div class="reader-layout reader-wrap"><aside><div class="reader-tools"><button id="menu" aria-label="展开目录" aria-expanded="false">目录</button><button id="theme" aria-label="切换明暗主题">明暗</button></div><div class="search"><input id="query" aria-label="搜索正文" placeholder="搜索正文"><button id="find">查找</button><button id="next">下一处</button><span id="search-status" aria-live="polite"></span></div><div class="nav-head">Spring Boot源码学习</div><div class="nav-note">3.5.16主线 · 2.7.18对照<br>27章 · 27幅图 · 56段真实源码<br><a href="./springboot-offline.zip">下载离线包</a> · <a href="./springboot-examples.zip">实验工程</a></div><nav aria-label="章节目录"><a href="#chapter-01">01. 先画责任边界：Boot编排，Framework执行</a><a href="#chapter-02">02. 启动全过程：成功不是一个瞬间</a><a href="#chapter-03">03. WebApplicationType与上下文选择</a><a href="#chapter-04">04. Environment：优先级是有序源，不是覆盖文件</a><a href="#chapter-05">05. ConfigData：为什么先无Profile再有Profile</a><a href="#chapter-06">06. ConfigData导入：Location、Resource与可选失败</a><a href="#chapter-07">07. 自动配置候选：从注解走到imports资源</a><a href="#chapter-08">08. 候选筛选：排除和条件的两个层次</a><a href="#chapter-09">09. OnClassCondition：元数据与加载隔离</a><a href="#chapter-10">10. OnBeanCondition：退让与解析时序</a><a href="#chapter-11">11. OnPropertyCondition：false、缺失和havingValue</a><a href="#chapter-12">12. 自动配置排序：定义顺序与实例顺序分开</a><a href="#chapter-13">13. Bean生命周期：从定义到初始化与代理</a><a href="#chapter-14">14. Servlet上下文：创建服务器与启动服务器</a><a href="#chapter-15">15. Tomcat工厂与Servlet注册：适配器的责任</a><a href="#chapter-16">16. MVC：Boot提供默认值，DispatcherServlet处理请求</a><a href="#chapter-17">17. Binder：源名称、目标类型和错误策略</a><a href="#chapter-18">18. ConfigurationProperties生命周期、构造绑定与校验</a><a href="#chapter-19">19. Actuator：发现、可用性、暴露与鉴权是四个问题</a><a href="#chapter-20">20. Runner与可用性：存活不等于就绪</a><a href="#chapter-21">21. 日志与FailureAnalyzer：早期初始化和诊断链</a><a href="#chapter-22">22. AOT与Native：构建期固定结构的代价</a><a href="#chapter-23">23. 测试切片：受控容器比缩小@SpringBootTest更明确</a><a href="#chapter-24">24. 2.7.18→3.5.16：迁移证据与责任归属</a><a href="#chapter-25">25. DataSource退让：用一个完整案例串起条件</a><a href="#chapter-26">26. 关闭与优雅停机：把流量状态与资源回收串起来</a><a href="#chapter-27">27. 复现实验室：一个小应用验证多条主线</a></nav></aside><main id="reader-content"><article><h1 id="spring-boot">Spring Boot源码学习：从启动约定到容器状态</h1>
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script></head><body class="learning-reader" data-layout="learning-v2" data-reader="springboot"><a class="skip" href="#main">跳到正文</a><header class="topbar"><button id="menu" class="mobile" aria-label="打开章节导航" aria-expanded="false" aria-controls="left-nav">目录</button><div class="brand"><a class="library-home" href="../">← 学习库</a>Spring Boot学习手册<span>3.5.16 / 2.7.18对照</span></div><div class="tools"><button id="search-open" aria-label="打开全文搜索">搜索 <kbd>/</kbd></button><button id="print" type="button">打印</button><button id="theme" aria-label="切换主题">主题：系统</button></div></header><div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div><div id="drawer-backdrop" hidden></div><div class="layout"><nav id="left-nav" aria-label="章节目录"><p class="nav-label">学习目录 / 27章</p><details class="chapter-nav" data-chapter="reading-000"><summary><a href="#reading-000"><span>01</span>01. 先画责任边界：Boot编排，Framework执行</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-001"><summary><a href="#reading-001"><span>02</span>02. 启动全过程：成功不是一个瞬间</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-002"><summary><a href="#reading-002"><span>03</span>03. WebApplicationType与上下文选择</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-003"><summary><a href="#reading-003"><span>04</span>04. Environment：优先级是有序源，不是覆盖文件</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-004"><summary><a href="#reading-004"><span>05</span>05. ConfigData：为什么先无Profile再有Profile</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-005"><summary><a href="#reading-005"><span>06</span>06. ConfigData导入：Location、Resource与可选失败</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-006"><summary><a href="#reading-006"><span>07</span>07. 自动配置候选：从注解走到imports资源</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-007"><summary><a href="#reading-007"><span>08</span>08. 候选筛选：排除和条件的两个层次</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-008"><summary><a href="#reading-008"><span>09</span>09. OnClassCondition：元数据与加载隔离</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-009"><summary><a href="#reading-009"><span>10</span>10. OnBeanCondition：退让与解析时序</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-010"><summary><a href="#reading-010"><span>11</span>11. OnPropertyCondition：false、缺失和havingValue</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-011"><summary><a href="#reading-011"><span>12</span>12. 自动配置排序：定义顺序与实例顺序分开</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-012"><summary><a href="#reading-012"><span>13</span>13. Bean生命周期：从定义到初始化与代理</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-013"><summary><a href="#reading-013"><span>14</span>14. Servlet上下文：创建服务器与启动服务器</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-014"><summary><a href="#reading-014"><span>15</span>15. Tomcat工厂与Servlet注册：适配器的责任</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-015"><summary><a href="#reading-015"><span>16</span>16. MVC：Boot提供默认值，DispatcherServlet处理请求</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-016"><summary><a href="#reading-016"><span>17</span>17. Binder：源名称、目标类型和错误策略</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-017"><summary><a href="#reading-017"><span>18</span>18. ConfigurationProperties生命周期、构造绑定与校验</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-018"><summary><a href="#reading-018"><span>19</span>19. Actuator：发现、可用性、暴露与鉴权是四个问题</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-019"><summary><a href="#reading-019"><span>20</span>20. Runner与可用性：存活不等于就绪</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-020"><summary><a href="#reading-020"><span>21</span>21. 日志与FailureAnalyzer：早期初始化和诊断链</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-021"><summary><a href="#reading-021"><span>22</span>22. AOT与Native：构建期固定结构的代价</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-022"><summary><a href="#reading-022"><span>23</span>23. 测试切片：受控容器比缩小@SpringBootTest更明确</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-023"><summary><a href="#reading-023"><span>24</span>24. 2.7.18→3.5.16：迁移证据与责任归属</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-024"><summary><a href="#reading-024"><span>25</span>25. DataSource退让：用一个完整案例串起条件</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-025"><summary><a href="#reading-025"><span>26</span>26. 关闭与优雅停机：把流量状态与资源回收串起来</a></summary><div></div></details><details class="chapter-nav" data-chapter="reading-026"><summary><a href="#reading-026"><span>27</span>27. 复现实验室：一个小应用验证多条主线</a></summary><div><a href="#_143">阅读自检：把机制说成因果链</a><a href="#_144">文件、归属与实验结果的边界</a></div></details></nav><main id="main" tabindex="-1"><span id="reader-content"></span><section class="intro"><h1>Spring Boot学习手册</h1><p>先串启动旅程，再看容器状态</p><div class="reader-downloads"><a href="./springboot-offline.zip" download>下载离线阅读包 ↓</a><a href="./handbook.md">Markdown手册</a></div><details class="reader-preface"><summary>版本、来源与学习路线</summary><h1 id="spring-boot">Spring Boot源码学习：从启动约定到容器状态</h1>
 <blockquote>
 <p>源码之下，系统之上。固定Spring Boot3.5.16主线、2.7.18对照；Spring Framework6.2.19解释容器与MVC边界。先沿启动旅程理解状态，再用真实调用链验证。</p>
 </blockquote>
@@ -164,7 +263,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>先读第1–6章，建立启动与配置顺序；第7–12章解释候选如何变成定义；第13–18章进入容器、Web与绑定；第19–23章理解运行管理、AOT、测试和迁移；第24–27章用数据源、关闭和实验复述整条链。每章按“问题→状态→调用链→失败边界→实验”组织；实验允许边读边做，不执行也能按状态推演理解。</p>
 <p>不要把三个完成点混淆：<strong>候选名单出现</strong>不等于<strong>BeanDefinition登记</strong>，后者又不等于<strong>Bean实例创建成功</strong>。同样，服务器端口已经监听不等于Runner完成，也不等于部署平台已经认可Readiness。</p>
 <p><a href="https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-3.0-Migration-Guide">官方Boot3.0迁移指南</a>解释升级背景；<a href="https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/spring-boot-project/spring-boot-docs/src/docs/antora/modules/ROOT/pages/system-requirements.adoc">3.5.16系统要求源码</a>与<a href="https://github.com/spring-projects/spring-boot/blob/0566f6933049aca6bc5ffc6d559fffade9cd2e0c/gradle.properties">依赖版本属性</a>提供版本事实。</p>
-<h2 id="chapter-01">01. 先画责任边界：Boot编排，Framework执行</h2>
+</details></section><article class="chapter" id="reading-000" data-title="01. 先画责任边界：Boot编排，Framework执行"><div class="chapter-title"><p class="eyebrow">章节01 / 完整阅读</p><h2 id="chapter-01">01. 先画责任边界：Boot编排，Framework执行</h2></div><div class="study">
 
 <h3 id="_2">问题与设计动机</h3>
 <p>为什么读完SpringApplication仍不能解释Bean实例化？Boot解决的是应用如何以约定启动：选上下文、准备环境、加载配置、接入WebServer并发布运行事件。它把这些能力接到Spring容器，容器内部的定义解析、依赖注入、后置处理器和生命周期仍由Spring Framework实现。把两层混为一谈，会把失败发生的阶段说错。</p>
@@ -221,7 +320,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>一个缺依赖的Bean可能在Framework创建实例时失败，然后被Boot的失败处理包装、分析并关闭上下文。不能因最终日志由Boot打印，就把根因归到自动配置。MVC请求分派也应继续进入Framework的DispatcherServlet，而非停在Boot的WebMvcAutoConfiguration。</p>
 <h3 id="_6">可复现实验与观察点</h3>
 <p>先在调试器对SpringApplication.run、AbstractApplicationContext.refresh、AbstractAutowireCapableBeanFactory.initializeBean各设断点。启动第27章样例；每次停下记录当前方法、beanName及上下文active状态。预期先进入Boot，再进入Framework，Bean初始化过程中不会重复执行整条Boot启动链。</p>
-<h2 id="chapter-02">02. 启动全过程：成功不是一个瞬间</h2>
+</div></article><article class="chapter" id="reading-001" data-title="02. 启动全过程：成功不是一个瞬间"><div class="chapter-title"><p class="eyebrow">章节02 / 完整阅读</p><h2 id="chapter-02">02. 启动全过程：成功不是一个瞬间</h2></div><div class="study">
 
 <h3 id="_7">问题与设计动机</h3>
 <p>启动包含多个完成点。Environment完成时Bean尚未创建；refresh完成时多数非懒加载单例已初始化，嵌入式服务器也完成生命周期启动；Runner完成后才发布ready。将“Started”日志等同于业务可接流量，会忽略Runner初始化缓存、预热或校验失败的窗口。</p>
@@ -276,7 +375,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>准备环境就失败时context仍为null；refresh或Runner失败时handleRunFailure可拿到context并关闭资源。Runner主动关闭上下文与抛异常不同：前者可能使ready跳过但返回已关闭context；后者走失败链。应用监听器执行过慢也会延长启动，因为这条编排不是无条件异步。端口可在Runner之前监听；只有部署平台消费Readiness探针并按结果路由，才能阻挡未就绪流量。Ready事件本身不执行网络隔离。</p>
 <h3 id="_11">可复现实验与观察点</h3>
 <p>将样例的ApplicationRunner加入Thread.sleep(3000)，监听ApplicationStartedEvent与ApplicationReadyEvent输出时间。预期两事件相差约3秒。再在Runner抛IllegalStateException，预期Started可能出现而Ready不出现，进程启动失败。此实验是教学步骤，本次未启动真实服务器。</p>
-<h2 id="chapter-03">03. WebApplicationType与上下文选择</h2>
+</div></article><article class="chapter" id="reading-002" data-title="03. WebApplicationType与上下文选择"><div class="chapter-title"><p class="eyebrow">章节03 / 完整阅读</p><h2 id="chapter-03">03. WebApplicationType与上下文选择</h2></div><div class="study">
 
 <h3 id="_12">问题与设计动机</h3>
 <p>同一套run既能启动命令行、Servlet也能启动Reactive应用，因此必须先决定上下文种类。决定因素不是类名里有没有Application，也不是项目用了异步API，而是关键类是否存在及显式配置。Servlet和Reactive都在类路径时，源码有清楚的偏向。</p>
@@ -311,7 +410,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>2.7.18的Servlet指标是javax.servlet.Servlet；3.5.16改成jakarta.servlet.Servlet。推断算法的核心结构保留，包名迁移并不意味着算法变成“Reactive优先”。</p>
 <h3 id="_17">可复现实验与观察点</h3>
 <p>使用样例运行--spring.main.web-application-type=none，观察没有端口监听；删除参数再运行应启动Servlet。若引入starter-webflux但保留starter-web，断点deduceFromClasspath检查MVC指标仍在，预期SERVLET。</p>
-<h2 id="chapter-04">04. Environment：优先级是有序源，不是覆盖文件</h2>
+</div></article><article class="chapter" id="reading-003" data-title="04. Environment：优先级是有序源，不是覆盖文件"><div class="chapter-title"><p class="eyebrow">章节04 / 完整阅读</p><h2 id="chapter-04">04. Environment：优先级是有序源，不是覆盖文件</h2></div><div class="study">
 
 <h3 id="_18">问题与设计动机</h3>
 <p>同一个demo.message可能来自默认值、文件、环境变量或命令行。Boot没有先把这些全部合并成一个最终Map；它保存多个PropertySource，读取时按顺序查找第一个非null值。因此排障要同时问“哪些源存在”与“它们的顺序是什么”。</p>
@@ -371,7 +470,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>@PropertySource配置类要等refresh解析后才加入，对早期logging.<em>和spring.main.</em>可能太晚。addCommandLineProperties=false会取消命令行插入；测试属性源可能排在生产参数之前。所谓“外部文件优先”也要看location分组、profile和import，不能只比较文件路径。</p>
 <h3 id="_22">可复现实验与观察点</h3>
 <p>样例application.properties写demo.message=file，运行DEMO_MESSAGE=env java -Ddemo.message=sys -jar target/source-lab-1.0.0.jar --demo.message=cli，Runner应打印cli。依次删除cli、-D、环境变量，再观察sys→env→file；每一步打印environment.getPropertySources()的名称。</p>
-<h2 id="chapter-05">05. ConfigData：为什么先无Profile再有Profile</h2>
+</div></article><article class="chapter" id="reading-004" data-title="05. ConfigData：为什么先无Profile再有Profile"><div class="chapter-title"><p class="eyebrow">章节05 / 完整阅读</p><h2 id="chapter-05">05. ConfigData：为什么先无Profile再有Profile</h2></div><div class="study">
 
 <h3 id="_23">问题与设计动机</h3>
 <p>application-dev.properties是否应被读取，取决于active profiles；active profiles本身又可能定义在普通配置中。这是一个依赖关系，所以ConfigData分阶段处理。它不是扫目录之后无脑按文件名拼接。先收集初始导入，再建立激活上下文，处理非Profile贡献，最后使用已确定Profile补充加载。</p>
@@ -414,7 +513,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>ConfigData在2.4时代已经出现，2.7.18也有processAndApply与分阶段Profile处理；不能把spring.config.import说成3.x才引入。</p>
 <h3 id="_28">可复现实验与观察点</h3>
 <p>在application.properties写spring.profiles.active=dev和demo.message=base，application-dev.properties写demo.message=dev，预期打印dev。将active声明移入spring.config.activate.on-profile=dev控制的文档并检查启动错误。打开logging.level.org.springframework.boot.context.config=TRACE观察分阶段处理。</p>
-<h2 id="chapter-06">06. ConfigData导入：Location、Resource与可选失败</h2>
+</div></article><article class="chapter" id="reading-005" data-title="06. ConfigData导入：Location、Resource与可选失败"><div class="chapter-title"><p class="eyebrow">章节06 / 完整阅读</p><h2 id="chapter-06">06. ConfigData导入：Location、Resource与可选失败</h2></div><div class="study">
 
 <h3 id="_29">问题与设计动机</h3>
 <p>配置导入需要支持file、classpath、configtree及插件扩展。抽象分成LocationResolver与Loader：前者把位置变成可加载资源，后者把资源变成ConfigData。这让“定位失败”与“读取失败”有不同诊断，也让Profile资源解析与基础资源解析可以复用协议。</p>
@@ -449,7 +548,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>optional:只声明允许资源不存在，并不保证语法错误、认证失败或任意IOException都被吞掉。重复资源按身份去重也不等于任意字符串地址都能识别同一个远程内容。实现自定义Loader时必须定义资源equals/hashCode，否则导入重复判断可能失效。</p>
 <h3 id="_33">可复现实验与观察点</h3>
 <p>给样例传--spring.config.import=file:./missing.properties，预期因缺失配置启动失败；改为optional:file:./missing.properties，预期继续启动。再创建一个非法YAML文档并optional导入，观察解析错误仍失败。删除参数恢复默认配置，避免实验文件污染后续。</p>
-<h2 id="chapter-07">07. 自动配置候选：从注解走到imports资源</h2>
+</div></article><article class="chapter" id="reading-006" data-title="07. 自动配置候选：从注解走到imports资源"><div class="chapter-title"><p class="eyebrow">章节07 / 完整阅读</p><h2 id="chapter-07">07. 自动配置候选：从注解走到imports资源</h2></div><div class="study">
 
 <h3 id="_34">问题与设计动机</h3>
 <p>@SpringBootApplication包含@EnableAutoConfiguration，但候选类不是靠扫描整个第三方包找到的。自动配置是第三方显式登记的候选清单，常规组件扫描只处理业务指定包。这个区分解释了为什么一个jar在类路径上，仍可能完全没有参与自动配置。</p>
@@ -498,7 +597,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>2.7.18同时调用SpringFactoriesLoader.loadFactoryNames与ImportCandidates.load；3.5.16候选注册读取imports。spring.factories仍服务其他扩展，例如FailureAnalyzer和EnvironmentPostProcessor，不能从自动配置迁移推断整个文件被移除。</p>
 <h3 id="_39">可复现实验与观察点</h3>
 <p>解压一个starter相关autoconfigure jar，检查META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports。创建本章自定义自动配置后，分别把它登记到imports与只登记到spring.factories；在3.5.16下预期只有imports路径使它被自动导入。</p>
-<h2 id="chapter-08">08. 候选筛选：排除和条件的两个层次</h2>
+</div></article><article class="chapter" id="reading-007" data-title="08. 候选筛选：排除和条件的两个层次"><div class="chapter-title"><p class="eyebrow">章节08 / 完整阅读</p><h2 id="chapter-08">08. 候选筛选：排除和条件的两个层次</h2></div><div class="study">
 
 <h3 id="_40">问题与设计动机</h3>
 <p>候选清单很大，加载所有配置类再判断昂贵且可能触发缺类错误。选择器首先做名字级去重/排除及ImportFilter批量筛选；Framework解析配置时再执行注解条件。两层条件共同决定结果，名单过滤通过不等于@Bean必然注册。</p>
@@ -529,7 +628,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>排除存在但不属于自动配置候选的类会触发invalid excludes检查；拼错一个不存在的类名与排除存在的普通配置类不是同一分支。配置类整体条件通过，内部@Bean仍可因MissingBean或Property条件不匹配而缺失。</p>
 <h3 id="_44">可复现实验与观察点</h3>
 <p>运行样例--debug，找到Positive matches与Negative matches。用--spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration排除MVC默认配置，比较报告；把exclude改为一个存在的普通业务配置类，预期得到无效排除诊断。</p>
-<h2 id="chapter-09">09. OnClassCondition：元数据与加载隔离</h2>
+</div></article><article class="chapter" id="reading-008" data-title="09. OnClassCondition：元数据与加载隔离"><div class="chapter-title"><p class="eyebrow">章节09 / 完整阅读</p><h2 id="chapter-09">09. OnClassCondition：元数据与加载隔离</h2></div><div class="study">
 
 <h3 id="_45">问题与设计动机</h3>
 <p>如果可选依赖不存在，首先要避免JVM在读方法签名时就解析它。类条件用字符串/ASM元数据判断类是否存在，过滤掉不满足条件的配置；但这不保证放在任意位置的@ConditionalOnClass都能阻止JVM提前加载签名类型。设计starter时要把可选依赖隔离在嵌套配置类。</p>
@@ -559,7 +658,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>在@Bean方法直接返回OptionalLibrary类型，即便方法带条件也可能过早触发类解析。稳妥结构是在单独@Configuration上加@ConditionalOnClass，把可选Bean方法放进去。类“存在”也不保证二进制版本兼容，NoSuchMethodError是另一个问题。</p>
 <h3 id="_49">可复现实验与观察点</h3>
 <p>用spring-boot-test的ApplicationContextRunner配合FilteredClassLoader隐藏一个可选库类型，再载入对应自动配置。预期相关Bean不存在且报告显示缺类；移除过滤后恢复。此测试只验证类条件，不验证远程服务是否可用。</p>
-<h2 id="chapter-10">10. OnBeanCondition：退让与解析时序</h2>
+</div></article><article class="chapter" id="reading-009" data-title="10. OnBeanCondition：退让与解析时序"><div class="chapter-title"><p class="eyebrow">章节10 / 完整阅读</p><h2 id="chapter-10">10. OnBeanCondition：退让与解析时序</h2></div><div class="study">
 
 <h3 id="_50">问题与设计动机</h3>
 <p>自动配置通常提供默认实现，用户自己定义同类型Bean时默认实现应退让。@ConditionalOnMissingBean不是运行时每次调用都检查，也不是启动结束后扫描一次所有实例，而是在REGISTER_BEAN阶段根据当时可见的定义/类型判断。因此排序与搜索范围是语义的一部分。</p>
@@ -603,7 +702,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>给@Bean返回Object而实际new某接口实现，条件阶段可能无法像你预期那样推断类型。多个同类型候选时SingleCandidate涉及primary/default候选判断；MissingBean不是“任意同名实例覆盖”。启用allow-bean-definition-overriding也不会改变条件匹配的基本含义。</p>
 <h3 id="_54">可复现实验与观察点</h3>
 <p>编写ApplicationContextRunner加载一个带@ConditionalOnMissingBean(Greeting.class)的自动配置。无用户配置应得到默认Greeting；withUserConfiguration提供Greeting后应得到用户实例且默认Bean名不存在。断点getConfigurationPhase证实不是请求到来时才评估。</p>
-<h2 id="chapter-11">11. OnPropertyCondition：false、缺失和havingValue</h2>
+</div></article><article class="chapter" id="reading-010" data-title="11. OnPropertyCondition：false、缺失和havingValue"><div class="chapter-title"><p class="eyebrow">章节11 / 完整阅读</p><h2 id="chapter-11">11. OnPropertyCondition：false、缺失和havingValue</h2></div><div class="study">
 
 <h3 id="_55">问题与设计动机</h3>
 <p>一个开关在未配置时是否启用，是API契约。@ConditionalOnProperty默认匹配“存在且不等于false”的字符串，而不自动执行你想象的业务布尔转换；havingValue指定后进行大小写不敏感比较，缺失则由matchIfMissing决定。读取条件表比凭名字猜更可靠。</p>
@@ -643,7 +742,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>没指定havingValue时demo.enabled=abc仍可能匹配；所以真正布尔配置应明确契约或使用布尔条件注解。集合索引如demo.list[0]不是demo.list本身存在的普遍保证，Property条件不适合判断集合是否非空。多个name是AND，不是OR。</p>
 <h3 id="_59">可复现实验与观察点</h3>
 <p>自定义自动配置用@ConditionalOnProperty(prefix="demo",name="enabled",havingValue="true",matchIfMissing=false)。分别用withPropertyValues测缺失、false、TRUE、abc，预期只有TRUE匹配；删havingValue后abc可匹配。将结果与源码isMatch逐项对照。</p>
-<h2 id="chapter-12">12. 自动配置排序：定义顺序与实例顺序分开</h2>
+</div></article><article class="chapter" id="reading-011" data-title="12. 自动配置排序：定义顺序与实例顺序分开"><div class="chapter-title"><p class="eyebrow">章节12 / 完整阅读</p><h2 id="chapter-12">12. 自动配置排序：定义顺序与实例顺序分开</h2></div><div class="study">
 
 <h3 id="_60">问题与设计动机</h3>
 <p>B的MissingBean条件必须看到A提供的定义，于是候选配置需要确定顺序。但排序不是Bean实例化调度表，也不保证外部服务启动顺序。实例的依赖关系、DependsOn和生命周期phase由Framework处理。理解这个区分可以避免把AutoConfigureAfter当业务初始化屏障。</p>
@@ -677,7 +776,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>相互before/after形成循环会导致排序失败，属于配置依赖图错误。即使A配置在B之前，A里的懒加载Bean也可能直到业务调用才实例化。若B必须使用A实例，应声明真实构造依赖，而不是仅排序配置。</p>
 <h3 id="_64">可复现实验与观察点</h3>
 <p>创建A、B两个@AutoConfiguration，在B中用ConditionalOnBean(AService.class)，先不声明after，再给B添加@AutoConfiguration(after=A.class)。用ApplicationContextRunner记录是否登记B；最后将AService设@Lazy并观察排序不等于立即初始化。</p>
-<h2 id="chapter-13">13. Bean生命周期：从定义到初始化与代理</h2>
+</div></article><article class="chapter" id="reading-012" data-title="13. Bean生命周期：从定义到初始化与代理"><div class="chapter-title"><p class="eyebrow">章节13 / 完整阅读</p><h2 id="chapter-13">13. Bean生命周期：从定义到初始化与代理</h2></div><div class="study">
 
 <h3 id="_65">问题与设计动机</h3>
 <p>自动配置完成后得到的是定义，生命周期把定义变成可用对象。实例化、依赖填充、Aware回调、before initialization、初始化回调、after initialization不是同一个阶段。AOP代理通常在后置处理器阶段产生，Boot并不自己重写所有Bean创建。</p>
@@ -724,7 +823,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>构造循环无法仅靠早期引用解决；setter循环也受allowCircularReferences、作用域、代理等限制。初始化方法抛异常包装BeanCreationException并使非懒单例启动失败。懒加载只把失败推迟到首次访问，不等于修复依赖。循环引用默认禁用已在2.6时代发生，不能归为3.x专属改变。</p>
 <h3 id="_69">可复现实验与观察点</h3>
 <p>样例加入实现BeanNameAware与InitializingBean的组件及自定义BeanPostProcessor，输出beanName和阶段；构造器→Aware→before→afterPropertiesSet→after是应观察的关键顺序。再在afterPropertiesSet抛错，定位BeanCreationException的根cause。</p>
-<h2 id="chapter-14">14. Servlet上下文：创建服务器与启动服务器</h2>
+</div></article><article class="chapter" id="reading-013" data-title="14. Servlet上下文：创建服务器与启动服务器"><div class="chapter-title"><p class="eyebrow">章节14 / 完整阅读</p><h2 id="chapter-14">14. Servlet上下文：创建服务器与启动服务器</h2></div><div class="study">
 
 <h3 id="_70">问题与设计动机</h3>
 <p>容器refresh需要创建WebServer，也需要让Servlet注册到ServletContext；真正对外启动则通过SmartLifecycle交接。将getWebServer当成唯一启动点，会忽略后面的WebServerStartStopLifecycle与初始化事件。外部WAR容器已有ServletContext时还走另一条路径。</p>
@@ -772,7 +871,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>getWebServerFactory要求当前上下文恰当的工厂候选：零个或多个都不是自动任选一个。端口冲突可能在服务器初始化/启动路径抛异常，由onRefresh或生命周期链传播到启动失败。WebServerInitialized只说明服务器初始化事件，Runner仍可能失败。</p>
 <h3 id="_74">可复现实验与观察点</h3>
 <p>运行样例--server.port=0，监听ServletWebServerInitializedEvent输出getWebServer().getPort()，应得到实际随机端口；再强制一个被占用端口，查看失败分析。对createWebServer与WebServerStartStopLifecycle.start设断点，确认两个完成点顺序。</p>
-<h2 id="chapter-15">15. Tomcat工厂与Servlet注册：适配器的责任</h2>
+</div></article><article class="chapter" id="reading-014" data-title="15. Tomcat工厂与Servlet注册：适配器的责任"><div class="chapter-title"><p class="eyebrow">章节15 / 完整阅读</p><h2 id="chapter-15">15. Tomcat工厂与Servlet注册：适配器的责任</h2></div><div class="study">
 
 <h3 id="_75">问题与设计动机</h3>
 <p>Boot把server.port、连接器定制、上下文设置和ServletContextInitializer组装为嵌入式Tomcat。它提供可替换工厂和Customizer，Tomcat自身负责Socket、请求解析与Servlet调度。研究Boot时追到工厂边界，研究连接调度时再进入Tomcat仓库。</p>
@@ -819,7 +918,7 @@ body.reader-page{margin:0;background:var(--bg);color:var(--ink);font:16px/1.9 -a
 <p>单独声明Servlet Bean可能自动适配，但明确ServletRegistrationBean可以设置映射与顺序；显式注册后不能再期待重复注册同一实例。Filter顺序影响请求经过的链条，不能靠文件名推断。端口、协议或SSL错误可能由Tomcat底层报错，Boot负责传播与诊断。</p>
 <h3 id="_79">可复现实验与观察点</h3>
 <p>样例添加一个FilterRegistrationBean，映射/*、order=1，在doFilter前后打印并访问/ping；再加order=2的过滤器，预期前置为1→2，后置为2→1。定义ServletRegistrationBean映射/raw，确认它绕开MVC控制器但仍进入Servlet过滤链。</p>
-<h2 id="chapter-16">16. MVC：Boot提供默认值，DispatcherServlet处理请求</h2>
+</div></article><article class="chapter" id="reading-015" data-title="16. MVC：Boot提供默认值，DispatcherServlet处理请求"><div class="chapter-title"><p class="eyebrow">章节16 / 完整阅读</p><h2 id="chapter-16">16. MVC：Boot提供默认值，DispatcherServlet处理请求</h2></div><div class="study">
 
 <h3 id="_80">问题与设计动机</h3>
 <p>Boot的MVC自动配置提供转换器、静态资源、格式化、视图等默认组合。一次HTTP请求如何找Handler、适配调用、处理异常，仍在Framework的DispatcherServlet。加@EnableWebMvc通常意味着自己接管MVC配置，原因可从MissingBean条件直接看见。</p>
@@ -867,7 +966,7 @@ public class WebMvcAutoConfiguration {
 <p>没找到Handler走noHandlerFound；找到但没合适Adapter是另一种配置错误；转换失败与控制器抛错由异常解析器链处理。@EnableWebMvc导入WebMvcConfigurationSupport相关配置后，Boot MVC自动配置退让，而不是仅“增加一个注解功能”。静态资源404也不能先假设控制器未扫描。</p>
 <h3 id="_84">可复现实验与观察点</h3>
 <p>样例/ping返回字符串；加入WebMvcConfigurer自定义拦截器，预期保留Boot默认行为。然后临时加@EnableWebMvc并--debug，观察WebMvcAutoConfiguration不再匹配；比较静态资源与消息转换器配置，再移除注解。</p>
-<h2 id="chapter-17">17. Binder：源名称、目标类型和错误策略</h2>
+</div></article><article class="chapter" id="reading-016" data-title="17. Binder：源名称、目标类型和错误策略"><div class="chapter-title"><p class="eyebrow">章节17 / 完整阅读</p><h2 id="chapter-17">17. Binder：源名称、目标类型和错误策略</h2></div><div class="study">
 
 <h3 id="_85">问题与设计动机</h3>
 <p>@Value偏向一个键的表达式求值，@ConfigurationProperties偏向结构化对象绑定。Binder必须同时知道配置名、目标类型、当前绑定上下文与处理器，才能处理Duration、嵌套对象、Map/List及错误。宽松名称匹配是来源适配能力，不意味着任意拼写都能成功。</p>
@@ -900,7 +999,7 @@ public class WebMvcAutoConfiguration {
 <p>List覆盖与Map按键合并有不同规则，不要说“所有集合逐项叠加”。转换错误不会自动回退低优先级来源：高优先级已命中的非法值通常使绑定失败。@ConfigurationProperties(ignoreInvalidFields=true)会改变错误策略，应清楚其可能留下默认值的后果。</p>
 <h3 id="_89">可复现实验与观察点</h3>
 <p>第27章record DemoProperties中Duration timeout默认来自demo.timeout=2s。传--demo.timeout=abc，预期启动绑定失败并报告配置键与来源；传--demo.timeout=PT3S，预期可转换。对Binder.bindObject设断点观察目标是Duration还是完整record。</p>
-<h2 id="chapter-18">18. ConfigurationProperties生命周期、构造绑定与校验</h2>
+</div></article><article class="chapter" id="reading-017" data-title="18. ConfigurationProperties生命周期、构造绑定与校验"><div class="chapter-title"><p class="eyebrow">章节18 / 完整阅读</p><h2 id="chapter-18">18. ConfigurationProperties生命周期、构造绑定与校验</h2></div><div class="study">
 
 <h3 id="_90">问题与设计动机</h3>
 <p>可变JavaBean需要先创建再填充；不可变record必须用配置值调用构造器。这两条路径不能同时套在同一个普通@Component Bean上。绑定后应在应用接流量前验证约束，否则无效重试次数、超时或URL会进入业务。</p>
@@ -948,7 +1047,7 @@ public @interface ConstructorBinding {
 <p>3.x单个参数化构造器通常可推断构造绑定，多个构造器则需明确选择；@ConstructorBinding不是用于把任何@Component改成值对象。3.x注解在context.properties.bind包并针对构造器，2.7.18在context.properties包且可标记类型。@Validated需实际验证实现，例如starter-validation，只有注解而没有Provider不能假定校验已执行。</p>
 <h3 id="_94">可复现实验与观察点</h3>
 <p>样例record标记@Validated，给int retries加@Min(1)，pom引入starter-validation；--demo.retries=0应失败，--demo.retries=2应成功。把record改成普通@Component并保留构造绑定意图，观察普通Bean构造依赖与属性绑定之间的冲突，再恢复扫描注册。</p>
-<h2 id="chapter-19">19. Actuator：发现、可用性、暴露与鉴权是四个问题</h2>
+</div></article><article class="chapter" id="reading-018" data-title="19. Actuator：发现、可用性、暴露与鉴权是四个问题"><div class="chapter-title"><p class="eyebrow">章节19 / 完整阅读</p><h2 id="chapter-19">19. Actuator：发现、可用性、暴露与鉴权是四个问题</h2></div><div class="study">
 
 <h3 id="_95">问题与设计动机</h3>
 <p>“有Actuator依赖”不代表所有管理接口都可HTTP访问。端点先被发现并转换为操作模型，再受访问/启用与暴露策略过滤，最后由Web适配层映射；认证授权通常由Spring Security配置负责。将404当作安全证明，或把暴露当作认证，都容易误判。</p>
@@ -981,7 +1080,7 @@ public @interface ConstructorBinding {
 <p>重复id直接Assert失败；显式暴露不自动创建被访问策略禁用的端点。management.server.port不同会影响管理上下文与端口路由。health成功也不证明所有业务依赖与数据正确；探针聚合要看具体HealthIndicator/group。</p>
 <h3 id="_99">可复现实验与观察点</h3>
 <p>样例只暴露health,info,conditions。访问/actuator/health应有结果，/actuator/beans预期404。临时增加beans暴露再检查变化；若加入Security，应验证未登录与登录分别返回什么。本样例供本机学习，不建议将管理端口直接公开。</p>
-<h2 id="chapter-20">20. Runner与可用性：存活不等于就绪</h2>
+</div></article><article class="chapter" id="reading-019" data-title="20. Runner与可用性：存活不等于就绪"><div class="chapter-title"><p class="eyebrow">章节20 / 完整阅读</p><h2 id="chapter-20">20. Runner与可用性：存活不等于就绪</h2></div><div class="study">
 
 <h3 id="_100">问题与设计动机</h3>
 <p>系统可能已经启动线程和端口，业务仍在加载索引。Liveness回答进程内部是否处于可继续工作的状态，Readiness回答是否适合接受新请求。Boot先发布started与CORRECT，Runner执行后才ready与ACCEPTING_TRAFFIC，为预热过程留出明确状态。</p>
@@ -1066,7 +1165,7 @@ public @interface ConstructorBinding {
 <p>实测教学Runner抛IllegalStateException时，3.5.16向调用者重新抛出该RuntimeException，消息仍是原始teaching failure；2.7.18的callRunner直接catch(Exception)并统一包装Failed to execute ApplicationRunner。3.5.16采用Framework ThrowingConsumer，RuntimeException原样传播，checked Exception才调用包装器。Ready不发布这一结果仍然相同，测试不要只硬编码旧错误消息。</p>
 <h3 id="_105">可复现实验与观察点</h3>
 <p>样例添加一个3秒Runner，再监听AvailabilityChangeEvent输出状态类型及值。预期CORRECT先出现，3秒后ACCEPTING_TRAFFIC；改成失败Runner，不应出现ACCEPTING_TRAFFIC。对外流量是否被阻挡取决于部署平台探针设置，单机日志不证明负载均衡已遵守它。</p>
-<h2 id="chapter-21">21. 日志与FailureAnalyzer：早期初始化和诊断链</h2>
+</div></article><article class="chapter" id="reading-020" data-title="21. 日志与FailureAnalyzer：早期初始化和诊断链"><div class="chapter-title"><p class="eyebrow">章节21 / 完整阅读</p><h2 id="chapter-21">21. 日志与FailureAnalyzer：早期初始化和诊断链</h2></div><div class="study">
 
 <h3 id="_106">问题与设计动机</h3>
 <p>日志必须在Bean创建前工作，否则配置解析失败时没有可用诊断。LoggingApplicationListener先beforeInitialize抑制不合适输出，Environment准备后再按logging配置初始化。FailureAnalyzer则把异常转成描述与建议；它提升可读性，但不能替代根异常。</p>
@@ -1121,7 +1220,7 @@ public @interface ConstructorBinding {
 <p>@PropertySource上的logging.level可能晚于日志初始化。FailureAnalyzer返回null意味着不负责该异常，不是“没有错误”。分析器提供的建议要和根cause核对，例如端口冲突、循环依赖、配置绑定错误有不同触发点。--debug条件报告解释配置决策，不等于开启所有业务DEBUG日志。</p>
 <h3 id="_110">可复现实验与观察点</h3>
 <p>运行样例--logging.level.org.springframework.boot.context.config=TRACE观察早期配置解析；再以--demo.timeout=abc制造绑定失败，记录FailureAnalysis中的属性、值、来源与建议。对比Runner自定义异常没有专用分析器时的通用堆栈，确认二者诊断层次不同。</p>
-<h2 id="chapter-22">22. AOT与Native：构建期固定结构的代价</h2>
+</div></article><article class="chapter" id="reading-021" data-title="22. AOT与Native：构建期固定结构的代价"><div class="chapter-title"><p class="eyebrow">章节22 / 完整阅读</p><h2 id="chapter-22">22. AOT与Native：构建期固定结构的代价</h2></div><div class="study">
 
 <h3 id="_111">问题与设计动机</h3>
 <p>Native编译需要提前知道反射、资源与代理用法；Boot3整合AOT处理，用构建时可分析的应用上下文生成初始化代码与运行提示。它不是在生产第一次请求时再编译，也不意味着所有动态条件能在Native运行时任意改变。</p>
@@ -1168,7 +1267,7 @@ public @interface ConstructorBinding {
 <p>3.5.16的AOT处理入口@since 3.0.0；2.7.18主线不包含该Boot3集成入口，2.x使用Spring Native实验项目的历史路径不能直接当成3.x内置机制。</p>
 <h3 id="_116">可复现实验与观察点</h3>
 <p>在受支持的GraalVM环境执行mvn -Pnative native:compile，再运行产物并检查/ping。比较target/spring-aot/main/sources中的生成初始化器；故意添加反射读取一个未登记类型的路径，观察并补RuntimeHintsRegistrar。本次未编译Native，实验依赖GraalVM与native插件配置。</p>
-<h2 id="chapter-23">23. 测试切片：受控容器比缩小@SpringBootTest更明确</h2>
+</div></article><article class="chapter" id="reading-022" data-title="23. 测试切片：受控容器比缩小@SpringBootTest更明确"><div class="chapter-title"><p class="eyebrow">章节23 / 完整阅读</p><h2 id="chapter-23">23. 测试切片：受控容器比缩小@SpringBootTest更明确</h2></div><div class="study">
 
 <h3 id="_117">问题与设计动机</h3>
 <p>控制器测试通常只需MVC相关Bean，数据库测试只需数据访问设施。切片通过关闭通用自动配置、限制类型扫描并导入特定自动配置组合减少范围。它不是简单在完整容器里让部分Bean懒加载，所以切片成功不能证明整个应用依赖都正确。</p>
@@ -1199,7 +1298,7 @@ public @interface WebMvcTest {
 <p>控制器依赖业务Service而切片未提供时会缺Bean，需要测试替身或显式Import。@Transactional测试回滚只覆盖同线程/相应事务边界，RANDOM_PORT服务端请求在其他线程执行，不能假定被测试线程事务回滚。Security配置存在时MockMvc请求也可能401/403，而非控制器没映射。 本次实验曾把依赖DemoProperties的@Bean Runner放在主配置类，@WebMvcTest仍解析该@Bean，却没有提供业务属性对象，实际出现缺Bean。随后把Runner移成独立@Component，让切片扫描排除它，MVC测试通过。这说明TypeExcludeFilter并非对所有显式@Bean的全局开关。</p>
 <h3 id="_121">可复现实验与观察点</h3>
 <p>为/ping写@WebMvcTest(PingController.class)测试，断言GET /ping响应；实际样例控制器为单独的PingController类。若为控制器加入GreetingService依赖，先观察缺Bean，再用Framework的@MockitoBean提供替身。另写RANDOM_PORT集成测试验证端口与HTTP链，分别说明其覆盖边界。</p>
-<h2 id="chapter-24">24. 2.7.18→3.5.16：迁移证据与责任归属</h2>
+</div></article><article class="chapter" id="reading-023" data-title="24. 2.7.18→3.5.16：迁移证据与责任归属"><div class="chapter-title"><p class="eyebrow">章节24 / 完整阅读</p><h2 id="chapter-24">24. 2.7.18→3.5.16：迁移证据与责任归属</h2></div><div class="study">
 
 <h3 id="_122">问题与设计动机</h3>
 <p>迁移需要区分Boot约定、Framework行为与第三方二进制接口。只把pom版本改成3.x会同时换Java基线、Servlet/JPA/Validation命名空间以及依赖版本。先在2.7线上清掉弃用API并建立行为测试，再切Java17+、Jakarta和新自动配置资源，更容易定位失败。</p>
@@ -1248,7 +1347,7 @@ public @interface WebMvcTest {
 <p>证据表只对固定基线负责。Boot3.0官方迁移指南用于背景解释，具体3.5.16机制以本文固定源码为准，不能据此断言所有改动恰好在3.0一次加入。</p>
 <h3 id="_127">可复现实验与观察点</h3>
 <p>先用同一小型业务样例在2.7.18跑测试，再升级parent到3.5.16并设Java17；逐个迁移javax.servlet/validation/persistence，检查mvn dependency:tree是否有旧API混入。自定义starter做双版本ApplicationContextRunner测试，确认imports在两版都能工作，再删除只服务旧EnableAutoConfiguration候选的factories登记。</p>
-<h2 id="chapter-25">25. DataSource退让：用一个完整案例串起条件</h2>
+</div></article><article class="chapter" id="reading-024" data-title="25. DataSource退让：用一个完整案例串起条件"><div class="chapter-title"><p class="eyebrow">章节25 / 完整阅读</p><h2 id="chapter-25">25. DataSource退让：用一个完整案例串起条件</h2></div><div class="study">
 
 <h3 id="_128">问题与设计动机</h3>
 <p>数据源自动配置是理解条件组合的好案例。JDBC类存在，应用又没有选择R2DBC连接工厂时才进入主配置；进入后还要区分嵌入式数据库与连接池分支、有没有用户DataSource以及驱动/连接参数是否有效。依赖可见与连接成功是两个完成点。</p>
@@ -1291,7 +1390,7 @@ public class DataSourceAutoConfiguration {
 <p>加R2DBC依赖本身不一定退让，需要对应ConnectionFactory Bean满足条件；自定义DataSource会让默认池配置退让。URL缺失且无嵌入式库可能在属性推导时报错，错误密码可能在连接池尝试连接时才暴露；某些池配置延迟建立连接，启动成功仍不能证明数据库可用。</p>
 <h3 id="_132">可复现实验与观察点</h3>
 <p>新样例引入starter-jdbc与运行期H2。ApplicationContextRunner加载DataSourceAutoConfiguration，先断言有默认DataSource，再withUserConfiguration提供一个DataSource并确认自动配置退让。删除H2且不给URL观察启动失败诊断；无需连接生产数据库。</p>
-<h2 id="chapter-26">26. 关闭与优雅停机：把流量状态与资源回收串起来</h2>
+</div></article><article class="chapter" id="reading-025" data-title="26. 关闭与优雅停机：把流量状态与资源回收串起来"><div class="chapter-title"><p class="eyebrow">章节26 / 完整阅读</p><h2 id="chapter-26">26. 关闭与优雅停机：把流量状态与资源回收串起来</h2></div><div class="study">
 
 <h3 id="_133">问题与设计动机</h3>
 <p>关闭不能只System.exit。应先停止接收新请求，再给在途请求有限的完成机会，最后释放线程与连接。Boot把WebServer优雅关闭放进SmartLifecycle阶段，Framework负责按phase组织停止回调和关闭Bean。能否完成仍受超时与底层服务器能力约束。</p>
@@ -1329,7 +1428,7 @@ public class DataSourceAutoConfiguration {
 <p>SIGKILL不会运行正常关闭回调；平台终止宽限比应用timeout短会截断优雅停机。Readiness事件不是网络层自动摘流量命令，外部控制器必须消费探针。固定基线的ServerProperties字段直接显示：2.7.18默认Shutdown.IMMEDIATE，3.5.16默认Shutdown.GRACEFUL。因此没有显式server.shutdown的应用也会改变停机路径；迁移时要重新检查超时与平台宽限时间。</p>
 <h3 id="_137">可复现实验与观察点</h3>
 <p>样例增加一个耗时5秒的接口，设置server.shutdown=graceful与spring.lifecycle.timeout-per-shutdown-phase=10s；请求开始后发SIGTERM，预期在预算内完成已有请求并退出。改timeout为1s再观察差异。此实验须用临时本地端口，不能对生产进程执行信号。</p>
-<h2 id="chapter-27">27. 复现实验室：一个小应用验证多条主线</h2>
+</div></article><article class="chapter" id="reading-026" data-title="27. 复现实验室：一个小应用验证多条主线"><div class="chapter-title"><p class="eyebrow">章节27 / 完整阅读</p><h2 id="chapter-27">27. 复现实验室：一个小应用验证多条主线</h2></div><div class="study">
 
 <h3 id="_138">问题与设计动机</h3>
 <p>把阅读问题收敛到一个小工程：同一个/ping控制器、同一个DemoProperties、同一个Runner，可反复切换参数观察配置来源、绑定错误和就绪事件。另用ApplicationContextRunner做条件与Binder单测；它不依赖完整生产系统，也不需要真正访问数据库。</p>
@@ -1368,22 +1467,164 @@ public class DataSourceAutoConfiguration {
 </ol>
 <h2 id="_144">文件、归属与实验结果的边界</h2>
 <p>所有短源码片段来自Spring项目，Apache License2.0许可；源码版权归原作者。本页的图解和机制解释是独立导读，未改写片段中的语义。<code>source-notices.txt</code>列出完整文件、固定SHA和行号；<code>source-manifest.json</code>提供片段文本及SHA-256，方便复核。离线版不加载统计，不依赖CDN，只有点击上游外链才联网。实验依赖下载需要Maven仓库；这与手册离线阅读无关。</p>
-<p>验证记录与局限见<a href="./VERIFICATION.md">VERIFICATION.md</a>。没有执行的Native/平台探针/真实数据库实验只标预期，不宣称通过。遇到版本漂移先核对本文三组SHA，再做具体环境测试。</p></article><footer>独立源码导读 · 源码版权归原作者 · Apache License2.0 · <a href="./source-notices.txt">归属说明</a> · <a href="./VERIFICATION.md">验证记录</a></footer></main></div><a class="top" href="#" aria-label="返回顶部">↑ 顶部</a><dialog id="viewer"><button id="viewer-close">关闭图解</button><div id="viewer-body" class="viewer-body"></div></dialog><script>
-const menu=document.getElementById('menu'),aside=document.querySelector('aside');menu.onclick=()=>{aside.classList.toggle('open');menu.setAttribute('aria-expanded',String(aside.classList.contains('open')));};document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{aside.classList.remove('open');menu.setAttribute('aria-expanded','false');});
-try{if(localStorage.getItem('boot-theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}
-document.getElementById('theme').onclick=()=>{document.documentElement.classList.toggle('dark');try{localStorage.setItem('boot-theme',document.documentElement.classList.contains('dark')?'dark':'light')}catch(e){}};
-document.querySelectorAll('pre').forEach(p=>{let b=document.createElement('button');b.className='copy';b.textContent='复制代码';b.onclick=async()=>{try{await navigator.clipboard.writeText(p.querySelector('code').textContent);b.textContent='已复制';setTimeout(()=>b.textContent='复制代码',1500)}catch(e){b.textContent='请选中代码复制'}};p.after(b);});
-const viewer=document.getElementById('viewer');document.getElementById('viewer-close').onclick=()=>viewer.close();viewer.onclick=e=>{if(e.target===viewer)viewer.close()};document.querySelectorAll('.diagram').forEach(f=>{let svg=f.querySelector('svg'),wrap=document.createElement('div');wrap.className='diagram-wrap';svg.before(wrap);wrap.append(svg);let b=document.createElement('button');b.textContent='放大图解';b.onclick=()=>{const clone=svg.cloneNode(true);clone.querySelectorAll('[id]').forEach(n=>n.id='viewer-'+n.id);clone.querySelectorAll('[aria-labelledby]').forEach(n=>n.setAttribute('aria-labelledby','viewer-'+n.getAttribute('aria-labelledby')));clone.querySelectorAll('[marker-end]').forEach(n=>n.setAttribute('marker-end',n.getAttribute('marker-end').replace('#','#viewer-')));document.getElementById('viewer-body').replaceChildren(clone);viewer.showModal();};f.prepend(b)});
-let marks=[],current=-1;const input=document.getElementById('query'),status=document.getElementById('search-status');function search(){document.querySelectorAll('article mark').forEach(m=>m.replaceWith(document.createTextNode(m.textContent)));document.querySelector('article').normalize();marks=[];current=-1;const q=input.value.trim();if(!q){status.textContent='';return}const nodes=[],walker=document.createTreeWalker(document.querySelector('article'),NodeFilter.SHOW_TEXT);while(walker.nextNode())if(!walker.currentNode.parentElement.closest('svg,button'))nodes.push(walker.currentNode);for(const n of nodes){const s=n.nodeValue,lo=s.toLowerCase(),needle=q.toLowerCase();let at=0,i=lo.indexOf(needle);if(i<0)continue;const f=document.createDocumentFragment();while(i>=0){f.append(document.createTextNode(s.slice(at,i)));const m=document.createElement('mark');m.textContent=s.slice(i,i+q.length);f.append(m);marks.push(m);at=i+q.length;i=lo.indexOf(needle,at)}f.append(document.createTextNode(s.slice(at)));n.replaceWith(f)}status.textContent=marks.length+'处';next();}function next(){if(!marks.length)return;current=(current+1)%marks.length;marks[current].scrollIntoView({block:'center'});status.textContent=(current+1)+'/'+marks.length;}document.getElementById('find').onclick=search;document.getElementById('next').onclick=next;input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();search()}};
-if('IntersectionObserver' in window){const observer=new IntersectionObserver(entries=>{for(const e of entries)if(e.isIntersecting){document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.hash==='#'+e.target.id));}},{rootMargin:'-85px 0px -65% 0px'});document.querySelectorAll('article h2[id^="chapter-"]').forEach(h=>observer.observe(h));}
-</script><script id="reader-controls">/* Shared appearance and mobile navigation; existing search/diagram handlers stay. */
-(()=>{
- const body=document.body, theme=document.getElementById('theme'), menu=document.getElementById('menu');
- try{body.classList.toggle('reader-light',localStorage.getItem('source-library-theme')==='light')}catch(e){}
- function label(){if(theme)theme.textContent=body.classList.contains('reader-light')?'深色阅读':'浅色阅读'}
- label();
- if(theme)theme.onclick=()=>{body.classList.toggle('reader-light');label();try{localStorage.setItem('source-library-theme',body.classList.contains('reader-light')?'light':'dark')}catch(e){}};
- if(menu){body.classList.add('reader-collapsed');menu.setAttribute('aria-expanded','false');menu.textContent='展开目录';menu.onclick=()=>{body.classList.toggle('reader-collapsed');const open=!body.classList.contains('reader-collapsed');menu.setAttribute('aria-expanded',String(open));menu.textContent=open?'收起目录':'展开目录'};}
- document.querySelectorAll('nav a').forEach(a=>a.addEventListener('click',()=>{if(innerWidth<=700&&menu){body.classList.add('reader-collapsed');menu.setAttribute('aria-expanded','false');menu.textContent='展开目录'}}));
+<p>验证记录与局限见<a href="./VERIFICATION.md">VERIFICATION.md</a>。没有执行的Native/平台探针/真实数据库实验只标预期，不宣称通过。遇到版本漂移先核对本文三组SHA，再做具体环境测试。</p></div></article></main><aside id="right-toc" aria-label="当前章节目录"><div class="reading"><span id="progress-text">阅读进度0%</span><span id="current-label"></span></div><p class="nav-label">本篇目录</p><nav id="toc"></nav></aside></div><dialog id="search-dialog" aria-labelledby="search-title"><div class="search-head"><h2 id="search-title">全文搜索</h2><button id="search-close" aria-label="关闭搜索">关闭</button></div><label for="search-input">搜索关键词、源码方法或原理问题</label><input id="search-input" type="search" placeholder="输入关键词，搜索完整正文" autocomplete="off"><p id="search-status" role="status" aria-live="polite">输入关键词，搜索完整正文。</p><div id="search-results"></div></dialog><div id="toast" role="status" aria-live="polite"></div><footer>独立源码导读 · 源码版权归原作者 · Apache License2.0 · <a href="./source-notices.txt">归属说明</a> · <a href="./VERIFICATION.md">验证记录</a></footer><dialog id="diagram-dialog" aria-label="图解放大"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];}
+  function makeToc() {
+    sections=visibleHeadings();$('#toc').replaceChildren();
+    sections.forEach(h=>{const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';$('#toc').append(a);});
+    $('#current-label').textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)$('#review-route').scrollIntoView({block:'start'});closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      requestAnimationFrame(()=>{target.scrollIntoView({block:'start'});if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();});
+    }
+    updateReading();
+  }
+  function updateReading() {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;const box=active.getBoundingClientRect();
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('#toc a,.chapter-nav div a').forEach(a=>a.classList.toggle('current',!!current && a.hash==='#'+current.id));
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{const canvas=$('#diagram-content');canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));canvas.querySelectorAll('[id]').forEach(el=>{el.id='zoom-'+el.id});canvas.querySelectorAll('*').forEach(el=>{for(const attr of ['style','fill','stroke','marker-end','marker-start','clip-path']){const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.replace(/url\(#/g,'url(#zoom-'));}});scale(1);viewer.showModal();});
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
 })();
 </script></body></html>

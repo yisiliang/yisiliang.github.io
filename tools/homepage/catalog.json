@@ -128,14 +128,14 @@
   },
   {
     "id": "topics",
-    "title": "10大技术专题",
+    "title": "技术专题",
     "en": "TECHNICAL DEEP DIVES",
-    "description": "围绕Java高级开发与架构师面试，串起源码原理、故障排查与架构实践。",
+    "description": "围绕具体技术问题，串起源码原理、故障排查与架构实践。",
     "layout": "topics",
     "books": [
       {
-        "name": "Java高级开发与架构师面试",
-        "version": "深入学习 · 面试速查 · 90分钟复习路线",
+        "name": "Java核心技术与架构实践",
+        "version": "深入学习 · 要点速览 · 90分钟回顾路线",
         "path": "java-architect-interview",
         "kind": "topics",
         "detail": "10个专题 · 60道三层问答 · 15张图解",

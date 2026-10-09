@@ -2,7 +2,7 @@
 
 # Redis源码速读图解手册
 
-> 主线Redis7.2.6，对照6.2.14。真实C源码、结构图、字段变化、故障推演与面试复述；面向只读学习，无需编译或做实验。
+> 主线Redis7.2.6，对照6.2.14。真实C源码、结构图、字段变化、故障推演与知识回顾；面向只读学习，无需编译或做实验。
 
 [完整离线版](./redis-offline.zip) · [引用的原始源码包](./redis-source.zip) · [上游COPYING](./redis-copying.txt) · [源码归属与许可说明](./source-notices.txt)
 
@@ -8153,7 +8153,7 @@ char *sentinelGetLeader(sentinelRedisInstance *master, uint64_t epoch) {
 }
 ```
 
-**逐段阅读抓手：**voters/majority与master.quorum分别出现；这是常见面试追问点。
+**逐段阅读抓手：**voters/majority与master.quorum分别出现；这是常见延伸问题点。
 
 
 ## 24.3 Replica挑选与切换不是一瞬间
@@ -11075,7 +11075,7 @@ void xackCommand(client *c) {
 **逐段阅读抓手：**XACK只管理PEL；外部业务事实来自应用数据库。
 
 
-## 33.3 面试答案先讲条件，再讲保证
+## 33.3 原理分析先讲条件，再讲保证
 
 可口述答案：Redis核心命令在主线程串行执行，I/O、后台任务和持久化子进程分担部分工作；对象按规模和内容选择紧凑或通用结构。RDB保存快照，AOF保存可重放效果，复制默认异步，Sentinel/Cluster负责不同部署中的切换与路由。
 
@@ -11236,7 +11236,7 @@ OLD -. "共用部分基础设施，不等于相同算法" .-> NEW
 
 <a id="chapter-37"></a>
 
-# 37. 面试复述与只读自检
+# 37. 知识回顾与只读自检
 
 |问题|准确答案要点|
 |---|---|
