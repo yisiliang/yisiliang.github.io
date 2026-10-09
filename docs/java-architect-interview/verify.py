@@ -87,6 +87,19 @@ with sync_playwright() as p:
  page.wait_for_timeout(250);assert page.locator('#'+target).is_visible()
  page.evaluate("document.querySelector('#c7').scrollIntoView({block:'end',behavior:'instant'})");page.wait_for_timeout(100)
  assert int(re.search(r'\d+',page.locator('#progress-text').inner_text()).group())>=95
+ # 放大后的SVG必须保留原图样式；仅确认弹窗存在会漏掉黑色节点。
+ for figure in soup.select('.diagram'):
+  chapter=figure.find_parent('article')['id'];identifier=figure['data-diagram']
+  page.goto(URL+'#'+chapter);page.wait_for_function("id=>document.querySelector('.chapter.active').id===id",arg=chapter)
+  original=page.locator(f'figure[data-diagram="{identifier}"]')
+  colors=original.locator('svg rect').evaluate_all("nodes=>nodes.map(el=>({fill:getComputedStyle(el).fill,stroke:getComputedStyle(el).stroke}))")
+  original.locator('button.expand').click()
+  assert page.locator('#diagram-dialog').is_visible()
+  assert page.locator('#diagram-content svg').count()==1
+  assert page.locator('#diagram-content svg rect').evaluate_all("nodes=>nodes.map(el=>({fill:getComputedStyle(el).fill,stroke:getComputedStyle(el).stroke}))")==colors,identifier
+  assert page.evaluate("(()=>{const ids=[...document.querySelectorAll('[id]')].map(el=>el.id);return ids.length===new Set(ids).size})()")
+  page.locator('#zoom-in').click();assert page.locator('#diagram-content svg').evaluate("el=>el.style.width")=='125%'
+  page.locator('#diagram-close').click()
  # 320/390/820 手机和平板无整页横向溢出；代码/表格/图允许自己的水平滚动。
  for width in [320,390,820]:
   page.set_viewport_size({'width':width,'height':844});page.goto(URL+'#c7');page.wait_for_timeout(200)
@@ -105,6 +118,6 @@ with sync_playwright() as p:
  np.locator('#c1 .study details:not(.diagram details)').first.locator('summary').click()
  assert np.locator('#c1 .study details:not(.diagram details)').first.get_attribute('open') is not None
  assert not errors,errors
- report['browser']={'desktop':'1440×1000 pass','responsive':'320/390/820 px pass','search':'full content / no result / escaped input pass','mode':'all 10 chapters pass','theme':'system/light/dark and persistence pass','copy':'copy handler matches source pass','qa':'all 10 chapters pass','hash':'deep link pass','reading_progress':'pass','offline_core':'all external requests blocked pass','javascript_disabled':f'10 chapters + {diagram_count} SVG pass','page_errors':errors}
+ report['browser']={'desktop':'1440×1000 pass','responsive':'320/390/820 px pass','search':'full content / no result / escaped input pass','mode':'all 10 chapters pass','theme':'system/light/dark and persistence pass','copy':'copy handler matches source pass','qa':'all 10 chapters pass','hash':'deep link pass','reading_progress':'pass','diagram_viewer':f'{diagram_count} SVGs retain node colors, unique IDs and zoom controls','offline_core':'all external requests blocked pass','javascript_disabled':f'10 chapters + {diagram_count} SVG pass','page_errors':errors}
  browser.close()
 (ROOT/'validation-results.json').write_text(json.dumps(report,ensure_ascii=False,indent=2));print(json.dumps(report,ensure_ascii=False,indent=2))

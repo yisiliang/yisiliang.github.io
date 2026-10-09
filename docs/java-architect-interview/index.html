@@ -3075,7 +3075,27 @@ Mono&lt;Order&gt; load(long id) {
     document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
       let button=figure.querySelector('button.expand,button.zoom');
       if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
-      button.addEventListener('click',()=>{const canvas=$('#diagram-content');canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));canvas.querySelectorAll('[id]').forEach(el=>{el.id='zoom-'+el.id});canvas.querySelectorAll('*').forEach(el=>{for(const attr of ['style','fill','stroke','marker-end','marker-start','clip-path']){const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.replace(/url\(#/g,'url(#zoom-'));}});scale(1);viewer.showModal();});
+      button.addEventListener('click',()=>{
+        const canvas=$('#diagram-content');canvas.classList.add('diagram');
+        canvas.style.margin='0';canvas.style.padding='0';canvas.style.border='0';
+        canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));
+        const ids=new Map([...canvas.querySelectorAll('[id]')].map(el=>[el.id,'zoom-'+el.id]));
+        const keys=[...ids.keys()].sort((a,b)=>b.length-a.length).map(id=>id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+        const pattern=keys.length?new RegExp('#('+keys.join('|')+')(?=$|[^\\w-])','g'):null;
+        const references=value=>pattern?value.replace(pattern,(_,id)=>'#'+ids.get(id)):value;
+        canvas.querySelectorAll('[id]').forEach(el=>{el.id=ids.get(el.id);});
+        // Mermaid scopes CSS selectors to the root SVG ID; keep those selectors
+        // and marker/use references aligned with the renamed clone IDs.
+        canvas.querySelectorAll('style').forEach(el=>{el.textContent=references(el.textContent);});
+        canvas.querySelectorAll('*').forEach(el=>{
+          for(const attr of ['style','fill','stroke','marker-end','marker-start','marker-mid','clip-path','mask','filter','href','xlink:href']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,references(value));
+          }
+          for(const attr of ['aria-labelledby','aria-describedby']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.split(/\s+/).map(id=>ids.get(id)||id).join(' '));
+          }
+        });scale(1);viewer.showModal();
+      });
     });
   }
   root.classList.add('js-enabled');navigate(location.hash,false);
