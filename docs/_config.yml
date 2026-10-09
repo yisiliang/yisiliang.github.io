@@ -1,1 +1,64 @@
 theme: jekyll-theme-cayman
+
+# Source guides contain literal C/C++ braces and must not be interpreted as Liquid.
+defaults:
+  - scope:
+      path: "jdk-source"
+      type: "pages"
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "jvm"
+      type: "pages"
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "springboot"
+      type: "pages"
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "mysql"
+      type: "pages"
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "redis"
+      type: "pages"
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "rocketmq"
+      type: "pages"
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "nginx"
+      type: "pages"
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "distributed"
+      type: "pages"
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "nacos"
+      type: "pages"
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "transformer"
+      type: "pages"
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "java-architect-interview"
+      type: "pages"
+    values:
+      render_with_liquid: false
+  - scope:
+      path: "nginx-rate-limiting"
+      type: "pages"
+    values:
+      render_with_liquid: false
