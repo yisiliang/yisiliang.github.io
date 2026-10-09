@@ -16,6 +16,10 @@ assert len(soup.select('article.chapter'))==10
 assert len(soup.select('.study details'))==60+diagram_count
 assert len(soup.select('.study details:not(.diagram details)'))==60
 assert len(soup.select('.diagram svg'))==diagram_count
+for svg in soup.select('.diagram svg'):
+ svg_ids={node['id'] for node in svg.select('[id]')}|{svg['id']}
+ for reference in re.findall(r'url\(#([^)]+)\)',str(svg)):
+  assert reference in svg_ids,reference
 for art in soup.select('article.chapter'):
  assert len(art.select('.study h3'))>=9
  qas=art.select('.study details:not(.diagram details)');assert len(qas)==6
@@ -96,6 +100,7 @@ with sync_playwright() as p:
   original.locator('button.expand').click()
   assert page.locator('#diagram-dialog').is_visible()
   assert page.locator('#diagram-content svg').count()==1
+  assert page.locator('#diagram-content svg').evaluate("svg=>{const ids=new Set([svg.id,...[...svg.querySelectorAll('[id]')].map(el=>el.id)]);return [...svg.querySelectorAll('[marker-end],[marker-start]')].every(el=>['marker-end','marker-start'].every(attr=>{const value=el.getAttribute(attr);const match=value?.match(/url\\(#([^)]+)\\)/);return !match||ids.has(match[1])}))}")
   assert page.locator('#diagram-content svg rect').evaluate_all("nodes=>nodes.map(el=>({fill:getComputedStyle(el).fill,stroke:getComputedStyle(el).stroke}))")==colors,identifier
   assert page.evaluate("(()=>{const ids=[...document.querySelectorAll('[id]')].map(el=>el.id);return ids.length===new Set(ids).size})()")
   page.locator('#zoom-in').click();assert page.locator('#diagram-content svg').evaluate("el=>el.style.width")=='125%'
@@ -118,6 +123,6 @@ with sync_playwright() as p:
  np.locator('#c1 .study details:not(.diagram details)').first.locator('summary').click()
  assert np.locator('#c1 .study details:not(.diagram details)').first.get_attribute('open') is not None
  assert not errors,errors
- report['browser']={'desktop':'1440×1000 pass','responsive':'320/390/820 px pass','search':'full content / no result / escaped input pass','mode':'all 10 chapters pass','theme':'system/light/dark and persistence pass','copy':'copy handler matches source pass','qa':'all 10 chapters pass','hash':'deep link pass','reading_progress':'pass','diagram_viewer':f'{diagram_count} SVGs retain node colors, unique IDs and zoom controls','offline_core':'all external requests blocked pass','javascript_disabled':f'10 chapters + {diagram_count} SVG pass','page_errors':errors}
+ report['browser']={'desktop':'1440×1000 pass','responsive':'320/390/820 px pass','search':'full content / no result / escaped input pass','mode':'all 10 chapters pass','theme':'system/light/dark and persistence pass','copy':'copy handler matches source pass','qa':'all 10 chapters pass','hash':'deep link pass','reading_progress':'pass','diagram_viewer':f'{diagram_count} SVGs retain node colors, valid arrows, unique IDs and zoom controls','offline_core':'all external requests blocked pass','javascript_disabled':f'10 chapters + {diagram_count} SVG pass','page_errors':errors}
  browser.close()
 (ROOT/'validation-results.json').write_text(json.dumps(report,ensure_ascii=False,indent=2));print(json.dumps(report,ensure_ascii=False,indent=2))

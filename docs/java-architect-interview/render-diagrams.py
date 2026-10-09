@@ -1,6 +1,6 @@
 """本地构建时用 Mermaid 10.9.3 预渲染；读者无需执行 Mermaid 或访问 CDN。"""
 from pathlib import Path
-import json,os
+import json,os,re
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parent
@@ -22,7 +22,10 @@ with sync_playwright() as p:
   idmap={el['id']:diagram_id+'-'+el['id'] for el in parsed.select('[id]')}
   for el in parsed.select('[id]'):el['id']=idmap[el['id']]
   serialized=str(parsed)
-  for old in sorted(idmap,key=len,reverse=True):serialized=serialized.replace('#'+old,'#'+idmap[old])
+  # Single-pass mapping avoids rewriting a longer marker ID again when its
+  # root SVG ID is a prefix (which would leave a nonexistent arrow reference).
+  pattern=re.compile('#('+'|'.join(re.escape(old) for old in sorted(idmap,key=len,reverse=True))+r')(?=$|[^\w-])')
+  serialized=pattern.sub(lambda match:'#'+idmap[match[1]],serialized)
   parsed=BeautifulSoup(serialized,'html.parser')
   for el in parsed.select('[aria-labelledby],[aria-describedby]'):
    for attr in ['aria-labelledby','aria-describedby']:

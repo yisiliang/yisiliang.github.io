@@ -20,7 +20,7 @@
     "qa": "all 10 chapters pass",
     "hash": "deep link pass",
     "reading_progress": "pass",
-    "diagram_viewer": "17 SVGs retain node colors, unique IDs and zoom controls",
+    "diagram_viewer": "17 SVGs retain node colors, valid arrows, unique IDs and zoom controls",
     "offline_core": "all external requests blocked pass",
     "javascript_disabled": "10 chapters + 17 SVG pass",
     "page_errors": []
