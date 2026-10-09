@@ -83,5 +83,25 @@
     "id": "jai-diagram-17",
     "rendered": true,
     "type": "flowchart TD"
+  },
+  {
+    "id": "jai-diagram-18",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "id": "jai-diagram-19",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "id": "jai-diagram-20",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "id": "jai-diagram-21",
+    "rendered": true,
+    "type": "flowchart TD"
   }
 ]

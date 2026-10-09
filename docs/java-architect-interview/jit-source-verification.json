@@ -1,0 +1,55 @@
+{
+  "commit": "943a5ea328fd2fc8eed0aed4ec9b1957d41f8144",
+  "checks": [
+    {
+      "key": "jitsubmit",
+      "line": 453,
+      "end_line": 458,
+      "sha256": "c3a055c900a4442fce1dd58757205c7065165c927cf5aa96b5894343f38dedfe",
+      "status": "PASS"
+    },
+    {
+      "key": "jitload",
+      "line": 231,
+      "end_line": 238,
+      "sha256": "b3c7436738e297dfdf550f5ea1b128891ee02f50513bbdb6d6b51135e21274dc",
+      "status": "PASS"
+    },
+    {
+      "key": "jitacquire",
+      "line": 271,
+      "end_line": 279,
+      "sha256": "b3c7436738e297dfdf550f5ea1b128891ee02f50513bbdb6d6b51135e21274dc",
+      "status": "PASS"
+    },
+    {
+      "key": "jitrelease",
+      "line": 283,
+      "end_line": 290,
+      "sha256": "b3c7436738e297dfdf550f5ea1b128891ee02f50513bbdb6d6b51135e21274dc",
+      "status": "PASS"
+    },
+    {
+      "key": "jitvolatile",
+      "line": 326,
+      "end_line": 340,
+      "sha256": "b3c7436738e297dfdf550f5ea1b128891ee02f50513bbdb6d6b51135e21274dc",
+      "status": "PASS"
+    },
+    {
+      "key": "jitx86",
+      "line": 6329,
+      "end_line": 6346,
+      "sha256": "e5452cc20ea9437417ed5ea79624649ef51ef701c5d8a7cfd51672464b667bb1",
+      "status": "PASS"
+    },
+    {
+      "key": "jitdeopt",
+      "line": 1794,
+      "end_line": 1802,
+      "sha256": "2e2d942ac53833f8549081e3f1163bac007184de4c2b4df6d7844ec8103d746d",
+      "status": "PASS"
+    }
+  ],
+  "scope": "Pinned source bytes and generated windows; not runtime machine-code verification."
+}

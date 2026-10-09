@@ -11,8 +11,8 @@ with sync_playwright() as p:
  if not executable and Path('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome').exists():executable='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
  browser=p.chromium.launch(executable_path=executable,headless=True,args=['--no-sandbox']);page=browser.new_page()
  page.route('https://**/*', lambda route: route.abort())
- page.goto('http://127.0.0.1:8000/java-architect-interview/')
- page.add_script_tag(url='http://127.0.0.1:8000/java-architect-interview/vendor/mermaid.min.js')
+ url=os.environ.get('READER_URL','http://127.0.0.1:8000/java-architect-interview/');page.goto(url)
+ page.add_script_tag(url=url+'vendor/mermaid.min.js')
  page.evaluate("mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'base',themeVariables:{primaryColor:'#e8eef8',primaryTextColor:'#182338',primaryBorderColor:'#7890af',lineColor:'#72849a',secondaryColor:'#edf2f7',tertiaryColor:'#f4f6f9',fontFamily:'sans-serif'}, flowchart:{htmlLabels:false,useMaxWidth:true}})")
  for fig in soup.select('.diagram'):
   source=fig.select_one('pre.mermaid');diagram_id='jai-diagram-'+fig['data-diagram'];raw=source.get_text()

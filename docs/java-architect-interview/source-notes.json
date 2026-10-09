@@ -35,5 +35,12 @@
   "mqcheckpoint": "完整检查点写入方法。0、8、16处分别写物理、逻辑与索引时间戳并force；这里没有消费组offset或Reput Offset。",
   "mqrecovertruncate": "节选异常恢复末尾的有效位置调整与条件性CQ截断。processOffset由前面的记录扫描计算；恢复不仅补索引，还需清理无效尾部的引用。",
   "mqrestart": "节选启动Reput、等待派发追赶、再恢复队列序号。起点由前面的各CQ最大物理结束位置计算，并受CommitLog最小位置约束，不是加载持久化Reput字段。",
-  "mqindexload": "节选异常退出后删除超过索引安全检查点的整个文件。删除之后是否完整重建取决于实际保留日志与重放范围，不能推断历史索引任意丢失都会自动修好。"
+  "mqindexload": "节选异常退出后删除超过索引安全检查点的整个文件。删除之后是否完整重建取决于实际保留日志与重放范围，不能推断历史索引任意丢失都会自动修好。",
+  "jitsubmit": "完整函数：以入口BCI选择调用或回边计数，更新速率后向CompileBroker提交请求；它不直接生成机器码。",
+  "jitload": "连续局部窗口：特殊平台可能先放置额外屏障；volatile加载带acquire属性和is_vol标记。ld后续还用于Acquire节点。",
+  "jitacquire": "连续局部窗口：volatile读取之后创建MemBarAcquire，并关联ld，防止后续相关内存操作越过读取。",
+  "jitrelease": "方法开头的连续窗口：判断volatile属性，在字段存储前插入Release节点；余下存储构造未在此节选展示。",
+  "jitvolatile": "连续完整分支：按平台能力选择尾随MemBarVolatile，建立store_pair，并记录方法包含volatile写。",
+  "jitx86": "完整匹配规则：调用Assembler::membar(StoreLoad)。同文件Acquire/Release规则为empty encoding；这里不把AD规则当作本机反汇编。",
+  "jitdeopt": "完整函数：先进入uncommon_trap_inner处理，再返回fetch_unroll_info_helper构建的展开信息。帧恢复、对象重建还应继续追踪本文件其他函数。"
 }

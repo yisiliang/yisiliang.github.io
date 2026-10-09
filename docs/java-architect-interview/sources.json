@@ -395,5 +395,89 @@
     "marker": "IndexService.load",
     "excerpt": "                    if (!lastExitOK) {\n                        if (f.getEndTimestamp() > this.defaultMessageStore.getStoreCheckpoint()\n                            .getIndexMsgTimestamp()) {\n                            f.destroy(0);\n                            continue;\n                        }\n                    }\n\n",
     "verified": "2026-10-09"
+  },
+  "jitsubmit": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/runtime/advancedThresholdPolicy.cpp",
+    "sha256": "c3a055c900a4442fce1dd58757205c7065165c927cf5aa96b5894343f38dedfe",
+    "bytes": 21851,
+    "line": 453,
+    "end_line": 458,
+    "marker": "AdvancedThresholdPolicy::submit_compile",
+    "excerpt": "void AdvancedThresholdPolicy::submit_compile(methodHandle mh, int bci, CompLevel level, JavaThread* thread) {\n  int hot_count = (bci == InvocationEntryBci) ? mh->invocation_count() : mh->backedge_count();\n  update_rate(os::javaTimeMillis(), mh());\n  CompileBroker::compile_method(mh, bci, level, mh, hot_count, \"tiered\", thread);\n}\n\n",
+    "verified": "2026-10-09",
+    "commit": "943a5ea328fd2fc8eed0aed4ec9b1957d41f8144",
+    "tag": "jdk8u462-b08"
+  },
+  "jitload": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp",
+    "sha256": "b3c7436738e297dfdf550f5ea1b128891ee02f50513bbdb6d6b51135e21274dc",
+    "bytes": 22536,
+    "line": 231,
+    "end_line": 238,
+    "marker": "Parse::do_get_xxx / load",
+    "excerpt": "  if (support_IRIW_for_not_multiple_copy_atomic_cpu && field->is_volatile()) {\n    leading_membar = insert_mem_bar(Op_MemBarVolatile);   // StoreLoad barrier\n  }\n  // Build the load.\n  //\n  MemNode::MemOrd mo = is_vol ? MemNode::acquire : MemNode::unordered;\n  Node* ld = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, is_vol);\n\n",
+    "verified": "2026-10-09",
+    "commit": "943a5ea328fd2fc8eed0aed4ec9b1957d41f8144",
+    "tag": "jdk8u462-b08"
+  },
+  "jitacquire": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp",
+    "sha256": "b3c7436738e297dfdf550f5ea1b128891ee02f50513bbdb6d6b51135e21274dc",
+    "bytes": 22536,
+    "line": 271,
+    "end_line": 279,
+    "marker": "Parse::do_get_xxx / acquire",
+    "excerpt": "  // If reference is volatile, prevent following memory ops from\n  // floating up past the volatile read.  Also prevents commoning\n  // another volatile read.\n  if (field->is_volatile()) {\n    // Memory barrier includes bogus read of value to force load BEFORE membar\n    assert(leading_membar == NULL || support_IRIW_for_not_multiple_copy_atomic_cpu, \"no leading membar expected\");\n    Node* mb = insert_mem_bar(Op_MemBarAcquire, ld);\n    mb->as_MemBar()->set_trailing_load();\n  }\n",
+    "verified": "2026-10-09",
+    "commit": "943a5ea328fd2fc8eed0aed4ec9b1957d41f8144",
+    "tag": "jdk8u462-b08"
+  },
+  "jitrelease": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp",
+    "sha256": "b3c7436738e297dfdf550f5ea1b128891ee02f50513bbdb6d6b51135e21274dc",
+    "bytes": 22536,
+    "line": 283,
+    "end_line": 290,
+    "marker": "Parse::do_put_xxx / release",
+    "excerpt": "  Node* leading_membar = NULL;\n  bool is_vol = field->is_volatile();\n  // If reference is volatile, prevent following memory ops from\n  // floating down past the volatile write.  Also prevents commoning\n  // another volatile read.\n  if (is_vol) {\n    leading_membar = insert_mem_bar(Op_MemBarRelease);\n  }\n",
+    "verified": "2026-10-09",
+    "commit": "943a5ea328fd2fc8eed0aed4ec9b1957d41f8144",
+    "tag": "jdk8u462-b08"
+  },
+  "jitvolatile": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/opto/parse3.cpp",
+    "sha256": "b3c7436738e297dfdf550f5ea1b128891ee02f50513bbdb6d6b51135e21274dc",
+    "bytes": 22536,
+    "line": 326,
+    "end_line": 340,
+    "marker": "Parse::do_put_xxx / volatile",
+    "excerpt": "  // If reference is volatile, prevent following volatiles ops from\n  // floating up before the volatile write.\n  if (is_vol) {\n    // If not multiple copy atomic, we do the MemBarVolatile before the load.\n    if (!support_IRIW_for_not_multiple_copy_atomic_cpu) {\n      Node* mb = insert_mem_bar(Op_MemBarVolatile, store); // Use fat membar\n      MemBarNode::set_store_pair(leading_membar->as_MemBar(), mb->as_MemBar());\n    }\n    // Remember we wrote a volatile field.\n    // For not multiple copy atomic cpu (ppc64) a barrier should be issued\n    // in constructors which have such stores. See do_exits() in parse1.cpp.\n    if (is_field) {\n      set_wrote_volatile(true);\n    }\n  }\n",
+    "verified": "2026-10-09",
+    "commit": "943a5ea328fd2fc8eed0aed4ec9b1957d41f8144",
+    "tag": "jdk8u462-b08"
+  },
+  "jitx86": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/cpu/x86/vm/x86_64.ad",
+    "sha256": "e5452cc20ea9437417ed5ea79624649ef51ef701c5d8a7cfd51672464b667bb1",
+    "bytes": 333123,
+    "line": 6329,
+    "end_line": 6346,
+    "marker": "membar_volatile",
+    "excerpt": "instruct membar_volatile(rFlagsReg cr) %{\n  match(MemBarVolatile);\n  effect(KILL cr);\n  ins_cost(400);\n\n  format %{\n    $$template\n    if (os::is_MP()) {\n      $$emit$$\"lock addl [rsp + #0], 0\\t! membar_volatile\"\n    } else {\n      $$emit$$\"MEMBAR-volatile ! (empty encoding)\"\n    }\n  %}\n  ins_encode %{\n    __ membar(Assembler::StoreLoad);\n  %}\n  ins_pipe(pipe_slow);\n%}\n",
+    "verified": "2026-10-09",
+    "commit": "943a5ea328fd2fc8eed0aed4ec9b1957d41f8144",
+    "tag": "jdk8u462-b08"
+  },
+  "jitdeopt": {
+    "url": "https://raw.githubusercontent.com/openjdk/jdk8u/943a5ea328fd2fc8eed0aed4ec9b1957d41f8144/hotspot/src/share/vm/runtime/deoptimization.cpp",
+    "sha256": "2e2d942ac53833f8549081e3f1163bac007184de4c2b4df6d7844ec8103d746d",
+    "bytes": 83152,
+    "line": 1794,
+    "end_line": 1802,
+    "marker": "Deoptimization::uncommon_trap",
+    "excerpt": "Deoptimization::UnrollBlock* Deoptimization::uncommon_trap(JavaThread* thread, jint trap_request) {\n\n  // Still in Java no safepoints\n  {\n    // This enters VM and may safepoint\n    uncommon_trap_inner(thread, trap_request);\n  }\n  return fetch_unroll_info_helper(thread);\n}\n",
+    "verified": "2026-10-09",
+    "commit": "943a5ea328fd2fc8eed0aed4ec9b1957d41f8144",
+    "tag": "jdk8u462-b08"
   }
 }

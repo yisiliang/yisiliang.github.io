@@ -1,9 +1,9 @@
 {
   "static": {
-    "chapters": 10,
-    "three_layer_questions": 60,
-    "diagrams": 17,
-    "ids": 673,
+    "chapters": 11,
+    "three_layer_questions": 66,
+    "diagrams": 21,
+    "ids": 787,
     "all_internal_anchors": "pass",
     "all_local_resources": "pass",
     "storage_source_excerpts": 15,
@@ -14,19 +14,19 @@
     "desktop": "1440×1000 pass",
     "responsive": "320/390/820 px pass",
     "search": "full content / no result / escaped input pass",
-    "mode": "all 10 chapters pass",
+    "mode": "all 11 chapters pass",
     "theme": "system/light/dark and persistence pass",
     "copy": "copy handler matches source pass",
-    "qa": "all 10 chapters pass",
+    "qa": "all 11 chapters pass",
     "hash": "deep link pass",
     "reading_progress": "pass",
-    "diagram_viewer": "17 SVGs retain node colors, valid arrows, unique IDs and zoom controls",
+    "diagram_viewer": "21 SVGs retain node colors, valid arrows, unique IDs and zoom controls",
     "offline_core": "all external requests blocked pass",
-    "javascript_disabled": "10 chapters + 17 SVG pass",
+    "javascript_disabled": "11 chapters + 21 SVG pass",
     "page_errors": []
   },
   "limits": [
-    "生产故障案例为模拟讲解，未实际启动 Java、数据库、Redis 或 RocketMQ 故障实验。",
+    "生产故障案例为模拟讲解，原有章节未运行生产故障实验；JIT本地教学实验见JIT-VERIFICATION.md。",
     "不将所有外部参考文档链接的可达性作为永久保证；Redis 文档站 403 后改用官方 redis-doc 仓库核对。"
   ]
 }

@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-09",
+  "runs": [
+    {
+      "name": "hot",
+      "arguments": [
+        "-XX:+PrintCompilation",
+        "-XX:+UnlockDiagnosticVMOptions",
+        "-XX:+PrintInlining",
+        "hot"
+      ],
+      "exit_code": 0,
+      "result": "sum=2000001000000, changed=9"
+    },
+    {
+      "name": "plain",
+      "arguments": [
+        "plain-stop"
+      ],
+      "exit_code": 0,
+      "result": "mode=plain, workerAlive=true"
+    },
+    {
+      "name": "interpreted",
+      "arguments": [
+        "-Xint",
+        "plain-stop"
+      ],
+      "exit_code": 0,
+      "result": "mode=plain, workerAlive=false"
+    },
+    {
+      "name": "excluded",
+      "arguments": [
+        "-XX:CompileCommand=exclude,JitLab::plainWork",
+        "plain-stop"
+      ],
+      "exit_code": 0,
+      "result": "mode=plain, workerAlive=false"
+    },
+    {
+      "name": "volatile",
+      "arguments": [
+        "volatile-stop"
+      ],
+      "exit_code": 0,
+      "result": "mode=volatile, workerAlive=false"
+    },
+    {
+      "name": "counter",
+      "arguments": [
+        "counter"
+      ],
+      "exit_code": 0,
+      "result": "volatileSplitIncrement=1, atomic=2"
+    },
+    {
+      "name": "publish",
+      "arguments": [
+        "publish"
+      ],
+      "exit_code": 0,
+      "result": "published=42"
+    },
+    {
+      "name": "xml",
+      "arguments": [
+        "-XX:+UnlockDiagnosticVMOptions",
+        "-XX:+LogCompilation",
+        "-XX:LogFile=/tmp/jit-lab/hot.xml",
+        "hot"
+      ],
+      "exit_code": 0,
+      "result": "sum=2000001000000, changed=9"
+    }
+  ],
+  "environment": {
+    "runtime": "Amazon Corretto 8.462.08.1",
+    "build": "1.8.0_462-b08 / HotSpot 25.462-b08",
+    "os": "macOS 27.0.1",
+    "arch": "aarch64",
+    "source_baseline": "OpenJDK jdk8u462-b08, not a byte-identical Corretto source verification"
+  },
+  "runtime_events": [
+    "<uncommon_trap thread='5891' reason='unstable_if' action='reinterpret' compile_id='19' compile_kind='osr' compiler='C2' level='4' stamp='0.034'>\n<jvms bci='15' method='JitLab hot ()V' bytes='110' count='1' backedge_count='564536' iicount='1'/>\n</uncommon_trap>",
+    "<dependency_failed type='unique_concrete_method' ctxk='JitLab$Op' x='JitLab$PlusOne apply (I)I' witness='JitLab$Op' stamp='0.034'/>",
+    "<dependency_failed type='unique_concrete_method' ctxk='JitLab$Op' x='JitLab$PlusOne apply (I)I' witness='JitLab$Op' stamp='0.034'/>",
+    "<dependency_failed type='unique_concrete_method' ctxk='JitLab$Op' x='JitLab$PlusOne apply (I)I' witness='JitLab$Op' stamp='0.034'/>",
+    "<uncommon_trap thread='5891' reason='class_check' action='maybe_recompile' compile_id='16' compiler='C2' level='4' stamp='0.034'>\n<jvms bci='2' method='JitLab dispatch (LJitLab$Op;I)I' bytes='8' count='506193' iicount='506193'/>\n</uncommon_trap>"
+  ],
+  "evidence_hashes": {
+    "hot.log": "8eca9f555fb28de444a561da05fb1d6404e2a9a5cf5fb0d1a1bbfb6ddc02a261",
+    "hot.xml": "4f1a3d4f39b7006d56abed4c28f91fb69d8b6af51bd207e566680581e75a4852"
+  },
+  "limits": [
+    "One run per configuration; no statistical or performance claim.",
+    "counter deliberately separates read and write using a barrier; it is not a measured count++ failure rate.",
+    "No jcstress, JMH, native-code disassembly, or x86 runtime experiment."
+  ]
+}
