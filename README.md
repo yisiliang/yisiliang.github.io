@@ -28,4 +28,4 @@ JDK附录[ThreadLocal状态残留与偶发SQL异常](https://yisiliang.github.io
 
 首页目录维护与发布检查见[tools/README.md](tools/README.md)。Support、Privacy Policy和历史技术文章保留原地址，不在首页展示。
 
-JIT专题从热点识别、分层编译、OSR与去优化展开，串联JMM、volatile发布、CAS及C2内存屏障，附固定OpenJDK源码窗口和可运行教学样例：[JIT即时编译、JMM与内存屏障](https://yisiliang.github.io/java-architect-interview/#c11)。
+JIT专题从热点识别、分层编译、OSR与去优化展开，串联JMM、volatile发布、CAS及C2内存屏障，附固定OpenJDK源码窗口和机制图解：[JIT即时编译、JMM与内存屏障](https://yisiliang.github.io/java-architect-interview/#c11)。

@@ -2,7 +2,7 @@
 
 本目录的排版作为全站技术学习文章的共同基准。2026年10月9日统一学习用语与阅读器，共享源文件位于tools/reader；运行tools/style_readers.py后页面内嵌资源，原有章节与知识点锚点不变。首页第七类“技术专题”直接提供十一章链接，栏目名称不固定数量；不更新sitemap/RSS。仓库GitHub Pages从master:/docs构建（legacy Jekyll），本目录不使用Front Matter，index.html是直接复制的静态HTML。页面显式载入现有Umami网站记录脚本；没有访问权限控制。
 
-十一个专题、66道三层问答、21张Mermaid图、源码连续节选和模拟故障。官方源码下载记录见sources.json，补充联网记录见research-checks.json。所有事故均为教学模拟，原有十章未实际运行Java、数据库、Redis、RocketMQ故障实验；JIT本地教学样例的已执行范围见JIT-VERIFICATION.md，不声称有真实生产测量。
+十一个专题、66道三层问答、21张Mermaid图、源码连续节选和模拟故障。官方源码下载记录见sources.json，补充联网记录见research-checks.json。所有事故均为教学模拟，原有十章未实际运行Java、数据库、Redis、RocketMQ故障实验；JIT专题只展示源码机制与教学片段，不声称有真实生产测量。
 
 读者不需要 npm、Python、Node.js 或后端。源码高亮使用本地 Prism；Mermaid 在构建时渲染成 SVG，正文和图表禁用 JavaScript 仍可阅读。运行时只有 Umami 使用外部请求，阻断它不影响核心功能。许可证在 licenses/ 与 vendor/，源码声明在 source-notices.txt。
 
@@ -20,6 +20,6 @@
 
 构建时SVG命名空间改写使用一次性ID映射，避免根ID与marker ID的前缀关系触发重复替换。所有图表的url(#...)引用和放大弹窗中的箭头标记均核对到存在的ID，确保禁用JavaScript时原图也保留流程方向。
 
-2026年10月9日新增第11章JIT即时编译、JMM与内存屏障：固定OpenJDK8u462-b08提交，7段原始源码窗口、4张预渲染图、6道原理问答和JitLab教学样例。重新生成正文、首页入口、章节统计并核验原锚点；JIT实验与未执行范围见JIT-VERIFICATION.md。90分钟路线仍覆盖原十章，另列15分钟JIT扩展阅读。
+2026年10月9日新增第11章JIT即时编译、JMM与内存屏障：固定OpenJDK8u462-b08提交，7段原始源码窗口、4张预渲染图、6道原理问答。重新生成正文、首页入口、章节统计并核验原锚点；JIT源码和发布检查范围见JIT-VERIFICATION.md。90分钟路线仍覆盖原十章，另列15分钟JIT扩展阅读。
 
 JIT合并后验收通过11章搜索与要点速览、21张图的箭头引用和放大样式、320/390/820px布局、禁用JavaScript、阻断全部外部请求，以及7段固定源码的原文/行号/摘要和生成正文一致性。

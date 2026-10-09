@@ -4,7 +4,7 @@ import json,re,hashlib,urllib.request,sys,os
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parent;URL=sys.argv[1] if len(sys.argv)>1 else 'http://127.0.0.1:8000/java-architect-interview/'
-report={'static':{},'browser':{},'limits':['生产故障案例为模拟讲解，原有章节未运行生产故障实验；JIT本地教学实验见JIT-VERIFICATION.md。','不将所有外部参考文档链接的可达性作为永久保证；Redis 文档站 403 后改用官方 redis-doc 仓库核对。']}
+report={'static':{},'browser':{},'limits':['生产故障案例为模拟讲解，不将模拟情境与源码推导当作生产实测；JIT源码检查见JIT-VERIFICATION.md。','不将所有外部参考文档链接的可达性作为永久保证；Redis 文档站 403 后改用官方 redis-doc 仓库核对。']}
 soup=BeautifulSoup((ROOT/'index.html').read_text(),'html.parser');ids=[x['id'] for x in soup.select('[id]')]
 diagram_count=json.loads((ROOT/'content-stats.json').read_text())['diagrams']
 assert len(ids)==len(set(ids)),'duplicate IDs'
