@@ -15,3 +15,5 @@
 .playwright-cli/
 # Generated browser regression screenshots
 /output/playwright/
+
+output/
