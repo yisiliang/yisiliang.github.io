@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1170 500" width="1170" height="500">
+<rect width="1170" height="500" fill="#ffffff"/>
+<text x="50" y="40" font-family="Noto Sans CJK SC" font-size="24" font-weight="bold" fill="#263648">G1：一个堆，划分为等大小的 Region</text>
+<text x="50" y="70" font-family="Noto Sans CJK SC" font-size="17" fill="#55677e">下图是“地址顺序示意”，同一时刻每个 Region 只有一种角色，但角色可随 GC 改变。</text>
+<rect x="50" y="98" width="201" height="68" rx="10" fill="#e7f1ff" stroke="#879aaf" stroke-width="1.2"/>
+<text x="60" y="124" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 00</text>
+<text x="60" y="150" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Eden</text>
+<rect x="267" y="98" width="201" height="68" rx="10" fill="#e7f1ff" stroke="#879aaf" stroke-width="1.2"/>
+<text x="277" y="124" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 01</text>
+<text x="277" y="150" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Eden</text>
+<rect x="484" y="98" width="201" height="68" rx="10" fill="#fff2dd" stroke="#879aaf" stroke-width="1.2"/>
+<text x="494" y="124" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 02</text>
+<text x="494" y="150" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Old</text>
+<rect x="701" y="98" width="201" height="68" rx="10" fill="#e8f7ef" stroke="#879aaf" stroke-width="1.2"/>
+<text x="711" y="124" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 03</text>
+<text x="711" y="150" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Survivor</text>
+<rect x="918" y="98" width="201" height="68" rx="10" fill="#fff2dd" stroke="#879aaf" stroke-width="1.2"/>
+<text x="928" y="124" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 04</text>
+<text x="928" y="150" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Old</text>
+<rect x="50" y="177" width="201" height="68" rx="10" fill="#f3f5f8" stroke="#879aaf" stroke-width="1.2"/>
+<text x="60" y="203" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 05</text>
+<text x="60" y="229" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Free</text>
+<rect x="267" y="177" width="201" height="68" rx="10" fill="#e7f1ff" stroke="#879aaf" stroke-width="1.2"/>
+<text x="277" y="203" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 06</text>
+<text x="277" y="229" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Eden</text>
+<rect x="484" y="177" width="201" height="68" rx="10" fill="#ffe7e7" stroke="#879aaf" stroke-width="1.2"/>
+<text x="494" y="203" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 07</text>
+<text x="494" y="229" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Humongous 起</text>
+<rect x="701" y="177" width="201" height="68" rx="10" fill="#ffe7e7" stroke="#879aaf" stroke-width="1.2"/>
+<text x="711" y="203" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 08</text>
+<text x="711" y="229" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Humongous 续</text>
+<rect x="918" y="177" width="201" height="68" rx="10" fill="#fff2dd" stroke="#879aaf" stroke-width="1.2"/>
+<text x="928" y="203" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 09</text>
+<text x="928" y="229" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Old</text>
+<rect x="50" y="256" width="201" height="68" rx="10" fill="#e7f1ff" stroke="#879aaf" stroke-width="1.2"/>
+<text x="60" y="282" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 10</text>
+<text x="60" y="308" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Eden</text>
+<rect x="267" y="256" width="201" height="68" rx="10" fill="#e8f7ef" stroke="#879aaf" stroke-width="1.2"/>
+<text x="277" y="282" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 11</text>
+<text x="277" y="308" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Survivor</text>
+<rect x="484" y="256" width="201" height="68" rx="10" fill="#f3f5f8" stroke="#879aaf" stroke-width="1.2"/>
+<text x="494" y="282" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 12</text>
+<text x="494" y="308" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Free</text>
+<rect x="701" y="256" width="201" height="68" rx="10" fill="#fff2dd" stroke="#879aaf" stroke-width="1.2"/>
+<text x="711" y="282" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 13</text>
+<text x="711" y="308" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Old</text>
+<rect x="918" y="256" width="201" height="68" rx="10" fill="#e7f1ff" stroke="#879aaf" stroke-width="1.2"/>
+<text x="928" y="282" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 14</text>
+<text x="928" y="308" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Eden</text>
+<rect x="50" y="335" width="201" height="68" rx="10" fill="#fff2dd" stroke="#879aaf" stroke-width="1.2"/>
+<text x="60" y="361" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 15</text>
+<text x="60" y="387" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Old</text>
+<rect x="267" y="335" width="201" height="68" rx="10" fill="#fff2dd" stroke="#879aaf" stroke-width="1.2"/>
+<text x="277" y="361" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 16</text>
+<text x="277" y="387" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Old</text>
+<rect x="484" y="335" width="201" height="68" rx="10" fill="#f3f5f8" stroke="#879aaf" stroke-width="1.2"/>
+<text x="494" y="361" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 17</text>
+<text x="494" y="387" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Free</text>
+<rect x="701" y="335" width="201" height="68" rx="10" fill="#e7f1ff" stroke="#879aaf" stroke-width="1.2"/>
+<text x="711" y="361" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 18</text>
+<text x="711" y="387" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Eden</text>
+<rect x="918" y="335" width="201" height="68" rx="10" fill="#fff2dd" stroke="#879aaf" stroke-width="1.2"/>
+<text x="928" y="361" font-family="Noto Sans CJK SC" font-size="16" fill="#273444">Region 19</text>
+<text x="928" y="387" font-family="Noto Sans CJK SC" font-size="17" font-weight="bold" fill="#273444">Old</text>
+<rect x="50" y="427" width="1070" height="52" rx="10" fill="#fff6f3" stroke="#edb6b1"/>
+<text x="67" y="457" font-family="Noto Sans CJK SC" font-size="17" fill="#703f3b">Humongous：对象大小 ≥ Region 的 50%；大对象可占多个连续 Region（此处 Region 07 和 08）。</text>
+</svg>

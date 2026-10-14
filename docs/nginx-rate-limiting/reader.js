@@ -89,7 +89,15 @@
   }
   function updateReading() {
     ticking=false;if(!active)return;
-    const margin=window.innerWidth<=760?115:90;const box=active.getBoundingClientRect();
+    const margin=window.innerWidth<=760?115:90;
+    const scrolled=chapters.find(article=>article.getBoundingClientRect().top<=margin+30 && article.getBoundingClientRect().bottom>margin+30);
+    if(scrolled && scrolled!==active) {
+      active=scrolled;
+      chapters.forEach(c=>c.classList.toggle('active',c===active));
+      document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+      highlight(active);makeToc();
+    }
+    const box=active.getBoundingClientRect();
     const length=Math.max(1,box.height-(innerHeight-margin));
     let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
     if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;

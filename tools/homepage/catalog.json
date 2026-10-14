@@ -193,7 +193,23 @@
         "kind": "topics",
         "detail": "11节机制分析 · 2张图解 · 10段固定源码 · 本地实验",
         "topics": [
-          {"title": "Nginx限流原理与工程实践", "anchor": "principle"}
+          {
+            "title": "Nginx限流原理与工程实践",
+            "anchor": "principle"
+          }
+        ]
+      },
+      {
+        "name": "JVM内存结构与OOM排查实战",
+        "version": "HotSpot JDK8 · 容器与生产故障排查",
+        "path": "jvm-memory-oom",
+        "kind": "topics",
+        "detail": "10节实战分析 · 23张图解 · OOM分类与应急清单",
+        "topics": [
+          {
+            "title": "JVM内存结构与OOM排查实战",
+            "anchor": "chapter-1"
+          }
         ]
       }
     ],
