@@ -6935,3 +6935,1946 @@ JMM规定合法共享内存行为，HB连接跨线程发布与读取。普通停
 - [JLS8 §17.4 / 内存模型与HB](https://docs.oracle.com/javase/specs/jls/se8/html/jls-17.html#jls-17.4)
 - [Oracle HotSpot分层编译与逃逸分析](https://docs.oracle.com/javase/8/docs/technotes/guides/vm/performance-enhancements-7.html)
 - [Oracle JDK8 java命令与诊断参数](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/java.html)
+
+
+---
+
+# Nginx限流原理与工程实践
+
+从漏桶的时间记账，到共享内存、异步延迟与多实例边界。本文以开源NGINX1.28.0为固定阅读基线，对照官方文档；固定版本用于解释机制，不代表当前生产选型建议。
+
+## 01 从请求速率到请求负债
+
+### 漏桶控制的对象
+
+`limit_req`通过控制请求的接纳与继续处理节奏，保护入口和上游服务。官方将其归类为漏桶算法，但理解实现时，最有用的模型是**随时间消化的超额请求量excess**。它不统计自然秒内的请求总数，也不统计业务正在执行的任务数。
+
+固定窗口的反例：前一个窗口在0.99秒接纳10个请求，下一个窗口在1.01秒接纳10个请求，每个窗口都满足10次，却在20ms内接纳了20次。按时间差记账可以避免这种窗口切换，但配置允许突发时，仍会出现集中放行。
+
+### 最小代理配置
+
+```nginx
+http {
+    limit_req_zone $binary_remote_addr zone=perip:10m rate=10r/s;
+    server {
+        listen 8080;
+        location /api/ {
+            limit_req zone=perip burst=5;
+            limit_req_status 429;
+            proxy_pass http://127.0.0.1:9000;
+        }
+    }
+}
+```
+
+这里按IP分别限流，10r/s意味着约100ms消化一个请求单位；burst=5允许最多5个超额单位。新Key的首个请求立即通过，其后的超额请求在容量内延迟，超出容量则返回配置的429。**默认拒绝码是503**，429来自显式配置。
+
+zone的10MB保存Key的状态，不是HTTP请求缓存。100个不同IP各自拥有额度，这个规则不能单独约束服务总流量。[官方limit_req文档](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html)
+
+![单zone的正常流程；多zone暂存与最终记账见第6节。](../nginx-rate-limiting/diagrams/flow.svg)
+
+单zone的正常流程；多zone暂存与最终记账见第6节。
+
+## 02 excess的整数运算与状态提交
+
+### 候选超额量与内部单位
+
+源码没有为每个IP安排一个定时扣减任务。请求到达时读取当前毫秒时间，用上次记账时间last计算衰减。对于已经存在的Key，单zone计算可写成：
+
+```text
+候选excess = max(0, 旧excess - rate × 经过毫秒 / 1000 + 1000)
+候选excess > burst → 拒绝，不提交该候选值
+候选excess ≤ burst → 记账，再计算是否需要等待
+```
+
+<!-- source-window:lookup -->
+
+[ngx_http_limit_req_lookup：已有Key的计算、拒绝与提交 · 原文件L404—L532](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L404-L532)
+
+```c
+static ngx_int_t
+ngx_http_limit_req_lookup(ngx_http_limit_req_limit_t *limit, ngx_uint_t hash,
+    ngx_str_t *key, ngx_uint_t *ep, ngx_uint_t account)
+{
+    size_t                      size;
+    ngx_int_t                   rc, excess;
+    ngx_msec_t                  now;
+    ngx_msec_int_t              ms;
+    ngx_rbtree_node_t          *node, *sentinel;
+    ngx_http_limit_req_ctx_t   *ctx;
+    ngx_http_limit_req_node_t  *lr;
+
+    now = ngx_current_msec;
+
+    ctx = limit->shm_zone->data;
+
+    node = ctx->sh->rbtree.root;
+    sentinel = ctx->sh->rbtree.sentinel;
+
+    while (node != sentinel) {
+
+        if (hash < node->key) {
+            node = node->left;
+            continue;
+        }
+
+        if (hash > node->key) {
+            node = node->right;
+            continue;
+        }
+
+        /* hash == node->key */
+
+        lr = (ngx_http_limit_req_node_t *) &node->color;
+
+        rc = ngx_memn2cmp(key->data, lr->data, key->len, (size_t) lr->len);
+
+        if (rc == 0) {
+            ngx_queue_remove(&lr->queue);
+            ngx_queue_insert_head(&ctx->sh->queue, &lr->queue);
+
+            ms = (ngx_msec_int_t) (now - lr->last);
+
+            if (ms < -60000) {
+                ms = 1;
+
+            } else if (ms < 0) {
+                ms = 0;
+            }
+
+            excess = lr->excess - ctx->rate * ms / 1000 + 1000;
+
+            if (excess < 0) {
+                excess = 0;
+            }
+
+            *ep = excess;
+
+            if ((ngx_uint_t) excess > limit->burst) {
+                return NGX_BUSY;
+            }
+
+            if (account) {
+                lr->excess = excess;
+
+                if (ms) {
+                    lr->last = now;
+                }
+
+                return NGX_OK;
+            }
+
+            lr->count++;
+
+            ctx->node = lr;
+
+            return NGX_AGAIN;
+        }
+
+        node = (rc < 0) ? node->left : node->right;
+    }
+
+    *ep = 0;
+
+    size = offsetof(ngx_rbtree_node_t, color)
+           + offsetof(ngx_http_limit_req_node_t, data)
+           + key->len;
+
+    ngx_http_limit_req_expire(ctx, 1);
+
+    node = ngx_slab_alloc_locked(ctx->shpool, size);
+
+    if (node == NULL) {
+        ngx_http_limit_req_expire(ctx, 0);
+
+        node = ngx_slab_alloc_locked(ctx->shpool, size);
+        if (node == NULL) {
+            ngx_log_error(NGX_LOG_ALERT, ngx_cycle->log, 0,
+                          "could not allocate node%s", ctx->shpool->log_ctx);
+            return NGX_ERROR;
+        }
+    }
+
+    node->key = hash;
+
+    lr = (ngx_http_limit_req_node_t *) &node->color;
+
+    lr->len = (u_short) key->len;
+    lr->excess = 0;
+
+    ngx_memcpy(lr->data, key->data, key->len);
+
+    ngx_rbtree_insert(&ctx->sh->rbtree, node);
+
+    ngx_queue_insert_head(&ctx->sh->queue, &lr->queue);
+
+    if (account) {
+        lr->last = now;
+        lr->count = 0;
+        return NGX_OK;
+    }
+
+    lr->last = 0;
+    lr->count = 1;
+
+    ctx->node = lr;
+
+    return NGX_AGAIN;
+}
+```
+
+|量|配置或数学值|内部值|
+|---|---|---|
+|一个请求单位|1|1000|
+|速率|10r/s|10000|
+|burst阈值|5|5000|
+|delay阈值|2|2000|
+|时间差|200ms|200|
+
+把整数舍入暂时省略，已存在Key的公式是`E新=max(0,E旧+1−R×Δt)`，Δt以秒计。E旧=4，经过200ms，R=10，则E新=4+1−2=3。源码采用整数除法；`rate=Nr/m`还会先换算并截断为内部速率，因此纸面公式不是任意参数下的逐位精确结果。
+
+### 新Key、拒绝与时间回退
+
+**这个公式不用于新节点的首个请求。**创建节点时源码直接将`lr->excess=0`。所以全新Key、同一毫秒、burst=5时，是首个请求加5个超额请求，共6个被接纳。长期空闲只会将负债消化到0，不会无限积累可以立即消费的额度。
+
+<!-- source-window:new-node -->
+
+[ngx_http_limit_req_lookup：新节点的首个请求 · 原文件L404—L532](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L404-L532)
+
+```c
+static ngx_int_t
+ngx_http_limit_req_lookup(ngx_http_limit_req_limit_t *limit, ngx_uint_t hash,
+    ngx_str_t *key, ngx_uint_t *ep, ngx_uint_t account)
+{
+    size_t                      size;
+    ngx_int_t                   rc, excess;
+    ngx_msec_t                  now;
+    ngx_msec_int_t              ms;
+    ngx_rbtree_node_t          *node, *sentinel;
+    ngx_http_limit_req_ctx_t   *ctx;
+    ngx_http_limit_req_node_t  *lr;
+
+    now = ngx_current_msec;
+
+    ctx = limit->shm_zone->data;
+
+    node = ctx->sh->rbtree.root;
+    sentinel = ctx->sh->rbtree.sentinel;
+
+    while (node != sentinel) {
+
+        if (hash < node->key) {
+            node = node->left;
+            continue;
+        }
+
+        if (hash > node->key) {
+            node = node->right;
+            continue;
+        }
+
+        /* hash == node->key */
+
+        lr = (ngx_http_limit_req_node_t *) &node->color;
+
+        rc = ngx_memn2cmp(key->data, lr->data, key->len, (size_t) lr->len);
+
+        if (rc == 0) {
+            ngx_queue_remove(&lr->queue);
+            ngx_queue_insert_head(&ctx->sh->queue, &lr->queue);
+
+            ms = (ngx_msec_int_t) (now - lr->last);
+
+            if (ms < -60000) {
+                ms = 1;
+
+            } else if (ms < 0) {
+                ms = 0;
+            }
+
+            excess = lr->excess - ctx->rate * ms / 1000 + 1000;
+
+            if (excess < 0) {
+                excess = 0;
+            }
+
+            *ep = excess;
+
+            if ((ngx_uint_t) excess > limit->burst) {
+                return NGX_BUSY;
+            }
+
+            if (account) {
+                lr->excess = excess;
+
+                if (ms) {
+                    lr->last = now;
+                }
+
+                return NGX_OK;
+            }
+
+            lr->count++;
+
+            ctx->node = lr;
+
+            return NGX_AGAIN;
+        }
+
+        node = (rc < 0) ? node->left : node->right;
+    }
+
+    *ep = 0;
+
+    size = offsetof(ngx_rbtree_node_t, color)
+           + offsetof(ngx_http_limit_req_node_t, data)
+           + key->len;
+
+    ngx_http_limit_req_expire(ctx, 1);
+
+    node = ngx_slab_alloc_locked(ctx->shpool, size);
+
+    if (node == NULL) {
+        ngx_http_limit_req_expire(ctx, 0);
+
+        node = ngx_slab_alloc_locked(ctx->shpool, size);
+        if (node == NULL) {
+            ngx_log_error(NGX_LOG_ALERT, ngx_cycle->log, 0,
+                          "could not allocate node%s", ctx->shpool->log_ctx);
+            return NGX_ERROR;
+        }
+    }
+
+    node->key = hash;
+
+    lr = (ngx_http_limit_req_node_t *) &node->color;
+
+    lr->len = (u_short) key->len;
+    lr->excess = 0;
+
+    ngx_memcpy(lr->data, key->data, key->len);
+
+    ngx_rbtree_insert(&ctx->sh->rbtree, node);
+
+    ngx_queue_insert_head(&ctx->sh->queue, &lr->queue);
+
+    if (account) {
+        lr->last = now;
+        lr->count = 0;
+        return NGX_OK;
+    }
+
+    lr->last = 0;
+    lr->count = 1;
+
+    ctx->node = lr;
+
+    return NGX_AGAIN;
+}
+```
+
+单zone拒绝在赋值`lr->excess`之前返回NGX_BUSY。假设已记账excess=5、last=t0，t0时第7次请求的候选值为6，被拒绝，但状态仍是5；t0+100ms再到一个请求，候选值为5+1−1=5，可以接纳。拒绝不会把负债永久推高。查找仍会更新节点在近期访问队列中的位置，因此不能把拒绝理解为完全不触及共享数据。
+
+时间回退也有专门分支：时间差小于−60000ms时按1ms处理，较小负差按0处理。解释正常请求序列时可以忽略这个防御分支，读取完整实现时应保留它。
+
+## 03 rate、burst、nodelay与delay的组合
+
+### 三种延迟策略
+
+`burst`决定候选超额量的拒绝阈值，`delay`决定其中有多少超额单位可以立即继续。不写delay时阈值为0；`delay=2`表示2个超额单位，而不是2秒。默认burst为0，配置时省略burst即可；不要写`burst=0`或`delay=0`，此版本解析器要求显式数值大于0。
+
+```nginx
+# 以下三行是三个独立场景，选择其中一个配置。
+limit_req zone=perip burst=5;
+limit_req zone=perip burst=5 nodelay;
+limit_req zone=perip burst=5 delay=2;
+```
+
+对于全新Key，同一毫秒到达7个请求，rate=10r/s、burst=5：
+
+|到达次序|候选excess|默认延迟|nodelay|delay=2|
+|---|---|---|---|---|
+|1|0|立即|立即|立即|
+|2|1|100ms|立即|立即|
+|3|2|200ms|立即|立即|
+|4|3|300ms|立即|100ms|
+|5|4|400ms|立即|200ms|
+|6|5|500ms|立即|300ms|
+|7|6|拒绝|拒绝|拒绝|
+
+表中的延迟从各请求完成限流判断时算起，是相同到达时刻的理论值；真实事件调度、网络和后端处理会引入偏差，请求完成顺序也不保证等同于到达顺序。
+
+```text
+延迟毫秒 = max(0, 内部excess - 内部delay阈值) × 1000 / 内部rate
+普通单位：等待秒数 = max(0, E - D) / R
+```
+
+<!-- source-window:delay-formula -->
+
+[ngx_http_limit_req_account：最后一项的初始延迟 · 原文件L535—L606](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L535-L606)
+
+```c
+static ngx_msec_t
+ngx_http_limit_req_account(ngx_http_limit_req_limit_t *limits, ngx_uint_t n,
+    ngx_uint_t *ep, ngx_http_limit_req_limit_t **limit)
+{
+    ngx_int_t                   excess;
+    ngx_msec_t                  now, delay, max_delay;
+    ngx_msec_int_t              ms;
+    ngx_http_limit_req_ctx_t   *ctx;
+    ngx_http_limit_req_node_t  *lr;
+
+    excess = *ep;
+
+    if ((ngx_uint_t) excess <= (*limit)->delay) {
+        max_delay = 0;
+
+    } else {
+        ctx = (*limit)->shm_zone->data;
+        max_delay = (excess - (*limit)->delay) * 1000 / ctx->rate;
+    }
+
+    while (n--) {
+        ctx = limits[n].shm_zone->data;
+        lr = ctx->node;
+
+        if (lr == NULL) {
+            continue;
+        }
+
+        ngx_shmtx_lock(&ctx->shpool->mutex);
+
+        now = ngx_current_msec;
+        ms = (ngx_msec_int_t) (now - lr->last);
+
+        if (ms < -60000) {
+            ms = 1;
+
+        } else if (ms < 0) {
+            ms = 0;
+        }
+
+        excess = lr->excess - ctx->rate * ms / 1000 + 1000;
+
+        if (excess < 0) {
+            excess = 0;
+        }
+
+        if (ms) {
+            lr->last = now;
+        }
+
+        lr->excess = excess;
+        lr->count--;
+
+        ngx_shmtx_unlock(&ctx->shpool->mutex);
+
+        ctx->node = NULL;
+
+        if ((ngx_uint_t) excess <= limits[n].delay) {
+            continue;
+        }
+
+        delay = (excess - limits[n].delay) * 1000 / ctx->rate;
+
+        if (delay > max_delay) {
+            max_delay = delay;
+            *ep = excess;
+            *limit = &limits[n];
+        }
+    }
+
+    return max_delay;
+}
+```
+
+### 突发仍需记账
+
+`nodelay`允许容量内的请求立即处理，但仍然记账。源码将delay设为一个极大阈值，随后同样使用burst判定。6个请求瞬时通过后，负债是5；再到请求仍需等待时间消化出接纳空间。**后端提前执行完毕，不会归还limit_req额度。**
+
+<!-- source-window:nodelay -->
+
+[ngx_http_limit_req：nodelay的阈值解析 · 原文件L963—L1064](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L963-L1064)
+
+```c
+static char *
+ngx_http_limit_req(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_http_limit_req_conf_t  *lrcf = conf;
+
+    ngx_int_t                    burst, delay;
+    ngx_str_t                   *value, s;
+    ngx_uint_t                   i;
+    ngx_shm_zone_t              *shm_zone;
+    ngx_http_limit_req_limit_t  *limit, *limits;
+
+    value = cf->args->elts;
+
+    shm_zone = NULL;
+    burst = 0;
+    delay = 0;
+
+    for (i = 1; i < cf->args->nelts; i++) {
+
+        if (ngx_strncmp(value[i].data, "zone=", 5) == 0) {
+
+            s.len = value[i].len - 5;
+            s.data = value[i].data + 5;
+
+            shm_zone = ngx_shared_memory_add(cf, &s, 0,
+                                             &ngx_http_limit_req_module);
+            if (shm_zone == NULL) {
+                return NGX_CONF_ERROR;
+            }
+
+            continue;
+        }
+
+        if (ngx_strncmp(value[i].data, "burst=", 6) == 0) {
+
+            burst = ngx_atoi(value[i].data + 6, value[i].len - 6);
+            if (burst <= 0) {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                   "invalid burst value \"%V\"", &value[i]);
+                return NGX_CONF_ERROR;
+            }
+
+            continue;
+        }
+
+        if (ngx_strncmp(value[i].data, "delay=", 6) == 0) {
+
+            delay = ngx_atoi(value[i].data + 6, value[i].len - 6);
+            if (delay <= 0) {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                   "invalid delay value \"%V\"", &value[i]);
+                return NGX_CONF_ERROR;
+            }
+
+            continue;
+        }
+
+        if (ngx_strcmp(value[i].data, "nodelay") == 0) {
+            delay = NGX_MAX_INT_T_VALUE / 1000;
+            continue;
+        }
+
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "invalid parameter \"%V\"", &value[i]);
+        return NGX_CONF_ERROR;
+    }
+
+    if (shm_zone == NULL) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "\"%V\" must have \"zone\" parameter",
+                           &cmd->name);
+        return NGX_CONF_ERROR;
+    }
+
+    limits = lrcf->limits.elts;
+
+    if (limits == NULL) {
+        if (ngx_array_init(&lrcf->limits, cf->pool, 1,
+                           sizeof(ngx_http_limit_req_limit_t))
+            != NGX_OK)
+        {
+            return NGX_CONF_ERROR;
+        }
+    }
+
+    for (i = 0; i < lrcf->limits.nelts; i++) {
+        if (shm_zone == limits[i].shm_zone) {
+            return "is duplicate";
+        }
+    }
+
+    limit = ngx_array_push(&lrcf->limits);
+    if (limit == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    limit->shm_zone = shm_zone;
+    limit->burst = burst * 1000;
+    limit->delay = delay * 1000;
+
+    return NGX_CONF_OK;
+}
+```
+
+![标号代表同一毫秒内到达的次序；真实调度存在误差。](../nginx-rate-limiting/diagrams/timeline.svg)
+
+标号代表同一毫秒内到达的次序；真实调度存在误差。
+
+## 04 延迟通过事件定时器恢复
+
+### 限流发生的HTTP阶段
+
+限流处理函数注册在HTTP的PREACCESS阶段。对普通proxy_pass路径，它在向上游发起业务请求前作出判断。这里不能使用`return 200`来验证限流：rewrite阶段可能提前结束请求，根本没有进入PREACCESS。实验应使用代理或确实继续到内容阶段的处理器。
+
+<!-- source-window:phase -->
+
+[ngx_http_limit_req_init：PREACCESS处理函数注册 · 原文件L1086—L1102](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L1086-L1102)
+
+```c
+static ngx_int_t
+ngx_http_limit_req_init(ngx_conf_t *cf)
+{
+    ngx_http_handler_pt        *h;
+    ngx_http_core_main_conf_t  *cmcf;
+
+    cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
+
+    h = ngx_array_push(&cmcf->phases[NGX_HTTP_PREACCESS_PHASE].handlers);
+    if (h == NULL) {
+        return NGX_ERROR;
+    }
+
+    *h = ngx_http_limit_req_handler;
+
+    return NGX_OK;
+}
+```
+
+### 挂起与恢复
+
+需要等待时，模块设置请求回调，在连接写事件上标记delayed并调用`ngx_add_timer`，然后返回NGX_AGAIN，暂停此请求的阶段推进。Worker可以继续处理其他连接，没有为这个等待执行阻塞式sleep。
+
+<!-- source-window:timer -->
+
+[ngx_http_limit_req_handler：挂起请求并注册定时器 · 原文件L194—L329](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L194-L329)
+
+```c
+static ngx_int_t
+ngx_http_limit_req_handler(ngx_http_request_t *r)
+{
+    uint32_t                     hash;
+    ngx_str_t                    key;
+    ngx_int_t                    rc;
+    ngx_uint_t                   n, excess;
+    ngx_msec_t                   delay;
+    ngx_http_limit_req_ctx_t    *ctx;
+    ngx_http_limit_req_conf_t   *lrcf;
+    ngx_http_limit_req_limit_t  *limit, *limits;
+
+    if (r->main->limit_req_status) {
+        return NGX_DECLINED;
+    }
+
+    lrcf = ngx_http_get_module_loc_conf(r, ngx_http_limit_req_module);
+    limits = lrcf->limits.elts;
+
+    excess = 0;
+
+    rc = NGX_DECLINED;
+
+#if (NGX_SUPPRESS_WARN)
+    limit = NULL;
+#endif
+
+    for (n = 0; n < lrcf->limits.nelts; n++) {
+
+        limit = &limits[n];
+
+        ctx = limit->shm_zone->data;
+
+        if (ngx_http_complex_value(r, &ctx->key, &key) != NGX_OK) {
+            ngx_http_limit_req_unlock(limits, n);
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
+        if (key.len == 0) {
+            continue;
+        }
+
+        if (key.len > 65535) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "the value of the \"%V\" key "
+                          "is more than 65535 bytes: \"%V\"",
+                          &ctx->key.value, &key);
+            continue;
+        }
+
+        hash = ngx_crc32_short(key.data, key.len);
+
+        ngx_shmtx_lock(&ctx->shpool->mutex);
+
+        rc = ngx_http_limit_req_lookup(limit, hash, &key, &excess,
+                                       (n == lrcf->limits.nelts - 1));
+
+        ngx_shmtx_unlock(&ctx->shpool->mutex);
+
+        ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "limit_req[%ui]: %i %ui.%03ui",
+                       n, rc, excess / 1000, excess % 1000);
+
+        if (rc != NGX_AGAIN) {
+            break;
+        }
+    }
+
+    if (rc == NGX_DECLINED) {
+        return NGX_DECLINED;
+    }
+
+    if (rc == NGX_BUSY || rc == NGX_ERROR) {
+
+        if (rc == NGX_BUSY) {
+            ngx_log_error(lrcf->limit_log_level, r->connection->log, 0,
+                        "limiting requests%s, excess: %ui.%03ui by zone \"%V\"",
+                        lrcf->dry_run ? ", dry run" : "",
+                        excess / 1000, excess % 1000,
+                        &limit->shm_zone->shm.name);
+        }
+
+        ngx_http_limit_req_unlock(limits, n);
+
+        if (lrcf->dry_run) {
+            r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_REJECTED_DRY_RUN;
+            return NGX_DECLINED;
+        }
+
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_REJECTED;
+
+        return lrcf->status_code;
+    }
+
+    /* rc == NGX_AGAIN || rc == NGX_OK */
+
+    if (rc == NGX_AGAIN) {
+        excess = 0;
+    }
+
+    delay = ngx_http_limit_req_account(limits, n, &excess, &limit);
+
+    if (!delay) {
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_PASSED;
+        return NGX_DECLINED;
+    }
+
+    ngx_log_error(lrcf->delay_log_level, r->connection->log, 0,
+                  "delaying request%s, excess: %ui.%03ui, by zone \"%V\"",
+                  lrcf->dry_run ? ", dry run" : "",
+                  excess / 1000, excess % 1000, &limit->shm_zone->shm.name);
+
+    if (lrcf->dry_run) {
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_DELAYED_DRY_RUN;
+        return NGX_DECLINED;
+    }
+
+    r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_DELAYED;
+
+    if (r->connection->read->ready) {
+        ngx_post_event(r->connection->read, &ngx_posted_events);
+
+    } else {
+        if (ngx_handle_read_event(r->connection->read, 0) != NGX_OK) {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+    }
+
+    r->read_event_handler = ngx_http_test_reading;
+    r->write_event_handler = ngx_http_limit_req_delay;
+
+    r->connection->write->delayed = 1;
+    ngx_add_timer(r->connection->write, delay);
+
+    return NGX_AGAIN;
+}
+```
+
+定时器到期清除事件的delayed标记后，`ngx_http_limit_req_delay`将写处理函数切换为`ngx_http_core_run_phases`，恢复HTTP阶段推进。`r->main->limit_req_status`已设置，重新进入处理函数时可避免重复限流记账。
+
+<!-- source-window:resume -->
+
+[ngx_http_limit_req_delay：恢复HTTP阶段 · 原文件L332—L360](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L332-L360)
+
+```c
+static void
+ngx_http_limit_req_delay(ngx_http_request_t *r)
+{
+    ngx_event_t  *wev;
+
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "limit_req delay");
+
+    wev = r->connection->write;
+
+    if (wev->delayed) {
+
+        if (ngx_handle_write_event(wev, 0) != NGX_OK) {
+            ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return;
+    }
+
+    if (ngx_handle_read_event(r->connection->read, 0) != NGX_OK) {
+        ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        return;
+    }
+
+    r->read_event_handler = ngx_http_block_reading;
+    r->write_event_handler = ngx_http_core_run_phases;
+
+    ngx_http_core_run_phases(r);
+}
+```
+
+等待中的请求仍持有连接、请求结构、内存和文件描述符等资源。burst不是一个免费的FIFO缓存容量，模块也没有为每个IP构建保存请求对象的独立FIFO桶。对于默认延迟，满负债时最大理论等待约为`burst/rate`；例如1000/10=100秒，足以耗尽许多客户端的超时预算。
+
+## 05 多Worker共享内存、锁与淘汰
+
+### 状态结构与互斥
+
+每个zone包含共享红黑树、近期访问双向队列和slab内存池。各Worker访问同一份状态；共享互斥锁保护查找、节点分配和记账，不会一直持有到上游请求执行结束。
+
+<!-- source-window:lock -->
+
+[ngx_http_limit_req_handler：带共享锁的查找 · 原文件L194—L329](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L194-L329)
+
+```c
+static ngx_int_t
+ngx_http_limit_req_handler(ngx_http_request_t *r)
+{
+    uint32_t                     hash;
+    ngx_str_t                    key;
+    ngx_int_t                    rc;
+    ngx_uint_t                   n, excess;
+    ngx_msec_t                   delay;
+    ngx_http_limit_req_ctx_t    *ctx;
+    ngx_http_limit_req_conf_t   *lrcf;
+    ngx_http_limit_req_limit_t  *limit, *limits;
+
+    if (r->main->limit_req_status) {
+        return NGX_DECLINED;
+    }
+
+    lrcf = ngx_http_get_module_loc_conf(r, ngx_http_limit_req_module);
+    limits = lrcf->limits.elts;
+
+    excess = 0;
+
+    rc = NGX_DECLINED;
+
+#if (NGX_SUPPRESS_WARN)
+    limit = NULL;
+#endif
+
+    for (n = 0; n < lrcf->limits.nelts; n++) {
+
+        limit = &limits[n];
+
+        ctx = limit->shm_zone->data;
+
+        if (ngx_http_complex_value(r, &ctx->key, &key) != NGX_OK) {
+            ngx_http_limit_req_unlock(limits, n);
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
+        if (key.len == 0) {
+            continue;
+        }
+
+        if (key.len > 65535) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "the value of the \"%V\" key "
+                          "is more than 65535 bytes: \"%V\"",
+                          &ctx->key.value, &key);
+            continue;
+        }
+
+        hash = ngx_crc32_short(key.data, key.len);
+
+        ngx_shmtx_lock(&ctx->shpool->mutex);
+
+        rc = ngx_http_limit_req_lookup(limit, hash, &key, &excess,
+                                       (n == lrcf->limits.nelts - 1));
+
+        ngx_shmtx_unlock(&ctx->shpool->mutex);
+
+        ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "limit_req[%ui]: %i %ui.%03ui",
+                       n, rc, excess / 1000, excess % 1000);
+
+        if (rc != NGX_AGAIN) {
+            break;
+        }
+    }
+
+    if (rc == NGX_DECLINED) {
+        return NGX_DECLINED;
+    }
+
+    if (rc == NGX_BUSY || rc == NGX_ERROR) {
+
+        if (rc == NGX_BUSY) {
+            ngx_log_error(lrcf->limit_log_level, r->connection->log, 0,
+                        "limiting requests%s, excess: %ui.%03ui by zone \"%V\"",
+                        lrcf->dry_run ? ", dry run" : "",
+                        excess / 1000, excess % 1000,
+                        &limit->shm_zone->shm.name);
+        }
+
+        ngx_http_limit_req_unlock(limits, n);
+
+        if (lrcf->dry_run) {
+            r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_REJECTED_DRY_RUN;
+            return NGX_DECLINED;
+        }
+
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_REJECTED;
+
+        return lrcf->status_code;
+    }
+
+    /* rc == NGX_AGAIN || rc == NGX_OK */
+
+    if (rc == NGX_AGAIN) {
+        excess = 0;
+    }
+
+    delay = ngx_http_limit_req_account(limits, n, &excess, &limit);
+
+    if (!delay) {
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_PASSED;
+        return NGX_DECLINED;
+    }
+
+    ngx_log_error(lrcf->delay_log_level, r->connection->log, 0,
+                  "delaying request%s, excess: %ui.%03ui, by zone \"%V\"",
+                  lrcf->dry_run ? ", dry run" : "",
+                  excess / 1000, excess % 1000, &limit->shm_zone->shm.name);
+
+    if (lrcf->dry_run) {
+        r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_DELAYED_DRY_RUN;
+        return NGX_DECLINED;
+    }
+
+    r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_DELAYED;
+
+    if (r->connection->read->ready) {
+        ngx_post_event(r->connection->read, &ngx_posted_events);
+
+    } else {
+        if (ngx_handle_read_event(r->connection->read, 0) != NGX_OK) {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+    }
+
+    r->read_event_handler = ngx_http_test_reading;
+    r->write_event_handler = ngx_http_limit_req_delay;
+
+    r->connection->write->delayed = 1;
+    ngx_add_timer(r->connection->write, delay);
+
+    return NGX_AGAIN;
+}
+```
+
+|字段或结构|作用|不能混淆的概念|
+|---|---|---|
+|hash与原始Key|先按CRC32定位，再比较原始字节和长度|哈希碰撞不会直接合并两个Key|
+|last、excess|时间记账和超额负债|不表示业务执行耗时|
+|queue|访问后移到队头，尾部用于淘汰|不是等待请求的FIFO队列|
+|count|保护多zone流程中暂存待记账的节点|不是正在代理的请求数|
+|ctx->node|进程内暂存当前zone待记账节点指针|不是集群级请求状态|
+
+例如单zone、同一时刻excess=4：WorkerA在锁内提交5，WorkerB随后读到5，计算6并拒绝。单zone的状态不会因为有8个Worker就得到8倍独立额度。zone级共享锁也意味着热点Key和高基数流量需要关注锁竞争与内存开销。
+
+### 内存容量与节点淘汰
+
+新Key创建时先执行`expire(ctx,1)`，尝试清除尾部较旧、已无负债且count=0的节点。通常要求至少60秒未记账，一次最多清理两个。分配失败后再调用`expire(ctx,0)`，在count=0的条件下强制淘汰最旧节点，再尝试清理最多两个符合条件的旧节点。如果仍无法分配，返回NGX_ERROR，正常模式按limit_req_status拒绝。**burst没有超过，也可能因状态内存不足而拒绝。**
+
+<!-- source-window:expire -->
+
+[ngx_http_limit_req_expire：淘汰条件 · 原文件L632—L695](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L632-L695)
+
+```c
+static void
+ngx_http_limit_req_expire(ngx_http_limit_req_ctx_t *ctx, ngx_uint_t n)
+{
+    ngx_int_t                   excess;
+    ngx_msec_t                  now;
+    ngx_queue_t                *q;
+    ngx_msec_int_t              ms;
+    ngx_rbtree_node_t          *node;
+    ngx_http_limit_req_node_t  *lr;
+
+    now = ngx_current_msec;
+
+    /*
+     * n == 1 deletes one or two zero rate entries
+     * n == 0 deletes oldest entry by force
+     *        and one or two zero rate entries
+     */
+
+    while (n < 3) {
+
+        if (ngx_queue_empty(&ctx->sh->queue)) {
+            return;
+        }
+
+        q = ngx_queue_last(&ctx->sh->queue);
+
+        lr = ngx_queue_data(q, ngx_http_limit_req_node_t, queue);
+
+        if (lr->count) {
+
+            /*
+             * There is not much sense in looking further,
+             * because we bump nodes on the lookup stage.
+             */
+
+            return;
+        }
+
+        if (n++ != 0) {
+
+            ms = (ngx_msec_int_t) (now - lr->last);
+            ms = ngx_abs(ms);
+
+            if (ms < 60000) {
+                return;
+            }
+
+            excess = lr->excess - ctx->rate * ms / 1000;
+
+            if (excess > 0) {
+                return;
+            }
+        }
+
+        ngx_queue_remove(q);
+
+        node = (ngx_rbtree_node_t *)
+                   ((u_char *) lr - offsetof(ngx_rbtree_node_t, color));
+
+        ngx_rbtree_delete(&ctx->sh->rbtree, node);
+
+        ngx_slab_free_locked(ctx->shpool, node);
+    }
+}
+```
+
+官方以二进制IP为Key给出的典型状态占用是32位平台64字节、64位平台128字节，1MB约容纳8千个128字节状态；10MB约8万个是容量估算，实际取决于Key长度和分配开销。节点被淘汰后再次访问会重新创建状态，频繁高基数Key会改变限流连续性，不能把有限zone当作永久历史账本。
+
+## 06 多个zone的判定与记账
+
+### lookup与account的分工
+
+同时配置单IP和虚拟主机总量时，handler依次检查各zone。非最后一个zone通常返回NGX_AGAIN，递增count并暂存ctx->node；最后一个配置项检查成功时可以直接提交。全部通过后，account回头对暂存节点重新计算、记账、递减count，并取各zone要求的**最大等待时间**。
+
+```text
+zone A：lookup → 在锁内检查 → 暂存节点，count++
+zone B：lookup → 检查并提交最后一项
+account：回到A重新取时钟并记账，count--
+最终延迟：max(A的等待时间, B的等待时间)
+```
+
+### 释放引用与并发边界
+
+如果后续zone拒绝，`ngx_http_limit_req_unlock`减少之前暂存节点的count，清空进程内指针。这是释放节点引用，不是回滚一次后端调用，也不是对所有已经发生的访问行为做事务回滚。
+
+<!-- source-window:account -->
+
+[ngx_http_limit_req_account：暂存节点的最终记账 · 原文件L535—L606](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c#L535-L606)
+
+```c
+static ngx_msec_t
+ngx_http_limit_req_account(ngx_http_limit_req_limit_t *limits, ngx_uint_t n,
+    ngx_uint_t *ep, ngx_http_limit_req_limit_t **limit)
+{
+    ngx_int_t                   excess;
+    ngx_msec_t                  now, delay, max_delay;
+    ngx_msec_int_t              ms;
+    ngx_http_limit_req_ctx_t   *ctx;
+    ngx_http_limit_req_node_t  *lr;
+
+    excess = *ep;
+
+    if ((ngx_uint_t) excess <= (*limit)->delay) {
+        max_delay = 0;
+
+    } else {
+        ctx = (*limit)->shm_zone->data;
+        max_delay = (excess - (*limit)->delay) * 1000 / ctx->rate;
+    }
+
+    while (n--) {
+        ctx = limits[n].shm_zone->data;
+        lr = ctx->node;
+
+        if (lr == NULL) {
+            continue;
+        }
+
+        ngx_shmtx_lock(&ctx->shpool->mutex);
+
+        now = ngx_current_msec;
+        ms = (ngx_msec_int_t) (now - lr->last);
+
+        if (ms < -60000) {
+            ms = 1;
+
+        } else if (ms < 0) {
+            ms = 0;
+        }
+
+        excess = lr->excess - ctx->rate * ms / 1000 + 1000;
+
+        if (excess < 0) {
+            excess = 0;
+        }
+
+        if (ms) {
+            lr->last = now;
+        }
+
+        lr->excess = excess;
+        lr->count--;
+
+        ngx_shmtx_unlock(&ctx->shpool->mutex);
+
+        ctx->node = NULL;
+
+        if ((ngx_uint_t) excess <= limits[n].delay) {
+            continue;
+        }
+
+        delay = (excess - limits[n].delay) * 1000 / ctx->rate;
+
+        if (delay > max_delay) {
+            max_delay = delay;
+            *ep = excess;
+            *limit = &limits[n];
+        }
+    }
+
+    return max_delay;
+}
+```
+
+每个zone有自己的互斥锁，检查与最终记账可能分开，整个多zone流程没有持有一把跨zone事务锁。此版本account重新计算后不再次比较burst，并发交错时不能把“多zone都满足规则”升级为任意瞬间严格原子预留的承诺。上线应测实际流量与拒绝比例，而不是把流程图当作强一致事务协议。
+
+## 07 单IP与实例总量的完整配置
+
+### 完整示例与配置继承
+
+下面是可替换地址后验证的示例，不是某个生产系统的已披露配置。两个zone只在本示例的submit路径被使用：单IP20r/s，当前虚拟主机的submit总量75r/s。若其他location复用相同zone与相同Key，它们也会共享这份额度。
+
+```nginx
+worker_processes 2;
+events { worker_connections 1024; }
+http {
+    limit_req_zone $binary_remote_addr zone=submit_ip:10m rate=20r/s;
+    limit_req_zone $server_name zone=submit_total:1m rate=75r/s;
+    log_format rate_log '$remote_addr pid=$pid "$request" '
+                        'status=$status limit=$limit_req_status '
+                        'rt=$request_time upstream=$upstream_response_time';
+    server {
+        listen 8080;
+        server_name api.example.test;
+        access_log logs/access.log rate_log;
+        location = /submit {
+            limit_req zone=submit_ip burst=10 nodelay;
+            limit_req zone=submit_total burst=15;
+            limit_req_status 429;
+            limit_req_log_level notice;
+            proxy_connect_timeout 2s;
+            proxy_read_timeout 5s;
+            proxy_pass http://127.0.0.1:9000;
+        }
+    }
+}
+```
+
+第一层允许少量同IP突发立即进入后续阶段，第二层仍可能要求延迟；nodelay只作用于配置它的规则。`$server_name`是虚拟主机的配置名称，同一个名称产生同一个Key。一个zone可以容纳多个虚拟主机Key，不能把它自动视为整台机器所有服务的统一总预算。
+
+**继承不是追加。**当前server/location只要定义了自己的limit_req列表，就不会再继承父级limit_req列表。需要两层保护时，应在实际生效的location写全两条规则，并通过`nginx -T`核对最终配置。
+
+### 可信身份与Key选择
+
+有代理或ALB时，必须先恢复可信客户端地址。示例中的文档网段需替换成实际代理范围：
+
+```nginx
+# 放在http/server中；仅适用于已启用http_realip_module的构建。
+set_real_ip_from 192.0.2.0/24;
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+```
+
+只信任受控代理，确认代理如何清理和追加转发头；直接信任用户可伪造的头会让限流可绕过。恢复真实IP后，企业或家庭共享公网出口仍会共享IP预算。用户维度Key应来自认证后的受信任身份，不能直接取任意客户端自报ID。[realip官方文档](https://nginx.org/en/docs/http/ngx_http_realip_module.html)
+
+空Key不会记账，可以用map按明确策略豁免；但也要防止缺少身份意外变成空Key。超过65535字节的Key在此版本会记录错误并跳过该规则，不应让Key长度由不受控的长头部决定。
+
+## 08 dry-run、日志与逐步启用
+
+### 观察状态
+
+首次配置可以在目标location临时启用`limit_req_dry_run on;`，观察真实Key、状态与影响，再决定rate和burst。它不执行实际拒绝或延迟；单zone超额拒绝分支也不会额外提交被拒绝请求的候选excess。因此dry-run是按该模块逻辑运行的观察模式，并不是记录所有到达请求的完整吞吐计数器。
+
+|$limit_req_status|含义|
+|---|---|
+|PASSED|通过，未要求限流延迟|
+|DELAYED|接纳但通过定时器延迟|
+|REJECTED|因超额或状态分配失败拒绝|
+|DELAYED_DRY_RUN|判断需要延迟，观察模式下立即继续|
+|REJECTED_DRY_RUN|判断应拒绝，观察模式下继续|
+
+未命中生效规则、空Key或提前结束的路径可能没有上述状态。HTTP429/503也可能来自上游，必须结合limit状态与error_log判断来源；REJECTED本身也不能区分超额和内存分配失败。
+
+### 指标与参数选择
+
+同时观察每个Key的流量分布、限流状态占比、上游错误率、连接占用和端到端延迟。被延迟的请求会把等待计入request_time，upstream_response_time只覆盖上游交互相关时间；二者不能简单当作同一个指标。多规则情况下状态代表最终请求结果，不提供每个zone独立的完整时间序列。
+
+配额根据后端持续处理能力制定，burst根据短时承载能力制定，delay根据客户端延迟预算制定。对于默认延迟，burst/rate给出满负债的等待估算；增大burst可能减少拒绝，也可能积累大量等待。配置nodelay后，又可能让这批请求同时冲击后端。
+
+## 09 速率、并发与跨实例边界
+
+### 请求速率与在途请求
+
+limit_req按时间恢复额度，与请求何时完成无关。若稳态接纳速率λ=150r/s、平均耗时W=0.2秒，Little定律给出的平均在途量L≈λW=30；耗时变成2秒时估算为300。该关系适用于稳定系统的平均值，不是每一瞬间的并发上限，也不能直接用于无限积压中的系统。
+
+|机制|控制维度|边界|
+|---|---|---|
+|limit_req|请求接纳速率与超额负债|无法感知Java线程或数据库是否饱和|
+|limit_conn|满足统计条件的连接/并发请求|只统计已完整读入请求头并处理中的请求；HTTP/2、HTTP/3各并发请求分别计数|
+|应用线程池与隔离|业务执行资源|需处理队列容量与拒绝策略|
+|超时与熔断|等待时间与故障传播|需匹配重试与幂等策略|
+
+例如在http定义`limit_conn_zone $binary_remote_addr zone=conn_ip:10m;`，再在目标location配置`limit_conn conn_ip 20;`。这是Nginx所定义的统计口径，不能称为20个Java工作线程或20条全部TCP连接。[limit_conn官方文档](https://nginx.org/en/docs/http/ngx_http_limit_conn_module.html)
+
+### 多实例与全局预算
+
+开源标准limit_req的共享内存只在**同一Nginx实例的Worker间**共享。两台实例各75r/s、均衡分流且持续运行时，名义持续接纳能力相加为150r/s；单IP也可能在两台各自获得额度。路由偏斜、扩缩容、Key淘汰和burst会改变观察结果，不能由此保证任意一秒或整个集群严格不超过150次。
+
+如果需要全局预算，应明确作用范围和一致性要求，再选择统一入口、分片配额或集中式原子记账。集中机制还需处理网络延迟、故障时放行/拒绝策略、时钟与重复请求。商业版提供zone同步选项，但同步不应未经验证就被当作强一致全局限流。
+
+## 10 可复现的本地实验
+
+### 运行方式
+
+随文提供[lab-nginx.conf](./lab-nginx.conf)、[lab.py](./lab.py)和[run-lab.py](./run-lab.py)。实验只监听127.0.0.1，使用两个Worker和独立zone测试默认延迟、nodelay、delay=2、dry-run和双zone。后端是真实HTTP代理目标，不通过rewrite阶段的return模拟。
+
+```bash
+# 安装或构建固定版本的nginx后，将路径替换为实际可执行文件。
+python3 run-lab.py --nginx /path/to/nginx --output /tmp/nginx-rate-lab
+```
+
+脚本检查版本为1.28.0，创建独立临时前缀，运行nginx -t，启动本地后端并并发发出7个请求，写出客户端时间、后端接收时间、状态和Worker PID，最后停止实验进程。各场景使用不同Key；多次运行不会把上次负债误当作新Key。
+
+### 理论预期与实验范围
+
+对于前三个单zone场景，预期各6次成功、1次429；默认等待的成功请求后端接收时间大致分布在0、100、200、300、400、500ms，nodelay集中接收，delay=2大致在0、0、0、100、200、300ms。并发启动存在调度误差，源码表中的“同一毫秒”条件更严格，原始测量值和理论值应分开阅读。
+
+dry-run应让7次请求继续到后端，同时日志出现观察状态。双zone实验验证组合规则的可观察行为，不能凭一次实验证明任意并发交错的强一致性。实验结果及执行范围见[VERIFICATION.md](./VERIFICATION.md)；这里不把步骤或预期写成生产实测。
+
+## 11 源码阅读路线与参考依据
+
+### 固定版本与调用链
+
+固定标签release-1.28.0，提交`481d28cb4e04c8096b9b6134856891dc52ecc68f`。本文的源码窗口逐行保留原文，并标注原始行号；本地[完整模块源码](./source/ngx_http_limit_req_module.c)与[许可证](./source/LICENSE)随离线包提供。
+
+### 继续阅读
+
+建议按`init → handler → lookup → account → delay → expire`阅读：先确认执行阶段和返回码，再跟踪Key、候选excess、提交时机、事件恢复和状态淘汰。需要掌握的核心是：**rate消化负债，burst约束接纳，delay控制等待，zone与锁控制状态共享范围。**
+
+- [固定提交的limit_req模块](https://github.com/nginx/nginx/blob/481d28cb4e04c8096b9b6134856891dc52ecc68f/src/http/modules/ngx_http_limit_req_module.c)
+- [limit_req官方指令文档](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html)
+- [limit_conn官方指令文档](https://nginx.org/en/docs/http/ngx_http_limit_conn_module.html)
+- [真实客户端地址配置](https://nginx.org/en/docs/http/ngx_http_realip_module.html)
+- [现有NGINX源码手册](https://yisiliang.github.io/nginx/#chapter-15)：继续阅读事件循环、HTTP阶段、连接限制、upstream与输出链。
+
+本文根据“Nginx限流原理”讨论的主题重新组织，经固定源码核对后补齐配置、状态分支和实验材料；所有数值示例均注明条件，公开内容采用技术学习与工程实践表述。
+
+
+---
+
+# JVM内存结构与OOM排查实战
+
+> **技术基线**：64 位 HotSpot **JDK 8**，以 Linux / Docker / Kubernetes 服务为例；在末尾说明 JDK 11/17+ 的主要差别。
+> **内容范围**：通过 **23 张可缩放 SVG 图（结构图、流程图、内存趋势图）**、诊断命令、判读逻辑、典型生产案例和应急清单，梳理 JVM 内存与 OOM 排查。
+> **核心认识**：**Java 进程内存 ≠ Java 堆；OOM ≠ 一定有内存泄漏；排查要先识别“哪一种内存”出了问题。**
+
+## 1. 开场：我们究竟要排查什么
+
+**先从三个常见问题入手：**
+
+- Java 应用的 `-Xmx` 配成 3G，容器限制 4G，为什么还会被 `OOMKilled`？
+- GC 已经执行过很多次，为什么还会报 `java.lang.OutOfMemoryError: Java heap space`？
+- Heap Dump 看着没问题，为什么网关进程 RSS 一直涨，甚至出现 `OutOfDirectMemoryError`？
+
+这三个问题能直接暴露一个常见误区：把 **JVM 运行时内存**、**HotSpot 原生内存**、**操作系统实际驻留内存**混成了一个概念。
+
+![图 01：Java 进程的内存组成](../jvm-memory-oom/diagrams/01-进程总内存.svg)
+
+**分析要点：** `-Xmx` 只约束 Java 堆上限，并不等于进程内存上限。Metaspace、线程栈、Direct Buffer、Code Cache、JVM 自身的 GC 数据结构、JNI 分配等，也需要资源。图中的 RSS 只是为了说明不同来源都可能影响进程驻留量；真实 RSS 与各分项之间可能有共享页、已保留但未提交、已提交但未驻留等差异，不能直接算术相加。
+
+### 1.1 先区分三个指标
+
+| 指标 | 含义 | 常见误区 |
+|---|---|---|
+| `reserved` | 保留的虚拟地址空间 | 保留 ≠ 实际使用了物理内存 |
+| `committed` | 已提交、可供使用的虚拟内存 | 提交 ≠ 该时刻全部页都驻留在 RSS |
+| `RSS` | 进程实际驻留物理页规模 | RSS ≠ 堆已使用，也不等同于容器全部内存用量 |
+
+在容器中还需要区分 **进程 RSS**、**`memory.current` / cgroup 使用量**和**内存限制**。容器内存账单可能包含其下进程、文件页缓存等，具体由 cgroup 版本与统计口径决定。
+
+## 2. JVM 内存结构总览
+
+### 2.1 先看规范，再看 HotSpot 实现
+
+![图 02：JVM 运行时数据区](../jvm-memory-oom/diagrams/02-JVM运行时区域.svg)
+
+**线程共享：**
+
+- **Java Heap（堆）**：主要存放普通对象和数组，GC 的核心管理对象。这里说的是“主要”，因为逃逸分析、标量替换、JIT 优化可能使部分对象分配被消除。
+- **方法区（Method Area）**：JVM 规范中的**逻辑概念**，包含类型信息、运行时常量池等。**HotSpot JDK 8 用 Metaspace 等机制实现类元数据存储**，不要把“方法区”与某一个具体物理内存块完全画等号。
+- **运行时常量池**：与类关联的常量、符号引用等；不要与 `String.intern()` 的字符串实例存放位置混为一谈。JDK 7 起 HotSpot 的字符串常量池相关对象已主要置于 Java 堆。
+
+**线程私有：**
+
+- **程序计数器**：跟踪线程字节码执行位置。
+- **Java 虚拟机栈**：每一次方法调用都会压入栈帧，方法完成后栈帧弹出。
+- **本地方法栈**：支持 native 方法调用；HotSpot 的实现细节并非必须与 Java 栈形成两个独立物理存储区。
+
+**规范之外但故障时尤其关键：** Direct Buffer、JNI/native malloc、Code Cache、线程实际栈内存、内存映射、分配器缓存等。
+
+### 2.2 栈帧里放什么？“对象都在栈上”对不对？
+
+![图 03：栈帧与堆对象之间的关系](../jvm-memory-oom/diagrams/03-栈帧与对象.svg)
+
+考虑以下代码：
+
+```java
+public void foo(int id) {
+    User user = new User();
+    user.setId(id);
+    consume(user);
+}
+```
+
+`id`、局部变量 `user`（对象引用）可以存在当前栈帧局部变量表中，而 `new User()` 通常在堆上分配。`user` 是一个**引用变量**，不是把整个 `User` 实例放进了栈帧。JIT 可能进一步优化，因此不要用源代码中的 `new` 数量直接等价于最终堆分配量。
+
+**容易混淆的问题：**
+
+- `StackOverflowError`：通常是调用深度、递归或栈空间问题；它不是堆 OOM。
+- `OutOfMemoryError: unable to create new native thread`：通常属于无法再为线程创建本地资源，不代表某个 Java 栈帧“装满了”。
+- **静态变量存什么？** 静态字段的值可能是对象引用；所引用的普通对象仍可在 Heap 上，其所属类的元数据另由类加载系统管理。
+
+### 2.3 一个普通对象在 HotSpot 里大致长什么样
+
+![图 04：对象头、字段和类元数据关联](../jvm-memory-oom/diagrams/04-对象内存布局.svg)
+
+以常见 HotSpot 对象为例，可分为：**对象头**、**实例字段**、**对齐填充**。对象头包含 Mark Word 和类型指针等信息；数组对象还会包含数组长度。对象真实大小取决于 32/64 位、压缩指针、字段布局、对齐参数及 JDK 版本，**不要把图里的分区比例当成固定字节数**。
+
+这张图的价值在于解释：为什么 Heap Dump 能看到上百万个 `User`、`byte[]`，而 Metaspace 追踪的是 `User` 这样的**类型元数据**，不是 100 万份 `User` 实例的全部内容。
+
+### 2.4 JDK 8 的 PermGen / Metaspace 到底变了什么
+
+| 维度 | JDK 7 及更早的典型 HotSpot | JDK 8 HotSpot |
+|---|---|---|
+| 类元数据主要存储 | 永久代 PermGen | 原生内存中的 Metaspace |
+| 典型上限参数 | `-XX:MaxPermSize` | `-XX:MaxMetaspaceSize` |
+| OOM 文本 | `PermGen space` | `Metaspace`、`Compressed class space` |
+| 容易犯的错 | 认为 PermGen 就是规范的方法区本身 | 认为元空间无限、也不受容器内存约束 |
+
+**结论：** 移除了 PermGen 不是“类不会引发 OOM”，只是换了一套内存分配与管理机制。
+
+## 3. 堆中的对象如何诞生、存活和死亡
+
+### 3.1 传统分代结构：Eden / Survivor / Old
+
+![图 05：年轻代复制与老年代晋升](../jvm-memory-oom/diagrams/05-分代复制与晋升.svg)
+
+教学时分成三步：
+
+1. **分配**：绝大多数新生对象优先进入 Eden，线程可能使用 TLAB（Thread Local Allocation Buffer）来降低分配竞争。
+2. **Young / Minor GC**：Eden 和存活的 Survivor 对象参与回收，存活对象复制到目标 Survivor 或晋升 Old。
+3. **晋升**：年龄达到阈值、目标 Survivor 容量不足等情况，都可能影响晋升。不是“对象恰好经历 15 次 GC 才会进老年代”。
+
+#### TLAB 是什么
+
+**TLAB 在 Java Heap 里面**，不是 Direct Memory，也不是额外新增的一块内存区域。线程在 Eden 内领用小块独占分配缓冲区，便于通过指针碰撞快速分配对象。TLAB 用尽走慢路径，可能申请新 TLAB 或按分配策略处理。
+
+### 3.2 `new` 发生时，并不必然先触发 GC
+
+![图 07：对象分配路径及失败兜底](../jvm-memory-oom/diagrams/07-对象分配决策.svg)
+
+这是一张**教学用近似决策图**，不是 HotSpot 某个版本的精确源码控制流：
+
+- 优先走当前线程的快速分配路径；失败后尝试更慢的分配路径。
+- 分配器、GC 策略、是否大对象、是否需要晋升，决定后续行为。
+- 如果最终无法满足堆内分配，才会出现 `Java heap space`。
+- 对 G1 而言，**Humongous** 对象走特殊路径，不能机械套用上面传统 Eden → Survivor 的路径。
+
+### 3.3 G1 的 Region：不是每个 Region 里都含 Eden + Survivor + Old
+
+![图 06：G1 Region 物理布局与逻辑角色](../jvm-memory-oom/diagrams/06-G1-Region布局.svg)
+
+**重点要讲清楚：** G1 将整个 Heap 划成**多个等大小 Region**，每个 Region 在某个时刻对应一个角色（Eden、Survivor、Old、Free 或 Humongous 等），**不是在单个 Region 里面再划出一小块 Eden、一小块 Survivor 和 Old**。
+
+- Region 大小通常为 **1MB—32MB 的 2 次幂**，由 JVM 结合堆规模选择，也可以检查 `-XX:G1HeapRegionSize`。
+- 多个 Eden Region 不需要彼此连续；Old Region 也不必是堆末尾的一大片连续物理空间。
+- **Humongous**：大小达到或超过 Region 一半的对象在 G1 中走特殊分配路径，可能需要多个连续 Region。大型 `byte[]`、压缩包、整包响应等场景值得注意。
+- 图上 20 个 Region 只是帮助理解，真实 Region 数量通常更多。
+
+**讨论题：** “G1 有没有年轻代和老年代？”——有，是**逻辑上的 Region 集合**，不是必须连续的两大物理区。
+
+### 3.4 对象什么时候才会被回收？看 GC Roots
+
+![图 08：可达性分析示意](../jvm-memory-oom/diagrams/08-可达性与GC-Roots.svg)
+
+判断一个对象是否还活着，不取决于“业务还需不需要它”，而取决于它是否**从 GC Roots 可达**。常见根包括线程活动栈帧中的引用、静态字段可达链、JNI 引用、JVM 内部根等。
+
+```java
+private static final Map<String, byte[]> CACHE = new ConcurrentHashMap<>();
+
+public void handle(String key) {
+    CACHE.put(key, new byte[1024 * 1024]);
+}
+```
+
+即便请求早已结束，只要 `CACHE` 继续持有这些条目，就不会因为“这个请求完成了”而自动回收。与此相对，只有短生命周期大对象导致的瞬时高水位，不一定是内存泄漏。
+
+### 3.5 强、软、弱、虚引用有什么区别
+
+| 类型 | 典型场景 | 回收理解 |
+|---|---|---|
+| 强引用 | 正常字段、集合成员 | 根可达时通常不会被回收 |
+| `SoftReference` | 某些缓存策略 | 内存压力下可能清理；**不可当成可靠缓存淘汰方案** |
+| `WeakReference` | 不阻止回收的索引、映射 | 仅弱可达对象在 GC 中可被清理 |
+| `PhantomReference` | 配合 `ReferenceQueue` 做资源生命周期跟踪 | `get()` 不提供被引用对象；不等于直接释放 native 资源 |
+
+**Netty 补充：** ByteBuf 的释放由引用计数决定；垃圾回收并不自动保证池化 ByteBuf 被正确归还。
+
+## 4. GC：为什么回收之后还会 OOM
+
+### 4.1 先理解四个术语
+
+| 术语 | 重点 |
+|---|---|
+| Young / Minor GC | 主要收集年轻代，不是全堆扫描的同义词 |
+| Mixed GC | G1 收集年轻代，并选取部分 Old Region 一起回收 |
+| Full GC | 通常涉及全堆级别的停顿和回收；不同收集器的触发及行为不同 |
+| STW（Stop The World） | 应用线程因 GC 的某些阶段暂停；并发标记不意味着全过程零 STW |
+
+### 4.2 G1 的典型周期
+
+![图 09：G1 Young、并发标记与 Mixed 周期](../jvm-memory-oom/diagrams/09-G1收集周期.svg)
+
+图中先后顺序展示的是一次**典型**标记/回收周期，而不是每轮 Young GC 都必然马上开始一次标记。G1 通常经历：
+
+1. 多次 Young GC，部分对象晋升 Old。
+2. 达到条件后，以一次 Young GC 搭载 **Initial Mark**（STW）。
+3. **Root Region Scan** 与 **Concurrent Mark**：可与应用线程并发（期间仍可能有 Young GC）。
+4. **Remark**（STW）与 **Cleanup**：完成存活性判断、统计候选 Region。
+5. 如果收益足够，开始**若干轮 Mixed GC**，回收 Young + 部分 Old；之后再回到 Young-only 阶段。
+
+**两条常见错误说法：**
+
+- “G1 是并发 GC，所以不会 STW”——错误。Young / Mixed 的 Evacuation Pause 等阶段需要 STW。
+- “Mixed GC 就是 Full GC”——错误。Mixed 只选部分老年代 Region，Full GC 有不同的触发机制和代价。
+
+### 4.3 从一段 GC 日志里到底看什么
+
+下面是**示意日志，非真实生产截取**：
+
+```text
+2026-10-14T10:00:00.000+0800: 120.000: [GC pause (G1 Evacuation Pause) (young)
+  4096M->2850M(6144M), 0.083 secs]
+2026-10-14T10:01:00.000+0800: 180.000: [GC pause (G1 Evacuation Pause) (mixed)
+  5300M->4220M(6144M), 0.211 secs]
+2026-10-14T10:03:00.000+0800: 300.000: [Full GC ...
+  6100M->5780M(6144M), 8.200 secs]
+```
+
+读法：`回收前占用 -> 回收后占用 (堆容量)`，后面是停顿时间。生产日志格式受 JDK 版本、垃圾回收器和 JVM flag 影响；不要把上面格式当成唯一格式。
+
+**重点看三项：**
+
+- **GC 后基线**：回收后还剩多少？长期持续抬升比“瞬时占用冲高”更值得警惕。
+- **回收效率**：回收前后下降了多少？Full GC 后几乎不降，提示存活对象确实多或回收条件不利。
+- **暂停时间与频率**：是偶发长暂停，还是短时间持续 GC 抢走 CPU？两者改善措施不同。
+
+### 4.4 用 `jstat` 看趋势，而不是只看一次快照
+
+```bash
+PID=12345
+jstat -gcutil "$PID" 1000 10
+```
+
+输出中常见的 `S0/S1/E/O/M` 表示各区使用比例，`YGC/YGCT`、`FGC/FGCT` 是相应 GC 次数与耗时（字段依具体 JDK/收集器而异）。
+
+**判读：**
+
+- `O` 随时间升高，但 Young GC 后不明显下降：不一定异常，因为 Young GC 通常不回收 Old。
+- **回收老年代之后**占用仍持续增加：要判断是业务在积累合理活对象，还是对象引用意外留存。
+- `FGC` 短期暴涨，且 GC 后老年代使用率不下降：需要优先采集证据并干预。
+
+![图 19：区分泄漏、合理峰值与 native 增长](../jvm-memory-oom/diagrams/19-内存增长形态.svg)
+
+下面三张曲线是**为了帮助理解而生成的示意数据，不是某个真实生产系统的监控截图**。观察这些曲线时可以注意：只看瞬时高点，很容易误判；要看 GC 后低点是否上涨，以及 Heap 与 RSS 是否背离。
+
+![图 21：正常 GC 的锯齿形变化](../jvm-memory-oom/diagrams/21-健康GC锯齿.svg)
+
+![图 22：疑似泄漏时 GC 后基线抬升](../jvm-memory-oom/diagrams/22-堆内泄漏基线上升.svg)
+
+![图 23：Heap 稳定、RSS 却持续上升](../jvm-memory-oom/diagrams/23-Heap与RSS背离.svg)
+
+**注意：** 堆内存的 GC 后基线上升只是“异常线索”，并不自动等于泄漏；还需要排除流量上升、缓存预热和合理数据积累。RSS 背离也不是 Netty 的唯一证据。
+
+---
+
+## 5. 七类常见 OOM 与非 Java OOM
+
+![图 10：OOM 类型全景](../jvm-memory-oom/diagrams/10-OOM类型全景.svg)
+
+| 症状 / 文本 | 主要排查方向 | 第一批证据 |
+|---|---|---|
+| `OutOfMemoryError: Java heap space` | 堆容量不足、大对象、缓存/集合引用泄漏 | GC 日志、Heap Dump、对象直方图 |
+| `GC overhead limit exceeded` | GC 花费大量时间但回收极少 | GC 日志、Heap Dump、流量指标 |
+| `OutOfMemoryError: Metaspace` | 类元数据增长、类加载器不能释放、配额不足 | 类加载计数、`jmap -clstats`、NMT |
+| `Compressed class space` | 压缩类空间不足、动态类过多 | 相关 JVM 参数、类数量、ClassLoader 统计 |
+| `Direct buffer memory` / Netty `OutOfDirectMemoryError` | Direct Buffer 上限、池化缓冲区未释放、高并发峰值 | RSS、Direct Memory 指标、Netty 泄漏日志 |
+| `unable to create new native thread` | 线程数、`pids.max`、ulimit、剩余 native 内存 | 线程数、thread dump、进程/cgroup 限制 |
+| `Requested array size exceeds VM limit` | 单个数组申请超过 VM 支持限制 | 异常栈、数组长度计算、入参 |
+| 容器 `OOMKilled` / exit code 137 | cgroup 上限被打穿（可能没有 Java OOM） | cgroup 事件、Pod 描述、RSS/内存曲线 |
+
+**强调：** `OutOfMemoryError` 是一个异常类别，**不是所有 Java 进程内存问题都表现为这个异常**。Java 的 OOM 与 Linux OOM killer 是两个不同层次的事件。
+
+### 5.1 `GC overhead limit exceeded` 要怎么理解
+
+在 JDK 8 HotSpot 的典型判据中，GC 长时间占据大量运行时间（约 98%），而回收到的堆空间极少（不到约 2%，连续多轮满足条件）时可能触发。**不要把这两个百分比当成普适、跨 GC 实现的固定判据**，也不要把禁用 `UseGCOverheadLimit` 当成根因修复。
+
+### 5.2 4 GiB 容器、3 GiB Xmx，为什么照样被杀
+
+![图 11：Heap、Native 与容器额度](../jvm-memory-oom/diagrams/11-容器与RSS预算.svg)
+
+示例容量账单（**演示用，非统一配比**）：
+
+| 项目 | 假设量级 |
+|---|---:|
+| Java Heap | 3.0 GiB（假设大部分页驻留） |
+| Direct/Netty Buffer | 0.55 GiB |
+| Metaspace + Code Cache | 0.25 GiB |
+| 线程栈、JVM/GC、其他 native | 0.30 GiB |
+| **粗略合计** | **4.10 GiB** |
+
+即使 `Xmx` 未超 3 GiB，整体已经有超过 4 GiB 的风险。还要考虑**内存统计重叠、页缓存和瞬时峰值**，所以不能把这个演示合计当成可精确推算 RSS 的公式。要看系统实测，而不是纸面上只加 `Xmx`。
+
+## 6. 生产环境 OOM 排查总流程
+
+### 6.1 五步法：先定类、后取证、再定位
+
+![图 12：OOM 现场排查总流程](../jvm-memory-oom/diagrams/12-现场排查总流程.svg)
+
+#### 第一步：先判断“异常是谁抛的、进程是谁杀的”
+
+先看 `OutOfMemoryError` 完整文本、最后几十秒业务日志、容器退出状态。
+
+```bash
+# Kubernetes：示例，需替换命名空间与 Pod 名
+kubectl -n <namespace> describe pod <pod>
+kubectl -n <namespace> logs <pod> --previous --timestamps --tail=300
+
+# Linux cgroup v2（文件路径依实际部署而变化）
+cat /sys/fs/cgroup/memory.max
+cat /sys/fs/cgroup/memory.current
+cat /sys/fs/cgroup/memory.events
+```
+
+**注意：** `137` 常对应进程收到 SIGKILL，容器 OOMKill 是重要原因之一，**但并不能单凭退出码 137 就确认 OOMKill**；需要事件、容器状态或 cgroup 证据相互印证。
+
+#### 第二步：记录现场，不要先盲目改 Xmx
+
+建议立即记录：JDK 版本、启动 flags、GC 类型、进程/容器内存、线程数、最近发布、流量与错误分布。原则上先**止损**（摘流、限流、扩容、回滚），并与证据保全并行开展。
+
+#### 第三步：确定该用哪类证据
+
+![图 18：故障现象对应取证工具](../jvm-memory-oom/diagrams/18-信号对应排查工具.svg)
+
+**一句话口诀：** 堆问题看 GC + Dump；类元数据问题看 ClassLoader；堆外问题看 Native + RSS；线程问题看线程数 + 系统限制；直接被杀先看 cgroup。
+
+#### 第四步：找“谁持有”或“谁增长”
+
+不要停在“`byte[]` 占了 60%”这种表象。必须确认：**是谁持有它、为什么持有这么久、什么时候应该释放**。对于 Heap 问题看 GC Roots 和 Retained Heap；对于 native 问题看时间差、分配来源与所有权。
+
+#### 第五步：通过同负载回归证明修复
+
+“改了代码，不再立刻 OOM”不等于修复成功。至少验证：相同 QPS、相同包大小、相同长连接数、相同运行时长下，GC 后基线、RSS、Direct Memory、类数量、线程数不再无界增长。
+
+![图 20：生产止损到防再发闭环](../jvm-memory-oom/diagrams/20-事故处置全链路.svg)
+
+### 6.2 为什么采集 Heap Dump 要谨慎
+
+在 JDK 8 常见 HotSpot 版本里：
+
+```bash
+# 优先先看支持哪些诊断命令和参数
+jcmd "$PID" help GC.heap_dump
+jcmd "$PID" help GC.class_histogram
+
+# HPROF：可能高停顿、高磁盘 I/O，并可能引发 Full GC
+jcmd "$PID" GC.heap_dump /data/dumps/java-$PID.hprof
+
+# 或采用 JDK 8 常见工具：对堆 dump 也有明显影响
+jmap -dump:format=b,file=/data/dumps/java-$PID.hprof "$PID"
+```
+
+生产注意事项：**预留足够磁盘空间**、确认线程/堆停顿风险、控制取证频率、避免多个实例同时 dump、根据故障紧急程度决定是否先切换流量。`jmap -histo:live`、部分 `jcmd` Heap Dump 默认行为可能主动请求 Full GC；不同版本选项不完全相同，一定先看 `jcmd <pid> help <command>`。
+
+Heap Dump 可能包含姓名、手机号、身份证号、Token、请求报文等敏感信息。**按生产敏感数据管理，最小权限传输并按制度清除**。
+
+## 7. 五类典型故障实战
+
+### 案例 A：堆内泄漏——缓存 / 集合无限增长
+
+**现象：** 请求量正常但 GC 后 Old 占用持续升高，Full GC 后仍居高不下，最终 `Java heap space`。
+
+![图 13：Heap Dump 分析闭环](../jvm-memory-oom/diagrams/13-HeapDump分析闭环.svg)
+
+打开 [Eclipse MAT](https://eclipse.dev/mat/) 后：
+
+1. `Histogram`：按 **Shallow Heap** 看数量和对象自身内存；看 `byte[]`、`String`、业务 DTO、集合节点等异常规模。
+2. `Dominator Tree`：按 **Retained Heap** 排序，观察某个 Map、缓存管理器或 Service 单例间接保留多少内存。
+3. `Path to GC Roots`：找出引用链，比如 `static INSTANCE → cache → map → entry → byte[]`。
+4. 与业务指标核对：请求结束后这些对象是否仍有正当用途？缓存是否设置容量/TTL？是否意外使用无限队列？
+
+**非常关键：Shallow vs Retained**
+
+- Shallow Heap：当前对象本身占用的内存。
+- Retained Heap：当对象失去引用、且由它所支配的对象也因此不可达时，理论上能释放的一整批对象内存。
+
+`HashMap` 自身不一定大，却可能通过 value 持有大量 `byte[]`。因此不要只看最靠前的“大数组”就去改 `byte[]` 的创建语句。
+
+**修复方向：** 缓存增加 TTL / 最大容量、改分页/流式处理、限制批量返回大小、修正静态集合以及异步任务完成后的引用清理。仅增大 `Xmx` 通常只是延缓出问题的时间。
+
+### 案例 B：Netty / Spring Cloud Gateway 堆外内存问题
+
+**现象：** `-Xmx` 内的 Heap 很稳定，Old 也不高，但进程 RSS 不断上升；可能出现 Netty `OutOfDirectMemoryError`、`OutOfMemoryError: Direct buffer memory`，或者先被容器杀掉。
+
+![图 14：Netty ByteBuf 引用计数所有权](../jvm-memory-oom/diagrams/14-Netty引用计数所有权.svg)
+
+#### 关键概念：谁拿到 ByteBuf，谁负责生命周期？
+
+`ByteBuf` 初始引用计数一般是 1；`retain()` 增加，`release()` 减少，降到 0 时由其实现释放或归还底层资源。异步传递、切片和聚合要遵守 Netty / 框架约定：**谁拥有、谁转移、谁释放**。
+
+```java
+ByteBuf buf = PooledByteBufAllocator.DEFAULT.directBuffer(1024);
+try {
+    buf.writeInt(42);
+    // 只在当前作用域读取，不把所有权交给其他组件
+    consumeSynchronously(buf);
+} finally {
+    buf.release();
+}
+```
+
+上面是**自己分配、自己释放**的最小示例，不可照搬到所有 `channelRead` 或 WebFlux 操作符内。**若成功把所有权移交给下游（例如框架接管出站写入），再由本层释放就可能 double release。**
+
+#### 两种相反的 bug
+
+- **漏释放 / 多余 retain**：占用积累，buffer 池无法回收，可能出现堆外耗尽。
+- **提前释放 / 重复释放**：`IllegalReferenceCountException: refCnt: 0` 等访问失效问题，常发生在异步链路或手工 `release` 与框架自动释放交错时。
+
+```bash
+# 有疑点时先在测试环境或灰度开启（高档位有性能开销）
+-Dio.netty.leakDetection.level=advanced
+
+# 压测时可短期开启，全量跟踪成本很高
+-Dio.netty.leakDetection.level=paranoid
+```
+
+观察 `LEAK: ByteBuf.release() was not called...`，结合 `Created at`、`Recent access records` 回溯。注意 Netty 泄漏检测默认常为采样，**没有日志不等于没有泄漏**。
+
+#### 排查顺序
+
+1. 对齐 RSS 与堆占用，看两者是否背离。
+2. 看 DirectBufferPool 的 `MemoryUsed`、`TotalCapacity` 等监控（注意**这类 MXBean 指标不一定能完整覆盖 Netty 所有 native 分配**）。
+3. 区分 JDK NIO 的 `MaxDirectMemorySize` 路径和 Netty 自身分配/额度逻辑，检查版本及 `io.netty.maxDirectMemory` 等配置。
+4. 对 suspect handler、DataBuffer 转换、`retain`、`release`、`slice`、异步转交、异常分支逐一标注所有权。
+5. 在压测/灰度开启 Netty Advanced 泄漏检测，复现相同请求大小与并发连接数。
+
+**实践提示：** Spring WebFlux 的 `DataBuffer` 可能包装 Netty 引用计数缓冲区；对 `join()`、filter 读取 body、异常分支、取消订阅后的资源释放要按框架 API 契约检查，而不能简单地“在哪里看到就释放”。
+
+### 案例 C：Metaspace 不断增长——动态类与 ClassLoader
+
+**现象：** 类加载数量持续增加，Metaspace 接近上限，Heap 并不总是很满，可能触发 `OutOfMemoryError: Metaspace`。
+
+![图 15：动态加载、ClassLoader 与元空间](../jvm-memory-oom/diagrams/15-Metaspace类加载器链路.svg)
+
+排查重点是**到底谁在重复生成/加载类，谁又把对应 ClassLoader 留住了**。场景包括热部署、动态代理、脚本引擎、错误的缓存、过度生成代理类、旧版本反射/序列化框架等。
+
+```bash
+# JDK 8：看当前加载/卸载类累计信息
+jstat -class "$PID" 1000 10
+
+# JDK 8：查看类加载器和类元数据占用（可能有明显开销）
+jmap -clstats "$PID"
+
+# 结合 NMT 和 JVM flags
+jcmd "$PID" VM.flags
+jcmd "$PID" VM.native_memory summary scale=MB
+```
+
+**特别讨论：** 旧环境中曾可能在内存/类统计中出现大量如下类型：
+
+```text
+sun.reflect.GeneratedMethodAccessor123
+sun.reflect.GeneratedMethodAccessor124
+sun.reflect.GeneratedConstructorAccessor125
+sun.reflect.DelegatingClassLoader
+```
+
+JDK 8 的反射实现可能在调用达到阈值后生成访问器类。**看到这些名字不意味着已经证明 XStream 一定有 bug**；应继续比较增长趋势、类加载器数量、代码是否反复创建序列化器实例以及 ClassLoader 生命周期。某些应用将重复创建的解析器复用，可能减少元数据增长；但“改成 `static` 就一定解决”不是通用结论，仍需检查线程安全、配置共享和并发行为。
+
+**修复方向：** 避免不必要的动态类生成；复用线程安全且配置稳定的序列化组件；杜绝热部署旧 ClassLoader 被线程、静态注册表、缓存持有；检查代理类和类加载器缓存策略。盲目增大 `MaxMetaspaceSize` 可能会掩盖泄漏。
+
+### 案例 D：线程创建失败——不一定是堆不够
+
+![图 16：线程创建失败的资源链路](../jvm-memory-oom/diagrams/16-线程创建失败.svg)
+
+典型症状：
+
+```text
+java.lang.OutOfMemoryError: unable to create new native thread
+```
+
+重点是线程资源，而不只是 `-Xmx`。常见原因：无界线程创建、阻塞任务导致线程池膨胀、系统线程数 / PID 限制、容器 `pids.max`、本地虚拟内存不足。
+
+```bash
+ps -o pid,rss,vsz,nlwp,cmd -p "$PID"
+ps -L -p "$PID" | head -50
+cat /proc/"$PID"/status | grep -E 'Threads|VmRSS|VmSize'
+cat /sys/fs/cgroup/pids.max 2>/dev/null
+ulimit -u
+jcmd "$PID" Thread.print > /data/thread-$PID.txt
+```
+
+**注意：** `-Xss1m × 2000 线程 = 2GiB` 是用于估算每线程最大栈空间量级的思路，**不等于每个线程一创建就立即驻留 1MiB 的 RSS**。还受到 guard pages、保留/提交方式、系统线程结构和平台实现影响。
+
+**修复方向：** 限制线程池上界、排除阻塞/死锁/慢 IO、优化异步模型、检查 PID 约束。简单降低 `-Xss` 有栈溢出风险，需验证真实调用深度。
+
+### 案例 E：容器 OOMKilled——没有 Java 堆 OOM
+
+**现象：** 最后一条日志正常，实例突然重启；没有 HPROF 或 Java 异常，Kubernetes 显示 `OOMKilled`。
+
+处理顺序：
+
+1. 查 `kubectl describe pod`、事件、cgroup `memory.events`（或 v1 对应字段），确认容器内存限制命中。
+2. 拿 Heap used、进程 RSS、容器内存曲线，同一个时间点对齐。
+3. 若堆稳定而进程/容器上升，优先考虑 Direct/Netty、Metaspace、线程、JNI/native、文件映射或文件缓存等。
+4. 若只在流量峰值发生，区分**瞬时高峰与长期泄漏**；必要时先做限流/背压与更合理的容量预算。
+
+## 8. 排查命令速查和判读
+
+### 8.1 低风险优先：先拿线程、flags 和资源快照
+
+```bash
+# 替换 PID；一般尽量使用同版本 JDK 的工具和相同运行用户
+PID=12345
+
+java -version
+jcmd "$PID" VM.command_line
+jcmd "$PID" VM.flags
+jcmd "$PID" GC.heap_info
+jcmd "$PID" Thread.print > /data/thread-$PID.txt
+
+# 资源快照
+ps -o pid,ppid,rss,vsz,nlwp,%mem,%cpu,cmd -p "$PID"
+cat /proc/"$PID"/status | grep -E 'VmRSS|VmHWM|VmSize|Threads'
+cat /proc/"$PID"/smaps_rollup 2>/dev/null | head -30
+pmap -x "$PID" | tail -5
+```
+
+`jcmd GC.heap_info`、线程 dump 仍可能触发短暂 safepoint / 较大输出，不要认为诊断命令一律零开销。`/proc/*/smaps_rollup` 与 cgroup 文件是否存在，取决于 Linux 内核和环境权限。
+
+### 8.2 堆内：监控 → Histogram → Heap Dump → MAT
+
+```bash
+jstat -gcutil "$PID" 1000 20
+jcmd "$PID" GC.class_histogram > /data/histo-$PID.txt
+jcmd "$PID" GC.heap_dump /data/dumps/java-$PID.hprof
+```
+
+**选择原则：**
+
+- `jstat`：适合观察 GC 趋势，通常开销较低。
+- `class_histogram`：可以快速识别哪些对象类型占比较大，但有停顿/扫描开销，不建议作为高频监控。
+- `heap_dump`：信息最全面，但可能有高停顿与很大的磁盘成本；请先通过 `jcmd PID help GC.heap_dump` 核实选项和副作用。
+- Eclipse MAT：Dominator Tree、Leak Suspects、Path to GC Roots。**Heap Dump 主要帮助定位堆对象引用链，不能代替 native 追踪。**
+
+### 8.3 Native Memory Tracking（NMT）
+
+![图 17：NMT 基线与差分排查](../jvm-memory-oom/diagrams/17-NMT差分快照.svg)
+
+NMT 的价值是找 JVM 自身 native 内存分类的**变化趋势**，不是记录“所有 C 库与 JNI malloc”。
+
+```bash
+# JVM 启动时开启，已经运行的 JVM 通常无法临时从 off 打开
+-XX:NativeMemoryTracking=summary
+
+# 运行后采集
+jcmd "$PID" VM.native_memory summary scale=MB
+jcmd "$PID" VM.native_memory baseline
+# 在等效负载下运行 10~30 分钟后
+jcmd "$PID" VM.native_memory summary.diff scale=MB
+```
+
+`summary`、`detail` 有性能/内存开销，`detail` 更大；不同版本可能不完全相同。**NMT 追踪 HotSpot/JVM 内部原生内存，不覆盖全部第三方 native 申请。**若 NMT 中增长不明显，但 RSS 在涨，应继续查 DirectBuffer、Netty 原生分配、JNI、自定义 malloc、内存映射和内核侧指标。
+
+### 8.4 Linux / Kubernetes 的证据与风险等级
+
+| 动作 | 目的 | 典型影响 / 风险 |
+|---|---|---|
+| `ps`、读 `/proc`、读 cgroup | 内存 / 线程 / OOM 事件 | 通常低，取决于环境 |
+| `jstat -gcutil` | GC 使用趋势 | 通常较低 |
+| `jcmd VM.flags`、`VM.command_line` | 配置 | 通常较低 |
+| `jcmd Thread.print` | 阻塞栈、线程数 | 线程很多时输出量较大，有短暂停顿可能 |
+| `jmap -clstats` | 类加载器统计 | 中高开销，视版本和类数量 |
+| `jcmd GC.class_histogram` | 堆对象类型 | 可能较高，可能影响停顿 |
+| `jcmd GC.heap_dump` | 完整堆快照 | **高风险**：停顿、磁盘、可能 Full GC |
+| `jmap -F`、强制 attach | 非常规恢复 | **高风险**：仅确认环境与风险后使用 |
+
+## 9. JVM 参数、容量预算与预防
+
+### 9.1 JDK 8 G1 常用基础启动参数示例
+
+以下是一组**示例**参数，不代表可以不经压测就直接上生产：
+
+```bash
+-Xms2g
+-Xmx2g
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:MaxMetaspaceSize=512m
+-XX:MaxDirectMemorySize=512m
+-Xss1m
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/data/dumps
+-XX:+PrintGCDetails
+-XX:+PrintGCDateStamps
+-Xloggc:/data/logs/gc.log
+-XX:+UseGCLogFileRotation
+-XX:NumberOfGCLogFiles=5
+-XX:GCLogFileSize=20M
+```
+
+**特别注意：**
+
+- `MaxGCPauseMillis` 是目标，不是保证。
+- `MaxDirectMemorySize` 不必然完全约束 Netty 所有原生内存路径，需结合版本和 Netty 参数。
+- `Xms = Xmx` 有利于稳定堆容量/避免部分扩容成本，但也会改变初始内存足迹和弹性，不是所有容器都适用。
+- **JDK 8 GC 日志选项**与 **JDK 9+ 统一日志**格式不同。JDK 11/17+ 应使用 `-Xlog:gc*...` 等新语法。
+- JDK 8 早期更新版本的**容器感知能力**存在差异；必须核对具体 `8u` 版本和实际 `VM.flags`，不要假设所有 JDK 8 都能自动正确识别 cgroup 限制。
+
+### 9.2 计算容量时要留出 native 空间
+
+一种稳妥的预算方法是先拆分：
+
+```text
+容器内存额度
+  ├── Java Heap 可驻留内存（受 Xmx 上界影响）
+  ├── Direct / Netty / JNI 等堆外开销
+  ├── Metaspace 与 Compressed Class Space 的已提交部分
+  ├── JIT Code Cache、GC、自身 native 开销
+  ├── 线程栈和本地线程开销
+  └── 文件页缓存 / 突发峰值 / 安全余量
+```
+
+没有一个对所有 JVM 服务都适用的 `Xmx = container limit × 75%` 黄金比例。**应在真实峰值下测量上述指标和高水位**，再决定容器限制和 Xmx。特别是网关、文件上传下载、图片/PDF 处理、JNI 调用密集型服务，其 native 预算可能显著高于普通 CRUD 服务。
+
+### 9.3 应该建立哪些常态化监控
+
+建议至少包含：
+
+- Heap used / committed / max、Old 使用率、**GC 后基线**。
+- Young/Full/Mixed GC 次数、停顿时长、GC 总耗时占比。
+- Metaspace used/committed、loaded class count、unloaded class count。
+- Direct Buffer pool 指标、Netty allocator/pool 使用情况（按可用监控接口）。
+- Process RSS、容器 `memory.current` / 工作集（需统一口径）、容器 OOM 事件。
+- 线程数、线程池 active/queue、EventLoop 排队/阻塞。
+- QPS、响应报文大小、上传下载吞吐、错误率、最近发布批次。
+
+**告警不要只设一个堆百分比阈值。** 例如“GC 后 Old 持续上升 + RSS 上升 + 相同 QPS + 类数量稳定”比单纯 Heap 80% 更有诊断价值。
+
+### 9.4 JDK 8 与 JDK 17+ 排查差别速览
+
+| 主题 | JDK 8 HotSpot | JDK 17+ HotSpot（视实现/版本） |
+|---|---|---|
+| 默认 GC | 依环境、JDK 版本与 ergonomics 确定，常见 Parallel GC | 常见默认 G1，但应以实际 flags 为准 |
+| GC 日志 | `-XX:+PrintGCDetails`、`-Xloggc` | `-Xlog:gc*` 等统一日志 |
+| 反射访问器实现 | 常见 `sun.reflect.GeneratedMethodAccessor` 等 | JDK 18 后核心反射逐步改基于 MethodHandle；诊断表现不同 |
+| Metaspace | JDK 8 已存在 | 仍存在，内部实现有变化 |
+| native / 容器行为 | 早期 8u 容器支持需核对 | 容器支持更成熟，但仍需核对 JVM/部署 |
+| dump / NMT / MAT 思路 | 适用 | 适用，但参数与工具选项可能变化 |
+
+---
+
+## 10. 排查清单、自查问题与参考资料
+
+### 10.1 阅读路线
+
+| 顺序 | 内容 | 相关图 |
+|---|---|---|
+| 01 | 从 JVM 进程全貌与内存边界开始 | 图 01、11 |
+| 02 | 理解 Heap、Stack、Metaspace 与对象布局 | 图 02、03、04、15 |
+| 03 | 梳理对象分配、分代与 G1 Region | 图 05、06、07 |
+| 04 | 结合 GC Roots、G1 周期和日志判断回收效果 | 图 08、09、19 |
+| 05 | 按 OOM 类型建立现场排查路径 | 图 10、12、18、20 |
+| 06 | 深入 Heap Dump、Netty、Metaspace 等典型案例 | 图 13、14、15、17 |
+| 07 | 使用检查清单和自查问题回顾 | 本节 |
+
+### 10.2 一页应急 SOP（可复制进团队 Runbook）
+
+```text
+[ ] 1. 确认故障：Java OOM 文字？容器 OOMKilled？线程创建失败？
+[ ] 2. 确认环境：JDK 版本、GC、Xmx、Direct、Meta、容器限制。
+[ ] 3. 保存时间线：最近发布、QPS、错误、Heap、GC、RSS、线程数。
+[ ] 4. 止损：摘流/限流/扩容/回滚；评估保留现场的风险。
+[ ] 5. 分流证据：Heap → GC + HPROF；Meta → ClassLoader；
+           Direct/native → NMT + RSS + Netty；线程 → dump + pids。
+[ ] 6. 判断链路：谁持有对象？谁生成类？谁分配 buffer？谁创建线程？
+[ ] 7. 复现并修复：相同流量、相同包大小、相同连接数、长稳压测。
+[ ] 8. 验证修复：GC 后基线稳定、RSS 不再无界增长、无异常增量。
+[ ] 9. 沉淀：监控告警、预置取证权限、灰度配置、复盘和防再发。
+```
+
+### 10.3 自查问题与分析要点
+
+1. **`-Xmx4g` 是否意味着 Java 进程至多使用 4G？** 否；还有 Metaspace、栈、Direct、JNI、Code Cache 等。
+2. **对象 `new` 一定立刻分配到 Heap Eden 吗？** 不一定；JIT 可能消除分配，G1 Humongous 等存在特殊路径。
+3. **G1 的一个 Region 里同时有 Eden 和 Old 吗？** Region 作为逻辑角色单位，某时刻按 Region 分配角色，不是每个 Region 内各划一块。
+4. **GC 后老年代不降就是泄漏吗？** 不一定；可能是合理长期存活对象，需业务语义和增长趋势验证。
+5. **`byte[]` 数量最多，就说明创建 `byte[]` 的地方是根因吗？** 不一定；应查 Retained Heap、引用链、持有者。
+6. **`OutOfDirectMemoryError` 应先做 Heap Dump 吗？** 不是第一选择；应先核查 RSS、Direct、Netty 池与引用计数。
+7. **`sun.reflect.GeneratedMethodAccessor` 多，能否直接断定 XStream 的问题？** 不能；必须结合反射/动态类趋势、ClassLoader 和创建模式。
+8. **`ThreadLocal.remove()` 为什么重要？** 池化线程可能长寿，ThreadLocalMap 的 value 仍可能被线程间接保留；请求范围数据需及时清理。
+9. **容器进程退出码 137 能否直接确定是 OOMKilled？** 不能；需事件与 cgroup 证据。
+10. **发现问题后为什么不直接调大内存？** 需要区分容量不足、无界增长、流量峰值、算法问题；盲目加内存可能只延迟复发。
+
+### 10.4 五条排查原则
+
+> 1. **先识别内存类型，再选工具**，不要所有 OOM 都导 Heap Dump。
+> 2. **看增长趋势比看单次占用更重要**，尤其是 GC 后基线。
+> 3. **Heap 泄漏看引用链，Native 泄漏看分配与释放责任**。
+> 4. **Xmx 不是 Java 进程的上限**，容器预算必须覆盖 native 和峰值。
+> 5. **排查的终点不是调参数，而是能解释根因并通过相同负载验证**。
+
+### 10.5 参考资料与进一步阅读
+
+文中的图均为教学示意，**不是直接从官方文档复制的内存布局图**。参数、不同版本 GC 实现、日志和诊断命令，请以现场 JVM 实际输出和以下资料为准。
+
+1. Oracle JDK 8 Troubleshooting Guide — [Understand the OutOfMemoryError Exception](https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/memleaks002.html)
+2. Oracle JDK 8 — [G1 Garbage Collector Tuning](https://docs.oracle.com/javase/8/docs/technotes/guides/vm/gctuning/g1_gc_tuning.html)
+3. Oracle — [Getting Started with the G1 Garbage Collector](https://www.oracle.com/technetwork/tutorials/tutorials-1876574.html)
+4. Oracle — [Native Memory Tracking](https://docs.oracle.com/en/java/javase/20/vm/native-memory-tracking.html)
+5. Oracle JDK 8 — [The jmap Utility](https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr014.html)
+6. Netty — [Reference counted objects](https://netty.io/wiki/reference-counted-objects.html)
+7. Eclipse MAT — [Finding Memory Leak](https://help.eclipse.org/latest/topic/org.eclipse.mat.ui.help/reference/findingmemoryleak.html)
+8. Eclipse MAT — [Dominator Tree](https://help.eclipse.org/latest/topic/org.eclipse.mat.ui.help/concepts/dominatortree.html)
+
+---
+
+**阅读说明**：文中23张示意图与趋势图以SVG矢量图提供，页面与离线包均包含完整图像资源。

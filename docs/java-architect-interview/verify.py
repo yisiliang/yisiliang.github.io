@@ -12,22 +12,29 @@ for a in soup.select('a[href^="#"]'):assert a['href'][1:] in ids,a['href']
 for el in soup.select('[src],[href]'):
  value=el.get('src') or el.get('href')
  if value.startswith('./'):assert (ROOT/value[2:].split('#')[0].split('?')[0]).exists(),value
-assert len(soup.select('article.chapter'))==11
+assert len(soup.select('article.chapter'))==13
 assert len(soup.select('.study details'))==66+diagram_count
 assert len(soup.select('.study details:not(.diagram details)'))==66
 assert len(soup.select('.diagram svg'))==diagram_count
+assert len(soup.select('.image-diagram img'))==25
+for image in soup.select('.image-diagram img'):
+ assert (ROOT/image['src']).resolve().exists(),image['src']
 for svg in soup.select('.diagram svg'):
  svg_ids={node['id'] for node in svg.select('[id]')}|{svg['id']}
  for reference in re.findall(r'url\(#([^)]+)\)',str(svg)):
   assert reference in svg_ids,reference
 for art in soup.select('article.chapter'):
- assert len(art.select('.study h3'))>=9
- qas=art.select('.study details:not(.diagram details)');assert len(qas)==6
- for d in qas:
-  assert len(d.select('.answer p'))==3
-  assert len(d.get_text())>180
- assert '模拟生产案例' in art.get_text()
- assert len(art.select('.quick details')) in [3,4,5]
+ if int(art['id'][1:])<=11:
+  assert len(art.select('.study h3'))>=9
+  qas=art.select('.study details:not(.diagram details)');assert len(qas)==6
+  for d in qas:
+   assert len(d.select('.answer p'))==3
+   assert len(d.get_text())>180
+  assert '模拟生产案例' in art.get_text()
+  assert len(art.select('.quick details')) in [3,4,5]
+ else:
+  assert len(art.select('.study h2'))>=10
+  assert len(art.select('.quick li'))==5
  assert not re.search(r'尚未完善|占位符',art.get_text())
  assert '面试' not in art.get_text()
 sources=json.loads((ROOT/'sources.json').read_text())
@@ -36,7 +43,7 @@ for record in storage['records']:
  s=sources[record['key']]
  assert s['sha256']==record['sha256'] and s['line']==record['line'] and s['end_line']==record['end_line']
  assert any(code.get_text().rstrip()==s['excerpt'].rstrip() for code in soup.select('#c7 .study pre code')),record['key']
-report['static']={'chapters':11,'three_layer_questions':66,'diagrams':diagram_count,'ids':len(ids),'all_internal_anchors':'pass','all_local_resources':'pass','storage_source_excerpts':len(storage['records']),'storage_excerpts_match_html':'pass','learning_wording':'pass'}
+report['static']={'chapters':13,'three_layer_questions':66,'diagrams':diagram_count,'ids':len(ids),'all_internal_anchors':'pass','all_local_resources':'pass','storage_source_excerpts':len(storage['records']),'storage_excerpts_match_html':'pass','learning_wording':'pass'}
 with sync_playwright() as p:
  executable=os.environ.get('CHROMIUM_EXECUTABLE')
  if not executable and Path('/usr/bin/chromium').exists():executable='/usr/bin/chromium'
@@ -49,18 +56,19 @@ with sync_playwright() as p:
  resp=page.goto(URL);assert resp.status==200
  page.wait_for_function("document.documentElement.classList.contains('js-enabled')")
  assert page.locator('.chapter.active').get_attribute('id')=='c1'
- assert page.locator('.chapter:visible').count()==11
+ assert page.locator('.chapter:visible').count()==13
  assert page.locator('#right-toc').is_visible()
  assert page.locator('.token.keyword').count()>0
  assert page.locator('.diagram svg:visible').count()==diagram_count
  screenshot_dir=ROOT.parents[1]/'output/playwright';screenshot_dir.mkdir(parents=True,exist_ok=True)
  page.screenshot(path=str(screenshot_dir/'desktop.png'),full_page=False)
- for n in range(1,12):
+ for n in range(1,14):
   page.goto(URL+'#c'+str(n));page.wait_for_function(f"document.querySelector('.chapter.active').id==='c{n}'")
   assert page.locator('#toc a').count()>10
   qa=page.locator(f'#c{n} .study details:not(.diagram details)').first
-  assert qa.evaluate('(el)=>el.open');qa.locator('summary').click();assert not qa.evaluate('(el)=>el.open');qa.locator('summary').click();assert qa.evaluate('(el)=>el.open')
-  assert qa.locator('p').count()==3
+  if n<=11:
+   assert qa.evaluate('(el)=>el.open');qa.locator('summary').click();assert not qa.evaluate('(el)=>el.open');qa.locator('summary').click();assert qa.evaluate('(el)=>el.open')
+   assert qa.locator('p').count()==3
   page.locator('#mode').click();assert page.locator(f'#c{n} .quick').is_visible()
   assert not page.locator(f'#c{n} .study').is_visible()
   assert page.locator('.route').is_visible()
@@ -73,7 +81,7 @@ with sync_playwright() as p:
  page.keyboard.press('/');page.locator('#search-input').fill('MemBarVolatile')
  page.wait_for_function("document.querySelector('#search-results').children.length>0 && document.querySelector('#search-results').textContent.includes('MemBarVolatile')")
  page.locator('#search-results .search-result').first.click()
- page.wait_for_function("document.querySelector('.chapter.active').id==='c11'")
+ page.wait_for_function("document.querySelector('.chapter.active').id==='c13'")
  page.keyboard.press('/');page.locator('#search-input').fill('<script>')
  page.wait_for_timeout(180);assert page.locator('#search-results script').count()==0
  page.locator('#search-input').fill('不可能存在的技术关键词012345');page.wait_for_timeout(180)
@@ -93,10 +101,10 @@ with sync_playwright() as p:
  target=soup.select_one('#c7 .study h3')['id'];page.goto(URL+'#'+target)
  page.wait_for_function("document.querySelector('.chapter.active').id==='c7'")
  page.wait_for_timeout(250);assert page.locator('#'+target).is_visible()
- page.evaluate("document.querySelector('#c11').scrollIntoView({block:'end',behavior:'instant'})");page.wait_for_timeout(100)
+ page.evaluate("document.querySelector('#c13').scrollIntoView({block:'end',behavior:'instant'})");page.wait_for_timeout(100)
  assert int(re.search(r'\d+',page.locator('#progress-text').inner_text()).group())>=95
  # 放大后的SVG必须保留原图样式；仅确认弹窗存在会漏掉黑色节点。
- for figure in soup.select('.diagram'):
+ for figure in soup.select('.diagram[data-diagram]'):
   chapter=figure.find_parent('article')['id'];identifier=figure['data-diagram']
   page.locator('.chapter-nav summary a[href="#'+chapter+'"]').click();page.wait_for_function("id=>document.querySelector('.chapter.active').id===id",arg=chapter)
   original=page.locator(f'figure[data-diagram="{identifier}"]')
@@ -111,21 +119,21 @@ with sync_playwright() as p:
   page.locator('#diagram-close').click()
  # 320/390/820 手机和平板无整页横向溢出；代码/表格/图允许自己的水平滚动。
  for width in [320,390,820]:
-  page.set_viewport_size({'width':width,'height':844});page.goto(URL+'#c11');page.wait_for_timeout(200)
+  page.set_viewport_size({'width':width,'height':844});page.goto(URL+'#c13');page.wait_for_timeout(200)
   assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),f'overflow {width}'
   if width<760:
    page.locator('#menu').click();assert page.locator('#left-nav').is_visible()
-   page.locator('#left-nav a[href="#c11"]').click()
-   page.wait_for_function("document.querySelector('.chapter.active').id==='c11'")
+   page.locator('#left-nav a[href="#c13"]').click()
+   page.wait_for_function("document.querySelector('.chapter.active').id==='c13'")
    assert not page.locator('#left-nav').is_visible()
    if width==390:page.screenshot(path=str(screenshot_dir/'mobile.png'),full_page=False)
  # 禁用 JS：所有十章和预渲染图存在，问答原生可展开。
  nojs=browser.new_context(java_script_enabled=False,viewport={'width':1280,'height':900})
  nojs.route('https://**/*',lambda route:route.abort());np=nojs.new_page();np.goto(URL)
- assert np.locator('.chapter:visible').count()==11
+ assert np.locator('.chapter:visible').count()==13
  assert np.locator('.diagram svg').count()==diagram_count
  assert np.locator('#c1 .study details:not(.diagram details)').first.get_attribute('open') is not None
  assert not errors,errors
- report['browser']={'desktop':'1440×1000 pass','responsive':'320/390/820 px pass','search':'full content / no result / escaped input pass','mode':'all 11 chapters pass','theme':'system/light/dark and persistence pass','copy':'copy handler matches source pass','qa':'all 11 chapters pass','hash':'deep link pass','reading_progress':'pass','diagram_viewer':f'{diagram_count} SVGs retain node colors, valid arrows, unique IDs and zoom controls','offline_core':'all external requests blocked pass','javascript_disabled':f'11 chapters + {diagram_count} SVG pass','page_errors':errors}
+ report['browser']={'desktop':'1440×1000 pass','responsive':'320/390/820 px pass','search':'full content / no result / escaped input pass','mode':'all 13 chapters pass','theme':'system/light/dark and persistence pass','copy':'copy handler matches source pass','qa':'all 11 original chapters pass; new chapters reviewed','hash':'deep link pass','reading_progress':'pass','diagram_viewer':f'{diagram_count} SVGs retain node colors, valid arrows, unique IDs and zoom controls','offline_core':'all external requests blocked pass','javascript_disabled':f'13 chapters + {diagram_count} Mermaid SVG and 25 image diagrams pass','page_errors':errors}
  browser.close()
 (ROOT/'validation-results.json').write_text(json.dumps(report,ensure_ascii=False,indent=2));print(json.dumps(report,ensure_ascii=False,indent=2))

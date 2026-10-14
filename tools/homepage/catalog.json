@@ -138,7 +138,7 @@
         "version": "深入学习 · 要点速览 · 90分钟回顾路线",
         "path": "java-architect-interview",
         "kind": "topics",
-        "detail": "11个专题 · 66道三层问答 · 21张图解",
+        "detail": "13个专题 · 66道三层问答 · 46张图解",
         "topics": [
           {
             "title": "Java并发编程与锁机制",
@@ -183,32 +183,14 @@
           {
             "title": "JIT即时编译、JMM与内存屏障",
             "anchor": "c11"
-          }
-        ]
-      },
-      {
-        "name": "Nginx限流原理与工程实践",
-        "version": "NGINX1.28.0 · 漏桶与流量治理",
-        "path": "nginx-rate-limiting",
-        "kind": "topics",
-        "detail": "11节机制分析 · 2张图解 · 10段固定源码 · 本地实验",
-        "topics": [
+          },
           {
             "title": "Nginx限流原理与工程实践",
-            "anchor": "principle"
-          }
-        ]
-      },
-      {
-        "name": "JVM内存结构与OOM排查实战",
-        "version": "HotSpot JDK8 · 容器与生产故障排查",
-        "path": "jvm-memory-oom",
-        "kind": "topics",
-        "detail": "10节实战分析 · 23张图解 · OOM分类与应急清单",
-        "topics": [
+            "anchor": "c12"
+          },
           {
             "title": "JVM内存结构与OOM排查实战",
-            "anchor": "chapter-1"
+            "anchor": "c13"
           }
         ]
       }

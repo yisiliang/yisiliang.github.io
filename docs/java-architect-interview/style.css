@@ -164,6 +164,10 @@ main li { padding-left: 2px; }
 .learning-reader .study th{background:var(--soft)}
 .learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
 .learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader .study p:has(>img){max-width:100%;overflow:auto;text-align:center}
+.learning-reader .study p>img{display:block;max-width:100%;height:auto;margin:18px auto}
+.learning-reader .study figure.image-diagram{background:var(--surface);border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:14px;}
+.learning-reader .study figure.image-diagram img{display:block;width:100%;max-width:100%;max-height:none;height:auto;margin:0 auto;object-fit:contain}
 .learning-reader figure svg{max-width:100%;height:auto}
 .learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
 .learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}

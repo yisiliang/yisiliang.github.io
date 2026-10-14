@@ -12,11 +12,11 @@
 |缓存与消息|[Redis](https://yisiliang.github.io/redis/) · [RocketMQ](https://yisiliang.github.io/rocketmq/)|
 |网络与分布式系统|[NGINX1.28.0](https://yisiliang.github.io/nginx/) · [CAP与BASE](https://yisiliang.github.io/distributed/) · [Nacos3.2.4 / 2.5.4对照](https://yisiliang.github.io/nacos/)|
 |AI与大模型基础|[Transformer：《Attention Is All You Need》通俗解读](https://yisiliang.github.io/transformer/)|
-|技术专题|[Java核心技术与架构实践](https://yisiliang.github.io/java-architect-interview/) · [Nginx限流原理与工程实践](https://yisiliang.github.io/nginx-rate-limiting/) · [JVM内存结构与OOM排查实战](https://yisiliang.github.io/jvm-memory-oom/)|
+|技术专题|[Java核心技术与架构实践（13个专题）](https://yisiliang.github.io/java-architect-interview/)|
 
-技术专题覆盖Java并发、集合、JVM内存与故障排查、Spring事务、数据库、RocketMQ、Redis、分布式事务、系统稳定性与JIT即时编译，并新增Nginx限流专题与JVM内存、OOM排查专题。首页在专题标题与说明下直接列出专题入口。Java部分包含66道三层问答、21张图解、要点速览和90分钟回顾路线。
+技术专题覆盖Java并发、集合、JVM内存与故障排查、Spring事务、数据库、RocketMQ、Redis、分布式事务、系统稳定性与JIT即时编译，并新增Nginx限流专题与JVM内存、OOM排查专题。首页在专题标题与说明下直接列出13个专题入口。Java专题包含66道三层问答、原有图解与新增Nginx/JVM主题，并支持要点速览和90分钟回顾路线。
 
-Nginx限流专题固定NGINX1.28.0，通过11节机制分析、2张图解和10段逐行核对的源码窗口，解释excess、rate、burst、nodelay、delay、共享状态、多zone记账、可信代理与跨实例配额边界；提供本地双Worker代理实验与离线阅读包。
+第12专题“Nginx限流原理与工程实践”固定NGINX1.28.0，解释excess、rate、burst、nodelay、delay、共享状态、多zone记账、可信代理与跨实例配额边界；包含源码窗口、图解、本地实验和离线阅读包。
 
 CAP与BASE文章从网络分区推导理论边界，并通过订单与积分案例解释可靠消息、幂等、重试、补偿与对账，提供离线阅读包，并附Gilbert与Lynch原论文精读：定理1的执行构造、推论1.1、定理2及Delayed-t恢复约束，均标注PDF页码。
 
@@ -32,4 +32,4 @@ JDK附录[ThreadLocal状态残留与偶发SQL异常](https://yisiliang.github.io
 
 JIT专题从热点识别、分层编译、OSR与去优化展开，串联JMM、volatile发布、CAS及C2内存屏障，附固定OpenJDK源码窗口和机制图解：[JIT即时编译、JMM与内存屏障](https://yisiliang.github.io/java-architect-interview/#c11)。
 
-JVM内存专题以HotSpot JDK8为主要基线，围绕Heap、Metaspace、Direct Memory、线程与容器RSS解释常见OOM，提供23张SVG图解、诊断命令、五类故障案例、自查问题和应急清单。
+第13专题“JVM内存结构与OOM排查实战”以HotSpot JDK8为主要基线，覆盖Heap、Metaspace、Direct Memory、线程与容器RSS、常见OOM、诊断命令和故障案例，包含23张SVG图解及应急清单。
