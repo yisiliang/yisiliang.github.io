@@ -22,3 +22,5 @@
 .header{background:var(--surface)}.nav{gap:24px}.nav nav{margin-left:auto}.header-theme{white-space:nowrap;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer}.header-theme:hover{background:var(--soft)}.github img{filter:brightness(0)}[data-theme=dark] .github img{filter:brightness(0) invert(1)}
 @media(max-width:600px){.nav{gap:4px}.nav .brand{order:1}.header-theme{order:2;margin-left:auto}.nav nav{order:3;margin-left:0}}
 body{background:var(--bg);color:var(--text)}
+/* 长名称手册保留标题与箭头的空间，窄卡片自动改为单列。 */
+#ai .books{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))}

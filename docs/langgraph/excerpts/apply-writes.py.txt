@@ -1,0 +1,112 @@
+def apply_writes(
+    checkpoint: Checkpoint,
+    channels: Mapping[str, BaseChannel],
+    tasks: Iterable[WritesProtocol],
+    get_next_version: GetNextVersion | None,
+    trigger_to_nodes: Mapping[str, Sequence[str]],
+) -> set[str]:
+    """Apply writes from a set of tasks (usually the tasks from a Pregel step)
+    to the checkpoint and channels, and return managed values writes to be applied
+    externally.
+
+    Args:
+        checkpoint: The checkpoint to update.
+        channels: The channels to update.
+        tasks: The tasks to apply writes from.
+        get_next_version: Optional function to determine the next version of a channel.
+        trigger_to_nodes: Mapping of channel names to the set of nodes that can be triggered by updates to that channel.
+
+    Returns:
+        Set of channels that were updated in this step.
+    """
+    # sort tasks on path, to ensure deterministic order for update application
+    tasks = sorted(tasks, key=lambda t: writes_sort_key(task_path_str(t.path)))
+    # if no task has triggers this is applying writes from the null task only
+    # so we don't do anything other than update the channels written to
+    bump_step = any(t.triggers for t in tasks)
+
+    # update seen versions
+    for task in tasks:
+        checkpoint["versions_seen"].setdefault(task.name, {}).update(
+            {
+                chan: checkpoint["channel_versions"][chan]
+                for chan in task.triggers
+                if chan in checkpoint["channel_versions"]
+            }
+        )
+
+    # Find the highest version of all channels
+    if get_next_version is None:
+        next_version = None
+    else:
+        next_version = get_next_version(
+            (
+                max(checkpoint["channel_versions"].values())
+                if checkpoint["channel_versions"]
+                else None
+            ),
+            None,
+        )
+
+    # Consume all channels that were read
+    for chan in {
+        chan
+        for task in tasks
+        for chan in task.triggers
+        if chan not in RESERVED and chan in channels
+    }:
+        if channels[chan].consume() and next_version is not None:
+            checkpoint["channel_versions"][chan] = next_version
+
+    # Group writes by channel
+    pending_writes_by_channel: dict[str, list[Any]] = defaultdict(list)
+    for task in tasks:
+        for chan, val in task.writes:
+            if chan in (
+                NO_WRITES,
+                PUSH,
+                RESUME,
+                INTERRUPT,
+                RETURN,
+                ERROR,
+                ERROR_SOURCE_NODE,
+            ):
+                pass
+            elif chan in channels:
+                pending_writes_by_channel[chan].append(val)
+            else:
+                logger.warning(
+                    f"Task {task.name} with path {task.path} wrote to unknown channel {chan}, ignoring it."
+                )
+
+    # Apply writes to channels
+    updated_channels: set[str] = set()
+    for chan, vals in pending_writes_by_channel.items():
+        if chan in channels:
+            if channels[chan].update(vals) and next_version is not None:
+                checkpoint["channel_versions"][chan] = next_version
+                # unavailable channels can't trigger tasks, so don't add them
+                if channels[chan].is_available():
+                    updated_channels.add(chan)
+
+    # Channels that weren't updated in this step are notified of a new step
+    if bump_step:
+        for chan in channels:
+            if channels[chan].is_available() and chan not in updated_channels:
+                if channels[chan].update(EMPTY_SEQ) and next_version is not None:
+                    checkpoint["channel_versions"][chan] = next_version
+                    # unavailable channels can't trigger tasks, so don't add them
+                    if channels[chan].is_available():
+                        updated_channels.add(chan)
+
+    # If this is (tentatively) the last superstep, notify all channels of finish
+    if bump_step and updated_channels.isdisjoint(trigger_to_nodes):
+        for chan in channels:
+            if channels[chan].finish() and next_version is not None:
+                checkpoint["channel_versions"][chan] = next_version
+                # unavailable channels can't trigger tasks, so don't add them
+                if channels[chan].is_available():
+                    updated_channels.add(chan)
+
+    # Return managed values writes to be applied externally
+    return updated_channels

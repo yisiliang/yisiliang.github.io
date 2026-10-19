@@ -1,0 +1,101 @@
+[
+  {
+    "id": "last-value",
+    "symbol": "LastValue.update",
+    "path": "libs/langgraph/langgraph/channels/last_value.py",
+    "start": 56,
+    "end": 67,
+    "file": "excerpts/last-value.py.txt",
+    "sha": "41c9c22fdc83d68a2859d0c9a2b627c8615a792f",
+    "sha256": "ce12fb4448f6781ec83daff3b111973c36787862e70557553889b0fe2719e478",
+    "url": "https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/channels/last_value.py#L56-L67"
+  },
+  {
+    "id": "field-binop",
+    "symbol": "_is_field_binop",
+    "path": "libs/langgraph/langgraph/graph/state.py",
+    "start": 1904,
+    "end": 1922,
+    "file": "excerpts/field-binop.py.txt",
+    "sha": "41c9c22fdc83d68a2859d0c9a2b627c8615a792f",
+    "sha256": "085d87572b9361d3524c72023eacff5055175c28b4fd4845299c056339f1e1f2",
+    "url": "https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/graph/state.py#L1904-L1922"
+  },
+  {
+    "id": "binop-update",
+    "symbol": "BinaryOperatorAggregate.update",
+    "path": "libs/langgraph/langgraph/channels/binop.py",
+    "start": 127,
+    "end": 148,
+    "file": "excerpts/binop-update.py.txt",
+    "sha": "41c9c22fdc83d68a2859d0c9a2b627c8615a792f",
+    "sha256": "14e0d0d09473547ecf70656898e8591b1c12dc39ba3ab2ffb2ca571f9e8d99ea",
+    "url": "https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/channels/binop.py#L127-L148"
+  },
+  {
+    "id": "compile",
+    "symbol": "StateGraph.compile",
+    "path": "libs/langgraph/langgraph/graph/state.py",
+    "start": 1177,
+    "end": 1401,
+    "file": "excerpts/compile.py.txt",
+    "sha": "41c9c22fdc83d68a2859d0c9a2b627c8615a792f",
+    "sha256": "616e278ab81eadf8a7745e2610698172788b248ba7067e9c40025b2ab7fc6f2e",
+    "url": "https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/graph/state.py#L1177-L1401"
+  },
+  {
+    "id": "attach-edge",
+    "symbol": "CompiledStateGraph.attach_edge",
+    "path": "libs/langgraph/langgraph/graph/state.py",
+    "start": 1551,
+    "end": 1575,
+    "file": "excerpts/attach-edge.py.txt",
+    "sha": "41c9c22fdc83d68a2859d0c9a2b627c8615a792f",
+    "sha256": "e4d6c8fbac86525d57f206bb0677a82cc8d0a25a62ee97e2564849fa7d7e4ef3",
+    "url": "https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/graph/state.py#L1551-L1575"
+  },
+  {
+    "id": "tick",
+    "symbol": "PregelLoop.tick",
+    "path": "libs/langgraph/langgraph/pregel/_loop.py",
+    "start": 650,
+    "end": 735,
+    "file": "excerpts/tick.py.txt",
+    "sha": "41c9c22fdc83d68a2859d0c9a2b627c8615a792f",
+    "sha256": "76b084ab82f158f40737b749a50becbb56d3657924edaab0172498541994b30d",
+    "url": "https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/pregel/_loop.py#L650-L735"
+  },
+  {
+    "id": "apply-writes",
+    "symbol": "apply_writes",
+    "path": "libs/langgraph/langgraph/pregel/_algo.py",
+    "start": 233,
+    "end": 344,
+    "file": "excerpts/apply-writes.py.txt",
+    "sha": "41c9c22fdc83d68a2859d0c9a2b627c8615a792f",
+    "sha256": "269c92665d99defd7516bb401729bb0d83256fa3bd9e33d2806d49e5b237a69b",
+    "url": "https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/pregel/_algo.py#L233-L344"
+  },
+  {
+    "id": "interrupt",
+    "symbol": "interrupt",
+    "path": "libs/langgraph/langgraph/types.py",
+    "start": 903,
+    "end": 1046,
+    "file": "excerpts/interrupt.py.txt",
+    "sha": "41c9c22fdc83d68a2859d0c9a2b627c8615a792f",
+    "sha256": "2984407385366727e458764fa28b5688ab7bd711f6b04cc1680307cc6df6f17f",
+    "url": "https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/types.py#L903-L1046"
+  },
+  {
+    "id": "retry",
+    "symbol": "run_with_retry",
+    "path": "libs/langgraph/langgraph/pregel/_retry.py",
+    "start": 573,
+    "end": 682,
+    "file": "excerpts/retry.py.txt",
+    "sha": "41c9c22fdc83d68a2859d0c9a2b627c8615a792f",
+    "sha256": "f1339b165c8d1363687c30bc90fef2f3ad791c9dbb9eba4d43dd79f3536158a8",
+    "url": "https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/pregel/_retry.py#L573-L682"
+  }
+]

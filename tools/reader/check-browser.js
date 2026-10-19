@@ -1,12 +1,12 @@
 async page => {
   const origin='http://127.0.0.1:8765/';
-  const names=['jdk-source','jvm','springboot','mysql','redis','rocketmq','nginx','distributed','nacos','transformer','java-architect-interview','nginx-rate-limiting'];
+  const names=['jdk-source','jvm','springboot','mysql','redis','rocketmq','nginx','distributed','nacos','transformer','langgraph','java-architect-interview','nginx-rate-limiting'];
   const oldAnchors={
     'jdk-source':'chapter-14','jvm':'appendix-xstream','springboot':'chapter-18','mysql':'chapter-12',
     'redis':'chapter-12','rocketmq':'chapter-15','nginx':'chapter-15','distributed':'cap-paper',
-    'nacos':'baseline','transformer':'calculate','java-architect-interview':'c7-s9','nginx-rate-limiting':'excess'
+    'nacos':'baseline','transformer':'calculate','langgraph':'chapter-10','java-architect-interview':'c7-s9','nginx-rate-limiting':'excess'
   };
-  const words={'jdk-source':'ThreadLocal','jvm':'CMS','springboot':'SpringApplication','mysql':'ReadView','redis':'sentinel','rocketmq':'CommitLog','nginx':'ngx_http','distributed':'分区','nacos':'MD5','transformer':'softmax','java-architect-interview':'rollback-only','nginx-rate-limiting':'burst'};
+  const words={'jdk-source':'ThreadLocal','jvm':'CMS','springboot':'SpringApplication','mysql':'ReadView','redis':'sentinel','rocketmq':'CommitLog','nginx':'ngx_http','distributed':'分区','nacos':'MD5','transformer':'softmax','langgraph':'interrupt','java-architect-interview':'rollback-only','nginx-rate-limiting':'burst'};
   const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   const results=[];
   for(const name of names){

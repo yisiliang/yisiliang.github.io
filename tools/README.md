@@ -125,3 +125,7 @@ python3 tools/build_homepage.py
 渲染依赖沿用`requirements-jvm-appendix.txt`中的Markdown与本目录的highlight.js。生成器仅替换附录标记区，同步完整Markdown手册、内嵌SVG、目录入口和离线ZIP，保留已有JDK源码章节。
 
 Nginx限流专题由`docs/nginx-rate-limiting/article.md`与固定模块源码生成。运行该目录的`build.py`同步HTML、完整Markdown、源码清单和离线ZIP，再运行`verify.py`。专题提供五组本地双Worker代理实验记录；阅读控件使用与共享工具兼容的内嵌资源标识。
+
+## LangGraph手册
+
+第06类“AI与大模型”包含Transformer与LangGraph。LangGraph的章节源文件在`docs/langgraph/chapters/`，独立生成器`build.py`复用统一阅读器；`verify.py`校验完整Python函数、页面源码与离线包。版本、依赖、重建命令及实验边界见`docs/langgraph/VERIFICATION.md`。浏览器回归`reader/check-browser.js`已覆盖该手册。

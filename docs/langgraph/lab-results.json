@@ -1,0 +1,76 @@
+{
+  "python": "3.13.16",
+  "langgraph": "1.2.16",
+  "checkpoint": "4.3.0",
+  "cases": {
+    "minimal": {
+      "text": " hello ",
+      "result": "HELLO"
+    },
+    "parallel": {
+      "merged": [
+        "A",
+        "B"
+      ],
+      "join_total": 2,
+      "without_reducer": "InvalidUpdateError"
+    },
+    "messages": {
+      "count": 1,
+      "same_id_content": "corrected"
+    },
+    "dispatch": {
+      "squares": [
+        4,
+        9,
+        16
+      ]
+    },
+    "approval": {
+      "paused_next": [
+        "review"
+      ],
+      "approved_status": "submitted",
+      "denied_status": "rejected",
+      "invalid_status": "rejected",
+      "review_entries": 4,
+      "writes": 1
+    },
+    "retry": {
+      "attempts_including_first": 3
+    },
+    "pending_writes": {
+      "calls": {
+        "a": 1,
+        "b": 2
+      },
+      "done": [
+        "A",
+        "B"
+      ]
+    },
+    "recursion": {
+      "unbounded_loop": "GraphRecursionError"
+    },
+    "streaming": [
+      {
+        "inc": {
+          "count": 1
+        }
+      }
+    ]
+  },
+  "separate_processes": [
+    {
+      "phase": "paused",
+      "next": [
+        "review"
+      ]
+    },
+    {
+      "phase": "resumed",
+      "approved": true
+    }
+  ],
+  "verified_date": "2026-10-19"
+}

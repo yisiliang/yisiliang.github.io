@@ -112,9 +112,9 @@
   },
   {
     "id": "ai",
-    "title": "AI与大模型基础",
-    "en": "AI & MODEL FOUNDATIONS",
-    "description": "从经典论文出发，理解模型如何表示、学习与生成。",
+    "title": "AI与大模型",
+    "en": "AI & LARGE LANGUAGE MODELS",
+    "description": "从模型原理到Agent工程，理解表示、生成与有状态流程编排。",
     "books": [
       {
         "name": "Transformer",
@@ -122,6 +122,12 @@
         "path": "transformer",
         "kind": "paper",
         "detail": "16节深入解读 · 4张图解 · 创新与演进"
+      },
+      {
+        "name": "LangGraph",
+        "version": "1.2.16 / Python Graph API",
+        "path": "langgraph",
+        "detail": "16章 · 5张图解 · 9段源码 · 10组实验"
       }
     ],
     "future": []

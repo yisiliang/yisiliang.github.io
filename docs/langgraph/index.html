@@ -1,0 +1,1812 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="description" content="LangGraph核心机制、源码解析与工程实践：状态合并、Pregel执行、持久化、人工审核与幂等。"><title>LangGraph：核心机制、源码解析与工程实践</title><style>.image-diagram{margin:26px 0;padding:12px;border:1px solid var(--border);border-radius:8px;background:#f6f8fc}.image-diagram img{display:block;width:100%;height:auto}.image-diagram figcaption{font-size:12px;padding-top:8px;color:#526780!important}.hljs-comment,.hljs-quote{color:#718199}.hljs-keyword,.hljs-literal{color:#a347a5}.hljs-string{color:#247947}.hljs-number{color:#aa5726}[data-theme=dark] .hljs-keyword{color:#dca9ed}[data-theme=dark] .hljs-string{color:#9bcf9d}</style><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script><style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="java-architect-interview"] .diagram svg .edgePath path,[data-reader="java-architect-interview"] .diagram svg .flowchart-link,[data-reader="java-architect-interview"] .diagram svg .messageLine0,[data-reader="java-architect-interview"] .diagram svg .messageLine1,[data-reader="java-architect-interview"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel span,[data-reader="java-architect-interview"] .diagram svg .messageText,[data-reader="java-architect-interview"] .diagram svg .loopText,[data-reader="java-architect-interview"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
+}
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader main h4{overflow-wrap:anywhere}
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script></head><body class="learning-reader" data-layout="learning-v2" data-reader="langgraph"><a class="skip" href="#main">跳到正文</a><header class="topbar"><button id="menu" class="mobile" aria-label="打开章节导航" aria-expanded="false" aria-controls="left-nav">目录</button><div class="brand"><a class="library-home" href="../">← 学习库</a>LangGraph学习手册<span>1.2.16 / Python Graph API</span></div><div class="tools"><button id="search-open" aria-label="打开全文搜索">搜索 <kbd>/</kbd></button><button id="print" type="button">打印</button><button id="theme" aria-label="切换主题">主题：系统</button></div></header><div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div><div id="drawer-backdrop" hidden></div><div class="layout"><nav id="left-nav" aria-label="章节目录"><p class="nav-label">学习目录 / 16章</p><details class="chapter-nav" data-chapter="reading-001"><summary><a href="#reading-001"><span>01</span>LangGraph解决什么问题</a></summary><div><a href="#c01-s1">从一次模型调用到一个可恢复的流程</a><a href="#c01-s2">模型、LangChain、LangGraph与业务服务</a><a href="#c01-s3">什么时候值得引入</a></div></details><details class="chapter-nav" data-chapter="reading-002"><summary><a href="#reading-002"><span>02</span>环境与第一个可运行的图</a></summary><div><a href="#c02-s1">固定版本，先排除模型干扰</a><a href="#c02-s2">State、节点和边如何组合</a><a href="#c02-s3">编译不等于训练，也不等于执行</a></div></details><details class="chapter-nav" data-chapter="reading-003"><summary><a href="#reading-003"><span>03</span>State、Channel与Reducer</a></summary><div><a href="#c03-s1">State字段各自拥有更新规则</a><a href="#c03-s2">默认Channel为何会拒绝并行覆盖</a><a href="#c03-s3">Reducer在源码中如何识别与调用</a><a href="#c03-s4">合并规则也属于业务设计</a></div></details><details class="chapter-nav" data-chapter="reading-004"><summary><a href="#reading-004"><span>04</span>从StateGraph到CompiledStateGraph</a></summary><div><a href="#c04-s1">构图阶段保存的是什么</a><a href="#c04-s2">compile的真实路径</a><a href="#c04-s3">边如何转换成触发器</a></div></details><details class="chapter-nav" data-chapter="reading-005"><summary><a href="#reading-005"><span>05</span>Pregel执行机制与Super-step</a></summary><div><a href="#c05-s1">一轮执行分为计划、执行、更新</a><a href="#c05-s2">tick怎样准备任务</a><a href="#c05-s3">apply_writes怎样提交状态</a><a href="#c05-s4">失败不等于整个世界回滚</a></div></details><details class="chapter-nav" data-chapter="reading-006"><summary><a href="#reading-006"><span>06</span>条件路由、Command与循环</a></summary><div><a href="#c06-s1">固定边与条件边</a><a href="#c06-s2">Command同时提交更新与下一跳</a><a href="#c06-s3">循环应有业务停止条件</a></div></details><details class="chapter-nav" data-chapter="reading-007"><summary><a href="#reading-007"><span>07</span>并行分支、汇合与Send</a></summary><div><a href="#c07-s1">固定并行：同时检查两个条件</a><a href="#c07-s2">汇合要表达“全部完成”</a><a href="#c07-s3">动态并行：Send携带每个任务的输入</a></div></details><details class="chapter-nav" data-chapter="reading-008"><summary><a href="#reading-008"><span>08</span>消息、工具调用与Agent循环</a></summary><div><a href="#c08-s1">messages不是普通追加日志</a><a href="#c08-s2">工具调用是一个协议闭环</a><a href="#c08-s3">哪些问题不由消息历史解决</a></div></details><details class="chapter-nav" data-chapter="reading-009"><summary><a href="#reading-009"><span>09</span>Checkpoint、Thread与故障恢复</a></summary><div><a href="#c09-s1">持久化记录的不只是最终结果</a><a href="#c09-s2">三种持久化时机</a><a href="#c09-s3">同一轮部分成功：pending writes</a></div></details><details class="chapter-nav" data-chapter="reading-010"><summary><a href="#reading-010"><span>10</span>interrupt与人工审核恢复</a></summary><div><a href="#c10-s1">暂停后释放执行请求</a><a href="#c10-s2">恢复从节点开头重新进入</a><a href="#c10-s3">不要吞掉控制流异常</a></div></details><details class="chapter-nav" data-chapter="reading-011"><summary><a href="#reading-011"><span>11</span>重试、超时与副作用幂等</a></summary><div><a href="#c11-s1">哪些失败可以重试</a><a href="#c11-s2">最危险的时间窗口</a><a href="#c11-s3">超时与取消也有边界</a></div></details><details class="chapter-nav" data-chapter="reading-012"><summary><a href="#reading-012"><span>12</span>Streaming、观测与问题定位</a></summary><div><a href="#c12-s1">先区分流事件的含义</a><a href="#c12-s2">用三个问题缩小范围</a><a href="#c12-s3">记录足够证据，同时控制数据暴露</a></div></details><details class="chapter-nav" data-chapter="reading-013"><summary><a href="#reading-013"><span>13</span>子图、记忆与部署边界</a></summary><div><a href="#c13-s1">子图首先是职责边界</a><a href="#c13-s2">短期状态与长期记忆</a><a href="#c13-s3">本地库与部署平台分开考虑</a></div></details><details class="chapter-nav" data-chapter="reading-014"><summary><a href="#reading-014"><span>14</span>实战：抽取、校验、审核与提交</a></summary><div><a href="#c14-s1">把权限边界画进流程</a><a href="#c14-s2">完整可运行代码</a><a href="#c14-s3">顺着状态追踪一次运行</a><a href="#c14-s4">接入真实业务前补齐的契约</a></div></details><details class="chapter-nav" data-chapter="reading-015"><summary><a href="#reading-015"><span>15</span>跨进程恢复实验与验证结果</a></summary><div><a href="#c15-s1">真正结束进程后再恢复</a><a href="#c15-s2">本机实际运行结果</a><a href="#c15-s3">验证范围与未验证范围</a></div></details><details class="chapter-nav" data-chapter="reading-016"><summary><a href="#reading-016"><span>16</span>常见误区与阅读路线</a></summary><div><a href="#c16-s1">十个需要说清的边界</a><a href="#c16-s2">三条阅读路线</a><a href="#c16-s3">继续阅读</a></div></details></nav><main id="main" tabindex="-1"><section class="intro"><h1>LangGraph学习手册</h1><p>从StateGraph与Channel到Pregel执行、Checkpoint、人工审核与业务幂等，沿固定源码与可运行实验理解Agent编排。</p><div class="reader-downloads"><a href="langgraph-offline.zip">下载离线包</a><a href="langgraph.md">Markdown全文</a><a href="VERIFICATION.md">验证记录</a></div><details class="reader-preface" open><summary>版本、来源与学习路线</summary><p>固定基线：LangGraph1.2.16 · 提交41c9c22fdc83。资料核验与实验日期：2026年10月19日。先学状态与控制流，再读执行与恢复机制，最后运行合成受理案例。源码节选遵循MIT许可，见<a href="UPSTREAM-LICENSE.txt">上游许可</a>。</p></details></section><article class="chapter" id="reading-001" data-title="LangGraph解决什么问题"><div class="chapter-title"><p class="eyebrow">章节01 / 完整阅读</p><h1>LangGraph解决什么问题</h1></div><div class="study"><section class="original-chapter" id="chapter-01">
+<h2 id="c01-s1">从一次模型调用到一个可恢复的流程</h2>
+<p>调用模型生成一段文字，通常一个函数就够了。困难出现在流程需要持续推进时：读取材料、抽取字段、查询业务系统、发现缺项、等待人工补全、再次核验，最后才允许执行操作。中间某次调用失败，不能让用户从头重做；人工审核可能隔一天才回来，也不能一直占着一个HTTP请求。</p>
+<p>LangGraph把这些工作组织成有状态的图。节点负责执行，边负责决定后继，State记录流程数据。它允许普通Python规则与模型判断出现在同一个流程中，模型只是其中一类节点。即使完全不用模型，也能学习并运行本手册的全部实验。</p>
+<figure class="image-diagram"><img alt="AI应用中的职责划分" src="diagrams/01-layers.svg" loading="lazy"><figcaption>AI应用中的职责划分</figcaption></figure>
+<h2 id="c01-s2">模型、LangChain、LangGraph与业务服务</h2>
+<table>
+<thead>
+<tr>
+<th>层次</th>
+<th>负责的事情</th>
+<th>不能由这一层替代的事情</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>模型</td>
+<td>生成、提取、分类、提出工具调用</td>
+<td>证明业务事实真实，授予操作权限</td>
+</tr>
+<tr>
+<td>LangChain</td>
+<td>模型与工具抽象、集成、常见Agent构建方式</td>
+<td>自动保证所有业务操作正确</td>
+</tr>
+<tr>
+<td>LangGraph</td>
+<td>状态更新、控制流、执行与恢复</td>
+<td>业务数据库事务、用户身份与授权</td>
+</tr>
+<tr>
+<td>业务服务</td>
+<td>资格校验、幂等、交易与审计</td>
+<td>推断自然语言中的所有意图</td>
+</tr>
+</tbody>
+</table>
+<p>LangGraph可独立使用。LangChain中的高层Agent适合快速搭建常见循环，自定义StateGraph适合需要精确控制步骤、分支和审核点的流程。两者并非只能选一个：图节点内部也可以调用一个高层Agent。</p>
+<h2 id="c01-s3">什么时候值得引入</h2>
+<p>判断依据是流程复杂度。存在循环修正、条件分支、多个并行任务、人工介入或跨请求恢复时，图能把隐含控制流变成显式结构。只有“接收问题→调用模型→返回文本”时，图增加的状态与持久化管理可能超过收益。</p>
+<p>本手册按Python Graph API展开，固定LangGraph1.2.16。公开文档随版本更新；实验结果与源码解释均以本手册版本为准。官方定位参考：<a href="https://docs.langchain.com/oss/python/langgraph/overview">Overview</a>。</p></section></div></article><article class="chapter" id="reading-002" data-title="环境与第一个可运行的图"><div class="chapter-title"><p class="eyebrow">章节02 / 完整阅读</p><h1>环境与第一个可运行的图</h1></div><div class="study"><section class="original-chapter" id="chapter-02">
+<h2 id="c02-s1">固定版本，先排除模型干扰</h2>
+<p>下载离线包后，在解压目录执行：</p>
+<pre><code class="language-sh">python3.13 -m venv .venv
+.venv/bin/python -m pip install -r examples/requirements.lock
+.venv/bin/python examples/lab.py
+.venv/bin/python examples/sqlite_restart.py
+</code></pre>
+<p>初次安装依赖需要网络，运行实验不需要API Key、不连接模型、不访问业务服务。构建网页另外使用<code>Markdown==3.10.2</code>，阅读和执行实验无需安装网页生成器。</p>
+<h2 id="c02-s2">State、节点和边如何组合</h2>
+<p>下面的函数可以直接导入执行：<code>from examples.lab import minimal; print(minimal())</code>。它返回输入原文与处理结果，展示节点只提交自己改变的字段。</p>
+<p>示例来自<a href="examples/lab.py">examples/lab.py</a>，依赖导入见该文件开头。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">minimal</span>():
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">State</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+        text: <span class="hljs-built_in">str</span>
+        result: <span class="hljs-built_in">str</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">normalize</span>(<span class="hljs-params">state</span>):
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;result&quot;</span>: state[<span class="hljs-string">&quot;text&quot;</span>].strip().upper()}
+    builder = StateGraph(State)
+    builder.add_node(<span class="hljs-string">&quot;normalize&quot;</span>, normalize)
+    builder.add_edge(START, <span class="hljs-string">&quot;normalize&quot;</span>)
+    builder.add_edge(<span class="hljs-string">&quot;normalize&quot;</span>, END)
+    graph = builder.<span class="hljs-built_in">compile</span>()
+    result = graph.invoke({<span class="hljs-string">&quot;text&quot;</span>: <span class="hljs-string">&quot; hello &quot;</span>})
+    <span class="hljs-keyword">assert</span> result == {<span class="hljs-string">&quot;text&quot;</span>: <span class="hljs-string">&quot; hello &quot;</span>, <span class="hljs-string">&quot;result&quot;</span>: <span class="hljs-string">&quot;HELLO&quot;</span>}
+    <span class="hljs-keyword">return</span> result
+</code></pre>
+<p><code>StateGraph(State)</code>登记状态结构，<code>add_node</code>登记执行函数，<code>add_edge</code>登记固定路径。<code>START</code>和<code>END</code>是图的入口与结束标记。<code>compile()</code>生成可执行对象，随后通过<code>invoke</code>运行。</p>
+<p>节点拿到包含当前字段的状态，返回<code>{"result": "HELLO"}</code>这一份更新；没有返回的<code>text</code>不会因此被删除。不要把State当成共享可变字典，在节点中原地追加列表或修改嵌套对象。返回明确的增量，合并语义才可检查，失败重试也更容易理解。</p>
+<h2 id="c02-s3">编译不等于训练，也不等于执行</h2>
+<p>这里的编译是把声明式图转换为运行时可执行的节点、通道与触发器。它会检查图结构、绑定checkpointer等配置，不会训练模型，不会把Python编译成机器码，也不能静态证明节点中的业务代码永远正确。</p>
+<p>常见错误是注册完节点就调用builder.invoke；应保留<code>graph = builder.compile()</code>返回的对象。另一个错误是编译之后继续修改builder并期待已编译的graph自动同步；完整定义后再编译，修改结构时重新生成运行对象。</p></section></div></article><article class="chapter" id="reading-003" data-title="State、Channel与Reducer"><div class="chapter-title"><p class="eyebrow">章节03 / 完整阅读</p><h1>State、Channel与Reducer</h1></div><div class="study"><section class="original-chapter" id="chapter-03">
+<h2 id="c03-s1">State字段各自拥有更新规则</h2>
+<p>State可以理解为逻辑上的状态快照；运行时通过Channel管理各个字段的读写和版本。默认字段通常使用LastValue，同一super-step允许一份写入，下一轮可覆盖上一轮的值。它不是“并发写入时谁最后完成谁赢”。</p>
+<p>对需要累积的字段，可以通过<code>Annotated[list[str], operator.add]</code>声明Reducer。节点每次返回新产生的部分，框架按Reducer合并旧值与更新。若把完整历史再次作为更新返回，列表会重复累积。</p>
+<p>例如旧值为<code>["A"]</code>，新更新为<code>["B"]</code>，加法Reducer得到<code>["A", "B"]</code>；若节点返回<code>["A", "B"]</code>，就会得到<code>["A", "A", "B"]</code>。这类重复来自更新协议，不是模型“记忆混乱”。</p>
+<h2 id="c03-s2">默认Channel为何会拒绝并行覆盖</h2>
+<p>源码：<a href="https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/channels/last_value.py#L56-L67">LastValue.update · L56—L67</a>，固定提交<code>41c9c22fdc83</code>，完整函数。</p>
+<pre><code class="language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title function_">update</span>(<span class="hljs-params">self, values: <span class="hljs-type">Sequence</span>[Value]</span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(values) == <span class="hljs-number">0</span>:
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(values) != <span class="hljs-number">1</span>:
+            msg = create_error_message(
+                message=<span class="hljs-string">f&quot;At key &#x27;<span class="hljs-subst">{self.key}</span>&#x27;: Can receive only one value per step. Use an Annotated key to handle multiple values.&quot;</span>,
+                error_code=ErrorCode.INVALID_CONCURRENT_GRAPH_UPDATE,
+            )
+            <span class="hljs-keyword">raise</span> InvalidUpdateError(msg)
+
+        <span class="hljs-variable language_">self</span>.value = values[-<span class="hljs-number">1</span>]
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+</code></pre>
+<p><code>len(values) != 1</code>检查的是本轮收集到的写入数量。在并行分支中，即使两份写入恰好内容相同，默认Channel仍不能据此推导业务合并规则。需要累积就定义Reducer；需要单一决策就让分支写不同字段，再由汇总节点决定。</p>
+<h2 id="c03-s3">Reducer在源码中如何识别与调用</h2>
+<p>源码：<a href="https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/graph/state.py#L1904-L1922">_is_field_binop · L1904—L1922</a>，固定提交<code>41c9c22fdc83</code>，完整函数。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">_is_field_binop</span>(<span class="hljs-params">typ: <span class="hljs-built_in">type</span>[<span class="hljs-type">Any</span>]</span>) -&gt; BinaryOperatorAggregate | <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">hasattr</span>(typ, <span class="hljs-string">&quot;__metadata__&quot;</span>):
+        meta = typ.__metadata__
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(meta) &gt;= <span class="hljs-number">1</span> <span class="hljs-keyword">and</span> <span class="hljs-built_in">callable</span>(meta[-<span class="hljs-number">1</span>]):
+            sig = signature(meta[-<span class="hljs-number">1</span>])
+            params = <span class="hljs-built_in">list</span>(sig.parameters.values())
+            <span class="hljs-keyword">if</span> (
+                <span class="hljs-built_in">sum</span>(
+                    p.kind <span class="hljs-keyword">in</span> (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+                    <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> params
+                )
+                == <span class="hljs-number">2</span>
+            ):
+                <span class="hljs-keyword">return</span> BinaryOperatorAggregate(typ, meta[-<span class="hljs-number">1</span>])
+            <span class="hljs-keyword">else</span>:
+                <span class="hljs-keyword">raise</span> ValueError(
+                    <span class="hljs-string">f&quot;Invalid reducer signature. Expected (a, b) -&gt; c. Got <span class="hljs-subst">{sig}</span>&quot;</span>
+                )
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+</code></pre>
+<p>识别函数读取Annotated元数据中的可调用对象，检查它能否接受两个位置参数，然后生成<code>BinaryOperatorAggregate</code>。普通类型注解没有这样的Reducer时，会走其他Channel选择路径。TypedDict主要用于声明结构，它并不会自动替代对外部输入的运行时校验。</p>
+<p>源码：<a href="https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/channels/binop.py#L127-L148">BinaryOperatorAggregate.update · L127—L148</a>，固定提交<code>41c9c22fdc83</code>，完整函数。</p>
+<pre><code class="language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title function_">update</span>(<span class="hljs-params">self, values: <span class="hljs-type">Sequence</span>[Value]</span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> values:
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.value <span class="hljs-keyword">is</span> MISSING:
+            <span class="hljs-variable language_">self</span>.value = values[<span class="hljs-number">0</span>]
+            values = values[<span class="hljs-number">1</span>:]
+        seen_overwrite: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span>
+        <span class="hljs-keyword">for</span> value <span class="hljs-keyword">in</span> values:
+            is_overwrite, overwrite_value = _get_overwrite(value)
+            <span class="hljs-keyword">if</span> is_overwrite:
+                <span class="hljs-keyword">if</span> seen_overwrite:
+                    msg = create_error_message(
+                        message=<span class="hljs-string">&quot;Can receive only one Overwrite value per super-step.&quot;</span>,
+                        error_code=ErrorCode.INVALID_CONCURRENT_GRAPH_UPDATE,
+                    )
+                    <span class="hljs-keyword">raise</span> InvalidUpdateError(msg)
+                <span class="hljs-variable language_">self</span>.value = overwrite_value
+                seen_overwrite = <span class="hljs-literal">True</span>
+                <span class="hljs-keyword">continue</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> seen_overwrite:
+                <span class="hljs-variable language_">self</span>.value = <span class="hljs-variable language_">self</span>.operator(<span class="hljs-variable language_">self</span>.value, value)
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+</code></pre>
+<p>普通更新会执行<code>self.operator(self.value, value)</code>。本版本还处理Overwrite以显式覆盖聚合值，同一轮多个Overwrite会产生冲突。本文实验采用普通Reducer，不依赖覆盖操作。</p>
+<h2 id="c03-s4">合并规则也属于业务设计</h2>
+<p>列表追加不具备去重能力，数值相加也不具备幂等性。适合并行合并的规则应尽量满足结合律；若结果还要求不受任务排列影响，就需要交换律或明确的业务排序。收集证据时可按证据ID去重、按文档位置排序，不应把任务完成先后当作业务优先级。</p>
+<p>详细API参考：<a href="https://docs.langchain.com/oss/python/langgraph/graph-api">Graph API</a>。</p></section></div></article><article class="chapter" id="reading-004" data-title="从StateGraph到CompiledStateGraph"><div class="chapter-title"><p class="eyebrow">章节04 / 完整阅读</p><h1>从StateGraph到CompiledStateGraph</h1></div><div class="study"><section class="original-chapter" id="chapter-04">
+<h2 id="c04-s1">构图阶段保存的是什么</h2>
+<p>builder保存节点定义、边、条件分支及各Schema对应的Channel。节点名称用于控制流定位，State字段名称用于数据合并，两者是不同维度。节点可以只读取输入Schema的一部分，也可以返回一部分更新。</p>
+<p>输入、内部状态与输出可以分别声明Schema。这样可以让内部证据、检查结果与最终对外响应采用不同结构。但Schema本身不构成访问控制：如果把内部对象写入日志、流事件或错误信息，仍会泄漏。应该在接口层明确过滤输出。</p>
+<h2 id="c04-s2">compile的真实路径</h2>
+<p>源码：<a href="https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/graph/state.py#L1177-L1401">StateGraph.compile · L1177—L1401</a>，固定提交<code>41c9c22fdc83</code>，完整函数。</p>
+<pre><code class="language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title function_">compile</span>(<span class="hljs-params">
+        self,
+        checkpointer: Checkpointer = <span class="hljs-literal">None</span>,
+        *,
+        cache: BaseCache | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,
+        store: BaseStore | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,
+        interrupt_before: All | <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,
+        interrupt_after: All | <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,
+        debug: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span>,
+        name: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,
+        transformers: <span class="hljs-type">Sequence</span>[<span class="hljs-type">Callable</span>[[<span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, ...]], <span class="hljs-type">Any</span>]] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,
+    </span>) -&gt; CompiledStateGraph[StateT, ContextT, InputT, OutputT]:
+        <span class="hljs-string">&quot;&quot;&quot;Compiles the `StateGraph` into a `CompiledStateGraph` object.
+
+        The compiled graph implements the `Runnable` interface and can be invoked,
+        streamed, batched, and run asynchronously.
+
+        Args:
+            checkpointer: A checkpoint saver object or flag.
+
+                If provided, this `Checkpointer` serves as a fully versioned &quot;short-term memory&quot; for the graph,
+                allowing it to be paused, resumed, and replayed from any point.
+
+                If `None`, it may inherit the parent graph&#x27;s checkpointer when used as a subgraph.
+
+                If `False`, it will not use or inherit any checkpointer.
+
+                **Important**: When a checkpointer is enabled, you should pass a `thread_id`
+                in the config when invoking the graph:
+
+                ```python
+                config = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;my-thread&quot;}}
+                graph.invoke(inputs, config)
+                ```
+
+                The `thread_id` is the key used to store and retrieve checkpoints. Use a
+                unique ID for independent runs, or reuse the same ID to accumulate state
+                across invocations (e.g., for conversation memory).
+
+            interrupt_before: An optional list of node names to interrupt before.
+            interrupt_after: An optional list of node names to interrupt after.
+            debug: A flag indicating whether to enable debug mode.
+            name: The name to use for the compiled graph.
+            transformers: Optional sequence of `StreamTransformer` classes or
+                configured factories. Classes and factories are instantiated
+                per run whenever `stream_events(version=&quot;v3&quot;)` / `astream_events(version=&quot;v3&quot;)` is called and are
+                propagated to subgraph scopes. Custom factories should follow
+                the standard `StreamTransformer` constructor shape by
+                accepting `scope` as their first argument. Appended after the
+                built-in stream transformers.
+
+        Returns:
+            CompiledStateGraph: The compiled `StateGraph`.
+        &quot;&quot;&quot;</span>
+        checkpointer = ensure_valid_checkpointer(checkpointer)
+
+        serde_allowlist: <span class="hljs-built_in">set</span>[<span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, ...]] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+        <span class="hljs-keyword">if</span> _serde.STRICT_MSGPACK_ENABLED:
+            schema_types: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">type</span>[<span class="hljs-type">Any</span>]] = [
+                <span class="hljs-variable language_">self</span>.state_schema,
+                <span class="hljs-variable language_">self</span>.input_schema,
+                <span class="hljs-variable language_">self</span>.output_schema,
+            ]
+            <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.context_schema <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                schema_types.append(<span class="hljs-variable language_">self</span>.context_schema)
+            <span class="hljs-keyword">for</span> node <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.nodes.values():
+                schema_types.append(node.input_schema)
+            <span class="hljs-keyword">for</span> branches <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.branches.values():
+                <span class="hljs-keyword">for</span> branch <span class="hljs-keyword">in</span> branches.values():
+                    <span class="hljs-keyword">if</span> branch.input_schema <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                        schema_types.append(branch.input_schema)
+            serde_allowlist = _serde.build_serde_allowlist(
+                schemas=schema_types,
+                channels=<span class="hljs-variable language_">self</span>.channels,
+            )
+            checkpointer = _serde.apply_checkpointer_allowlist(
+                checkpointer, serde_allowlist
+            )
+
+        <span class="hljs-comment"># assign default values</span>
+        interrupt_before = interrupt_before <span class="hljs-keyword">or</span> []
+        interrupt_after = interrupt_after <span class="hljs-keyword">or</span> []
+
+        <span class="hljs-comment"># validate the graph</span>
+        <span class="hljs-variable language_">self</span>.validate(
+            interrupt=(
+                (interrupt_before <span class="hljs-keyword">if</span> interrupt_before != <span class="hljs-string">&quot;*&quot;</span> <span class="hljs-keyword">else</span> []) + interrupt_after
+                <span class="hljs-keyword">if</span> interrupt_after != <span class="hljs-string">&quot;*&quot;</span>
+                <span class="hljs-keyword">else</span> []
+            )
+        )
+
+        <span class="hljs-comment"># prepare output channels</span>
+        output_channels = (
+            <span class="hljs-string">&quot;__root__&quot;</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.schemas[<span class="hljs-variable language_">self</span>.output_schema]) == <span class="hljs-number">1</span>
+            <span class="hljs-keyword">and</span> <span class="hljs-string">&quot;__root__&quot;</span> <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.schemas[<span class="hljs-variable language_">self</span>.output_schema]
+            <span class="hljs-keyword">else</span> [
+                key
+                <span class="hljs-keyword">for</span> key, val <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.schemas[<span class="hljs-variable language_">self</span>.output_schema].items()
+                <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> is_managed_value(val)
+            ]
+        )
+        stream_channels = (
+            <span class="hljs-string">&quot;__root__&quot;</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.channels) == <span class="hljs-number">1</span> <span class="hljs-keyword">and</span> <span class="hljs-string">&quot;__root__&quot;</span> <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.channels
+            <span class="hljs-keyword">else</span> [
+                key <span class="hljs-keyword">for</span> key, val <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.channels.items() <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> is_managed_value(val)
+            ]
+        )
+        <span class="hljs-comment"># Apply builder defaults to node specs. Per-node values always win.</span>
+        <span class="hljs-comment"># Error-handler routing and cache_policy are only assigned to regular</span>
+        <span class="hljs-comment"># nodes. Retry and timeout defaults also apply to error-handler nodes.</span>
+        defaults = <span class="hljs-variable language_">self</span>._node_defaults
+        default_handler_name: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+        <span class="hljs-keyword">if</span> defaults.error_handler <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">if</span> _DEFAULT_ERROR_HANDLER_NODE <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.nodes:
+                <span class="hljs-keyword">raise</span> ValueError(
+                    <span class="hljs-string">f&quot;Auto-generated default error handler node &quot;</span>
+                    <span class="hljs-string">f&quot;`<span class="hljs-subst">{_DEFAULT_ERROR_HANDLER_NODE}</span>` already exists.&quot;</span>
+                )
+            default_handler_name = _DEFAULT_ERROR_HANDLER_NODE
+            <span class="hljs-variable language_">self</span>.nodes[default_handler_name] = StateNodeSpec[<span class="hljs-type">Any</span>, ContextT](
+                coerce_to_runnable(
+                    defaults.error_handler,  <span class="hljs-comment"># type: ignore[arg-<span class="hljs-built_in">type</span>]</span>
+                    name=default_handler_name,
+                    trace=<span class="hljs-literal">False</span>,
+                ),
+                metadata=<span class="hljs-literal">None</span>,
+                input_schema=<span class="hljs-variable language_">self</span>.state_schema,
+                retry_policy=<span class="hljs-literal">None</span>,
+                cache_policy=<span class="hljs-literal">None</span>,
+                is_error_handler=<span class="hljs-literal">True</span>,
+            )
+
+        <span class="hljs-comment"># Apply builder defaults to node specs. Per-node values always win.</span>
+        <span class="hljs-keyword">for</span> spec <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.nodes.values():
+            <span class="hljs-comment"># error_handler: regular nodes only — handlers must never</span>
+            <span class="hljs-comment"># catch themselves or other handlers.</span>
+            <span class="hljs-keyword">if</span> (
+                <span class="hljs-keyword">not</span> spec.is_error_handler
+                <span class="hljs-keyword">and</span> default_handler_name <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>
+                <span class="hljs-keyword">and</span> spec.error_handler_node <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>
+            ):
+                spec.error_handler_node = default_handler_name
+            <span class="hljs-comment"># retry: all nodes — handlers should be retried on transient</span>
+            <span class="hljs-comment"># failures just like regular nodes.</span>
+            <span class="hljs-keyword">if</span> defaults.retry_policy <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> spec.retry_policy <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                spec.retry_policy = defaults.retry_policy
+            <span class="hljs-comment"># cache: regular nodes only — caching an error-handler result</span>
+            <span class="hljs-comment"># is unsafe because the input (failed-node state) may differ</span>
+            <span class="hljs-comment"># across failures even when the cache key matches.</span>
+            <span class="hljs-keyword">if</span> (
+                <span class="hljs-keyword">not</span> spec.is_error_handler
+                <span class="hljs-keyword">and</span> defaults.cache_policy <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>
+                <span class="hljs-keyword">and</span> spec.cache_policy <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>
+            ):
+                spec.cache_policy = defaults.cache_policy
+            <span class="hljs-comment"># timeout: all nodes — a stuck handler should be cancelled the</span>
+            <span class="hljs-comment"># same way a stuck regular node would be.</span>
+            <span class="hljs-keyword">if</span> defaults.timeout <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> spec.timeout <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                spec.timeout = defaults.timeout
+
+        node_error_handler_map = {
+            node_name: spec.error_handler_node
+            <span class="hljs-keyword">for</span> node_name, spec <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.nodes.items()
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> spec.is_error_handler <span class="hljs-keyword">and</span> spec.error_handler_node <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>
+        }
+
+        compiled = CompiledStateGraph[StateT, ContextT, InputT, OutputT](
+            builder=<span class="hljs-variable language_">self</span>,
+            schema_to_mapper={},
+            context_schema=<span class="hljs-variable language_">self</span>.context_schema,
+            nodes={},
+            channels={
+                **<span class="hljs-variable language_">self</span>.channels,
+                **<span class="hljs-variable language_">self</span>.managed,
+                START: EphemeralValue(<span class="hljs-variable language_">self</span>.input_schema),
+            },
+            input_channels=START,
+            stream_mode=<span class="hljs-string">&quot;updates&quot;</span>,
+            output_channels=output_channels,
+            stream_channels=stream_channels,
+            checkpointer=checkpointer,
+            interrupt_before_nodes=interrupt_before,
+            interrupt_after_nodes=interrupt_after,
+            auto_validate=<span class="hljs-literal">False</span>,
+            debug=debug,
+            store=store,
+            cache=cache,
+            node_error_handler_map=node_error_handler_map,
+            name=name <span class="hljs-keyword">or</span> <span class="hljs-string">&quot;LangGraph&quot;</span>,
+            stream_transformers=transformers,
+        )
+        compiled._serde_allowlist = serde_allowlist
+
+        compiled.attach_node(START, <span class="hljs-literal">None</span>)
+        <span class="hljs-keyword">for</span> key, node <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.nodes.items():
+            compiled.attach_node(key, node)
+
+        <span class="hljs-comment"># Record output/state mappers for v2 stream coercion (pydantic/dataclass only)</span>
+        compiled._output_mapper = _pick_mapper(
+            <span class="hljs-built_in">list</span>(output_channels)
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(output_channels, <span class="hljs-built_in">list</span>)
+            <span class="hljs-keyword">else</span> [output_channels],
+            <span class="hljs-variable language_">self</span>.output_schema,
+        )
+        compiled._state_mapper = _pick_mapper(
+            <span class="hljs-built_in">list</span>(stream_channels)
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(stream_channels, <span class="hljs-built_in">list</span>)
+            <span class="hljs-keyword">else</span> [stream_channels],
+            <span class="hljs-variable language_">self</span>.state_schema,
+        )
+
+        <span class="hljs-keyword">for</span> start, end <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.edges:
+            compiled.attach_edge(start, end)
+
+        <span class="hljs-keyword">for</span> starts, end <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.waiting_edges:
+            compiled.attach_edge(starts, end)
+
+        <span class="hljs-keyword">for</span> start, branches <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.branches.items():
+            <span class="hljs-keyword">for</span> name, branch <span class="hljs-keyword">in</span> branches.items():
+                compiled.attach_branch(start, name, branch)
+
+        <span class="hljs-keyword">return</span> compiled.validate()
+</code></pre>
+<p>阅读完整函数时关注三个阶段：先校验checkpointer与图结构，再选择输出和流通道，最后构造CompiledStateGraph并接入节点、边、分支。源码中还会处理默认重试、缓存、错误处理等配置；这些分支说明编译会把builder配置落到具体执行规格上。</p>
+<p>可按这条调用链定位问题：<code>StateGraph.compile → CompiledStateGraph.attach_node / attach_edge / attach_branch → Pregel运行时</code>。构图错误优先查compile前后的Schema和目标名称；执行后状态不对再查节点更新和Channel。</p>
+<h2 id="c04-s3">边如何转换成触发器</h2>
+<p>源码：<a href="https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/graph/state.py#L1551-L1575">CompiledStateGraph.attach_edge · L1551—L1575</a>，固定提交<code>41c9c22fdc83</code>，完整函数。</p>
+<pre><code class="language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title function_">attach_edge</span>(<span class="hljs-params">self, starts: <span class="hljs-built_in">str</span> | <span class="hljs-type">Sequence</span>[<span class="hljs-built_in">str</span>], end: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(starts, <span class="hljs-built_in">str</span>):
+            <span class="hljs-comment"># subscribe to start channel</span>
+            <span class="hljs-keyword">if</span> end != END:
+                <span class="hljs-variable language_">self</span>.nodes[starts].writers.append(
+                    ChannelWrite(
+                        (ChannelWriteEntry(_CHANNEL_BRANCH_TO.<span class="hljs-built_in">format</span>(end), <span class="hljs-literal">None</span>),)
+                    )
+                )
+        <span class="hljs-keyword">elif</span> end != END:
+            channel_name = <span class="hljs-string">f&quot;join:<span class="hljs-subst">{<span class="hljs-string">&#x27;+&#x27;</span>.join(starts)}</span>:<span class="hljs-subst">{end}</span>&quot;</span>
+            <span class="hljs-comment"># register channel</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.builder.nodes[end].defer:
+                <span class="hljs-variable language_">self</span>.channels[channel_name] = NamedBarrierValueAfterFinish(
+                    <span class="hljs-built_in">str</span>, <span class="hljs-built_in">set</span>(starts)
+                )
+            <span class="hljs-keyword">else</span>:
+                <span class="hljs-variable language_">self</span>.channels[channel_name] = NamedBarrierValue(<span class="hljs-built_in">str</span>, <span class="hljs-built_in">set</span>(starts))
+            <span class="hljs-comment"># subscribe to channel</span>
+            <span class="hljs-variable language_">self</span>.nodes[end].triggers.append(channel_name)
+            <span class="hljs-comment"># publish to channel</span>
+            <span class="hljs-keyword">for</span> start <span class="hljs-keyword">in</span> starts:
+                <span class="hljs-variable language_">self</span>.nodes[start].writers.append(
+                    ChannelWrite((ChannelWriteEntry(channel_name, start),))
+                )
+</code></pre>
+<p>单条边会向后继节点对应的分支通道写入触发信息。多起点边<code>add_edge(["a", "b"], "join")</code>创建具名屏障，记录需要等待哪些前驱。屏障不是一个业务结果列表：它解决“何时可以触发join”，实际结果仍由State字段承载。</p>
+<p>这个区别能解释为什么“图上有箭头”不够。箭头决定调度条件，Reducer决定数据如何合并；要得到正确的并行汇总，两者都必须正确。</p></section></div></article><article class="chapter" id="reading-005" data-title="Pregel执行机制与Super-step"><div class="chapter-title"><p class="eyebrow">章节05 / 完整阅读</p><h1>Pregel执行机制与Super-step</h1></div><div class="study"><section class="original-chapter" id="chapter-05">
+<h2 id="c05-s1">一轮执行分为计划、执行、更新</h2>
+<p>Pregel运行时以super-step推进。首先根据触发器和版本选择可执行任务，然后运行这一批任务，最后合并本轮写入并准备下一轮。并行任务属于同一轮，顺序依赖的节点通常进入不同轮。</p>
+<figure class="image-diagram"><img alt="Super-step执行与可见性" src="diagrams/02-superstep.svg" loading="lazy"><figcaption>Super-step执行与可见性</figcaption></figure>
+<p>同一轮中的分支应按本轮开始时的状态设计。A节点返回一份更新，不意味着正在并行执行的B节点立刻能读到它。如果B依赖A的新结果，就应该明确连接A→B，使B在后继步骤读取合并后的状态。</p>
+<h2 id="c05-s2">tick怎样准备任务</h2>
+<p>源码：<a href="https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/pregel/_loop.py#L650-L735">PregelLoop.tick · L650—L735</a>，固定提交<code>41c9c22fdc83</code>，完整函数。</p>
+<pre><code class="language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title function_">tick</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-string">&quot;&quot;&quot;Execute a single iteration of the Pregel loop.
+
+        Returns:
+            True if more iterations are needed.
+        &quot;&quot;&quot;</span>
+
+        <span class="hljs-comment"># check if iteration limit is reached</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.step &gt; <span class="hljs-variable language_">self</span>.stop:
+            <span class="hljs-variable language_">self</span>.status = <span class="hljs-string">&quot;out_of_steps&quot;</span>
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+
+        <span class="hljs-comment"># prepare next tasks</span>
+        <span class="hljs-variable language_">self</span>.tasks = prepare_next_tasks(
+            <span class="hljs-variable language_">self</span>.checkpoint,
+            <span class="hljs-variable language_">self</span>.checkpoint_pending_writes,
+            <span class="hljs-variable language_">self</span>.nodes,
+            <span class="hljs-variable language_">self</span>.channels,
+            <span class="hljs-variable language_">self</span>.managed,
+            <span class="hljs-variable language_">self</span>.config,
+            <span class="hljs-variable language_">self</span>.step,
+            <span class="hljs-variable language_">self</span>.stop,
+            for_execution=<span class="hljs-literal">True</span>,
+            manager=<span class="hljs-variable language_">self</span>.manager,
+            store=<span class="hljs-variable language_">self</span>.store,
+            checkpointer=<span class="hljs-variable language_">self</span>.checkpointer,
+            trigger_to_nodes=<span class="hljs-variable language_">self</span>.trigger_to_nodes,
+            updated_channels=<span class="hljs-variable language_">self</span>.updated_channels,
+            retry_policy=<span class="hljs-variable language_">self</span>.retry_policy,
+            cache_policy=<span class="hljs-variable language_">self</span>.cache_policy,
+        )
+
+        <span class="hljs-comment"># produce debug output</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>._checkpointer_put_after_previous <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-variable language_">self</span>._emit(
+                <span class="hljs-string">&quot;checkpoints&quot;</span>,
+                map_debug_checkpoint,
+                {
+                    **<span class="hljs-variable language_">self</span>.checkpoint_config,
+                    CONF: {
+                        **<span class="hljs-variable language_">self</span>.checkpoint_config[CONF],
+                        CONFIG_KEY_CHECKPOINT_ID: <span class="hljs-variable language_">self</span>.checkpoint[<span class="hljs-string">&quot;id&quot;</span>],
+                    },
+                },
+                <span class="hljs-variable language_">self</span>.channels,
+                <span class="hljs-variable language_">self</span>.stream_keys,
+                <span class="hljs-variable language_">self</span>.checkpoint_metadata,
+                <span class="hljs-variable language_">self</span>.tasks.values(),
+                <span class="hljs-variable language_">self</span>.checkpoint_pending_writes,
+                <span class="hljs-variable language_">self</span>.prev_checkpoint_config,
+                <span class="hljs-variable language_">self</span>.output_keys,
+            )
+
+        <span class="hljs-comment"># if no more tasks, we&#x27;re done</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>.tasks:
+            <span class="hljs-variable language_">self</span>.status = <span class="hljs-string">&quot;done&quot;</span>
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+
+        <span class="hljs-comment"># if there are pending writes from a previous loop, apply them</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>._reapplies_pending_writes <span class="hljs-keyword">and</span> <span class="hljs-variable language_">self</span>.checkpoint_pending_writes:
+            <span class="hljs-variable language_">self</span>._reapply_writes_to_succeeded_nodes(<span class="hljs-variable language_">self</span>.tasks)
+            <span class="hljs-variable language_">self</span>._resume_error_handlers_if_applicable()
+
+        <span class="hljs-comment"># before execution, check if we should interrupt</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.interrupt_before <span class="hljs-keyword">and</span> should_interrupt(
+            <span class="hljs-variable language_">self</span>.checkpoint, <span class="hljs-variable language_">self</span>.interrupt_before, <span class="hljs-variable language_">self</span>.tasks.values()
+        ):
+            <span class="hljs-variable language_">self</span>.status = <span class="hljs-string">&quot;interrupt_before&quot;</span>
+            <span class="hljs-keyword">raise</span> GraphInterrupt()
+
+        <span class="hljs-comment"># stop before running the next tasks if a drain was requested. after</span>
+        <span class="hljs-comment"># the breakpoint check: a resume passes the next step&#x27;s breakpoints,</span>
+        <span class="hljs-comment"># so draining in front of one would skip it</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.control <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> <span class="hljs-variable language_">self</span>.control.drain_requested:
+            <span class="hljs-variable language_">self</span>.status = <span class="hljs-string">&quot;draining&quot;</span>
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+
+        <span class="hljs-comment"># produce debug output</span>
+        <span class="hljs-variable language_">self</span>._emit(<span class="hljs-string">&quot;tasks&quot;</span>, map_debug_tasks, <span class="hljs-variable language_">self</span>.tasks.values())
+
+        <span class="hljs-comment"># print output for any tasks we applied previous writes to</span>
+        <span class="hljs-keyword">for</span> task <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.tasks.values():
+            <span class="hljs-keyword">if</span> task.writes:
+                <span class="hljs-variable language_">self</span>.output_writes(task.<span class="hljs-built_in">id</span>, task.writes, cached=<span class="hljs-literal">True</span>)
+
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+</code></pre>
+<p><code>prepare_next_tasks</code>接收checkpoint、pending writes、Channel、当前step和执行配置，生成本轮任务。没有任务时，循环进入done；恢复运行时，还可能重新应用已成功节点的pending writes。图执行并不是简单地沿着一个节点列表依次调用。</p>
+<h2 id="c05-s3">apply_writes怎样提交状态</h2>
+<p>源码：<a href="https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/pregel/_algo.py#L233-L344">apply_writes · L233—L344</a>，固定提交<code>41c9c22fdc83</code>，完整函数。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">apply_writes</span>(<span class="hljs-params">
+    checkpoint: Checkpoint,
+    channels: Mapping[<span class="hljs-built_in">str</span>, BaseChannel],
+    tasks: Iterable[WritesProtocol],
+    get_next_version: GetNextVersion | <span class="hljs-literal">None</span>,
+    trigger_to_nodes: Mapping[<span class="hljs-built_in">str</span>, <span class="hljs-type">Sequence</span>[<span class="hljs-built_in">str</span>]],
+</span>) -&gt; <span class="hljs-built_in">set</span>[<span class="hljs-built_in">str</span>]:
+    <span class="hljs-string">&quot;&quot;&quot;Apply writes from a set of tasks (usually the tasks from a Pregel step)
+    to the checkpoint and channels, and return managed values writes to be applied
+    externally.
+
+    Args:
+        checkpoint: The checkpoint to update.
+        channels: The channels to update.
+        tasks: The tasks to apply writes from.
+        get_next_version: Optional function to determine the next version of a channel.
+        trigger_to_nodes: Mapping of channel names to the set of nodes that can be triggered by updates to that channel.
+
+    Returns:
+        Set of channels that were updated in this step.
+    &quot;&quot;&quot;</span>
+    <span class="hljs-comment"># sort tasks on path, to ensure deterministic order for update application</span>
+    tasks = <span class="hljs-built_in">sorted</span>(tasks, key=<span class="hljs-keyword">lambda</span> t: writes_sort_key(task_path_str(t.path)))
+    <span class="hljs-comment"># if no task has triggers this is applying writes from the null task only</span>
+    <span class="hljs-comment"># so we don&#x27;t do anything other than update the channels written to</span>
+    bump_step = <span class="hljs-built_in">any</span>(t.triggers <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> tasks)
+
+    <span class="hljs-comment"># update seen versions</span>
+    <span class="hljs-keyword">for</span> task <span class="hljs-keyword">in</span> tasks:
+        checkpoint[<span class="hljs-string">&quot;versions_seen&quot;</span>].setdefault(task.name, {}).update(
+            {
+                chan: checkpoint[<span class="hljs-string">&quot;channel_versions&quot;</span>][chan]
+                <span class="hljs-keyword">for</span> chan <span class="hljs-keyword">in</span> task.triggers
+                <span class="hljs-keyword">if</span> chan <span class="hljs-keyword">in</span> checkpoint[<span class="hljs-string">&quot;channel_versions&quot;</span>]
+            }
+        )
+
+    <span class="hljs-comment"># Find the highest version of all channels</span>
+    <span class="hljs-keyword">if</span> get_next_version <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        next_version = <span class="hljs-literal">None</span>
+    <span class="hljs-keyword">else</span>:
+        next_version = get_next_version(
+            (
+                <span class="hljs-built_in">max</span>(checkpoint[<span class="hljs-string">&quot;channel_versions&quot;</span>].values())
+                <span class="hljs-keyword">if</span> checkpoint[<span class="hljs-string">&quot;channel_versions&quot;</span>]
+                <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>
+            ),
+            <span class="hljs-literal">None</span>,
+        )
+
+    <span class="hljs-comment"># Consume all channels that were read</span>
+    <span class="hljs-keyword">for</span> chan <span class="hljs-keyword">in</span> {
+        chan
+        <span class="hljs-keyword">for</span> task <span class="hljs-keyword">in</span> tasks
+        <span class="hljs-keyword">for</span> chan <span class="hljs-keyword">in</span> task.triggers
+        <span class="hljs-keyword">if</span> chan <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> RESERVED <span class="hljs-keyword">and</span> chan <span class="hljs-keyword">in</span> channels
+    }:
+        <span class="hljs-keyword">if</span> channels[chan].consume() <span class="hljs-keyword">and</span> next_version <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            checkpoint[<span class="hljs-string">&quot;channel_versions&quot;</span>][chan] = next_version
+
+    <span class="hljs-comment"># Group writes by channel</span>
+    pending_writes_by_channel: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">list</span>[<span class="hljs-type">Any</span>]] = defaultdict(<span class="hljs-built_in">list</span>)
+    <span class="hljs-keyword">for</span> task <span class="hljs-keyword">in</span> tasks:
+        <span class="hljs-keyword">for</span> chan, val <span class="hljs-keyword">in</span> task.writes:
+            <span class="hljs-keyword">if</span> chan <span class="hljs-keyword">in</span> (
+                NO_WRITES,
+                PUSH,
+                RESUME,
+                INTERRUPT,
+                RETURN,
+                ERROR,
+                ERROR_SOURCE_NODE,
+            ):
+                <span class="hljs-keyword">pass</span>
+            <span class="hljs-keyword">elif</span> chan <span class="hljs-keyword">in</span> channels:
+                pending_writes_by_channel[chan].append(val)
+            <span class="hljs-keyword">else</span>:
+                logger.warning(
+                    <span class="hljs-string">f&quot;Task <span class="hljs-subst">{task.name}</span> with path <span class="hljs-subst">{task.path}</span> wrote to unknown channel <span class="hljs-subst">{chan}</span>, ignoring it.&quot;</span>
+                )
+
+    <span class="hljs-comment"># Apply writes to channels</span>
+    updated_channels: <span class="hljs-built_in">set</span>[<span class="hljs-built_in">str</span>] = <span class="hljs-built_in">set</span>()
+    <span class="hljs-keyword">for</span> chan, vals <span class="hljs-keyword">in</span> pending_writes_by_channel.items():
+        <span class="hljs-keyword">if</span> chan <span class="hljs-keyword">in</span> channels:
+            <span class="hljs-keyword">if</span> channels[chan].update(vals) <span class="hljs-keyword">and</span> next_version <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                checkpoint[<span class="hljs-string">&quot;channel_versions&quot;</span>][chan] = next_version
+                <span class="hljs-comment"># unavailable channels can&#x27;t trigger tasks, so don&#x27;t add them</span>
+                <span class="hljs-keyword">if</span> channels[chan].is_available():
+                    updated_channels.add(chan)
+
+    <span class="hljs-comment"># Channels that weren&#x27;t updated in this step are notified of a new step</span>
+    <span class="hljs-keyword">if</span> bump_step:
+        <span class="hljs-keyword">for</span> chan <span class="hljs-keyword">in</span> channels:
+            <span class="hljs-keyword">if</span> channels[chan].is_available() <span class="hljs-keyword">and</span> chan <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> updated_channels:
+                <span class="hljs-keyword">if</span> channels[chan].update(EMPTY_SEQ) <span class="hljs-keyword">and</span> next_version <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                    checkpoint[<span class="hljs-string">&quot;channel_versions&quot;</span>][chan] = next_version
+                    <span class="hljs-comment"># unavailable channels can&#x27;t trigger tasks, so don&#x27;t add them</span>
+                    <span class="hljs-keyword">if</span> channels[chan].is_available():
+                        updated_channels.add(chan)
+
+    <span class="hljs-comment"># If this is (tentatively) the last superstep, notify all channels of finish</span>
+    <span class="hljs-keyword">if</span> bump_step <span class="hljs-keyword">and</span> updated_channels.isdisjoint(trigger_to_nodes):
+        <span class="hljs-keyword">for</span> chan <span class="hljs-keyword">in</span> channels:
+            <span class="hljs-keyword">if</span> channels[chan].finish() <span class="hljs-keyword">and</span> next_version <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                checkpoint[<span class="hljs-string">&quot;channel_versions&quot;</span>][chan] = next_version
+                <span class="hljs-comment"># unavailable channels can&#x27;t trigger tasks, so don&#x27;t add them</span>
+                <span class="hljs-keyword">if</span> channels[chan].is_available():
+                    updated_channels.add(chan)
+
+    <span class="hljs-comment"># Return managed values writes to be applied externally</span>
+    <span class="hljs-keyword">return</span> updated_channels
+</code></pre>
+<p>函数先按任务路径排序，再更新<code>versions_seen</code>，把写入按Channel分组，并调用每个Channel的<code>update</code>。<code>channel_versions</code>表示Channel的版本，<code>versions_seen</code>记录某节点已经观察到的触发版本，两者用于判断后续是否产生新工作。</p>
+<p>排序保证框架在该路径上的确定性处理，不代表业务可以依赖并行完成顺序。多个分支共同写入一个字段时，最终合法性与意义仍取决于该字段的Reducer。</p>
+<h2 id="c05-s4">失败不等于整个世界回滚</h2>
+<p>一轮中的某个任务失败，图状态提交和已保存任务写入有自己的恢复规则；外部数据库、HTTP接口、文件写入却不属于这一轮的原子事务。图内状态没有推进，并不能证明业务操作没有发生。这是后续Checkpoint与幂等章节要解决的边界。</p>
+<p>源码阅读入口为<code>pregel/_loop.py</code>的<code>tick / after_tick</code>与<code>pregel/_algo.py</code>的<code>prepare_next_tasks / apply_writes</code>。本手册保留tick与apply_writes完整函数，其他符号通过固定提交链接继续查阅。</p></section></div></article><article class="chapter" id="reading-006" data-title="条件路由、Command与循环"><div class="chapter-title"><p class="eyebrow">章节06 / 完整阅读</p><h1>条件路由、Command与循环</h1></div><div class="study"><section class="original-chapter" id="chapter-06">
+<h2 id="c06-s1">固定边与条件边</h2>
+<p>固定边适合必经步骤：抽取完成后一定校验。条件边适合根据状态选择路径：缺少必填字段进入人工补充，字段有效进入审核。路由函数应尽量只做选择，不把额外的业务写入藏在里面。</p>
+<p>条件分支可以返回节点名称，或通过path_map把业务标签映射为节点。比如返回<code>"valid"</code>，再映射为<code>"review"</code>，能把判断语义与实现名称分开。所有可能路径都要覆盖，尤其是“无法判断”和“无有效任务”。</p>
+<h2 id="c06-s2">Command同时提交更新与下一跳</h2>
+<p>节点返回<code>Command(update={...}, goto="review")</code>时，可以一次表达状态变化与动态跳转。对人工审批节点，这比先更新状态、再用另一套规则推断跳转更集中。</p>
+<p>但Command不会取消已经声明的静态后继。如果一个节点同时设置静态边与Command.goto，可能同时调度两个目标。手册中的review节点只由Command选择submit或reject，不再添加review→submit静态边。</p>
+<h2 id="c06-s3">循环应有业务停止条件</h2>
+<p>模型提取→校验→修正→再次校验是常见循环。State中应记录修正次数、失败原因与已使用证据；达到预算后转人工处理。不要只让模型回答“是否继续”，也不要把<code>recursion_limit</code>当成正常退出条件。</p>
+<p><code>recursion_limit</code>限制图运行步骤，超限产生GraphRecursionError，它不是Python调用栈递归深度，也不是全流程的token预算。实际系统还应独立限制模型调用次数、总耗时、工具调用和费用。</p>
+<p>示例来自<a href="examples/lab.py">examples/lab.py</a>，依赖导入见该文件开头。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">recursion</span>():
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">State</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+        count: <span class="hljs-built_in">int</span>
+    b = StateGraph(State)
+    b.add_node(<span class="hljs-string">&quot;loop&quot;</span>, <span class="hljs-keyword">lambda</span> s: {<span class="hljs-string">&quot;count&quot;</span>: s[<span class="hljs-string">&quot;count&quot;</span>] + <span class="hljs-number">1</span>})
+    b.add_edge(START, <span class="hljs-string">&quot;loop&quot;</span>)
+    b.add_edge(<span class="hljs-string">&quot;loop&quot;</span>, <span class="hljs-string">&quot;loop&quot;</span>)
+    <span class="hljs-keyword">try</span>:
+        b.<span class="hljs-built_in">compile</span>().invoke({<span class="hljs-string">&quot;count&quot;</span>: <span class="hljs-number">0</span>}, {<span class="hljs-string">&quot;recursion_limit&quot;</span>: <span class="hljs-number">3</span>})
+    <span class="hljs-keyword">except</span> GraphRecursionError:
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;unbounded_loop&quot;</span>: <span class="hljs-string">&quot;GraphRecursionError&quot;</span>}
+    <span class="hljs-keyword">raise</span> AssertionError(<span class="hljs-string">&quot;loop should reach recursion limit&quot;</span>)
+</code></pre>
+<p>上例故意没有结束路径，用于验证保护行为。正常应用需要条件边返回END或进入可审计的终止节点。</p></section></div></article><article class="chapter" id="reading-007" data-title="并行分支、汇合与Send"><div class="chapter-title"><p class="eyebrow">章节07 / 完整阅读</p><h1>并行分支、汇合与Send</h1></div><div class="study"><section class="original-chapter" id="chapter-07">
+<h2 id="c07-s1">固定并行：同时检查两个条件</h2>
+<p>一个入口连接A和B，会让两者在同一轮具备执行资格。A、B返回列表增量，通过Reducer累积；join显式等待两者，再读取汇总状态。</p>
+<p>示例来自<a href="examples/lab.py">examples/lab.py</a>，依赖导入见该文件开头。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">parallel</span>():
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">State</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+        items: Annotated[<span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>], operator.add]
+        total: <span class="hljs-built_in">int</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">make_graph</span>(<span class="hljs-params">schema</span>):
+        b = StateGraph(schema)
+        b.add_node(<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-keyword">lambda</span> s: {<span class="hljs-string">&quot;items&quot;</span>: [<span class="hljs-string">&quot;A&quot;</span>]})
+        b.add_node(<span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-keyword">lambda</span> s: {<span class="hljs-string">&quot;items&quot;</span>: [<span class="hljs-string">&quot;B&quot;</span>]})
+        b.add_node(<span class="hljs-string">&quot;join&quot;</span>, <span class="hljs-keyword">lambda</span> s: {<span class="hljs-string">&quot;total&quot;</span>: <span class="hljs-built_in">len</span>(s[<span class="hljs-string">&quot;items&quot;</span>])})
+        b.add_edge(START, <span class="hljs-string">&quot;a&quot;</span>)
+        b.add_edge(START, <span class="hljs-string">&quot;b&quot;</span>)
+        b.add_edge([<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>], <span class="hljs-string">&quot;join&quot;</span>)
+        b.add_edge(<span class="hljs-string">&quot;join&quot;</span>, END)
+        <span class="hljs-keyword">return</span> b.<span class="hljs-built_in">compile</span>()
+    result = make_graph(State).invoke({<span class="hljs-string">&quot;items&quot;</span>: []})
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">sorted</span>(result[<span class="hljs-string">&quot;items&quot;</span>]) == [<span class="hljs-string">&quot;A&quot;</span>, <span class="hljs-string">&quot;B&quot;</span>] <span class="hljs-keyword">and</span> result[<span class="hljs-string">&quot;total&quot;</span>] == <span class="hljs-number">2</span>
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">BadState</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+        items: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>]
+        total: <span class="hljs-built_in">int</span>
+    <span class="hljs-keyword">try</span>:
+        make_graph(BadState).invoke({<span class="hljs-string">&quot;items&quot;</span>: []})
+    <span class="hljs-keyword">except</span> InvalidUpdateError:
+        conflict = <span class="hljs-string">&quot;InvalidUpdateError&quot;</span>
+    <span class="hljs-keyword">else</span>:
+        <span class="hljs-keyword">raise</span> AssertionError(<span class="hljs-string">&quot;parallel writes must conflict without reducer&quot;</span>)
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;merged&quot;</span>: <span class="hljs-built_in">sorted</span>(result[<span class="hljs-string">&quot;items&quot;</span>]), <span class="hljs-string">&quot;join_total&quot;</span>: result[<span class="hljs-string">&quot;total&quot;</span>], <span class="hljs-string">&quot;without_reducer&quot;</span>: conflict}
+</code></pre>
+<p>实验同时构造了没有Reducer的版本，确认会触发InvalidUpdateError。它验证的是数据冲突检测，不是依赖时序碰巧出现的覆盖结果。</p>
+<h2 id="c07-s2">汇合要表达“全部完成”</h2>
+<p><code>add_edge(["a", "b"], "join")</code>显式表达屏障。分别添加a→join和b→join不等价于所有拓扑下都等待完整分支：如果两条分支长度不同，join可能在不同轮被触发。不要根据两个等长分支的一次运行结果推导复杂图的汇合保证。</p>
+<p>如果某个分支会循环、跳过或动态增殖，还需要重新审视汇合条件；固定屏障中永远不执行的前驱可能让预期汇总无法发生。可把“任务清单、完成清单、失败清单”放进State，并为动态工作设计明确结束条件。</p>
+<h2 id="c07-s3">动态并行：Send携带每个任务的输入</h2>
+<p>示例来自<a href="examples/lab.py">examples/lab.py</a>，依赖导入见该文件开头。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">dispatch</span>():
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">State</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+        numbers: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">int</span>]
+        squares: Annotated[<span class="hljs-built_in">list</span>[<span class="hljs-built_in">int</span>], operator.add]
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">Job</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+        number: <span class="hljs-built_in">int</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">route</span>(<span class="hljs-params">state</span>):
+        <span class="hljs-keyword">return</span> [Send(<span class="hljs-string">&quot;square&quot;</span>, {<span class="hljs-string">&quot;number&quot;</span>: n}) <span class="hljs-keyword">for</span> n <span class="hljs-keyword">in</span> state[<span class="hljs-string">&quot;numbers&quot;</span>]]
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">square</span>(<span class="hljs-params">state: Job</span>):
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;squares&quot;</span>: [state[<span class="hljs-string">&quot;number&quot;</span>] ** <span class="hljs-number">2</span>]}
+    b = StateGraph(State)
+    b.add_node(<span class="hljs-string">&quot;square&quot;</span>, square)
+    b.add_conditional_edges(START, route, [<span class="hljs-string">&quot;square&quot;</span>])
+    b.add_edge(<span class="hljs-string">&quot;square&quot;</span>, END)
+    result = b.<span class="hljs-built_in">compile</span>().invoke({<span class="hljs-string">&quot;numbers&quot;</span>: [<span class="hljs-number">2</span>, <span class="hljs-number">3</span>, <span class="hljs-number">4</span>], <span class="hljs-string">&quot;squares&quot;</span>: []})
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">sorted</span>(result[<span class="hljs-string">&quot;squares&quot;</span>]) == [<span class="hljs-number">4</span>, <span class="hljs-number">9</span>, <span class="hljs-number">16</span>]
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;squares&quot;</span>: <span class="hljs-built_in">sorted</span>(result[<span class="hljs-string">&quot;squares&quot;</span>])}
+</code></pre>
+<p>Send同时指定目标节点与这一份任务的输入。这里square节点拿到Job中的number，而不是完整的父State；它返回的squares仍合并到主图状态。适用于逐文档抽取、逐订单校验等运行前数量未知的任务。</p>
+<p>Send不是分布式消息队列，也不自动等于跨机器调度。即使逻辑上可以启动大量任务，也应控制并发和外部服务配额。若输入清单可能为空，路由需要设计空任务结果；若结果顺序有业务含义，应携带任务ID和原始序号，再在汇总时排序。</p></section></div></article><article class="chapter" id="reading-008" data-title="消息、工具调用与Agent循环"><div class="chapter-title"><p class="eyebrow">章节08 / 完整阅读</p><h1>消息、工具调用与Agent循环</h1></div><div class="study"><section class="original-chapter" id="chapter-08">
+<h2 id="c08-s1">messages不是普通追加日志</h2>
+<p>MessagesState使用add_messages合并消息。它会把兼容输入转换为消息对象，并按消息ID处理更新。与简单列表相加不同，同ID消息可以被替换。</p>
+<p>示例来自<a href="examples/lab.py">examples/lab.py</a>，依赖导入见该文件开头。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">messages</span>():
+    first = add_messages([], [{<span class="hljs-string">&quot;role&quot;</span>: <span class="hljs-string">&quot;user&quot;</span>, <span class="hljs-string">&quot;content&quot;</span>: <span class="hljs-string">&quot;old&quot;</span>, <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;m1&quot;</span>}])
+    second = add_messages(first, [{<span class="hljs-string">&quot;role&quot;</span>: <span class="hljs-string">&quot;user&quot;</span>, <span class="hljs-string">&quot;content&quot;</span>: <span class="hljs-string">&quot;corrected&quot;</span>, <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;m1&quot;</span>}])
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(second) == <span class="hljs-number">1</span> <span class="hljs-keyword">and</span> second[<span class="hljs-number">0</span>].content == <span class="hljs-string">&quot;corrected&quot;</span>
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;count&quot;</span>: <span class="hljs-built_in">len</span>(second), <span class="hljs-string">&quot;same_id_content&quot;</span>: second[<span class="hljs-number">0</span>].content}
+</code></pre>
+<p>这对修正历史消息很有用，但也意味着消息ID必须有明确策略：重试时生成新ID与复用原ID可能产生不同结果。不要以为所有进入messages的内容都只会追加，或把它当作不可修改的审计记录。</p>
+<h2 id="c08-s2">工具调用是一个协议闭环</h2>
+<p>一个常见循环是：模型节点产生AIMessage；如果含tool_calls，执行工具节点；每个调用产生对应ToolMessage；再回到模型节点组织答复或继续选择工具。没有工具调用时结束。</p>
+<p><code>tool_call_id</code>用于把工具结果匹配到模型请求。模型要求调用工具，并不意味着调用方拥有权限。执行前仍需检查工具是否允许、参数是否合法、调用者身份与资源归属是否匹配。写操作还需要幂等键与审计。</p>
+<p>建议把只读查询和有副作用操作分开：模型可以生成候选动作，确定性节点校验参数，高风险操作进入人工审核，最终写节点调用业务服务。这样出现“模型说成功了，但数据库没变化”时，可以直接检查写节点回执，而不是从自然语言猜测。</p>
+<h2 id="c08-s3">哪些问题不由消息历史解决</h2>
+<p>对话越长，并不意味着模型能可靠记住所有事实。原始业务数据、结构化状态、检索证据和聊天消息各有用途。长历史还会增加token与延迟，应在业务允许范围内做裁剪或摘要，同时保留审计所需的独立记录。</p>
+<p>本手册不连接真实模型，所以没有验证任何模型的工具选择准确率。实验只验证消息合并与编排行为。实际模型接入时，需要补充工具协议、结构化输出和业务样本评估。参考：<a href="https://docs.langchain.com/oss/python/langgraph/graph-api#working-with-messages-in-graph-state">Messages</a>。</p></section></div></article><article class="chapter" id="reading-009" data-title="Checkpoint、Thread与故障恢复"><div class="chapter-title"><p class="eyebrow">章节09 / 完整阅读</p><h1>Checkpoint、Thread与故障恢复</h1></div><div class="study"><section class="original-chapter" id="chapter-09">
+<h2 id="c09-s1">持久化记录的不只是最终结果</h2>
+<p>开启checkpointer后，运行时保存可恢复状态。常见检查点字段包括<code>channel_values</code>、<code>channel_versions</code>、<code>versions_seen</code>和检查点ID；读取StateSnapshot时，还能查看values、next、tasks、metadata、parent_config等信息。</p>
+<table>
+<thead>
+<tr>
+<th>标识</th>
+<th>含义</th>
+<th>使用原则</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>thread_id</td>
+<td>一条持续演进的流程或会话</td>
+<td>独立业务流程使用独立ID</td>
+</tr>
+<tr>
+<td>checkpoint_ns</td>
+<td>图及子图的检查点命名空间</td>
+<td>通常由框架组织，不拿来替代租户隔离</td>
+</tr>
+<tr>
+<td>checkpoint_id</td>
+<td>历史检查点定位</td>
+<td>回看或分叉时明确指定</td>
+</tr>
+<tr>
+<td>业务request_id</td>
+<td>业务请求身份</td>
+<td>用于业务去重与追踪，不能直接等同thread权限</td>
+</tr>
+</tbody>
+</table>
+<p>同thread再次传入新输入，会继续基于已有状态运行，Reducer也会继续合并。因此，错误复用thread_id可能让两个业务请求混在一起。接口应验证thread归属，不能仅凭客户端提供的ID就读写状态。</p>
+<h2 id="c09-s2">三种持久化时机</h2>
+<table>
+<thead>
+<tr>
+<th>durability</th>
+<th>保存时机的取舍</th>
+<th>主要风险边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sync</td>
+<td>后续步骤开始前等待检查点保存</td>
+<td>增加持久化等待</td>
+</tr>
+<tr>
+<td>async</td>
+<td>后续执行可与保存并行</td>
+<td>进程突然退出时存在保存窗口</td>
+</tr>
+<tr>
+<td>exit</td>
+<td>主要在运行退出、报错或中断时保存</td>
+<td>运行中进程崩溃可能丢失更多进度</td>
+</tr>
+</tbody>
+</table>
+<p>模式控制持久化时机，不会把外部接口和检查点合成分布式事务。本文恢复实验显式使用sync；数据库自身的事务与落盘配置也属于可靠性条件。</p>
+<h2 id="c09-s3">同一轮部分成功：pending writes</h2>
+<p>示例来自<a href="examples/lab.py">examples/lab.py</a>，依赖导入见该文件开头。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">pending_writes</span>():
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">State</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+        done: Annotated[<span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>], operator.add]
+    calls = {<span class="hljs-string">&quot;a&quot;</span>: <span class="hljs-number">0</span>, <span class="hljs-string">&quot;b&quot;</span>: <span class="hljs-number">0</span>}
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">a</span>(<span class="hljs-params">state</span>):
+        calls[<span class="hljs-string">&quot;a&quot;</span>] += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;done&quot;</span>: [<span class="hljs-string">&quot;A&quot;</span>]}
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">b</span>(<span class="hljs-params">state</span>):
+        calls[<span class="hljs-string">&quot;b&quot;</span>] += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">if</span> calls[<span class="hljs-string">&quot;b&quot;</span>] == <span class="hljs-number">1</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">&quot;simulated failure&quot;</span>)
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;done&quot;</span>: [<span class="hljs-string">&quot;B&quot;</span>]}
+    builder = StateGraph(State)
+    builder.add_node(<span class="hljs-string">&quot;a&quot;</span>, a)
+    builder.add_node(<span class="hljs-string">&quot;b&quot;</span>, b)
+    builder.add_edge(START, <span class="hljs-string">&quot;a&quot;</span>)
+    builder.add_edge(START, <span class="hljs-string">&quot;b&quot;</span>)
+    builder.add_edge(<span class="hljs-string">&quot;a&quot;</span>, END)
+    builder.add_edge(<span class="hljs-string">&quot;b&quot;</span>, END)
+    graph = builder.<span class="hljs-built_in">compile</span>(checkpointer=InMemorySaver())
+    cfg = {<span class="hljs-string">&quot;configurable&quot;</span>: {<span class="hljs-string">&quot;thread_id&quot;</span>: <span class="hljs-string">&quot;pending&quot;</span>}}
+    <span class="hljs-keyword">try</span>:
+        graph.invoke({<span class="hljs-string">&quot;done&quot;</span>: []}, cfg, durability=<span class="hljs-string">&quot;sync&quot;</span>)
+    <span class="hljs-keyword">except</span> ValueError:
+        <span class="hljs-keyword">pass</span>
+    <span class="hljs-keyword">else</span>:
+        <span class="hljs-keyword">raise</span> AssertionError(<span class="hljs-string">&quot;expected failure&quot;</span>)
+    result = graph.invoke(<span class="hljs-literal">None</span>, cfg, durability=<span class="hljs-string">&quot;sync&quot;</span>)
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">sorted</span>(result[<span class="hljs-string">&quot;done&quot;</span>]) == [<span class="hljs-string">&quot;A&quot;</span>, <span class="hljs-string">&quot;B&quot;</span>] <span class="hljs-keyword">and</span> calls == {<span class="hljs-string">&quot;a&quot;</span>: <span class="hljs-number">1</span>, <span class="hljs-string">&quot;b&quot;</span>: <span class="hljs-number">2</span>}
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;calls&quot;</span>: calls, <span class="hljs-string">&quot;done&quot;</span>: <span class="hljs-built_in">sorted</span>(result[<span class="hljs-string">&quot;done&quot;</span>])}
+</code></pre>
+<p>实验中A成功，B第一次失败；使用同一checkpointer和thread恢复后，A调用一次，B调用两次。已保存的A任务写入可以被复用，避免把成功兄弟任务无条件再跑一遍。</p>
+<p>但它不意味着“任何失败都只执行失败的一行代码”。节点内部未完成的操作、尚未持久化的结果和外部副作用都要单独处理。恢复调用使用<code>invoke(None, config)</code>；人工中断的回答则使用Command.resume，不能混淆。</p>
+<p>官方持久化概念参考：<a href="https://docs.langchain.com/oss/python/langgraph/persistence">Persistence</a>；持久执行边界参考：<a href="https://docs.langchain.com/oss/python/langgraph/durable-execution">Durable execution</a>。</p></section></div></article><article class="chapter" id="reading-010" data-title="interrupt与人工审核恢复"><div class="chapter-title"><p class="eyebrow">章节10 / 完整阅读</p><h1>interrupt与人工审核恢复</h1></div><div class="study"><section class="original-chapter" id="chapter-10">
+<h2 id="c10-s1">暂停后释放执行请求</h2>
+<p><code>interrupt(payload)</code>把需要审核的内容交回调用方，当前运行可结束，服务端保存待处理状态。前端应展示候选动作和证据，等审核完成后发起新请求恢复流程。它不是让Python线程原地等待一个按钮点击。</p>
+<p>使用中断需要checkpointer与稳定的thread_id。单机实验可用InMemorySaver；跨进程或服务重启需要持久化后端。审核人登录、权限、超时、重复点击和审批记录仍由应用负责。</p>
+<figure class="image-diagram"><img alt="人工审核与恢复时序" src="diagrams/03-interrupt.svg" loading="lazy"><figcaption>人工审核与恢复时序</figcaption></figure>
+<h2 id="c10-s2">恢复从节点开头重新进入</h2>
+<p>源码：<a href="https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/types.py#L903-L1046">interrupt · L903—L1046</a>，固定提交<code>41c9c22fdc83</code>，完整函数。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">interrupt</span>(<span class="hljs-params">
+    value: <span class="hljs-type">Any</span>, *, response_schema: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>] | <span class="hljs-built_in">type</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+</span>) -&gt; <span class="hljs-type">Any</span>:
+    <span class="hljs-string">&quot;&quot;&quot;Interrupt the graph with a resumable exception from within a node.
+
+    The `interrupt` function enables human-in-the-loop workflows by pausing graph
+    execution and surfacing a value to the client. This value can communicate context
+    or request input required to resume execution.
+
+    In a given node, the first invocation of this function raises a `GraphInterrupt`
+    exception, halting execution. The provided `value` is included with the exception
+    and sent to the client executing the graph.
+
+    A client resuming the graph must use the [`Command`][langgraph.types.Command]
+    primitive to specify a value for the interrupt and continue execution.
+    The graph resumes from the start of the node, **re-executing** all logic.
+
+    If a node contains multiple `interrupt` calls, LangGraph matches resume values
+    to interrupts based on their order in the node. This list of resume values
+    is scoped to the specific task executing the node and is not shared across tasks.
+
+    To use an `interrupt`, you must enable a checkpointer, as the feature relies
+    on persisting the graph state.
+
+    !!! example
+
+        ```python
+        import uuid
+        from typing import Optional
+        from typing_extensions import TypedDict
+
+        from langgraph.checkpoint.memory import InMemorySaver
+        from langgraph.constants import START
+        from langgraph.graph import StateGraph
+        from langgraph.types import interrupt, Command
+
+
+        class State(TypedDict):
+            \&quot;\&quot;\&quot;The graph state.\&quot;\&quot;\&quot;
+
+            foo: str
+            human_value: Optional[str]
+            \&quot;\&quot;\&quot;Human value will be updated using an interrupt.\&quot;\&quot;\&quot;
+
+
+        def node(state: State):
+            answer = interrupt(
+                # This value will be sent to the client
+                # as part of the interrupt information.
+                \&quot;what is your age?\&quot;
+            )
+            print(f\&quot;&gt; Received an input from the interrupt: {answer}\&quot;)
+            return {\&quot;human_value\&quot;: answer}
+
+
+        builder = StateGraph(State)
+        builder.add_node(\&quot;node\&quot;, node)
+        builder.add_edge(START, \&quot;node\&quot;)
+
+        # A checkpointer must be enabled for interrupts to work!
+        checkpointer = InMemorySaver()
+        graph = builder.compile(checkpointer=checkpointer)
+
+        config = {
+            \&quot;configurable\&quot;: {
+                \&quot;thread_id\&quot;: uuid.uuid4(),
+            }
+        }
+
+        for chunk in graph.stream({\&quot;foo\&quot;: \&quot;abc\&quot;}, config):
+            print(chunk)
+
+        # &gt; {&#x27;__interrupt__&#x27;: (Interrupt(value=&#x27;what is your age?&#x27;, id=&#x27;45fda8478b2ef754419799e10992af06&#x27;, response_schema=None),)}
+
+        command = Command(resume=\&quot;some input from a human!!!\&quot;)
+
+        for chunk in graph.stream(Command(resume=\&quot;some input from a human!!!\&quot;), config):
+            print(chunk)
+
+        # &gt; Received an input from the interrupt: some input from a human!!!
+        # &gt; {&#x27;node&#x27;: {&#x27;human_value&#x27;: &#x27;some input from a human!!!&#x27;}}
+        ```
+
+    Args:
+        value: The value to surface to the client when the graph is interrupted.
+        response_schema: Optional schema for the value expected on resume, surfaced
+            to clients so they can render a typed input form. Accepts a JSON Schema
+            `dict` (used as-is, resume values are not validated), or a Pydantic model
+            class, `TypedDict`, or dataclass, which are converted to JSON Schema for
+            clients and used to validate the resume value; the validated object is
+            what `interrupt` returns.
+
+    Returns:
+        Any: On subsequent invocations within the same node (same task to be precise), returns the value provided during the first invocation,
+            validated against `response_schema` when one that supports validation was given.
+
+    Raises:
+        GraphInterrupt: On the first invocation within the node, halts execution and surfaces the provided value to the client.
+        pydantic.ValidationError: When a resume value does not match a Pydantic model, `TypedDict`, or dataclass `response_schema`.
+            Nothing is saved, so the interrupt can be answered again. `is_invalid_resume` identifies it.
+    &quot;&quot;&quot;</span>
+    <span class="hljs-keyword">from</span> langgraph._internal._constants <span class="hljs-keyword">import</span> (
+        CONFIG_KEY_CHECKPOINT_NS,
+        CONFIG_KEY_SCRATCHPAD,
+        CONFIG_KEY_SEND,
+        RESUME,
+    )
+    <span class="hljs-keyword">from</span> langgraph.config <span class="hljs-keyword">import</span> get_config
+    <span class="hljs-keyword">from</span> langgraph.errors <span class="hljs-keyword">import</span> GraphInterrupt
+
+    conf = get_config()[<span class="hljs-string">&quot;configurable&quot;</span>]
+    adapter = (
+        <span class="hljs-literal">None</span>
+        <span class="hljs-keyword">if</span> response_schema <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">or</span> <span class="hljs-built_in">isinstance</span>(response_schema, <span class="hljs-built_in">dict</span>)
+        <span class="hljs-keyword">else</span> TypeAdapter(response_schema)
+    )
+    <span class="hljs-comment"># track interrupt index</span>
+    scratchpad = conf[CONFIG_KEY_SCRATCHPAD]
+    idx = scratchpad.interrupt_counter()
+    <span class="hljs-comment"># find previous resume values</span>
+    <span class="hljs-keyword">if</span> scratchpad.resume:
+        <span class="hljs-keyword">if</span> idx &lt; <span class="hljs-built_in">len</span>(scratchpad.resume):
+            v = scratchpad.resume[idx]
+            validated = _validate_resume(adapter, v) <span class="hljs-keyword">if</span> adapter <span class="hljs-keyword">else</span> v
+            conf[CONFIG_KEY_SEND]([(RESUME, scratchpad.resume[: idx + <span class="hljs-number">1</span>])])
+            <span class="hljs-keyword">return</span> validated
+    <span class="hljs-comment"># find current resume value</span>
+    v = scratchpad.get_null_resume(<span class="hljs-literal">True</span>)
+    <span class="hljs-keyword">if</span> v <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(scratchpad.resume) == idx, (scratchpad.resume, idx)
+        validated = _validate_resume(adapter, v) <span class="hljs-keyword">if</span> adapter <span class="hljs-keyword">else</span> v
+        scratchpad.resume.append(v)
+        conf[CONFIG_KEY_SEND]([(RESUME, scratchpad.resume)])
+        <span class="hljs-keyword">return</span> validated
+    <span class="hljs-comment"># no resume value found</span>
+    <span class="hljs-keyword">raise</span> GraphInterrupt(
+        (
+            Interrupt.from_ns(
+                value=value,
+                ns=conf[CONFIG_KEY_CHECKPOINT_NS],
+                response_schema=adapter.json_schema() <span class="hljs-keyword">if</span> adapter <span class="hljs-keyword">else</span> response_schema,
+            ),
+        )
+    )
+</code></pre>
+<p>源码通过scratchpad中的计数器定位本任务内第几次interrupt，若存在对应resume值就返回，否则抛出GraphInterrupt。恢复运行重新执行节点，直到原来的interrupt调用消费回答。</p>
+<p>所以<code>interrupt</code>前面的业务写入可能再次发生。不要把“先提交申请，再等待审核”写进同一个节点，也不要在interrupt前直接扣款或发邮件。审核节点应准备与展示候选动作，审核通过后才由独立写节点执行。</p>
+<p>同一节点内多个interrupt依赖调用顺序匹配恢复值。部署新版本时随意增删、重排中断点，会破坏历史待审任务的恢复假设。优先拆成多个清晰节点，并对正在运行的流程采用版本化迁移策略。</p>
+<h2 id="c10-s3">不要吞掉控制流异常</h2>
+<p>interrupt通过异常实现控制流。把整个审核节点包进宽泛异常捕获再返回“失败”，可能把需要暂停的流程改成普通完成。将异常捕获收窄到真正可能失败的外部调用，interrupt放在明确的控制流位置。</p>
+<p><code>Command(resume={"approved": True})</code>只是传入一个值，不是框架授予审批权限。业务服务必须验证当前用户可以审批这个流程，并对回答结构、候选动作版本和重复恢复做检查。参考：<a href="https://docs.langchain.com/oss/python/langgraph/interrupts">Interrupts</a>。</p></section></div></article><article class="chapter" id="reading-011" data-title="重试、超时与副作用幂等"><div class="chapter-title"><p class="eyebrow">章节11 / 完整阅读</p><h1>重试、超时与副作用幂等</h1></div><div class="study"><section class="original-chapter" id="chapter-11">
+<h2 id="c11-s1">哪些失败可以重试</h2>
+<p>临时连接失败、限流和短暂服务不可用可能适合退避重试；字段不合法、资格不满足、权限被拒绝一般需要改输入或转人工。重试策略应按异常类型收窄，不能把所有失败都当网络抖动。</p>
+<p>示例来自<a href="examples/lab.py">examples/lab.py</a>，依赖导入见该文件开头。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">retry</span>():
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">State</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+        ok: <span class="hljs-built_in">bool</span>
+    attempts = {<span class="hljs-string">&quot;count&quot;</span>: <span class="hljs-number">0</span>}
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">flaky</span>(<span class="hljs-params">state</span>):
+        attempts[<span class="hljs-string">&quot;count&quot;</span>] += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">if</span> attempts[<span class="hljs-string">&quot;count&quot;</span>] &lt; <span class="hljs-number">3</span>:
+            <span class="hljs-keyword">raise</span> ConnectionError(<span class="hljs-string">&quot;simulated temporary outage&quot;</span>)
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;ok&quot;</span>: <span class="hljs-literal">True</span>}
+    b = StateGraph(State)
+    b.add_node(<span class="hljs-string">&quot;flaky&quot;</span>, flaky, retry_policy=RetryPolicy(
+        initial_interval=<span class="hljs-number">0.001</span>, max_interval=<span class="hljs-number">0.001</span>, max_attempts=<span class="hljs-number">3</span>,
+        jitter=<span class="hljs-literal">False</span>, retry_on=ConnectionError))
+    b.add_edge(START, <span class="hljs-string">&quot;flaky&quot;</span>)
+    b.add_edge(<span class="hljs-string">&quot;flaky&quot;</span>, END)
+    <span class="hljs-keyword">assert</span> b.<span class="hljs-built_in">compile</span>().invoke({})[<span class="hljs-string">&quot;ok&quot;</span>] <span class="hljs-keyword">is</span> <span class="hljs-literal">True</span>
+    <span class="hljs-keyword">assert</span> attempts[<span class="hljs-string">&quot;count&quot;</span>] == <span class="hljs-number">3</span>
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;attempts_including_first&quot;</span>: attempts[<span class="hljs-string">&quot;count&quot;</span>]}
+</code></pre>
+<p>实验明确指定ConnectionError，前两次失败，第三次成功。<code>max_attempts=3</code>包含第一次执行，不是失败后再额外重试三次。生产环境通常需要指数退避、抖动与总耗时上限。</p>
+<p>源码：<a href="https://github.com/langchain-ai/langgraph/blob/41c9c22fdc83d68a2859d0c9a2b627c8615a792f/libs/langgraph/langgraph/pregel/_retry.py#L573-L682">run_with_retry · L573—L682</a>，固定提交<code>41c9c22fdc83</code>，完整函数。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">run_with_retry</span>(<span class="hljs-params">
+    task: PregelExecutableTask,
+    retry_policy: <span class="hljs-type">Sequence</span>[RetryPolicy] | <span class="hljs-literal">None</span>,
+    configurable: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,
+</span>) -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-string">&quot;&quot;&quot;Run a task with retries.&quot;&quot;&quot;</span>
+    retry_policy = task.retry_policy <span class="hljs-keyword">or</span> retry_policy
+    <span class="hljs-keyword">if</span> task.timeout <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-comment"># `validate_timeout_supported` catches sync nodes at compile time;</span>
+        <span class="hljs-comment"># this is a runtime safety net for paths that may bypass that validation.</span>
+        <span class="hljs-keyword">raise</span> sync_timeout_unsupported(task.name)
+    attempts = <span class="hljs-number">0</span>
+    node_first_attempt_time = time.time()
+    config = task.config
+    <span class="hljs-keyword">if</span> configurable <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+        config = patch_configurable(config, configurable)
+    runtime = config.get(CONF, {}).get(CONFIG_KEY_RUNTIME)
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(runtime, Runtime):
+        runtime = _ensure_execution_info(runtime, config, task)
+        config = patch_configurable(
+            config,
+            {
+                CONFIG_KEY_RUNTIME: runtime.patch_execution_info(
+                    node_first_attempt_time=node_first_attempt_time,
+                )
+            },
+        )
+    <span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
+        runtime = config.get(CONF, {}).get(CONFIG_KEY_RUNTIME)
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(runtime, Runtime):
+            config = patch_configurable(
+                config,
+                {
+                    CONFIG_KEY_RUNTIME: runtime.patch_execution_info(
+                        <span class="hljs-comment"># node_attempt is execution count (1-indexed): 1 on first run,</span>
+                        <span class="hljs-comment"># then 2, 3, ... on subsequent retries.</span>
+                        node_attempt=attempts + <span class="hljs-number">1</span>,
+                    )
+                },
+            )
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-comment"># clear any writes from previous attempts</span>
+            task.writes.clear()
+            <span class="hljs-comment"># run the task</span>
+            <span class="hljs-keyword">return</span> task.proc.invoke(task.<span class="hljs-built_in">input</span>, config)
+        <span class="hljs-keyword">except</span> ParentCommand <span class="hljs-keyword">as</span> exc:
+            ns: <span class="hljs-built_in">str</span> = config[CONF][CONFIG_KEY_CHECKPOINT_NS]
+            cmd = exc.args[<span class="hljs-number">0</span>]
+            <span class="hljs-comment"># strip task_ids from namespace for comparison (ns format: &quot;node1|node2:task_id&quot;)</span>
+            <span class="hljs-keyword">if</span> cmd.graph <span class="hljs-keyword">in</span> (ns, recast_checkpoint_ns(ns), task.name):
+                <span class="hljs-comment"># this command is for the current graph, handle it</span>
+                <span class="hljs-keyword">for</span> w <span class="hljs-keyword">in</span> task.writers:
+                    w.invoke(cmd, config)
+                <span class="hljs-keyword">break</span>
+            <span class="hljs-keyword">elif</span> cmd.graph == Command.PARENT:
+                <span class="hljs-comment"># this command is for the parent graph, assign it to the parent.</span>
+                exc.args = (replace(cmd, graph=_checkpoint_ns_for_parent_command(ns)),)
+            <span class="hljs-comment"># bubble up</span>
+            <span class="hljs-keyword">raise</span>
+        <span class="hljs-keyword">except</span> GraphBubbleUp:
+            <span class="hljs-comment"># if interrupted, end</span>
+            <span class="hljs-keyword">raise</span>
+        <span class="hljs-keyword">except</span> asyncio.CancelledError <span class="hljs-keyword">as</span> exc:
+            <span class="hljs-comment"># A sync node has no asyncio context, so any ``CancelledError`` that</span>
+            <span class="hljs-comment"># reaches here was raised by the node body itself. Surface it as a</span>
+            <span class="hljs-comment"># regular exception so the pregel runner panics the run instead of</span>
+            <span class="hljs-comment"># treating the task as a silent tear-down (LSD-1507).</span>
+            <span class="hljs-keyword">raise</span> NodeCancelledError(task.name) <span class="hljs-keyword">from</span> exc
+        <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
+            <span class="hljs-keyword">if</span> SUPPORTS_EXC_NOTES:
+                exc.add_note(<span class="hljs-string">f&quot;During task with name &#x27;<span class="hljs-subst">{task.name}</span>&#x27; and id &#x27;<span class="hljs-subst">{task.<span class="hljs-built_in">id</span>}</span>&#x27;&quot;</span>)
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> retry_policy:
+                <span class="hljs-keyword">raise</span>
+
+            <span class="hljs-comment"># Check which retry policy applies to this exception</span>
+            matching_policy = <span class="hljs-literal">None</span>
+            <span class="hljs-keyword">for</span> policy <span class="hljs-keyword">in</span> retry_policy:
+                <span class="hljs-keyword">if</span> _should_retry_on(policy, exc):
+                    matching_policy = policy
+                    <span class="hljs-keyword">break</span>
+
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> matching_policy:
+                <span class="hljs-keyword">raise</span>
+
+            <span class="hljs-comment"># attempts tracks failed tries only; it increments after a failure.</span>
+            attempts += <span class="hljs-number">1</span>
+            <span class="hljs-comment"># check if we should give up</span>
+            <span class="hljs-keyword">if</span> attempts &gt;= matching_policy.max_attempts:
+                <span class="hljs-keyword">raise</span>
+            <span class="hljs-comment"># sleep before retrying</span>
+            interval = matching_policy.initial_interval
+            <span class="hljs-comment"># Apply backoff factor based on attempt count</span>
+            interval = <span class="hljs-built_in">min</span>(
+                matching_policy.max_interval,
+                interval * (matching_policy.backoff_factor ** (attempts - <span class="hljs-number">1</span>)),
+            )
+
+            <span class="hljs-comment"># Apply jitter if configured</span>
+            sleep_time = (
+                interval + random.uniform(<span class="hljs-number">0</span>, <span class="hljs-number">1</span>) <span class="hljs-keyword">if</span> matching_policy.jitter <span class="hljs-keyword">else</span> interval
+            )
+            time.sleep(sleep_time)
+
+            <span class="hljs-comment"># log the retry</span>
+            logger.info(
+                <span class="hljs-string">f&quot;Retrying task <span class="hljs-subst">{task.name}</span> after <span class="hljs-subst">{sleep_time:<span class="hljs-number">.2</span>f}</span> seconds (attempt <span class="hljs-subst">{attempts}</span>) after <span class="hljs-subst">{exc.__class__.__name__}</span> <span class="hljs-subst">{exc}</span>&quot;</span>,
+                exc_info=exc,
+            )
+            <span class="hljs-comment"># signal subgraphs to resume (if available)</span>
+            config = patch_configurable(config, {CONFIG_KEY_RESUMING: <span class="hljs-literal">True</span>})
+</code></pre>
+<p>源码在每次尝试前清空本任务的待写入更新，然后调用节点；失败时匹配策略、增加失败次数，达到上限后抛出。清空task.writes仅作用于框架内部，不会撤销节点已经发出的HTTP写请求。</p>
+<h2 id="c11-s2">最危险的时间窗口</h2>
+<figure class="image-diagram"><img alt="外部提交与检查点之间的窗口" src="diagrams/04-idempotency.svg" loading="lazy"><figcaption>外部提交与检查点之间的窗口</figcaption></figure>
+<p>业务服务已提交，但响应丢失，图节点可能认为失败并重试。即使图使用sync持久化，也无法单靠checkpoint消除这个窗口。更稳妥的协议是：调用携带稳定业务幂等键；服务端在同一业务事务中记录幂等键和结果；相同请求重试返回原回执；相同键但不同内容拒绝。</p>
+<p>幂等键可以由业务request_id、动作类型和候选动作版本组成，但具体范围需按业务定义。不要每次重试生成随机键，也不要把“先查是否存在，再插入”作为没有唯一约束保护的去重方案。</p>
+<h2 id="c11-s3">超时与取消也有边界</h2>
+<p>给HTTP客户端配置连接与读取超时，给模型配置请求上限；外层流程再配置总预算。取消等待并不能证明远端操作停止，也不能保证同步阻塞调用立即终止。LangGraph1.2.16同步重试路径会拒绝它不支持的节点timeout配置；同步与异步API能力不能直接互相套用。</p>
+<p>外部副作用可按框架推荐方式隔离为任务或节点以改善恢复重放，但涉及跨系统提交时，仍需要服务端幂等或补偿协议。</p></section></div></article><article class="chapter" id="reading-012" data-title="Streaming、观测与问题定位"><div class="chapter-title"><p class="eyebrow">章节12 / 完整阅读</p><h1>Streaming、观测与问题定位</h1></div><div class="study"><section class="original-chapter" id="chapter-12">
+<h2 id="c12-s1">先区分流事件的含义</h2>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>主要内容</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>updates</td>
+<td>节点提交的状态增量</td>
+<td>展示流程推进、定位哪个节点改了字段</td>
+</tr>
+<tr>
+<td>values</td>
+<td>步骤后的状态快照</td>
+<td>观察合并后的结果</td>
+</tr>
+<tr>
+<td>messages</td>
+<td>模型消息片段及元数据</td>
+<td>展示模型输出；需要实际模型节点</td>
+</tr>
+<tr>
+<td>custom</td>
+<td>应用自行发出的进度事件</td>
+<td>文档处理进度等自定义反馈</td>
+</tr>
+</tbody>
+</table>
+<p>示例来自<a href="examples/lab.py">examples/lab.py</a>，依赖导入见该文件开头。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">streaming</span>():
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">State</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+        count: <span class="hljs-built_in">int</span>
+    b = StateGraph(State)
+    b.add_node(<span class="hljs-string">&quot;inc&quot;</span>, <span class="hljs-keyword">lambda</span> s: {<span class="hljs-string">&quot;count&quot;</span>: s[<span class="hljs-string">&quot;count&quot;</span>] + <span class="hljs-number">1</span>})
+    b.add_edge(START, <span class="hljs-string">&quot;inc&quot;</span>)
+    b.add_edge(<span class="hljs-string">&quot;inc&quot;</span>, END)
+    events = <span class="hljs-built_in">list</span>(b.<span class="hljs-built_in">compile</span>().stream({<span class="hljs-string">&quot;count&quot;</span>: <span class="hljs-number">0</span>}, stream_mode=<span class="hljs-string">&quot;updates&quot;</span>))
+    <span class="hljs-keyword">assert</span> events == [{<span class="hljs-string">&quot;inc&quot;</span>: {<span class="hljs-string">&quot;count&quot;</span>: <span class="hljs-number">1</span>}}]
+    <span class="hljs-keyword">return</span> events
+</code></pre>
+<p>此例只有普通Python节点，所以选择updates，并断言事件内容。流式输出是交付过程中的信息，不等于业务最终提交证明。前端应区分“正在生成”“等待审核”“业务已受理”，最终状态以业务服务回执为准。</p>
+<h2 id="c12-s2">用三个问题缩小范围</h2>
+<p>第一，节点有没有运行？查看本次run的任务事件、节点名和异常。第二，节点提交了什么？查看updates与State字段，检查是否返回了错误字段或完整历史。第三，下一步为何没触发？查看StateSnapshot.next、tasks和条件路由，确认是正常结束、中断还是错误。</p>
+<p>持久化正常但流程错乱时，检查thread_id是否复用、Reducer是否重复累积、历史图版本是否兼容。模型结果不准确时，再追踪提示词、证据与结构化字段，不要先修改调度框架。</p>
+<h2 id="c12-s3">记录足够证据，同时控制数据暴露</h2>
+<p>建议在应用日志中关联业务request_id、thread_id、run标识、图版本、节点名、耗时、重试次数、模型用量和业务回执。框架内部metadata名称可能随版本变化；业务关键标识应自己明确维护。</p>
+<p>医疗材料、身份证明、邮件正文等敏感字段不应默认完整输出到流、日志或追踪平台。生产接入LangSmith等观测服务前，应配置脱敏、访问范围和保留策略。本手册没有连接任何追踪平台，也没有上传实验之外的业务数据。</p>
+<p>参考：<a href="https://docs.langchain.com/oss/python/langgraph/streaming">Streaming</a>。</p></section></div></article><article class="chapter" id="reading-013" data-title="子图、记忆与部署边界"><div class="chapter-title"><p class="eyebrow">章节13 / 完整阅读</p><h1>子图、记忆与部署边界</h1></div><div class="study"><section class="original-chapter" id="chapter-13">
+<h2 id="c13-s1">子图首先是职责边界</h2>
+<p>当一段流程有自己的输入、内部状态和输出，可以提取成子图。例如资料校验子图负责字段规则，审核子图负责人工确认，父图只管理整体进度。</p>
+<p>父子状态结构兼容时，可以把编译好的子图作为节点；不兼容时，在包装节点中显式把父State映射为子输入，再把子输出映射为父更新。不要把所有业务字段都塞进一个全局State来避免映射，否则多个子流程很容易相互覆盖。</p>
+<p>子图中的持久化行为与checkpointer配置有关。需要区分每次调用隔离、跨调用保留状态以及禁用持久化。具体配置应对照固定版本API，并测试同一子图重复调用与中断恢复；本手册未执行子图专项实验，不把设计建议标为已验证行为。</p>
+<h2 id="c13-s2">短期状态与长期记忆</h2>
+<p>checkpointer通常承担同一thread内的短期状态与历史恢复。Store适合跨thread的长期信息，例如用户偏好或可复用知识。把所有历史塞进messages会把恢复、检索和上下文长度混在一起。</p>
+<p>长期记忆应有命名空间、数据来源、更新与删除规则。模型摘要是派生结果，不能替代权威业务记录；偏好更新也需要区分“用户明确说明”和“系统推测”。多租户隔离必须落到服务端权限和存储查询条件。</p>
+<h2 id="c13-s3">本地库与部署平台分开考虑</h2>
+<p>安装langgraph运行一个Python图，并不意味着已经具备生产服务的身份认证、作业队列、水平扩展和运维能力。可由自己的API服务托管，也可采用配套部署产品，选型取决于并发、恢复、数据和运维要求。</p>
+<p>InMemorySaver适合实验，SQLite适合本地持久化验证；生产可评估PostgreSQL等后端。本手册的SQLite实验只证明两个进程之间能恢复同一示例，不构成多实例并发、数据库容灾或高可用验收。</p>
+<p>参考：<a href="https://docs.langchain.com/oss/python/langgraph/use-subgraphs">Subgraphs</a>、<a href="https://docs.langchain.com/oss/python/langgraph/memory">Memory</a>。</p></section></div></article><article class="chapter" id="reading-014" data-title="实战：抽取、校验、审核与提交"><div class="chapter-title"><p class="eyebrow">章节14 / 完整阅读</p><h1>实战：抽取、校验、审核与提交</h1></div><div class="study"><section class="original-chapter" id="chapter-14">
+<h2 id="c14-s1">把权限边界画进流程</h2>
+<p>这是一份合成的受理流程，不使用真实客户材料。输入文本先变成候选动作，规则校验通过后暂停等待审核，通过后才运行提交节点；拒绝或输入无效都进入结束路径。</p>
+<figure class="image-diagram"><img alt="受理流程与写入边界" src="diagrams/05-workflow.svg" loading="lazy"><figcaption>受理流程与写入边界</figcaption></figure>
+<p>示例中的extract只是固定规则，submit只生成DEMO回执。它们用于验证编排，不表示已经接入模型或真实业务系统，也不代表申请已经生效。</p>
+<h2 id="c14-s2">完整可运行代码</h2>
+<p>示例来自<a href="examples/lab.py">examples/lab.py</a>，依赖导入见该文件开头。</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">approval</span>():
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">State</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+        request_id: <span class="hljs-built_in">str</span>
+        text: <span class="hljs-built_in">str</span>
+        candidate: <span class="hljs-built_in">dict</span>
+        status: <span class="hljs-built_in">str</span>
+        receipt: <span class="hljs-built_in">str</span>
+    audit = {<span class="hljs-string">&quot;review_entries&quot;</span>: <span class="hljs-number">0</span>, <span class="hljs-string">&quot;writes&quot;</span>: <span class="hljs-number">0</span>}
+    <span class="hljs-comment"># Simulated extraction with fixed rules; this does not evaluate any LLM.</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">extract</span>(<span class="hljs-params">state</span>):
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;candidate&quot;</span>: {<span class="hljs-string">&quot;action&quot;</span>: <span class="hljs-string">&quot;add&quot;</span>, <span class="hljs-string">&quot;person&quot;</span>: state[<span class="hljs-string">&quot;text&quot;</span>].strip()}, <span class="hljs-string">&quot;status&quot;</span>: <span class="hljs-string">&quot;extracted&quot;</span>}
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">validate</span>(<span class="hljs-params">state</span>):
+        person = state[<span class="hljs-string">&quot;candidate&quot;</span>][<span class="hljs-string">&quot;person&quot;</span>]
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;status&quot;</span>: <span class="hljs-string">&quot;valid&quot;</span> <span class="hljs-keyword">if</span> person <span class="hljs-keyword">else</span> <span class="hljs-string">&quot;invalid&quot;</span>}
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">route</span>(<span class="hljs-params">state</span>):
+        <span class="hljs-keyword">return</span> <span class="hljs-string">&quot;review&quot;</span> <span class="hljs-keyword">if</span> state[<span class="hljs-string">&quot;status&quot;</span>] == <span class="hljs-string">&quot;valid&quot;</span> <span class="hljs-keyword">else</span> <span class="hljs-string">&quot;reject&quot;</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">review</span>(<span class="hljs-params">state</span>):
+        audit[<span class="hljs-string">&quot;review_entries&quot;</span>] += <span class="hljs-number">1</span>  <span class="hljs-comment"># Demonstrate node re-entry; not a business write.</span>
+        answer = interrupt({<span class="hljs-string">&quot;request_id&quot;</span>: state[<span class="hljs-string">&quot;request_id&quot;</span>], <span class="hljs-string">&quot;candidate&quot;</span>: state[<span class="hljs-string">&quot;candidate&quot;</span>]})
+        <span class="hljs-comment"># Backend must separately authorize caller and validate the review payload.</span>
+        approved = <span class="hljs-built_in">isinstance</span>(answer, <span class="hljs-built_in">dict</span>) <span class="hljs-keyword">and</span> answer.get(<span class="hljs-string">&quot;approved&quot;</span>) <span class="hljs-keyword">is</span> <span class="hljs-literal">True</span>
+        <span class="hljs-keyword">return</span> Command(update={<span class="hljs-string">&quot;status&quot;</span>: <span class="hljs-string">&quot;approved&quot;</span> <span class="hljs-keyword">if</span> approved <span class="hljs-keyword">else</span> <span class="hljs-string">&quot;rejected&quot;</span>},
+                       goto=<span class="hljs-string">&quot;submit&quot;</span> <span class="hljs-keyword">if</span> approved <span class="hljs-keyword">else</span> <span class="hljs-string">&quot;reject&quot;</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">submit</span>(<span class="hljs-params">state</span>):
+        <span class="hljs-keyword">assert</span> state[<span class="hljs-string">&quot;status&quot;</span>] == <span class="hljs-string">&quot;approved&quot;</span>
+        audit[<span class="hljs-string">&quot;writes&quot;</span>] += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;receipt&quot;</span>: <span class="hljs-string">&quot;DEMO-&quot;</span> + state[<span class="hljs-string">&quot;request_id&quot;</span>], <span class="hljs-string">&quot;status&quot;</span>: <span class="hljs-string">&quot;submitted&quot;</span>}
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">reject</span>(<span class="hljs-params">state</span>):
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;status&quot;</span>: <span class="hljs-string">&quot;rejected&quot;</span>}
+    b = StateGraph(State)
+    <span class="hljs-keyword">for</span> name, fn <span class="hljs-keyword">in</span> [(<span class="hljs-string">&quot;extract&quot;</span>, extract), (<span class="hljs-string">&quot;validate&quot;</span>, validate), (<span class="hljs-string">&quot;review&quot;</span>, review), (<span class="hljs-string">&quot;submit&quot;</span>, submit), (<span class="hljs-string">&quot;reject&quot;</span>, reject)]:
+        b.add_node(name, fn)
+    b.add_edge(START, <span class="hljs-string">&quot;extract&quot;</span>)
+    b.add_edge(<span class="hljs-string">&quot;extract&quot;</span>, <span class="hljs-string">&quot;validate&quot;</span>)
+    b.add_conditional_edges(<span class="hljs-string">&quot;validate&quot;</span>, route, {<span class="hljs-string">&quot;review&quot;</span>: <span class="hljs-string">&quot;review&quot;</span>, <span class="hljs-string">&quot;reject&quot;</span>: <span class="hljs-string">&quot;reject&quot;</span>})
+    <span class="hljs-comment"># No static outgoing edge from review: its Command owns the route.</span>
+    b.add_edge(<span class="hljs-string">&quot;submit&quot;</span>, END)
+    b.add_edge(<span class="hljs-string">&quot;reject&quot;</span>, END)
+    graph = b.<span class="hljs-built_in">compile</span>(checkpointer=InMemorySaver())
+    cfg = {<span class="hljs-string">&quot;configurable&quot;</span>: {<span class="hljs-string">&quot;thread_id&quot;</span>: <span class="hljs-string">&quot;approval-1&quot;</span>}}
+    paused = graph.invoke({<span class="hljs-string">&quot;request_id&quot;</span>: <span class="hljs-string">&quot;r1&quot;</span>, <span class="hljs-string">&quot;text&quot;</span>: <span class="hljs-string">&quot; Alice &quot;</span>}, cfg)
+    <span class="hljs-keyword">assert</span> paused[<span class="hljs-string">&quot;__interrupt__&quot;</span>] <span class="hljs-keyword">and</span> audit[<span class="hljs-string">&quot;writes&quot;</span>] == <span class="hljs-number">0</span>
+    snapshot = graph.get_state(cfg)
+    <span class="hljs-keyword">assert</span> snapshot.<span class="hljs-built_in">next</span> == (<span class="hljs-string">&quot;review&quot;</span>,)
+    final = graph.invoke(Command(resume={<span class="hljs-string">&quot;approved&quot;</span>: <span class="hljs-literal">True</span>}), cfg)
+    <span class="hljs-keyword">assert</span> final[<span class="hljs-string">&quot;status&quot;</span>] == <span class="hljs-string">&quot;submitted&quot;</span> <span class="hljs-keyword">and</span> audit == {<span class="hljs-string">&quot;review_entries&quot;</span>: <span class="hljs-number">2</span>, <span class="hljs-string">&quot;writes&quot;</span>: <span class="hljs-number">1</span>}
+    deny_cfg = {<span class="hljs-string">&quot;configurable&quot;</span>: {<span class="hljs-string">&quot;thread_id&quot;</span>: <span class="hljs-string">&quot;approval-deny&quot;</span>}}
+    graph.invoke({<span class="hljs-string">&quot;request_id&quot;</span>: <span class="hljs-string">&quot;r2&quot;</span>, <span class="hljs-string">&quot;text&quot;</span>: <span class="hljs-string">&quot;Bob&quot;</span>}, deny_cfg)
+    denied = graph.invoke(Command(resume={<span class="hljs-string">&quot;approved&quot;</span>: <span class="hljs-literal">False</span>}), deny_cfg)
+    <span class="hljs-keyword">assert</span> denied[<span class="hljs-string">&quot;status&quot;</span>] == <span class="hljs-string">&quot;rejected&quot;</span> <span class="hljs-keyword">and</span> audit[<span class="hljs-string">&quot;writes&quot;</span>] == <span class="hljs-number">1</span>
+    invalid = graph.invoke({<span class="hljs-string">&quot;request_id&quot;</span>: <span class="hljs-string">&quot;r3&quot;</span>, <span class="hljs-string">&quot;text&quot;</span>: <span class="hljs-string">&quot; &quot;</span>}, {<span class="hljs-string">&quot;configurable&quot;</span>: {<span class="hljs-string">&quot;thread_id&quot;</span>: <span class="hljs-string">&quot;invalid&quot;</span>}})
+    <span class="hljs-keyword">assert</span> invalid[<span class="hljs-string">&quot;status&quot;</span>] == <span class="hljs-string">&quot;rejected&quot;</span> <span class="hljs-keyword">and</span> <span class="hljs-string">&quot;__interrupt__&quot;</span> <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> invalid
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;paused_next&quot;</span>: <span class="hljs-built_in">list</span>(snapshot.<span class="hljs-built_in">next</span>), <span class="hljs-string">&quot;approved_status&quot;</span>: final[<span class="hljs-string">&quot;status&quot;</span>],
+            <span class="hljs-string">&quot;denied_status&quot;</span>: denied[<span class="hljs-string">&quot;status&quot;</span>], <span class="hljs-string">&quot;invalid_status&quot;</span>: invalid[<span class="hljs-string">&quot;status&quot;</span>],
+            <span class="hljs-string">&quot;review_entries&quot;</span>: audit[<span class="hljs-string">&quot;review_entries&quot;</span>], <span class="hljs-string">&quot;writes&quot;</span>: audit[<span class="hljs-string">&quot;writes&quot;</span>]}
+</code></pre>
+<h2 id="c14-s3">顺着状态追踪一次运行</h2>
+<p>输入<code>" Alice "</code>后，extract生成候选动作与extracted状态；validate转为valid；条件路由进入review。第一次执行review产生中断，读取StateSnapshot.next得到review，业务写入次数仍为0。</p>
+<p>通过Command.resume传回批准结果后，review从头重新进入，先前的计数再次增加；interrupt返回此次回答。Command写入approved并跳转submit，最后得到submitted与DEMO回执。</p>
+<p>同一函数还验证两条失败路径：Bob的候选动作被人工拒绝，submit不执行；空字符串在规则校验后直接拒绝，不产生审核中断。这些断言确认写节点受到控制流约束。</p>
+<h2 id="c14-s4">接入真实业务前补齐的契约</h2>
+<p>extract应返回经过Schema校验的候选动作、证据位置与不确定项。validate查询权威数据、校验资格与字段关系。review展示动作内容和版本，后端验证审批身份与权限。submit携带幂等键并保存业务回执，失败后可以查询原请求状态。</p>
+<p>人工修改了候选动作时，应重新进行规则校验；审批后发生的关键业务变化也可能要求提交时再次检查。不能因为某个历史检查点曾经valid，就永久放行后续写入。</p>
+<p>多动作材料应明确拆分依据和依赖顺序；意图反转、证据冲突或无法安全拆分时进入人工处理。模型置信度不能替代这些业务规则。</p></section></div></article><article class="chapter" id="reading-015" data-title="跨进程恢复实验与验证结果"><div class="chapter-title"><p class="eyebrow">章节15 / 完整阅读</p><h1>跨进程恢复实验与验证结果</h1></div><div class="study"><section class="original-chapter" id="chapter-15">
+<h2 id="c15-s1">真正结束进程后再恢复</h2>
+<p>InMemorySaver的恢复只在保存对象仍然存在时成立。下面的脚本在独立子进程中暂停，再启动另一个子进程，用同一SQLite文件和thread_id回答中断。临时数据库在实验结束后自动清理。</p>
+<pre><code class="language-python"><span class="hljs-string">&quot;&quot;&quot;Run pause and resume in different Python processes against a local SQLite DB.&quot;&quot;&quot;</span>
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> subprocess
+<span class="hljs-keyword">import</span> sys
+<span class="hljs-keyword">import</span> tempfile
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> TypedDict
+<span class="hljs-keyword">from</span> langgraph.graph <span class="hljs-keyword">import</span> StateGraph, START, END
+<span class="hljs-keyword">from</span> langgraph.checkpoint.sqlite <span class="hljs-keyword">import</span> SqliteSaver
+<span class="hljs-keyword">from</span> langgraph.types <span class="hljs-keyword">import</span> interrupt, Command
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">State</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+    item: <span class="hljs-built_in">str</span>
+    approved: <span class="hljs-built_in">bool</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">review</span>(<span class="hljs-params">state</span>):
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;approved&quot;</span>: interrupt({<span class="hljs-string">&quot;item&quot;</span>: state[<span class="hljs-string">&quot;item&quot;</span>]}) <span class="hljs-keyword">is</span> <span class="hljs-literal">True</span>}
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">worker</span>(<span class="hljs-params">db, phase</span>):
+    b = StateGraph(State)
+    b.add_node(<span class="hljs-string">&quot;review&quot;</span>, review)
+    b.add_edge(START, <span class="hljs-string">&quot;review&quot;</span>)
+    b.add_edge(<span class="hljs-string">&quot;review&quot;</span>, END)
+    <span class="hljs-keyword">with</span> SqliteSaver.from_conn_string(db) <span class="hljs-keyword">as</span> saver:
+        graph = b.<span class="hljs-built_in">compile</span>(checkpointer=saver)
+        cfg = {<span class="hljs-string">&quot;configurable&quot;</span>: {<span class="hljs-string">&quot;thread_id&quot;</span>: <span class="hljs-string">&quot;restart-demo&quot;</span>}}
+        <span class="hljs-keyword">if</span> phase == <span class="hljs-string">&quot;pause&quot;</span>:
+            result = graph.invoke({<span class="hljs-string">&quot;item&quot;</span>: <span class="hljs-string">&quot;demo&quot;</span>}, cfg, durability=<span class="hljs-string">&quot;sync&quot;</span>)
+            <span class="hljs-keyword">assert</span> result[<span class="hljs-string">&quot;__interrupt__&quot;</span>]
+            <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;phase&quot;</span>: <span class="hljs-string">&quot;paused&quot;</span>, <span class="hljs-string">&quot;next&quot;</span>: <span class="hljs-built_in">list</span>(graph.get_state(cfg).<span class="hljs-built_in">next</span>)}
+        result = graph.invoke(Command(resume=<span class="hljs-literal">True</span>), cfg, durability=<span class="hljs-string">&quot;sync&quot;</span>)
+        <span class="hljs-keyword">assert</span> result[<span class="hljs-string">&quot;approved&quot;</span>] <span class="hljs-keyword">is</span> <span class="hljs-literal">True</span> <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> graph.get_state(cfg).<span class="hljs-built_in">next</span>
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot;phase&quot;</span>: <span class="hljs-string">&quot;resumed&quot;</span>, <span class="hljs-string">&quot;approved&quot;</span>: result[<span class="hljs-string">&quot;approved&quot;</span>]}
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">&quot;__main__&quot;</span>:
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(sys.argv) == <span class="hljs-number">3</span>:
+        <span class="hljs-built_in">print</span>(json.dumps(worker(sys.argv[<span class="hljs-number">1</span>], sys.argv[<span class="hljs-number">2</span>])))
+    <span class="hljs-keyword">else</span>:
+        <span class="hljs-keyword">with</span> tempfile.TemporaryDirectory(prefix=<span class="hljs-string">&quot;langgraph-restart-&quot;</span>) <span class="hljs-keyword">as</span> folder:
+            db = <span class="hljs-built_in">str</span>(Path(folder) / <span class="hljs-string">&quot;checkpoints.sqlite&quot;</span>)
+            results = [json.loads(subprocess.check_output(
+                [sys.executable, __file__, db, phase], text=<span class="hljs-literal">True</span>)) <span class="hljs-keyword">for</span> phase <span class="hljs-keyword">in</span> [<span class="hljs-string">&quot;pause&quot;</span>, <span class="hljs-string">&quot;resume&quot;</span>]]
+            <span class="hljs-built_in">print</span>(json.dumps({<span class="hljs-string">&quot;separate_processes&quot;</span>: results}, indent=<span class="hljs-number">2</span>))
+</code></pre>
+<h2 id="c15-s2">本机实际运行结果</h2>
+<p>下表与输出由实验脚本生成，不是手写的预期结果。执行环境、依赖版本和所有断言结果保存在lab-results.json；再次运行时应比较行为，Python补丁版本不必与本机完全相同。</p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;python&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.13.16&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;langgraph&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1.2.16&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;checkpoint&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.3.0&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;cases&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;minimal&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot; hello &quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;result&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;HELLO&quot;</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;parallel&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;merged&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+        <span class="hljs-string">&quot;A&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-string">&quot;B&quot;</span>
+      <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;join_total&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;without_reducer&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;InvalidUpdateError&quot;</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;messages&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;count&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;same_id_content&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;corrected&quot;</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;dispatch&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;squares&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+        <span class="hljs-number">4</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-number">9</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-number">16</span>
+      <span class="hljs-punctuation">]</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;approval&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;paused_next&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+        <span class="hljs-string">&quot;review&quot;</span>
+      <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;approved_status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;submitted&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;denied_status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;rejected&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;invalid_status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;rejected&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;review_entries&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;writes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;retry&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;attempts_including_first&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;pending_writes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;calls&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;a&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;b&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span>
+      <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;done&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+        <span class="hljs-string">&quot;A&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-string">&quot;B&quot;</span>
+      <span class="hljs-punctuation">]</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;recursion&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;unbounded_loop&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;GraphRecursionError&quot;</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;streaming&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;inc&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+          <span class="hljs-attr">&quot;count&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
+        <span class="hljs-punctuation">}</span>
+      <span class="hljs-punctuation">}</span>
+    <span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;separate_processes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;phase&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;paused&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;next&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+        <span class="hljs-string">&quot;review&quot;</span>
+      <span class="hljs-punctuation">]</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;phase&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;resumed&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;approved&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">true</span></span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;verified_date&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2026-10-19&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p>主实验包含9组场景：最小图、并行Reducer与冲突、消息同ID替换、动态Send、批准与拒绝及无效输入、明确重试、pending writes恢复、循环超限、updates流。另有SQLite跨进程恢复一组。</p>
+<h2 id="c15-s3">验证范围与未验证范围</h2>
+<p>这些实验确认固定版本下的本地调度、状态合并与恢复行为，没有测量模型正确率、真实工具调用、PostgreSQL故障转移、多实例并发或生产吞吐，也没有人为杀进程验证每一种durability崩溃窗口。</p>
+<p>源码节选采用Python AST定位完整函数，包含函数体中的全部分支和文档字符串。每段记录固定提交、路径、起止行和SHA-256，页面与Markdown从同一份材料生成。离线包包含本地阅读资源、示例、锁定依赖清单、验证记录和源码许可；阅读无需外部脚本。</p>
+<p>验证说明见<a href="VERIFICATION.md">VERIFICATION.md</a>，源码索引见<a href="source-evidence.json">source-evidence.json</a>，运行结果见<a href="lab-results.json">lab-results.json</a>。</p></section></div></article><article class="chapter" id="reading-016" data-title="常见误区与阅读路线"><div class="chapter-title"><p class="eyebrow">章节16 / 完整阅读</p><h1>常见误区与阅读路线</h1></div><div class="study"><section class="original-chapter" id="chapter-16">
+<h2 id="c16-s1">十个需要说清的边界</h2>
+<p>|常见理解|更准确的判断|
+|用了LangGraph就是自主Agent|固定规则组成的工作流也可以用LangGraph|
+|compile会检查业务正确性|主要转换并校验图结构与运行配置|
+|State是任意共享字典|更新通过Channel与Reducer合并|
+|LastValue并发时最后写入获胜|同一轮多份写入通常报冲突|
+|加了Reducer就自动幂等|列表追加、数值相加都可能重复|
+|连了两条边就是等待全部完成|全部前驱屏障应显式表达|
+|Command.goto会覆盖静态边|静态后继仍可能被调度|
+|interrupt恢复接着下一行执行|节点重入，再消费恢复值|
+|Checkpoint保证业务恰好执行一次|外部写入仍需幂等与事务协议|
+|SQLite重启实验通过就是生产可用|并发、权限、容灾与迁移需分别验证|</p>
+<h2 id="c16-s2">三条阅读路线</h2>
+<p>首次接触：先读第1—3章，运行minimal与parallel，再读第6—10章，观察approval中断前后状态。此时应该能解释每份更新从哪里来、为什么选择这条路，以及暂停后如何恢复。</p>
+<p>需要源码深度：依次读第3—5章的Channel、编译与Pregel，串起<code>compile → attach_edge → tick → apply_writes → Channel.update</code>，再看第10—11章的interrupt和run_with_retry。不要只记API名称，要能说明版本、写入和恢复值怎样变化。</p>
+<p>准备落地：重点读第9—15章，把自己的业务动作替换进合成案例，逐项补齐校验、审批权限、幂等回执、观测、恢复和图版本迁移。先用回放样本验证，再考虑真实写操作。</p>
+<h2 id="c16-s3">继续阅读</h2>
+<ul>
+<li><a href="https://github.com/langchain-ai/langgraph/tree/41c9c22fdc83d68a2859d0c9a2b627c8615a792f">LangGraph官方仓库：固定1.2.16提交</a></li>
+<li><a href="https://reference.langchain.com/python/langgraph/graphs/">Graph API参考</a></li>
+<li><a href="https://docs.langchain.com/oss/python/langgraph/pregel">Pregel运行时</a></li>
+<li><a href="https://docs.langchain.com/oss/python/langgraph/overview">官方文档入口</a></li>
+<li><a href="../transformer/">Transformer：理解模型内部的表示与计算</a></li>
+</ul>
+<p>公开文档可能演进，固定源码和本地实验用于界定本文结论。遇到新版本行为变化，应先核对依赖、源码与运行方式，再调整手册中的说明。</p></section></div></article></main><aside id="right-toc" aria-label="当前章节目录"><div class="reading"><span id="progress-text">阅读进度0%</span><span id="current-label"></span></div><p class="nav-label">本篇目录</p><nav id="toc"></nav></aside></div><dialog id="search-dialog" aria-labelledby="search-title"><div class="search-head"><h2 id="search-title">全文搜索</h2><button id="search-close" aria-label="关闭搜索">关闭</button></div><label for="search-input">搜索关键词、源码方法或原理问题</label><input id="search-input" type="search" placeholder="输入关键词，搜索完整正文" autocomplete="off"><p id="search-status" role="status" aria-live="polite">输入关键词，搜索完整正文。</p><div id="search-results"></div></dialog><div id="toast" role="status" aria-live="polite"></div><dialog id="diagram-dialog" aria-label="图解放大"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];}
+  function makeToc() {
+    sections=visibleHeadings();$('#toc').replaceChildren();
+    sections.forEach(h=>{const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';$('#toc').append(a);});
+    $('#current-label').textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function selectChapter(article) {
+    active=article;
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();
+  }
+  function scrollToTarget(target) {
+    const margin=window.innerWidth<=760?115:90;
+    window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top+window.scrollY-margin),behavior:'instant'});
+  }
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)scrollToTarget($('#review-route'));closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    selectChapter(article);closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      scrollToTarget(target);if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();
+    }
+    updateReading(false);
+  }
+  function updateReading(trackChapter=true) {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;
+    let currentChapter=chapters[0];
+    for(const chapter of chapters){if(chapter.getBoundingClientRect().top<=margin+30)currentChapter=chapter;else break;}
+    const first=chapters[0].getBoundingClientRect(),last=chapters[chapters.length-1].getBoundingClientRect();
+    const box={top:first.top,bottom:last.bottom,height:last.bottom-first.top};
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(progress===100)currentChapter=chapters[chapters.length-1];
+    if(trackChapter && currentChapter!==active)selectChapter(currentChapter);
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('#toc a,.chapter-nav div a').forEach(a=>a.classList.toggle('current',!!current && a.hash==='#'+current.id));
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{
+        const canvas=$('#diagram-content');canvas.classList.add('diagram');
+        canvas.style.margin='0';canvas.style.padding='0';canvas.style.border='0';
+        canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));
+        const ids=new Map([...canvas.querySelectorAll('[id]')].map(el=>[el.id,'zoom-'+el.id]));
+        const keys=[...ids.keys()].sort((a,b)=>b.length-a.length).map(id=>id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+        const pattern=keys.length?new RegExp('#('+keys.join('|')+')(?=$|[^\\w-])','g'):null;
+        const references=value=>pattern?value.replace(pattern,(_,id)=>'#'+ids.get(id)):value;
+        canvas.querySelectorAll('[id]').forEach(el=>{el.id=ids.get(el.id);});
+        // Mermaid scopes CSS selectors to the root SVG ID; keep those selectors
+        // and marker/use references aligned with the renamed clone IDs.
+        canvas.querySelectorAll('style').forEach(el=>{el.textContent=references(el.textContent);});
+        canvas.querySelectorAll('*').forEach(el=>{
+          for(const attr of ['style','fill','stroke','marker-end','marker-start','marker-mid','clip-path','mask','filter','href','xlink:href']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,references(value));
+          }
+          for(const attr of ['aria-labelledby','aria-describedby']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.split(/\s+/).map(id=>ids.get(id)||id).join(' '));
+          }
+        });scale(1);viewer.showModal();
+      });
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
+})();
+</script></body></html>

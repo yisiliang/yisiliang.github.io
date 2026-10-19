@@ -1,0 +1,225 @@
+    def compile(
+        self,
+        checkpointer: Checkpointer = None,
+        *,
+        cache: BaseCache | None = None,
+        store: BaseStore | None = None,
+        interrupt_before: All | list[str] | None = None,
+        interrupt_after: All | list[str] | None = None,
+        debug: bool = False,
+        name: str | None = None,
+        transformers: Sequence[Callable[[tuple[str, ...]], Any]] | None = None,
+    ) -> CompiledStateGraph[StateT, ContextT, InputT, OutputT]:
+        """Compiles the `StateGraph` into a `CompiledStateGraph` object.
+
+        The compiled graph implements the `Runnable` interface and can be invoked,
+        streamed, batched, and run asynchronously.
+
+        Args:
+            checkpointer: A checkpoint saver object or flag.
+
+                If provided, this `Checkpointer` serves as a fully versioned "short-term memory" for the graph,
+                allowing it to be paused, resumed, and replayed from any point.
+
+                If `None`, it may inherit the parent graph's checkpointer when used as a subgraph.
+
+                If `False`, it will not use or inherit any checkpointer.
+
+                **Important**: When a checkpointer is enabled, you should pass a `thread_id`
+                in the config when invoking the graph:
+
+                ```python
+                config = {"configurable": {"thread_id": "my-thread"}}
+                graph.invoke(inputs, config)
+                ```
+
+                The `thread_id` is the key used to store and retrieve checkpoints. Use a
+                unique ID for independent runs, or reuse the same ID to accumulate state
+                across invocations (e.g., for conversation memory).
+
+            interrupt_before: An optional list of node names to interrupt before.
+            interrupt_after: An optional list of node names to interrupt after.
+            debug: A flag indicating whether to enable debug mode.
+            name: The name to use for the compiled graph.
+            transformers: Optional sequence of `StreamTransformer` classes or
+                configured factories. Classes and factories are instantiated
+                per run whenever `stream_events(version="v3")` / `astream_events(version="v3")` is called and are
+                propagated to subgraph scopes. Custom factories should follow
+                the standard `StreamTransformer` constructor shape by
+                accepting `scope` as their first argument. Appended after the
+                built-in stream transformers.
+
+        Returns:
+            CompiledStateGraph: The compiled `StateGraph`.
+        """
+        checkpointer = ensure_valid_checkpointer(checkpointer)
+
+        serde_allowlist: set[tuple[str, ...]] | None = None
+        if _serde.STRICT_MSGPACK_ENABLED:
+            schema_types: list[type[Any]] = [
+                self.state_schema,
+                self.input_schema,
+                self.output_schema,
+            ]
+            if self.context_schema is not None:
+                schema_types.append(self.context_schema)
+            for node in self.nodes.values():
+                schema_types.append(node.input_schema)
+            for branches in self.branches.values():
+                for branch in branches.values():
+                    if branch.input_schema is not None:
+                        schema_types.append(branch.input_schema)
+            serde_allowlist = _serde.build_serde_allowlist(
+                schemas=schema_types,
+                channels=self.channels,
+            )
+            checkpointer = _serde.apply_checkpointer_allowlist(
+                checkpointer, serde_allowlist
+            )
+
+        # assign default values
+        interrupt_before = interrupt_before or []
+        interrupt_after = interrupt_after or []
+
+        # validate the graph
+        self.validate(
+            interrupt=(
+                (interrupt_before if interrupt_before != "*" else []) + interrupt_after
+                if interrupt_after != "*"
+                else []
+            )
+        )
+
+        # prepare output channels
+        output_channels = (
+            "__root__"
+            if len(self.schemas[self.output_schema]) == 1
+            and "__root__" in self.schemas[self.output_schema]
+            else [
+                key
+                for key, val in self.schemas[self.output_schema].items()
+                if not is_managed_value(val)
+            ]
+        )
+        stream_channels = (
+            "__root__"
+            if len(self.channels) == 1 and "__root__" in self.channels
+            else [
+                key for key, val in self.channels.items() if not is_managed_value(val)
+            ]
+        )
+        # Apply builder defaults to node specs. Per-node values always win.
+        # Error-handler routing and cache_policy are only assigned to regular
+        # nodes. Retry and timeout defaults also apply to error-handler nodes.
+        defaults = self._node_defaults
+        default_handler_name: str | None = None
+        if defaults.error_handler is not None:
+            if _DEFAULT_ERROR_HANDLER_NODE in self.nodes:
+                raise ValueError(
+                    f"Auto-generated default error handler node "
+                    f"`{_DEFAULT_ERROR_HANDLER_NODE}` already exists."
+                )
+            default_handler_name = _DEFAULT_ERROR_HANDLER_NODE
+            self.nodes[default_handler_name] = StateNodeSpec[Any, ContextT](
+                coerce_to_runnable(
+                    defaults.error_handler,  # type: ignore[arg-type]
+                    name=default_handler_name,
+                    trace=False,
+                ),
+                metadata=None,
+                input_schema=self.state_schema,
+                retry_policy=None,
+                cache_policy=None,
+                is_error_handler=True,
+            )
+
+        # Apply builder defaults to node specs. Per-node values always win.
+        for spec in self.nodes.values():
+            # error_handler: regular nodes only — handlers must never
+            # catch themselves or other handlers.
+            if (
+                not spec.is_error_handler
+                and default_handler_name is not None
+                and spec.error_handler_node is None
+            ):
+                spec.error_handler_node = default_handler_name
+            # retry: all nodes — handlers should be retried on transient
+            # failures just like regular nodes.
+            if defaults.retry_policy is not None and spec.retry_policy is None:
+                spec.retry_policy = defaults.retry_policy
+            # cache: regular nodes only — caching an error-handler result
+            # is unsafe because the input (failed-node state) may differ
+            # across failures even when the cache key matches.
+            if (
+                not spec.is_error_handler
+                and defaults.cache_policy is not None
+                and spec.cache_policy is None
+            ):
+                spec.cache_policy = defaults.cache_policy
+            # timeout: all nodes — a stuck handler should be cancelled the
+            # same way a stuck regular node would be.
+            if defaults.timeout is not None and spec.timeout is None:
+                spec.timeout = defaults.timeout
+
+        node_error_handler_map = {
+            node_name: spec.error_handler_node
+            for node_name, spec in self.nodes.items()
+            if not spec.is_error_handler and spec.error_handler_node is not None
+        }
+
+        compiled = CompiledStateGraph[StateT, ContextT, InputT, OutputT](
+            builder=self,
+            schema_to_mapper={},
+            context_schema=self.context_schema,
+            nodes={},
+            channels={
+                **self.channels,
+                **self.managed,
+                START: EphemeralValue(self.input_schema),
+            },
+            input_channels=START,
+            stream_mode="updates",
+            output_channels=output_channels,
+            stream_channels=stream_channels,
+            checkpointer=checkpointer,
+            interrupt_before_nodes=interrupt_before,
+            interrupt_after_nodes=interrupt_after,
+            auto_validate=False,
+            debug=debug,
+            store=store,
+            cache=cache,
+            node_error_handler_map=node_error_handler_map,
+            name=name or "LangGraph",
+            stream_transformers=transformers,
+        )
+        compiled._serde_allowlist = serde_allowlist
+
+        compiled.attach_node(START, None)
+        for key, node in self.nodes.items():
+            compiled.attach_node(key, node)
+
+        # Record output/state mappers for v2 stream coercion (pydantic/dataclass only)
+        compiled._output_mapper = _pick_mapper(
+            list(output_channels)
+            if isinstance(output_channels, list)
+            else [output_channels],
+            self.output_schema,
+        )
+        compiled._state_mapper = _pick_mapper(
+            list(stream_channels)
+            if isinstance(stream_channels, list)
+            else [stream_channels],
+            self.state_schema,
+        )
+
+        for start, end in self.edges:
+            compiled.attach_edge(start, end)
+
+        for starts, end in self.waiting_edges:
+            compiled.attach_edge(starts, end)
+
+        for start, branches in self.branches.items():
+            for name, branch in branches.items():
+                compiled.attach_branch(start, name, branch)
+
+        return compiled.validate()

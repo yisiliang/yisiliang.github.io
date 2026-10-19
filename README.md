@@ -2,7 +2,7 @@
 
 [打开源码学习库](https://yisiliang.github.io/)
 
-从源码出发，理解系统。首页保留语言与运行时、应用框架、数据库、缓存与消息、网络与分布式系统、AI与大模型基础六大领域，并新增第七类“技术专题”，按问题串起源码原理与架构实践；MyBatis属于应用框架。
+从源码出发，理解系统。首页保留语言与运行时、应用框架、数据库、缓存与消息、网络与分布式系统、AI与大模型六大领域，并新增第七类“技术专题”，按问题串起源码原理与架构实践；MyBatis属于应用框架。
 
 |分类|已发布手册|
 |---|---|
@@ -11,7 +11,7 @@
 |数据库|[MySQL8.4.0](https://yisiliang.github.io/mysql/)|
 |缓存与消息|[Redis](https://yisiliang.github.io/redis/) · [RocketMQ](https://yisiliang.github.io/rocketmq/)|
 |网络与分布式系统|[NGINX1.28.0](https://yisiliang.github.io/nginx/) · [CAP与BASE](https://yisiliang.github.io/distributed/) · [Nacos3.2.4 / 2.5.4对照](https://yisiliang.github.io/nacos/)|
-|AI与大模型基础|[Transformer：《Attention Is All You Need》通俗解读](https://yisiliang.github.io/transformer/)|
+|AI与大模型|[Transformer：《Attention Is All You Need》通俗解读](https://yisiliang.github.io/transformer/)、[LangGraph：核心机制、源码解析与工程实践](https://yisiliang.github.io/langgraph/)|
 |技术专题|[Java核心技术与架构实践（13个专题）](https://yisiliang.github.io/java-architect-interview/)|
 
 技术专题覆盖Java并发、集合、JVM内存与故障排查、Spring事务、数据库、RocketMQ、Redis、分布式事务、系统稳定性与JIT即时编译，并新增Nginx限流专题与JVM内存、OOM排查专题。首页在专题标题与说明下直接列出13个专题入口。Java专题包含66道三层问答、原有图解与新增Nginx/JVM主题，并支持要点速览和90分钟回顾路线。
@@ -33,3 +33,5 @@ JDK附录[ThreadLocal状态残留与偶发SQL异常](https://yisiliang.github.io
 JIT专题从热点识别、分层编译、OSR与去优化展开，串联JMM、volatile发布、CAS及C2内存屏障，附固定OpenJDK源码窗口和机制图解：[JIT即时编译、JMM与内存屏障](https://yisiliang.github.io/java-architect-interview/#c11)。
 
 第13专题“JVM内存结构与OOM排查实战”以HotSpot JDK8为主要基线，覆盖Heap、Metaspace、Direct Memory、线程与容器RSS、常见OOM、诊断命令和故障案例，包含23张SVG图解及应急清单。
+
+LangGraph手册固定1.2.16与提交`41c9c22fdc83d68a2859d0c9a2b627c8615a792f`，通过16章、5张图解、9段完整函数源码与10组本地实验，解释状态合并、Pregel调度、条件路由、Checkpoint、人工审核、重试与业务幂等，附SQLite跨进程恢复实验和离线包。构建与复核方法见`docs/langgraph/VERIFICATION.md`。

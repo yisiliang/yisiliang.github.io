@@ -1,0 +1,25 @@
+    def attach_edge(self, starts: str | Sequence[str], end: str) -> None:
+        if isinstance(starts, str):
+            # subscribe to start channel
+            if end != END:
+                self.nodes[starts].writers.append(
+                    ChannelWrite(
+                        (ChannelWriteEntry(_CHANNEL_BRANCH_TO.format(end), None),)
+                    )
+                )
+        elif end != END:
+            channel_name = f"join:{'+'.join(starts)}:{end}"
+            # register channel
+            if self.builder.nodes[end].defer:
+                self.channels[channel_name] = NamedBarrierValueAfterFinish(
+                    str, set(starts)
+                )
+            else:
+                self.channels[channel_name] = NamedBarrierValue(str, set(starts))
+            # subscribe to channel
+            self.nodes[end].triggers.append(channel_name)
+            # publish to channel
+            for start in starts:
+                self.nodes[start].writers.append(
+                    ChannelWrite((ChannelWriteEntry(channel_name, start),))
+                )
