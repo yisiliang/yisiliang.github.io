@@ -144,7 +144,7 @@
         "version": "深入学习 · 要点速览 · 90分钟回顾路线",
         "path": "java-architect-interview",
         "kind": "topics",
-        "detail": "13个专题 · 66道三层问答 · 46张图解",
+        "detail": "14个专题 · 66道三层问答 · 48张图解",
         "topics": [
           {
             "title": "Java并发编程与锁机制",
@@ -197,19 +197,10 @@
           {
             "title": "JVM内存结构与OOM排查实战",
             "anchor": "c13"
-          }
-        ]
-      },
-      {
-        "name": "Fastjson2 与 ARM64 JIT 编译缺陷排查",
-        "version": "Fastjson2 2.0.61 · OpenJDK 8",
-        "path": "fastjson2-arm-jit",
-        "kind": "case-study",
-        "detail": "10节排查记录 · 2张图解 · 版本边界实测",
-        "topics": [
+          },
           {
-            "title": "从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷",
-            "anchor": "case-overview"
+            "title": "从Fastjson2解析异常追到ARM64 JIT编译缺陷",
+            "anchor": "c14"
           }
         ]
       }

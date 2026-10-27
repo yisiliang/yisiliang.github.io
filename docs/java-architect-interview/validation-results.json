@@ -1,9 +1,9 @@
 {
   "static": {
-    "chapters": 11,
+    "chapters": 14,
     "three_layer_questions": 66,
     "diagrams": 21,
-    "ids": 787,
+    "ids": 893,
     "all_internal_anchors": "pass",
     "all_local_resources": "pass",
     "storage_source_excerpts": 15,
@@ -14,19 +14,19 @@
     "desktop": "1440×1000 pass",
     "responsive": "320/390/820 px pass",
     "search": "full content / no result / escaped input pass",
-    "mode": "all 11 chapters pass",
+    "mode": "all 14 chapters pass",
     "theme": "system/light/dark and persistence pass",
     "copy": "copy handler matches source pass",
-    "qa": "all 11 chapters pass",
+    "qa": "all 11 original chapters pass; new chapters reviewed",
     "hash": "deep link pass",
     "reading_progress": "pass",
     "diagram_viewer": "21 SVGs retain node colors, valid arrows, unique IDs and zoom controls",
     "offline_core": "all external requests blocked pass",
-    "javascript_disabled": "11 chapters + 21 SVG pass",
+    "javascript_disabled": "14 chapters + 21 Mermaid SVG and 27 image diagrams pass",
     "page_errors": []
   },
   "limits": [
-    "生产故障案例为模拟讲解，不将模拟情境与源码推导当作生产实测；JIT源码检查见JIT-VERIFICATION.md。",
+    "原有教学案例为模拟讲解；第14专题为作者实测排查，日志与边界见fastjson2-arm-jit/evidence。JIT机制专题源码检查见JIT-VERIFICATION.md。",
     "不将所有外部参考文档链接的可达性作为永久保证；Redis 文档站 403 后改用官方 redis-doc 仓库核对。"
   ]
 }

@@ -27,12 +27,19 @@ points.extend([
  ['excess按请求到达时间记账；burst设接纳上限，delay与nodelay决定延迟策略。','共享zone在Worker之间共享状态，但多个Nginx实例各自计数，不是全局限额。','延迟请求通过事件定时器挂起和恢复；限流不等于并发数限制。','多zone先分别查验，成功后统一提交，拒绝路径需注意状态与引用释放。','配置可信客户端地址、日志观测与dry-run，再逐步启用并用负载实验验证。'],
  ['Java进程内存不等于Heap，Xmx也不是进程或容器的内存上限。','先按异常文本和容器事件区分Heap、Metaspace、Direct、线程与OOMKilled。','Heap问题看GC趋势、Heap Dump与GC Roots；Native问题结合RSS、NMT和分配所有权。','诊断命令有停顿、CPU和磁盘代价，先评估风险并保留现场。','修复后在相同流量与负载下复测GC后基线、RSS、Direct Memory、类数量和线程数。']
 ])
-chapter_files=sorted((ROOT/'chapters').glob('*.md'));chapter_count=len(chapter_files)
+points.append(['固定输入在预热后才失败，是调查JIT编译路径的线索。','用解释执行、C1、方法排除与-Xcomp做对照，逐步缩小范围。','独立Unsafe探针把JSON异常缩小为chars[4]读成chars[16]。','旧AArch64 C2错误匹配地址缩放，JDK-8267689在8u302修复。','短期排除相关方法编译，长期使用包含修复且完成回归的JDK。'])
+# The author edits one Markdown source; the same article is also topic 14.
+chapter_files=sorted((ROOT/'chapters').glob('*.md'))+[ROOT.parent/'fastjson2-arm-jit/article.md'];chapter_count=len(chapter_files)
 
 route=[('0–8 分钟',1,'JMM、AQS 与线程池准入'),('8–15 分钟',2,'CHM 迁移协议与原子 API'),('15–24 分钟',3,'CMS/G1 正常、失败与恢复'),('24–32 分钟',4,'OOM 分类与证据链'),('32–40 分钟',5,'代理、事务与连接预算'),('40–49 分钟',6,'MVCC、锁与执行计划'),('49–64 分钟',7,'RocketMQ 五类失败边界'),('64–72 分钟',8,'缓存一致性与锁租约'),('72–81 分钟',9,'Outbox、幂等与补偿'),('81–90 分钟',10,'EventLoop、重试与容量')]
 nav=[];articles=[];names=[];expanded_texts=[]; stats={'chapters':chapter_count,'questions':0,'diagrams':0,'code_blocks':0}
 for n,file in enumerate(chapter_files,1):
  text=file.read_text();name=text.splitlines()[0][2:];names.append(name)
+ if n==14:
+  text=re.sub(r' \{#[^}]+\}(?=\n|$)','',text)
+  text=text.replace('](./','](../fastjson2-arm-jit/')
+  for diagram in ['address','patch']:
+   text=text.replace(f'<!-- diagram:{diagram} -->',f'![Fastjson2 ARM64 JIT：{diagram}](../fastjson2-arm-jit/diagrams/{diagram}.svg)')
  def insert_source(m):
   key=m.group(1);s=sources[key];version,method,lang=meta[key]
   url=s['url'].replace('raw.githubusercontent.com/','github.com/',1)
@@ -100,7 +107,7 @@ for n,file in enumerate(chapter_files,1):
   quick=f'<section class="quick" aria-label="要点速览"><h2 id="c{n}-quick-core">先记住这几件事</h2><ul>'+''.join('<li>'+html.escape(x)+'</li>' for x in points[n-1])+'</ul></section>'
  nav.append(f'<details class="chapter-nav" data-chapter="c{n}"><summary><a href="#c{n}"><span>{n:02}</span>{html.escape(name)}</a></summary><div>'+''.join(sub)+'</div></details>')
  articles.append(f'<article class="chapter" id="c{n}" data-title="{html.escape(name)}"><div class="chapter-title"><p class="eyebrow">专题 {n:02} / 完整阅读</p><h1>{html.escape(name)}</h1></div><div class="study">{body}</div>{quick}</article>')
-route_html='<section id="review-route" class="route"><h2>90分钟回顾路线</h2><p>按下面顺序复习，先回顾核心要点，再展开原理问答；RocketMQ 留 15 分钟。</p><ol>'+''.join(f'<li><time>{t}</time><a href="#c{n}">{title}</a></li>' for t,n,title in route)+'</ol><p>扩展阅读：<a href="#c11">JIT即时编译、JMM与内存屏障</a>、<a href="#c12">Nginx限流原理与工程实践</a>、<a href="#c13">JVM内存结构与OOM排查实战</a>，建议另留时间阅读。</p></section>'
+route_html='<section id="review-route" class="route"><h2>90分钟回顾路线</h2><p>按下面顺序复习，先回顾核心要点，再展开原理问答；RocketMQ 留 15 分钟。</p><ol>'+''.join(f'<li><time>{t}</time><a href="#c{n}">{title}</a></li>' for t,n,title in route)+'</ol><p>扩展阅读：<a href="#c11">JIT即时编译、JMM与内存屏障</a>、<a href="#c12">Nginx限流原理与工程实践</a>、<a href="#c13">JVM内存结构与OOM排查实战</a>、<a href="#c14">Fastjson2与ARM64 JIT编译缺陷排查</a>，建议另留时间阅读。</p></section>'
 head=f'''<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="description" content="Java核心技术与架构实践专题：并发、框架、数据库、消息、Nginx限流、JVM内存与OOM排查，共{chapter_count}节。"><title>技术专题 · Java核心技术与架构实践</title><link rel="stylesheet" href="./style.css"><script src="./theme.js"></script><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script><script defer src="./vendor/prism.js" data-manual></script><script defer src="./vendor/prism-c.js"></script><script defer src="./vendor/prism-cpp.js"></script><script defer src="./vendor/prism-java.js"></script><script defer src="./vendor/prism-sql.js"></script><script defer src="./vendor/prism-bash.js"></script><script defer src="./vendor/prism-yaml.js"></script><script defer src="./app.js"></script></head><body class="learning-reader">
 <a class="skip" href="#main">跳到正文</a>
@@ -110,11 +117,18 @@ head=f'''<!doctype html>
 intro=f'''<main id="main" tabindex="-1"><section class="intro"><h1>Java核心技术与架构实践</h1><p>从具体问题读原理，再对照源码。{chapter_count}个专题按同一篇文章连续编排，左侧浏览专题，右侧查看当前专题的详细目录。</p><noscript><p>JavaScript 已关闭，正文、问答与图表仍可阅读；搜索、复制和模式切换需要启用它。</p></noscript></section>'''
 end=f'''</main><aside id="right-toc" aria-label="当前专题目录"><div class="reading"><span id="progress-text">阅读进度 0%</span><span id="current-label"></span></div><p class="nav-label">本篇目录</p><nav id="toc"></nav></aside></div>
 <dialog id="search-dialog" aria-labelledby="search-title"><div class="search-head"><h2 id="search-title">全文搜索</h2><button id="search-close" aria-label="关闭搜索">关闭</button></div><label for="search-input">搜索关键词、源码方法或学习问题</label><input id="search-input" type="search" placeholder="例如：sizeCtl、事务回查、Direct buffer" autocomplete="off"><p id="search-status" role="status" aria-live="polite">输入关键词，搜索{chapter_count}个专题的完整正文与答案。</p><div id="search-results"></div></dialog><div id="toast" role="status" aria-live="polite"></div>
-<footer>按章标注源码版本 · 故障案例为模拟情境 · <a href="./handbook.md">下载 Markdown 正文</a> · <a href="./VERIFICATION.md">验证范围</a></footer></body></html>'''
+<footer>按章标注源码版本 · 教学案例与实测排查分别标注 · <a href="./handbook.md">下载 Markdown 正文</a> · <a href="./VERIFICATION.md">验证范围</a></footer></body></html>'''
 for asset in ['style.css','app.js','theme.js']:
  token=hashlib.sha256((ROOT/asset).read_bytes()).hexdigest()[:10]
  head=head.replace('./'+asset+'"','./'+asset+'?v='+token+'"')
-(ROOT/'index.html').write_text(head+''.join(nav)+'<a class="route-link" href="#review-route">90分钟回顾路线</a></nav>'+intro+route_html+''.join(articles)+end)
-(ROOT/'handbook.md').write_text('# Java核心技术与架构实践学习手册\n\n'+ '\n\n---\n\n'.join(expanded_texts))
+page=head+''.join(nav)+'<a class="route-link" href="#review-route">90分钟回顾路线</a></nav>'+intro+route_html+''.join(articles)+end
+# Use one shared reader runtime; do not also attach the legacy click handlers.
+page=re.sub(r'<link\b[^>]*href="\./style.css[^" ]*"[^>]*>','',page)
+page=re.sub(r'<script\b[^>]*src="\./(?:app|theme).js[^" ]*"[^>]*></script>','',page)
+page=page.replace('<body class="learning-reader">','<body class="learning-reader" data-layout="learning-v2" data-reader="java-architect-interview">',1)
+sys.path.insert(0,str(ROOT.parents[1]/'tools'))
+from style_readers import refresh
+(ROOT/'index.html').write_text(refresh(page,False))
+(ROOT/'handbook.md').write_text('# Java核心技术与架构实践学习手册\n\n'+ '\n\n---\n\n'.join(expanded_texts).rstrip()+'\n')
 (ROOT/'anchors.json').write_text(json.dumps(anchors,ensure_ascii=False,indent=2))
 (ROOT/'content-stats.json').write_text(json.dumps(stats,ensure_ascii=False,indent=2));print(stats)

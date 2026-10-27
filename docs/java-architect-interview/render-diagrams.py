@@ -14,7 +14,7 @@ with sync_playwright() as p:
  url=os.environ.get('READER_URL','http://127.0.0.1:8000/java-architect-interview/');page.goto(url)
  page.add_script_tag(url=url+'vendor/mermaid.min.js')
  page.evaluate("mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'base',themeVariables:{primaryColor:'#e8eef8',primaryTextColor:'#182338',primaryBorderColor:'#7890af',lineColor:'#72849a',secondaryColor:'#edf2f7',tertiaryColor:'#f4f6f9',fontFamily:'sans-serif'}, flowchart:{htmlLabels:false,useMaxWidth:true}})")
- for fig in soup.select('.diagram'):
+ for fig in soup.select('.diagram[data-diagram]'):
   source=fig.select_one('pre.mermaid');diagram_id='jai-diagram-'+fig['data-diagram'];raw=source.get_text()
   svg=page.evaluate('''async ({id,raw}) => {const r=await mermaid.render(id,raw);return r.svg;}''',{'id':diagram_id,'raw':raw})
   parsed=BeautifulSoup(svg,'html.parser')
