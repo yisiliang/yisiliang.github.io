@@ -5,7 +5,7 @@
 
 **固定源码基线：**OpenJDK8u，tag为jdk8u462-b08，commit为943a5ea328fd2fc8eed0aed4ec9b1957d41f8144。这是一份特定实现的导读，不能把内部字段、阈值与CAS布局直接当成所有JDK的永久规范。
 
-**阅读资源：**[上一期JVM图解](../jvm/)、[Markdown正文](./handbook.md)、[离线阅读包](./jdk-source-offline.zip)、[本期引用的原始源码包](./openjdk-source.zip)、[源码版权声明](./source-notices.txt)、[OpenJDK许可证](./openjdk-license.txt)。
+**阅读资源：**[上一期JVM图解](../jvm/)、[Markdown正文](./handbook.md)、、、[源码版权声明](./source-notices.txt)、[OpenJDK许可证](./openjdk-license.txt)。
 
 **实战附录：**[ThreadLocal状态残留与偶发SQL异常](#appendix-threadlocal-datasource)。结合线程池复用，追踪选库状态如何从单例DAO传递到后续非单例DAO。
 
@@ -11147,7 +11147,7 @@ flowchart TD
 
 ## 版权与隐私范围
 
-源码章节使用公开OpenJDK源码、通用说明与虚构例子；附录收录经脱敏的故障复盘，不包含人员标识、真实系统名称、业务数据、凭据或本机目录。公开页沿用站点既有访问统计；离线包不加载统计脚本或外部资源，点击上游链接时才联网。源码及其版权头保留在[原始源码包](./openjdk-source.zip)，对应[完整版权声明](./source-notices.txt)与[上游许可证](./openjdk-license.txt)一并提供。
+源码章节使用公开OpenJDK源码、通用说明与虚构例子；附录收录经脱敏的故障复盘，不包含人员标识、真实系统名称、业务数据、凭据或本机目录。公开页沿用站点既有访问统计；页面本身不依赖外部脚本，点击上游链接时才联网。源码及其版权头保留在，对应[完整版权声明](./source-notices.txt)与[上游许可证](./openjdk-license.txt)一并提供。
 
 Java源码、构建模板与native入口有不同证据边界。切换到其他JDK版本应重新确认实现，不将本期阈值、字段布局与调度机制当作跨版本永久保证。
 

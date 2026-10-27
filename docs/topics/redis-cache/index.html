@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><meta content="light dark" name="color-scheme"/>
+<meta name="description" content="从单线程命令、持久化到缓存一致性，理解 Redis 的恢复窗口与分布式锁租约。">
+<title>Redis 与分布式缓存 · 技术专题 | YiSiliang</title>
+<script data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3" defer="" src="https://cloud.umami.is/script.js"></script>
+<script data-manual="" defer="" src="../vendor/prism.js"></script><script defer="" src="../vendor/prism-c.js"></script><script defer="" src="../vendor/prism-cpp.js"></script><script defer="" src="../vendor/prism-java.js"></script><script defer="" src="../vendor/prism-sql.js"></script><script defer="" src="../vendor/prism-bash.js"></script><script defer="" src="../vendor/prism-yaml.js"></script>
+<style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="topics"] .diagram svg .edgePath path,[data-reader="topics"] .diagram svg .flowchart-link,[data-reader="topics"] .diagram svg .messageLine0,[data-reader="topics"] .diagram svg .messageLine1,[data-reader="topics"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="topics"] .diagram svg .edgeLabel span,[data-reader="topics"] .diagram svg .messageText,[data-reader="topics"] .diagram svg .loopText,[data-reader="topics"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
+}
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader main h4{overflow-wrap:anywhere}
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+
+/* 单侧目录：章节目录、篇内目录与阅读进度都收在左侧。 */
+.layout {
+  max-width: 1280px;
+  grid-template-columns: 300px minmax(0, 880px);
+  gap: 46px;
+}
+#left-nav .reading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 10px;
+  padding: 0 0 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+#left-nav .reading span { display: block; }
+#right-toc { display: none !important; }
+.chapter-nav div a.depth3 { padding-left: 20px; font-size: 11px; }
+.topic-nav-link {
+  display: flex;
+  gap: 8px;
+  padding: 7px 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.topic-nav-link:hover { color: var(--accent); text-decoration: none; }
+.topic-nav-link span:first-child {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font: 11px/2.1 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.topic-nav-index { border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.topic-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 30px 0 10px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.topic-pager a:last-child { text-align: right; }
+@media (min-width: 1450px) {
+  .layout { max-width: 1760px; grid-template-columns: 320px minmax(0, 1fr); gap: 44px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 260px minmax(0, 1fr); gap: 30px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  .topic-pager { flex-wrap: wrap; gap: 10px; }
+  .topic-pager a:last-child { text-align: left; }
+}
+
+/* Keep the theme switch reachable on phones; print is not useful on mobile. */
+@media (max-width: 760px) {
+  #theme { display: inline-block !important; }
+  #print { display: none !important; }
+}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script>
+<!-- social-meta:start --><link rel="canonical" href="https://yisiliang.github.io/topics/redis-cache/"><meta property="og:type" content="article"><meta property="og:site_name" content="源码之下，系统之上"><meta property="og:locale" content="zh_CN"><meta property="og:title" content="Redis 与分布式缓存 · 技术专题 | YiSiliang"><meta property="og:description" content="从单线程命令、持久化到缓存一致性，理解 Redis 的恢复窗口与分布式锁租约。"><meta property="og:url" content="https://yisiliang.github.io/topics/redis-cache/"><meta property="og:image" content="https://yisiliang.github.io/assets/og-default.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Redis 与分布式缓存 · 技术专题 | YiSiliang"><meta name="twitter:description" content="从单线程命令、持久化到缓存一致性，理解 Redis 的恢复窗口与分布式锁租约。"><meta name="twitter:image" content="https://yisiliang.github.io/assets/og-default.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><!-- social-meta:end -->
+</head><body class="learning-reader" data-layout="learning-v2" data-reader="topics">
+<a class="skip" href="#main">跳到正文</a>
+<header class="topbar"><button aria-controls="left-nav" aria-expanded="false" aria-label="打开专题导航" class="mobile" id="menu">目录</button><div class="brand"><a class="library-home" href="../../">← 学习库</a>技术专题<span>源码原理 · 故障排查 · 架构实践</span></div><div class="tools"><button aria-label="打开全文搜索" id="search-open">搜索 <kbd>/</kbd></button><button aria-pressed="false" id="mode">要点速览</button><button id="print" type="button">打印</button><button aria-label="切换主题" id="theme">主题：系统</button></div></header>
+<div aria-hidden="true" class="progress-track"><div id="progress-bar"></div></div><div hidden="" id="drawer-backdrop"></div>
+<div class="layout"><nav aria-label="技术专题" id="left-nav"><div class="reading"><span id="progress-text">阅读进度 0%</span><span id="current-label"></span></div><p class="nav-label">技术专题 / 14篇</p><a class="topic-nav-link topic-nav-index" href="../"><span>目录</span>全部专题</a><a class="topic-nav-link" href="../java-concurrency/"><span>01</span>Java 并发编程与锁机制</a><a class="topic-nav-link" href="../hashmap-concurrenthashmap/"><span>02</span>HashMap 与 ConcurrentHashMap</a><a class="topic-nav-link" href="../jvm-memory-cms-g1/"><span>03</span>JVM 内存管理、CMS 与 G1</a><a class="topic-nav-link" href="../jvm-oom-troubleshooting/"><span>04</span>JVM OOM 与生产故障排查</a><a class="topic-nav-link" href="../spring-core-transactions/"><span>05</span>Spring 核心原理与事务</a><a class="topic-nav-link" href="../database-transactions-mvcc/"><span>06</span>数据库事务、MVCC 与性能优化</a><a class="topic-nav-link" href="../rocketmq/"><span>07</span>RocketMQ 消息队列</a><details class="chapter-nav current" data-chapter="c8" open=""><summary><a href="./"><span>08</span>Redis 与分布式缓存</a></summary><div></div></details><a class="topic-nav-link" href="../distributed-transactions/"><span>09</span>分布式事务与数据一致性</a><a class="topic-nav-link" href="../microservices-stability/"><span>10</span>微服务、高并发与系统稳定性</a><a class="topic-nav-link" href="../jit-jmm-memory-barriers/"><span>11</span>JIT即时编译、JMM与内存屏障</a><a class="topic-nav-link" href="../nginx-rate-limiting/"><span>12</span>Nginx限流原理与工程实践</a><a class="topic-nav-link" href="../jvm-memory-structure-oom/"><span>13</span>JVM内存结构与OOM排查实战</a><a class="topic-nav-link" href="../fastjson2-arm64-jit/"><span>14</span>从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷</a></nav><main id="main" tabindex="-1">
+<article class="chapter" data-title="Redis 与分布式缓存" id="c8"><div class="chapter-title"><p class="eyebrow">专题 08 / 完整阅读</p><h1>Redis 与分布式缓存</h1></div><div class="study">
+<p>本章主要看 Redis 7.2.4。缓存让大多数请求不用访问数据库，但也带来两个新问题：缓存里的值什么时候会过时，缓存失效后数据库能否承受请求。</p>
+<h2 id="c8-s1" tabindex="-1">核心知识与原理</h2>
+<h3 id="c8-s2" tabindex="-1">数据结构与网络模型</h3>
+<p>Redis 的 String、Hash、List 是对外的数据类型，内部还会根据内容和大小选择不同编码。例如 String 可以直接存整数，也可以用 embstr 或 raw/SDS；小 Hash 常用 listpack，大 Hash 用哈希表；大 ZSet 结合 dict 和 skiplist，List 使用 quicklist 和 listpack。Set 的整数、小集合和较大集合也有不同路径，7.2 已有 listpack，不能总拿旧 ziplist 图解释。</p>
+<p>换编码可以节省内存，却也会产生转换成本。字典扩容用渐进 rehash，把工作分到后续操作中完成；但这不表示每个命令都只做固定少量工作。一个包含几十万元素的集合，遍历、序列化、删除和迁移都可能很重。</p>
+<p>网络通过 ae 事件循环处理就绪事件，命令执行的主要路径仍由主线程串行运行。Redis 6+ 可配置网络 IO 多线程，持久化和 lazyfree 也有后台工作，但不能据此说所有命令会并行执行。一个很慢的 Lua 脚本占着执行线程，其他请求就得等。</p>
+<h3 id="c8-s3" tabindex="-1">持久化、复制与集群</h3>
+<p>RDB 保存某一时点的快照，恢复后可能没有快照之后的写入。fork 后应用继续修改页面，会产生 Copy-on-Write，因此高写入时要额外留内存。AOF 记录写操作，fsync 策略决定写入延迟与可能丢失的范围。everysec 不等于任何故障下都零丢失；Redis 7 的 multipart AOF 由 base、incr 和 manifest 配合，不是旧版单文件结构。</p>
+<p>主从复制通常是异步的。主机回复成功时，副本可能还没有收到写入。PSYNC 能在历史仍保留时做部分重同步，否则要全量同步。Sentinel 负责检测故障和协调提升副本，但无法把尚未复制的数据凭空补回来。</p>
+<p>Cluster 把数据分到 16384 个 hash slot，并通过 MOVED 等机制引导客户端找正确节点。跨 slot 的多 key 操作要满足具体约束，同 hash tag 可以让相关 key 落在同一 slot。WAIT 可以等待副本确认、降低风险，却不能承诺故障切换一定选到包含全部确认写入的副本，也不是强一致存储的替代品。</p>
+<h3 id="c8-s4" tabindex="-1">缓存故障与一致性</h3>
+<p>穿透指请求的 key 不存在，却不断查数据库。可以校验非法请求、短期缓存“确实不存在”的结果，或使用 Bloom Filter；暂时查库失败不能当成不存在长期缓存。击穿指一个热点 key 过期，大量线程一起查库，常用同 key 请求合并或受控加载。雪崩则是大量 key 同时过期或整个缓存故障，需要限流、隔离与降级，随机 TTL 只能解决其中一部分。</p>
+<p>Cache Aside 通常是写数据库后删缓存，读 miss 时查数据库再回填。顺序已经合理，仍有一个竞态：A 先读到旧数据但回填很慢；B 提交新数据并删缓存；A 最后把旧数据写回去。此时缓存又旧了。</p>
+<p>延迟双删希望第二次删除覆盖这段时间，但 A 可能因 GC、网络或排队暂停得更久，第二次删除也可能失败。它能降低某些问题的概率，无法拿固定 sleep 保证所有读都正确。应根据允许陈旧多久，选择 TTL、版本检查、CDC/Outbox 的可靠失效通知；必须准确的结果直接确认数据库。</p>
+<h3 id="c8-s5" tabindex="-1">分布式锁与 fencing</h3>
+<p><code>SET key token NX PX lease</code> 把“没有才创建”和“设置租期”放在一次命令中。token 表示谁持有锁，解锁时用 Lua 先比较 token 再删，避免删掉后来别人的锁。</p>
+<pre><code class="language-bash"># 获取锁示例：响应超时不能直接判断是否取得锁。
+SET lock:order:1001 unique-owner-token NX PX 30000
+</code></pre>
+<pre><code class="language-lua">-- 只有 token 相同才解锁；过期线程能否写数据库需另加保护。
+if redis.call('get', KEYS[1]) == ARGV[1] then
+    return redis.call('del', KEYS[1])
+end
+return 0
+</code></pre>
+<p>即使这样，A 持锁后暂停超过租期，B 仍能获得新锁；A 恢复后也可能继续修改数据库。Lua 只能防错删，不能阻止这个旧持有者写数据。Redisson Watchdog 会尝试续期，但进程暂停、网络隔离或调度延迟仍可能让续期失败。</p>
+<p>若必须拒绝旧持有者，需要资源端也参与判断。例如每次获取租约拿到单调递增的 fencing token，数据库或目标资源拒绝比已接受编号更小的请求。随机 token 没有这种顺序含义，普通 INCR 再加锁也不能自动解决故障切换的一致性。库存和资金更常见的保护是数据库条件更新和唯一约束，锁帮助减少竞争。</p>
+<h3 id="c8-s6" tabindex="-1">热点、大 Key 与容量</h3>
+<p>单个热点 key 再热，也主要由一个分片承载。可用短期本地缓存、同 key 合并或业务拆分减压，但副本读取和本地缓存又有陈旧问题。大 key 还会占网络、影响主线程操作与复制。生产排查尽量用受控 SCAN，避免一次 KEYS 全扫；UNLINK 可把一部分释放工作放后台，却不能消除读取和迁移的成本。</p>
+<p>SLOWLOG 主要反映命令执行时间，不包含完整网络往返。服务端看不到慢命令而客户端很慢时，还要检查连接、网络和排队。容量除了数据本身，也要算对象/字典开销、复制 backlog、客户端缓冲、COW 和碎片；used_memory 没到 maxmemory，不代表容器内存安全。</p>
+<h3 id="c8-s7" tabindex="-1">缓存与锁的正常、异常、恢复路径</h3>
+<p>缓存不可用时，如果把全部流量放到数据库，数据库可能随即成为第二个故障点。恢复前限制同时查库的请求，给非关键功能明确降级；缓存恢复后分批预热，避免所有实例同时加载同一热点。</p>
+<p>锁请求超时也要区分“没拿到”和“结果没收到”。关键操作仍靠自己的业务条件判断。事后检查锁 key 存不存在，不能证明库存有没有重复扣；需要按事件 ID 和数据库结果对账。</p>
+<h2 id="c8-s8" tabindex="-1">源码级解析与调用链</h2>
+<p>命令从 processCommand 进入 call，SET 最后由 <code>setGenericCommand</code> 检查 NX/XX、写 key 和过期。先读这段就能确认“检查没有”和“写入”是在一次命令中完成的。</p>
+<p>删除由 dbDelete 选择同步或异步释放路径。对象编码还需继续看 t_hash.c、t_zset.c、dict.c、quicklist.c，不能只根据对外类型名估计所有操作的成本。</p>
+<div class="source-caption"><code>setGenericCommand</code><span>Redis 7.2.4 · L84–L150 · <a href="https://github.com/redis/redis/blob/7.2.4/src/t_string.c#L84-L150">完整源码</a></span></div>
+<pre><code class="language-c">void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire, int unit, robj *ok_reply, robj *abort_reply) {
+    long long milliseconds = 0; /* initialized to avoid any harmness warning */
+    int found = 0;
+    int setkey_flags = 0;
+
+    if (expire &amp;&amp; getExpireMillisecondsOrReply(c, expire, flags, unit, &amp;milliseconds) != C_OK) {
+        return;
+    }
+
+    if (flags &amp; OBJ_SET_GET) {
+        if (getGenericCommand(c) == C_ERR) return;
+    }
+
+    found = (lookupKeyWrite(c-&gt;db,key) != NULL);
+
+    if ((flags &amp; OBJ_SET_NX &amp;&amp; found) ||
+        (flags &amp; OBJ_SET_XX &amp;&amp; !found))
+    {
+        if (!(flags &amp; OBJ_SET_GET)) {
+            addReply(c, abort_reply ? abort_reply : shared.null[c-&gt;resp]);
+        }
+        return;
+    }
+
+    /* When expire is not NULL, we avoid deleting the TTL so it can be updated later instead of being deleted and then created again. */
+    setkey_flags |= ((flags &amp; OBJ_KEEPTTL) || expire) ? SETKEY_KEEPTTL : 0;
+    setkey_flags |= found ? SETKEY_ALREADY_EXIST : SETKEY_DOESNT_EXIST;
+
+    setKey(c,c-&gt;db,key,val,setkey_flags);
+    server.dirty++;
+    notifyKeyspaceEvent(NOTIFY_STRING,"set",key,c-&gt;db-&gt;id);
+
+    if (expire) {
+        setExpire(c,c-&gt;db,key,milliseconds);
+        /* Propagate as SET Key Value PXAT millisecond-timestamp if there is
+         * EX/PX/EXAT flag. */
+        if (!(flags &amp; OBJ_PXAT)) {
+            robj *milliseconds_obj = createStringObjectFromLongLong(milliseconds);
+            rewriteClientCommandVector(c, 5, shared.set, key, val, shared.pxat, milliseconds_obj);
+            decrRefCount(milliseconds_obj);
+        }
+        notifyKeyspaceEvent(NOTIFY_GENERIC,"expire",key,c-&gt;db-&gt;id);
+    }
+
+    if (!(flags &amp; OBJ_SET_GET)) {
+        addReply(c, ok_reply ? ok_reply : shared.ok);
+    }
+
+    /* Propagate without the GET argument (Isn't needed if we had expire since in that case we completely re-written the command argv) */
+    if ((flags &amp; OBJ_SET_GET) &amp;&amp; !expire) {
+        int argc = 0;
+        int j;
+        robj **argv = zmalloc((c-&gt;argc-1)*sizeof(robj*));
+        for (j=0; j &lt; c-&gt;argc; j++) {
+            char *a = c-&gt;argv[j]-&gt;ptr;
+            /* Skip GET which may be repeated multiple times. */
+            if (j &gt;= 3 &amp;&amp;
+                (a[0] == 'g' || a[0] == 'G') &amp;&amp;
+                (a[1] == 'e' || a[1] == 'E') &amp;&amp;
+                (a[2] == 't' || a[2] == 'T') &amp;&amp; a[3] == '\0')
+                continue;
+            argv[argc++] = c-&gt;argv[j];
+            incrRefCount(c-&gt;argv[j]);
+        }
+        replaceClientCommandVector(c, argc, argv);
+    }
+}
+
+</code></pre>
+<p>lookupKeyWrite 之后直接检查 NX/XX 是否满足，不满足就回复并返回。条件判定和后续写入处在同一次命令执行中，不需要客户端先 GET 再决定 SET。</p>
+<div class="source-caption"><code>dbDelete</code><span>Redis 7.2.4 · L401–L433 · <a href="https://github.com/redis/redis/blob/7.2.4/src/db.c#L401-L433">完整源码</a></span></div>
+<pre><code class="language-c">/* This is a wrapper whose behavior depends on the Redis lazy free
+ * configuration. Deletes the key synchronously or asynchronously. */
+int dbDelete(redisDb *db, robj *key) {
+    return dbGenericDelete(db, key, server.lazyfree_lazy_server_del, DB_FLAG_KEY_DELETED);
+}
+
+/* Prepare the string object stored at 'key' to be modified destructively
+ * to implement commands like SETBIT or APPEND.
+ *
+ * An object is usually ready to be modified unless one of the two conditions
+ * are true:
+ *
+ * 1) The object 'o' is shared (refcount &gt; 1), we don't want to affect
+ *    other users.
+ * 2) The object encoding is not "RAW".
+ *
+ * If the object is found in one of the above conditions (or both) by the
+ * function, an unshared / not-encoded copy of the string object is stored
+ * at 'key' in the specified 'db'. Otherwise the object 'o' itself is
+ * returned.
+ *
+ * USAGE:
+ *
+ * The object 'o' is what the caller already obtained by looking up 'key'
+ * in 'db', the usage pattern looks like this:
+ *
+ * o = lookupKeyWrite(db,key);
+ * if (checkType(c,o,OBJ_STRING)) return;
+ * o = dbUnshareStringValue(db,key,o);
+ *
+ * At this point the caller is ready to modify the object, for example
+ * using an sdscat() call to append some data, or anything else.
+ */
+
+</code></pre>
+<p>dbDelete 根据 lazyfree 配置选择 dbAsyncDelete 或 dbSyncDelete。异步路径允许先移除 key，再由后台处理部分内存释放，所以命令成功与 RSS 下降不一定同时发生。</p>
+<figure class="diagram" data-diagram="1"><svg aria-label="图 1 · 对照上文阅读流程" aria-roledescription="sequence" id="jai-diagram-1-jai-diagram-1" role="img" style="max-width: 887.5px;" viewbox="-50 -10 887.5 547" width="100%" xmlns="http://www.w3.org/2000/svg"><g><rect class="actor actor-bottom" fill="#eaeaea" height="65" name="R" rx="3" ry="3" stroke="#666" width="150" x="637.5" y="461"></rect><text alignment-baseline="central" class="actor" dominant-baseline="central" style="text-anchor: middle; font-size: 16px; font-weight: 400;" x="712.5" y="493.5"><tspan dy="0" x="712.5">Redis</tspan></text></g><g><rect class="actor actor-bottom" fill="#eaeaea" height="65" name="B" rx="3" ry="3" stroke="#666" width="150" x="400" y="461"></rect><text alignment-baseline="central" class="actor" dominant-baseline="central" style="text-anchor: middle; font-size: 16px; font-weight: 400;" x="475" y="493.5"><tspan dy="0" x="475">写入 B</tspan></text></g><g><rect class="actor actor-bottom" fill="#eaeaea" height="65" name="DB" rx="3" ry="3" stroke="#666" width="150" x="200" y="461"></rect><text alignment-baseline="central" class="actor" dominant-baseline="central" style="text-anchor: middle; font-size: 16px; font-weight: 400;" x="275" y="493.5"><tspan dy="0" x="275">数据库</tspan></text></g><g><rect class="actor actor-bottom" fill="#eaeaea" height="65" name="A" rx="3" ry="3" stroke="#666" width="150" x="0" y="461"></rect><text alignment-baseline="central" class="actor" dominant-baseline="central" style="text-anchor: middle; font-size: 16px; font-weight: 400;" x="75" y="493.5"><tspan dy="0" x="75">慢读 A</tspan></text></g><g><line class="200" id="jai-diagram-1-actor7" stroke="#999" stroke-width="0.5px" x1="712.5" x2="712.5" y1="5" y2="461"></line><g id="jai-diagram-1-root-7"><rect class="actor actor-top" fill="#eaeaea" height="65" name="R" rx="3" ry="3" stroke="#666" width="150" x="637.5" y="0"></rect><text alignment-baseline="central" class="actor" dominant-baseline="central" style="text-anchor: middle; font-size: 16px; font-weight: 400;" x="712.5" y="32.5"><tspan dy="0" x="712.5">Redis</tspan></text></g></g><g><line class="200" id="jai-diagram-1-actor6" stroke="#999" stroke-width="0.5px" x1="475" x2="475" y1="5" y2="461"></line><g id="jai-diagram-1-root-6"><rect class="actor actor-top" fill="#eaeaea" height="65" name="B" rx="3" ry="3" stroke="#666" width="150" x="400" y="0"></rect><text alignment-baseline="central" class="actor" dominant-baseline="central" style="text-anchor: middle; font-size: 16px; font-weight: 400;" x="475" y="32.5"><tspan dy="0" x="475">写入 B</tspan></text></g></g><g><line class="200" id="jai-diagram-1-actor5" stroke="#999" stroke-width="0.5px" x1="275" x2="275" y1="5" y2="461"></line><g id="jai-diagram-1-root-5"><rect class="actor actor-top" fill="#eaeaea" height="65" name="DB" rx="3" ry="3" stroke="#666" width="150" x="200" y="0"></rect><text alignment-baseline="central" class="actor" dominant-baseline="central" style="text-anchor: middle; font-size: 16px; font-weight: 400;" x="275" y="32.5"><tspan dy="0" x="275">数据库</tspan></text></g></g><g><line class="200" id="jai-diagram-1-actor4" stroke="#999" stroke-width="0.5px" x1="75" x2="75" y1="5" y2="461"></line><g id="jai-diagram-1-root-4"><rect class="actor actor-top" fill="#eaeaea" height="65" name="A" rx="3" ry="3" stroke="#666" width="150" x="0" y="0"></rect><text alignment-baseline="central" class="actor" dominant-baseline="central" style="text-anchor: middle; font-size: 16px; font-weight: 400;" x="75" y="32.5"><tspan dy="0" x="75">慢读 A</tspan></text></g></g><style>#jai-diagram-1-jai-diagram-1{font-family:sans-serif;font-size:16px;fill:#182338;}#jai-diagram-1-jai-diagram-1 .error-icon{fill:#f4f6f9;}#jai-diagram-1-jai-diagram-1 .error-text{fill:#0b0906;stroke:#0b0906;}#jai-diagram-1-jai-diagram-1 .edge-thickness-normal{stroke-width:2px;}#jai-diagram-1-jai-diagram-1 .edge-thickness-thick{stroke-width:3.5px;}#jai-diagram-1-jai-diagram-1 .edge-pattern-solid{stroke-dasharray:0;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dashed{stroke-dasharray:3;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dotted{stroke-dasharray:2;}#jai-diagram-1-jai-diagram-1 .marker{fill:#72849a;stroke:#72849a;}#jai-diagram-1-jai-diagram-1 .marker.cross{stroke:#72849a;}#jai-diagram-1-jai-diagram-1 svg{font-family:sans-serif;font-size:16px;}#jai-diagram-1-jai-diagram-1 .actor{stroke:#7890af;fill:#e8eef8;}#jai-diagram-1-jai-diagram-1 text.actor&gt;tspan{fill:#182338;stroke:none;}#jai-diagram-1-jai-diagram-1 .actor-line{stroke:grey;}#jai-diagram-1-jai-diagram-1 .messageLine0{stroke-width:1.5;stroke-dasharray:none;stroke:#182338;}#jai-diagram-1-jai-diagram-1 .messageLine1{stroke-width:1.5;stroke-dasharray:2,2;stroke:#182338;}#jai-diagram-1-jai-diagram-1 #jai-diagram-1-arrowhead path{fill:#182338;stroke:#182338;}#jai-diagram-1-jai-diagram-1 .sequenceNumber{fill:#8d7b65;}#jai-diagram-1-jai-diagram-1 #jai-diagram-1-sequencenumber{fill:#182338;}#jai-diagram-1-jai-diagram-1 #jai-diagram-1-crosshead path{fill:#182338;stroke:#182338;}#jai-diagram-1-jai-diagram-1 .messageText{fill:#182338;stroke:none;}#jai-diagram-1-jai-diagram-1 .labelBox{stroke:#7890af;fill:#e8eef8;}#jai-diagram-1-jai-diagram-1 .labelText,#jai-diagram-1-jai-diagram-1 .labelText&gt;tspan{fill:#182338;stroke:none;}#jai-diagram-1-jai-diagram-1 .loopText,#jai-diagram-1-jai-diagram-1 .loopText&gt;tspan{fill:#182338;stroke:none;}#jai-diagram-1-jai-diagram-1 .loopLine{stroke-width:2px;stroke-dasharray:2,2;stroke:#7890af;fill:#7890af;}#jai-diagram-1-jai-diagram-1 .note{stroke:hsl(52.6829268293, 60%, 73.9215686275%);fill:#fff5ad;}#jai-diagram-1-jai-diagram-1 .noteText,#jai-diagram-1-jai-diagram-1 .noteText&gt;tspan{fill:#333;stroke:none;}#jai-diagram-1-jai-diagram-1 .activation0{fill:#edf2f7;stroke:hsl(210, 38.4615384615%, 84.9019607843%);}#jai-diagram-1-jai-diagram-1 .activation1{fill:#edf2f7;stroke:hsl(210, 38.4615384615%, 84.9019607843%);}#jai-diagram-1-jai-diagram-1 .activation2{fill:#edf2f7;stroke:hsl(210, 38.4615384615%, 84.9019607843%);}#jai-diagram-1-jai-diagram-1 .actorPopupMenu{position:absolute;}#jai-diagram-1-jai-diagram-1 .actorPopupMenuPanel{position:absolute;fill:#e8eef8;box-shadow:0px 8px 16px 0px rgba(0,0,0,0.2);filter:drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4));}#jai-diagram-1-jai-diagram-1 .actor-man line{stroke:#7890af;fill:#e8eef8;}#jai-diagram-1-jai-diagram-1 .actor-man circle,#jai-diagram-1-jai-diagram-1 line{stroke:#7890af;fill:#e8eef8;stroke-width:2px;}#jai-diagram-1-jai-diagram-1 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g></g><defs><symbol height="24" id="jai-diagram-1-computer" width="24"><path d="M2 2v13h20v-13h-20zm18 11h-16v-9h16v9zm-10.228 6l.466-1h3.524l.467 1h-4.457zm14.228 3h-24l2-6h2.104l-1.33 4h18.45l-1.297-4h2.073l2 6zm-5-10h-14v-7h14v7z" transform="scale(.5)"></path></symbol></defs><defs><symbol clip-rule="evenodd" fill-rule="evenodd" id="jai-diagram-1-database"><path d="M12.258.001l.256.004.255.005.253.008.251.01.249.012.247.015.246.016.242.019.241.02.239.023.236.024.233.027.231.028.229.031.225.032.223.034.22.036.217.038.214.04.211.041.208.043.205.045.201.046.198.048.194.05.191.051.187.053.183.054.18.056.175.057.172.059.168.06.163.061.16.063.155.064.15.066.074.033.073.033.071.034.07.034.069.035.068.035.067.035.066.035.064.036.064.036.062.036.06.036.06.037.058.037.058.037.055.038.055.038.053.038.052.038.051.039.05.039.048.039.047.039.045.04.044.04.043.04.041.04.04.041.039.041.037.041.036.041.034.041.033.042.032.042.03.042.029.042.027.042.026.043.024.043.023.043.021.043.02.043.018.044.017.043.015.044.013.044.012.044.011.045.009.044.007.045.006.045.004.045.002.045.001.045v17l-.001.045-.002.045-.004.045-.006.045-.007.045-.009.044-.011.045-.012.044-.013.044-.015.044-.017.043-.018.044-.02.043-.021.043-.023.043-.024.043-.026.043-.027.042-.029.042-.03.042-.032.042-.033.042-.034.041-.036.041-.037.041-.039.041-.04.041-.041.04-.043.04-.044.04-.045.04-.047.039-.048.039-.05.039-.051.039-.052.038-.053.038-.055.038-.055.038-.058.037-.058.037-.06.037-.06.036-.062.036-.064.036-.064.036-.066.035-.067.035-.068.035-.069.035-.07.034-.071.034-.073.033-.074.033-.15.066-.155.064-.16.063-.163.061-.168.06-.172.059-.175.057-.18.056-.183.054-.187.053-.191.051-.194.05-.198.048-.201.046-.205.045-.208.043-.211.041-.214.04-.217.038-.22.036-.223.034-.225.032-.229.031-.231.028-.233.027-.236.024-.239.023-.241.02-.242.019-.246.016-.247.015-.249.012-.251.01-.253.008-.255.005-.256.004-.258.001-.258-.001-.256-.004-.255-.005-.253-.008-.251-.01-.249-.012-.247-.015-.245-.016-.243-.019-.241-.02-.238-.023-.236-.024-.234-.027-.231-.028-.228-.031-.226-.032-.223-.034-.22-.036-.217-.038-.214-.04-.211-.041-.208-.043-.204-.045-.201-.046-.198-.048-.195-.05-.19-.051-.187-.053-.184-.054-.179-.056-.176-.057-.172-.059-.167-.06-.164-.061-.159-.063-.155-.064-.151-.066-.074-.033-.072-.033-.072-.034-.07-.034-.069-.035-.068-.035-.067-.035-.066-.035-.064-.036-.063-.036-.062-.036-.061-.036-.06-.037-.058-.037-.057-.037-.056-.038-.055-.038-.053-.038-.052-.038-.051-.039-.049-.039-.049-.039-.046-.039-.046-.04-.044-.04-.043-.04-.041-.04-.04-.041-.039-.041-.037-.041-.036-.041-.034-.041-.033-.042-.032-.042-.03-.042-.029-.042-.027-.042-.026-.043-.024-.043-.023-.043-.021-.043-.02-.043-.018-.044-.017-.043-.015-.044-.013-.044-.012-.044-.011-.045-.009-.044-.007-.045-.006-.045-.004-.045-.002-.045-.001-.045v-17l.001-.045.002-.045.004-.045.006-.045.007-.045.009-.044.011-.045.012-.044.013-.044.015-.044.017-.043.018-.044.02-.043.021-.043.023-.043.024-.043.026-.043.027-.042.029-.042.03-.042.032-.042.033-.042.034-.041.036-.041.037-.041.039-.041.04-.041.041-.04.043-.04.044-.04.046-.04.046-.039.049-.039.049-.039.051-.039.052-.038.053-.038.055-.038.056-.038.057-.037.058-.037.06-.037.061-.036.062-.036.063-.036.064-.036.066-.035.067-.035.068-.035.069-.035.07-.034.072-.034.072-.033.074-.033.151-.066.155-.064.159-.063.164-.061.167-.06.172-.059.176-.057.179-.056.184-.054.187-.053.19-.051.195-.05.198-.048.201-.046.204-.045.208-.043.211-.041.214-.04.217-.038.22-.036.223-.034.226-.032.228-.031.231-.028.234-.027.236-.024.238-.023.241-.02.243-.019.245-.016.247-.015.249-.012.251-.01.253-.008.255-.005.256-.004.258-.001.258.001zm-9.258 20.499v.01l.001.021.003.021.004.022.005.021.006.022.007.022.009.023.01.022.011.023.012.023.013.023.015.023.016.024.017.023.018.024.019.024.021.024.022.025.023.024.024.025.052.049.056.05.061.051.066.051.07.051.075.051.079.052.084.052.088.052.092.052.097.052.102.051.105.052.11.052.114.051.119.051.123.051.127.05.131.05.135.05.139.048.144.049.147.047.152.047.155.047.16.045.163.045.167.043.171.043.176.041.178.041.183.039.187.039.19.037.194.035.197.035.202.033.204.031.209.03.212.029.216.027.219.025.222.024.226.021.23.02.233.018.236.016.24.015.243.012.246.01.249.008.253.005.256.004.259.001.26-.001.257-.004.254-.005.25-.008.247-.011.244-.012.241-.014.237-.016.233-.018.231-.021.226-.021.224-.024.22-.026.216-.027.212-.028.21-.031.205-.031.202-.034.198-.034.194-.036.191-.037.187-.039.183-.04.179-.04.175-.042.172-.043.168-.044.163-.045.16-.046.155-.046.152-.047.148-.048.143-.049.139-.049.136-.05.131-.05.126-.05.123-.051.118-.052.114-.051.11-.052.106-.052.101-.052.096-.052.092-.052.088-.053.083-.051.079-.052.074-.052.07-.051.065-.051.06-.051.056-.05.051-.05.023-.024.023-.025.021-.024.02-.024.019-.024.018-.024.017-.024.015-.023.014-.024.013-.023.012-.023.01-.023.01-.022.008-.022.006-.022.006-.022.004-.022.004-.021.001-.021.001-.021v-4.127l-.077.055-.08.053-.083.054-.085.053-.087.052-.09.052-.093.051-.095.05-.097.05-.1.049-.102.049-.105.048-.106.047-.109.047-.111.046-.114.045-.115.045-.118.044-.12.043-.122.042-.124.042-.126.041-.128.04-.13.04-.132.038-.134.038-.135.037-.138.037-.139.035-.142.035-.143.034-.144.033-.147.032-.148.031-.15.03-.151.03-.153.029-.154.027-.156.027-.158.026-.159.025-.161.024-.162.023-.163.022-.165.021-.166.02-.167.019-.169.018-.169.017-.171.016-.173.015-.173.014-.175.013-.175.012-.177.011-.178.01-.179.008-.179.008-.181.006-.182.005-.182.004-.184.003-.184.002h-.37l-.184-.002-.184-.003-.182-.004-.182-.005-.181-.006-.179-.008-.179-.008-.178-.01-.176-.011-.176-.012-.175-.013-.173-.014-.172-.015-.171-.016-.17-.017-.169-.018-.167-.019-.166-.02-.165-.021-.163-.022-.162-.023-.161-.024-.159-.025-.157-.026-.156-.027-.155-.027-.153-.029-.151-.03-.15-.03-.148-.031-.146-.032-.145-.033-.143-.034-.141-.035-.14-.035-.137-.037-.136-.037-.134-.038-.132-.038-.13-.04-.128-.04-.126-.041-.124-.042-.122-.042-.12-.044-.117-.043-.116-.045-.113-.045-.112-.046-.109-.047-.106-.047-.105-.048-.102-.049-.1-.049-.097-.05-.095-.05-.093-.052-.09-.051-.087-.052-.085-.053-.083-.054-.08-.054-.077-.054v4.127zm0-5.654v.011l.001.021.003.021.004.021.005.022.006.022.007.022.009.022.01.022.011.023.012.023.013.023.015.024.016.023.017.024.018.024.019.024.021.024.022.024.023.025.024.024.052.05.056.05.061.05.066.051.07.051.075.052.079.051.084.052.088.052.092.052.097.052.102.052.105.052.11.051.114.051.119.052.123.05.127.051.131.05.135.049.139.049.144.048.147.048.152.047.155.046.16.045.163.045.167.044.171.042.176.042.178.04.183.04.187.038.19.037.194.036.197.034.202.033.204.032.209.03.212.028.216.027.219.025.222.024.226.022.23.02.233.018.236.016.24.014.243.012.246.01.249.008.253.006.256.003.259.001.26-.001.257-.003.254-.006.25-.008.247-.01.244-.012.241-.015.237-.016.233-.018.231-.02.226-.022.224-.024.22-.025.216-.027.212-.029.21-.03.205-.032.202-.033.198-.035.194-.036.191-.037.187-.039.183-.039.179-.041.175-.042.172-.043.168-.044.163-.045.16-.045.155-.047.152-.047.148-.048.143-.048.139-.05.136-.049.131-.05.126-.051.123-.051.118-.051.114-.052.11-.052.106-.052.101-.052.096-.052.092-.052.088-.052.083-.052.079-.052.074-.051.07-.052.065-.051.06-.05.056-.051.051-.049.023-.025.023-.024.021-.025.02-.024.019-.024.018-.024.017-.024.015-.023.014-.023.013-.024.012-.022.01-.023.01-.023.008-.022.006-.022.006-.022.004-.021.004-.022.001-.021.001-.021v-4.139l-.077.054-.08.054-.083.054-.085.052-.087.053-.09.051-.093.051-.095.051-.097.05-.1.049-.102.049-.105.048-.106.047-.109.047-.111.046-.114.045-.115.044-.118.044-.12.044-.122.042-.124.042-.126.041-.128.04-.13.039-.132.039-.134.038-.135.037-.138.036-.139.036-.142.035-.143.033-.144.033-.147.033-.148.031-.15.03-.151.03-.153.028-.154.028-.156.027-.158.026-.159.025-.161.024-.162.023-.163.022-.165.021-.166.02-.167.019-.169.018-.169.017-.171.016-.173.015-.173.014-.175.013-.175.012-.177.011-.178.009-.179.009-.179.007-.181.007-.182.005-.182.004-.184.003-.184.002h-.37l-.184-.002-.184-.003-.182-.004-.182-.005-.181-.007-.179-.007-.179-.009-.178-.009-.176-.011-.176-.012-.175-.013-.173-.014-.172-.015-.171-.016-.17-.017-.169-.018-.167-.019-.166-.02-.165-.021-.163-.022-.162-.023-.161-.024-.159-.025-.157-.026-.156-.027-.155-.028-.153-.028-.151-.03-.15-.03-.148-.031-.146-.033-.145-.033-.143-.033-.141-.035-.14-.036-.137-.036-.136-.037-.134-.038-.132-.039-.13-.039-.128-.04-.126-.041-.124-.042-.122-.043-.12-.043-.117-.044-.116-.044-.113-.046-.112-.046-.109-.046-.106-.047-.105-.048-.102-.049-.1-.049-.097-.05-.095-.051-.093-.051-.09-.051-.087-.053-.085-.052-.083-.054-.08-.054-.077-.054v4.139zm0-5.666v.011l.001.02.003.022.004.021.005.022.006.021.007.022.009.023.01.022.011.023.012.023.013.023.015.023.016.024.017.024.018.023.019.024.021.025.022.024.023.024.024.025.052.05.056.05.061.05.066.051.07.051.075.052.079.051.084.052.088.052.092.052.097.052.102.052.105.051.11.052.114.051.119.051.123.051.127.05.131.05.135.05.139.049.144.048.147.048.152.047.155.046.16.045.163.045.167.043.171.043.176.042.178.04.183.04.187.038.19.037.194.036.197.034.202.033.204.032.209.03.212.028.216.027.219.025.222.024.226.021.23.02.233.018.236.017.24.014.243.012.246.01.249.008.253.006.256.003.259.001.26-.001.257-.003.254-.006.25-.008.247-.01.244-.013.241-.014.237-.016.233-.018.231-.02.226-.022.224-.024.22-.025.216-.027.212-.029.21-.03.205-.032.202-.033.198-.035.194-.036.191-.037.187-.039.183-.039.179-.041.175-.042.172-.043.168-.044.163-.045.16-.045.155-.047.152-.047.148-.048.143-.049.139-.049.136-.049.131-.051.126-.05.123-.051.118-.052.114-.051.11-.052.106-.052.101-.052.096-.052.092-.052.088-.052.083-.052.079-.052.074-.052.07-.051.065-.051.06-.051.056-.05.051-.049.023-.025.023-.025.021-.024.02-.024.019-.024.018-.024.017-.024.015-.023.014-.024.013-.023.012-.023.01-.022.01-.023.008-.022.006-.022.006-.022.004-.022.004-.021.001-.021.001-.021v-4.153l-.077.054-.08.054-.083.053-.085.053-.087.053-.09.051-.093.051-.095.051-.097.05-.1.049-.102.048-.105.048-.106.048-.109.046-.111.046-.114.046-.115.044-.118.044-.12.043-.122.043-.124.042-.126.041-.128.04-.13.039-.132.039-.134.038-.135.037-.138.036-.139.036-.142.034-.143.034-.144.033-.147.032-.148.032-.15.03-.151.03-.153.028-.154.028-.156.027-.158.026-.159.024-.161.024-.162.023-.163.023-.165.021-.166.02-.167.019-.169.018-.169.017-.171.016-.173.015-.173.014-.175.013-.175.012-.177.01-.178.01-.179.009-.179.007-.181.006-.182.006-.182.004-.184.003-.184.001-.185.001-.185-.001-.184-.001-.184-.003-.182-.004-.182-.006-.181-.006-.179-.007-.179-.009-.178-.01-.176-.01-.176-.012-.175-.013-.173-.014-.172-.015-.171-.016-.17-.017-.169-.018-.167-.019-.166-.02-.165-.021-.163-.023-.162-.023-.161-.024-.159-.024-.157-.026-.156-.027-.155-.028-.153-.028-.151-.03-.15-.03-.148-.032-.146-.032-.145-.033-.143-.034-.141-.034-.14-.036-.137-.036-.136-.037-.134-.038-.132-.039-.13-.039-.128-.041-.126-.041-.124-.041-.122-.043-.12-.043-.117-.044-.116-.044-.113-.046-.112-.046-.109-.046-.106-.048-.105-.048-.102-.048-.1-.05-.097-.049-.095-.051-.093-.051-.09-.052-.087-.052-.085-.053-.083-.053-.08-.054-.077-.054v4.153zm8.74-8.179l-.257.004-.254.005-.25.008-.247.011-.244.012-.241.014-.237.016-.233.018-.231.021-.226.022-.224.023-.22.026-.216.027-.212.028-.21.031-.205.032-.202.033-.198.034-.194.036-.191.038-.187.038-.183.04-.179.041-.175.042-.172.043-.168.043-.163.045-.16.046-.155.046-.152.048-.148.048-.143.048-.139.049-.136.05-.131.05-.126.051-.123.051-.118.051-.114.052-.11.052-.106.052-.101.052-.096.052-.092.052-.088.052-.083.052-.079.052-.074.051-.07.052-.065.051-.06.05-.056.05-.051.05-.023.025-.023.024-.021.024-.02.025-.019.024-.018.024-.017.023-.015.024-.014.023-.013.023-.012.023-.01.023-.01.022-.008.022-.006.023-.006.021-.004.022-.004.021-.001.021-.001.021.001.021.001.021.004.021.004.022.006.021.006.023.008.022.01.022.01.023.012.023.013.023.014.023.015.024.017.023.018.024.019.024.02.025.021.024.023.024.023.025.051.05.056.05.06.05.065.051.07.052.074.051.079.052.083.052.088.052.092.052.096.052.101.052.106.052.11.052.114.052.118.051.123.051.126.051.131.05.136.05.139.049.143.048.148.048.152.048.155.046.16.046.163.045.168.043.172.043.175.042.179.041.183.04.187.038.191.038.194.036.198.034.202.033.205.032.21.031.212.028.216.027.22.026.224.023.226.022.231.021.233.018.237.016.241.014.244.012.247.011.25.008.254.005.257.004.26.001.26-.001.257-.004.254-.005.25-.008.247-.011.244-.012.241-.014.237-.016.233-.018.231-.021.226-.022.224-.023.22-.026.216-.027.212-.028.21-.031.205-.032.202-.033.198-.034.194-.036.191-.038.187-.038.183-.04.179-.041.175-.042.172-.043.168-.043.163-.045.16-.046.155-.046.152-.048.148-.048.143-.048.139-.049.136-.05.131-.05.126-.051.123-.051.118-.051.114-.052.11-.052.106-.052.101-.052.096-.052.092-.052.088-.052.083-.052.079-.052.074-.051.07-.052.065-.051.06-.05.056-.05.051-.05.023-.025.023-.024.021-.024.02-.025.019-.024.018-.024.017-.023.015-.024.014-.023.013-.023.012-.023.01-.023.01-.022.008-.022.006-.023.006-.021.004-.022.004-.021.001-.021.001-.021-.001-.021-.001-.021-.004-.021-.004-.022-.006-.021-.006-.023-.008-.022-.01-.022-.01-.023-.012-.023-.013-.023-.014-.023-.015-.024-.017-.023-.018-.024-.019-.024-.02-.025-.021-.024-.023-.024-.023-.025-.051-.05-.056-.05-.06-.05-.065-.051-.07-.052-.074-.051-.079-.052-.083-.052-.088-.052-.092-.052-.096-.052-.101-.052-.106-.052-.11-.052-.114-.052-.118-.051-.123-.051-.126-.051-.131-.05-.136-.05-.139-.049-.143-.048-.148-.048-.152-.048-.155-.046-.16-.046-.163-.045-.168-.043-.172-.043-.175-.042-.179-.041-.183-.04-.187-.038-.191-.038-.194-.036-.198-.034-.202-.033-.205-.032-.21-.031-.212-.028-.216-.027-.22-.026-.224-.023-.226-.022-.231-.021-.233-.018-.237-.016-.241-.014-.244-.012-.247-.011-.25-.008-.254-.005-.257-.004-.26-.001-.26.001z" transform="scale(.5)"></path></symbol></defs><defs><symbol height="24" id="jai-diagram-1-clock" width="24"><path d="M12 2c5.514 0 10 4.486 10 10s-4.486 10-10 10-10-4.486-10-10 4.486-10 10-10zm0-2c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.848 12.459c.202.038.202.333.001.372-1.907.361-6.045 1.111-6.547 1.111-.719 0-1.301-.582-1.301-1.301 0-.512.77-5.447 1.125-7.445.034-.192.312-.181.343.014l.985 6.238 5.394 1.011z" transform="scale(.5)"></path></symbol></defs><defs><marker id="jai-diagram-1-arrowhead" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="7.9" refy="5"><path d="M 0 0 L 10 5 L 0 10 z"></path></marker></defs><defs><marker id="jai-diagram-1-crosshead" markerheight="8" markerwidth="15" orient="auto" refx="4" refy="4.5"><path d="M 1,2 L 6,7 M 6,2 L 1,7" fill="none" stroke="#000000" stroke-width="1pt" style="stroke-dasharray: 0, 0;"></path></marker></defs><defs><marker id="jai-diagram-1-filled-head" markerheight="28" markerwidth="20" orient="auto" refx="15.5" refy="7"><path d="M 18,7 L9,13 L14,7 L9,1 Z"></path></marker></defs><defs><marker id="jai-diagram-1-sequencenumber" markerheight="40" markerwidth="60" orient="auto" refx="15" refy="15"><circle cx="15" cy="15" r="6"></circle></marker></defs><g><rect class="note" fill="#EDF2AE" height="42" rx="0" ry="0" stroke="#666" width="687.5" x="50" y="399"></rect><text alignment-baseline="middle" class="noteText" dominant-baseline="middle" dy="1em" style="font-size: 16px; font-weight: 400;" text-anchor="middle" x="394" y="404"><tspan x="394">旧值会保留到何时，取决于 TTL、版本或失效通知</tspan></text></g><text alignment-baseline="middle" class="messageText" dominant-baseline="middle" dy="1em" style="font-size: 16px; font-weight: 400;" text-anchor="middle" x="392" y="80">miss</text><line class="messageLine0" marker-end="url(#jai-diagram-1-arrowhead)" stroke="none" stroke-width="2" style="fill: none;" x1="76" x2="708.5" y1="119" y2="119"></line><text alignment-baseline="middle" class="messageText" dominant-baseline="middle" dy="1em" style="font-size: 16px; font-weight: 400;" text-anchor="middle" x="174" y="134">读取旧值</text><line class="messageLine0" marker-end="url(#jai-diagram-1-arrowhead)" stroke="none" stroke-width="2" style="fill: none;" x1="76" x2="271" y1="173" y2="173"></line><text alignment-baseline="middle" class="messageText" dominant-baseline="middle" dy="1em" style="font-size: 16px; font-weight: 400;" text-anchor="middle" x="177" y="188">旧值（A 暂停）</text><line class="messageLine1" marker-end="url(#jai-diagram-1-arrowhead)" stroke="none" stroke-width="2" style="stroke-dasharray: 3, 3; fill: none;" x1="274" x2="79" y1="227" y2="227"></line><text alignment-baseline="middle" class="messageText" dominant-baseline="middle" dy="1em" style="font-size: 16px; font-weight: 400;" text-anchor="middle" x="377" y="242">提交新值</text><line class="messageLine0" marker-end="url(#jai-diagram-1-arrowhead)" stroke="none" stroke-width="2" style="fill: none;" x1="474" x2="279" y1="281" y2="281"></line><text alignment-baseline="middle" class="messageText" dominant-baseline="middle" dy="1em" style="font-size: 16px; font-weight: 400;" text-anchor="middle" x="592" y="296">DEL</text><line class="messageLine0" marker-end="url(#jai-diagram-1-arrowhead)" stroke="none" stroke-width="2" style="fill: none;" x1="476" x2="708.5" y1="335" y2="335"></line><text alignment-baseline="middle" class="messageText" dominant-baseline="middle" dy="1em" style="font-size: 16px; font-weight: 400;" text-anchor="middle" x="392" y="350">写回旧值</text><line class="messageLine0" marker-end="url(#jai-diagram-1-arrowhead)" stroke="none" stroke-width="2" style="fill: none;" x1="76" x2="708.5" y1="389" y2="389"></line></svg><figcaption>图 1 · 对照上文阅读流程</figcaption><details><summary>查看 Mermaid 图表源码</summary><pre><code>sequenceDiagram
+ participant A as 慢读 A
+ participant DB as 数据库
+ participant B as 写入 B
+ participant R as Redis
+ A-&gt;&gt;R: miss
+ A-&gt;&gt;DB: 读取旧值
+ DB--&gt;&gt;A: 旧值（A 暂停）
+ B-&gt;&gt;DB: 提交新值
+ B-&gt;&gt;R: DEL
+ A-&gt;&gt;R: 写回旧值
+ Note over A,R: 旧值会保留到何时，取决于 TTL、版本或失效通知
+</code></pre></details></figure>
+<h2 id="c8-s9" tabindex="-1">三层原理问答</h2>
+<details class="question" open=""><summary><h3 id="c8-s10" tabindex="-1">1. Redis 是单线程为什么还能快？</h3></summary><div class="answer">
+<p>常见操作在内存里完成，结构选择合理，事件驱动减少阻塞切换，主命令线程也避免了一些锁竞争。但速度来自这些具体条件，不是“单线程”三个字。</p>
+<p><strong>多线程到底在哪？</strong> 网络 IO 可以多线程，持久化、lazyfree 也有别的进程或线程。大范围命令和慢脚本仍可能挡住命令执行，所以其他请求会跟着慢。</p>
+<p><strong>性能怎么测？</strong> 使用真实命令比例、value 大小和连接数，看热点及 p99。SLOWLOG 没慢命令时也查网络和排队，再决定优化命令、合并请求还是分片。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c8-s11" tabindex="-1">2. 延迟双删能绝对保证一致吗？</h3></summary><div class="answer">
+<p>不能。它试图再删一次，覆盖读请求晚回填的情况，但延迟没有可靠覆盖所有暂停，第二次删除也可能失败。</p>
+<p><strong>500ms 为什么不可靠？</strong> 慢读可能暂停 2 秒，等第二次删除已经完成才回填旧值。GC、网络和队列都能延长这段时间，DB 和 Redis 并没有共同事务。</p>
+<p><strong>需要更准确怎么办？</strong> 先定义能接受旧值多久，再选 TTL、版本校验或可靠失效事件。核心余额从数据库确认。删除失败有重试，不把固定 sleep 当强一致证明。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c8-s12" tabindex="-1">3. Lua 解锁为什么仍不等于强一致锁？</h3></summary><div class="answer">
+<p>Lua 比较 token 后删除，能防止 A 删掉 B 的锁；但 A 的租期过了以后继续写数据库，Lua 无法拦住它。</p>
+<p><strong>Watchdog 能解决吗？</strong> 它会续期，但 STW、网络或调度异常仍能让续期失败。异步复制切换还可能丢锁。随机所有权 token 也没有可供数据库比较的新旧顺序。</p>
+<p><strong>关键写用什么保护？</strong> 用数据库条件写和唯一约束，或有可靠授予方式的 fencing，并由资源端拒绝旧编号。Redis 锁可以降低竞争，但最终数据判断不能只看有没有锁。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c8-s13" tabindex="-1">4. RDB 与 AOF 如何选？</h3></summary><div class="answer">
+<p>RDB 保存快照，恢复较直接但会丢快照之后的写入；AOF 记录写操作，可按 fsync 策略缩短丢失窗口。常组合使用，并安排备份。</p>
+<p><strong>性能代价在哪？</strong> fork 后写多会增加 COW 内存，fsync 和重写依赖磁盘性能。Redis 7 的 multipart AOF 有 base、incr、manifest，不是一个旧单文件的全部流程。</p>
+<p><strong>怎样选择？</strong> 若只是可重建缓存，接受窗口可能不同；若当主数据使用，先定义 RPO 并做恢复演练。开启持久化不能替代数据库和消息链的可靠设计。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c8-s14" tabindex="-1">5. Sentinel 切换为什么可能丢数据？</h3></summary><div class="answer">
+<p>副本可能尚未收到主机已应答的写入。Sentinel 能协调提升，但无法恢复从未到达新主的数据。</p>
+<p><strong>WAIT 是否就够了？</strong> WAIT 能等待副本确认、降低风险，却不是线性一致承诺，也不保证每种故障切换都选到包含该写的副本。隔离和旧主恢复也需要考虑。</p>
+<p><strong>业务怎么承受？</strong> 缓存数据可失效重建，关键账务保留在数据库。测试复制 lag、断网和切换，明确什么时候降级，不把主从当零丢失承诺。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c8-s15" tabindex="-1">6. 缓存故障为何拖垮数据库？</h3></summary><div class="answer">
+<p>大量原先命中的请求同时回源，数据库的连接、CPU 和等待队列会很快超过能力。超时重试又会增加请求。</p>
+<p><strong>同 key 合并够吗？</strong> 它能减少一个热点的重复加载，但整缓存故障会有很多不同 key。还需要限制总回源并发，并把慢依赖和其他功能隔离。</p>
+<p><strong>恢复怎么做？</strong> 非关键业务降级，关键请求在限额内查库，恢复后分批预热。容量测试包含全缓存失效，而不是只测正常的高命中率。</p>
+</div></details>
+<h2 id="c8-s16" tabindex="-1">模拟生产案例：锁超期导致重复扣库存</h2>
+<p>库存已经使用 SET NX PX 锁，仍被重复扣减。A 持锁后暂停 40 秒，锁租期只有 30 秒，B 拿到新锁完成更新，A 恢复又继续。这是一个明确的模拟时间线。</p>
+<p>对齐租期、GC/暂停、获得锁和 DB 写入时间，核对 token 解锁。即使 Lua 解锁正确，A 的数据库操作也没有因此被阻止。只看两条“加锁成功”日志不会发现原因。</p>
+<p>库存修改加条件与事件唯一约束，确认重复请求只能产生一次效果。Redis 锁用来降低竞争。若采用 fencing，还需资源端拒绝旧编号，以及可靠的编号授予方式。</p>
+<p>测试主动暂停旧持有者、触发续期失败和副本切换，观察业务结果。长期监控锁失败与业务重复，不把 Watchdog 当作永不失效的互斥保证。</p>
+<h2 id="c8-s17" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c8-s18" tabindex="-1">一分钟要点回顾</h3>
+<p>Redis 常见操作靠内存结构和事件循环，网络 IO 多线程不代表命令全部并行。缓存写库后删仍可能被慢读回填旧值，双删只是减少问题，不能承诺强一致。SET NX PX 加 token 和 Lua 防误删，但锁过期或切换后旧线程仍能写，关键数据用数据库条件或 fencing 保护。缓存故障还要限制回源，RDB、AOF 和异步复制都有各自恢复窗口。</p>
+<h3 id="c8-s19" tabindex="-1">深入理解与机制串联</h3>
+<p>我从 Cache Aside 的正常读写开始：读 miss 就查库并填缓存，写提交 DB 后删缓存。这个顺序常用，却仍有慢读先拿旧值、等新写完成并删后才回填的情况。TTL、版本和可靠失效事件可以按业务接受的陈旧时间选择，固定双删延迟无法覆盖所有暂停。</p>
+<p>热点失效要合并同 key 加载，但整缓存宕机还需要全局回源限额和降级，否则数据库也会倒。恢复分批预热。大 key 的扫描、序列化、复制和删除成本要单独处理，UNLINK 只把一部分回收放后台。</p>
+<p>锁方面 SET NX PX 原子创建并带租期，随机 token 表示 owner，Lua 比较后删防止错删。A 暂停过租期后，B 可以拿新锁，A 恢复仍可能写数据库。Watchdog 续期也可能失败，所以资源需要自己的条件约束，或验可靠的递增 fencing 编号。</p>
+<p>持久化方面，RDB 是快照，fork 写多会有 COW；AOF fsync 决定窗口，Redis 7 是 multipart 文件组织。复制异步，Sentinel 提升不能补回未复制写入，WAIT 也不是完整强一致承诺。</p>
+<p>最后按真实命令、value 大小和连接数测 p99，SLOWLOG 与网络排队分开看。容量不只算 used_memory，还包括复制、客户端缓冲、COW 和碎片。关键金额从数据库确认，不依赖缓存或租约独自保证。</p>
+<h3 id="c8-s20" tabindex="-1">延伸问题、常见误解与速记</h3>
+<ul>
+<li>高频追问：WAIT 为什么不够？UNLINK 后 RSS 为何仍高？Lua 解锁能否阻止旧 owner？整缓存故障怎样保护 DB？</li>
+<li>容易答错：Redis 7 小结构统一 ziplist；延迟双删必然一致；Watchdog 保证永不失锁；SLOWLOG 包含所有网络延迟。</li>
+<li>常看的源码：<code>setGenericCommand</code>、<code>dbDelete/dbAsyncDelete</code>、<code>dictRehash</code>、<code>aeMain</code> 与 <code>replication.c</code>。</li>
+<li>想清楚：允许缓存旧多久，失效时最多查多少库，以及租期过后谁拦住旧写。</li>
+</ul>
+<h2 id="c8-s21" tabindex="-1">官方资料与版本来源</h2>
+<p>本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 <a href="../source-notices.txt">source-notices.txt</a>，下载记录见 <a href="../sources.json">sources.json</a>。</p>
+<ul>
+<li><a href="https://raw.githubusercontent.com/redis/redis/7.2.4/src/db.c">dbDelete · Redis 7.2.4</a></li>
+<li><a href="https://raw.githubusercontent.com/redis/redis/7.2.4/src/t_string.c">setGenericCommand · Redis 7.2.4</a></li>
+<li><a href="https://redis.io/docs/latest/develop/use/patterns/distributed-locks/">Redis 分布式锁边界</a></li>
+<li><a href="https://redisson.pro/docs/data-and-services/locks-and-synchronizers/">Redisson 锁与 Watchdog</a></li>
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c8-quick-core">先记住这几件事</h2><ul><li>主命令线程串行，IO 多线程不表示命令全部并行。</li><li>RDB、AOF 与异步复制各有恢复和丢失窗口。</li><li>写库后删缓存仍可能被慢读回填，双删不是绝对保证。</li><li>token 和 Lua 防误删，租期过后旧 owner 仍可能写业务。</li><li>热点合并与总回源限额一起做，缓存宕机也要保护数据库。</li></ul><h2 id="c8-quick-qa">四个重点问题</h2><details class="question" open=""><summary><span class="question-title">1. Redis 是单线程为什么还能快？</span></summary><div class="answer">
+<p>常见操作在内存里完成，结构选择合理，事件驱动减少阻塞切换，主命令线程也避免了一些锁竞争。但速度来自这些具体条件，不是“单线程”三个字。</p>
+<p><strong>多线程到底在哪？</strong> 网络 IO 可以多线程，持久化、lazyfree 也有别的进程或线程。大范围命令和慢脚本仍可能挡住命令执行，所以其他请求会跟着慢。</p>
+<p><strong>性能怎么测？</strong> 使用真实命令比例、value 大小和连接数，看热点及 p99。SLOWLOG 没慢命令时也查网络和排队，再决定优化命令、合并请求还是分片。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">2. 延迟双删能绝对保证一致吗？</span></summary><div class="answer">
+<p>不能。它试图再删一次，覆盖读请求晚回填的情况，但延迟没有可靠覆盖所有暂停，第二次删除也可能失败。</p>
+<p><strong>500ms 为什么不可靠？</strong> 慢读可能暂停 2 秒，等第二次删除已经完成才回填旧值。GC、网络和队列都能延长这段时间，DB 和 Redis 并没有共同事务。</p>
+<p><strong>需要更准确怎么办？</strong> 先定义能接受旧值多久，再选 TTL、版本校验或可靠失效事件。核心余额从数据库确认。删除失败有重试，不把固定 sleep 当强一致证明。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">3. Lua 解锁为什么仍不等于强一致锁？</span></summary><div class="answer">
+<p>Lua 比较 token 后删除，能防止 A 删掉 B 的锁；但 A 的租期过了以后继续写数据库，Lua 无法拦住它。</p>
+<p><strong>Watchdog 能解决吗？</strong> 它会续期，但 STW、网络或调度异常仍能让续期失败。异步复制切换还可能丢锁。随机所有权 token 也没有可供数据库比较的新旧顺序。</p>
+<p><strong>关键写用什么保护？</strong> 用数据库条件写和唯一约束，或有可靠授予方式的 fencing，并由资源端拒绝旧编号。Redis 锁可以降低竞争，但最终数据判断不能只看有没有锁。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">4. RDB 与 AOF 如何选？</span></summary><div class="answer">
+<p>RDB 保存快照，恢复较直接但会丢快照之后的写入；AOF 记录写操作，可按 fsync 策略缩短丢失窗口。常组合使用，并安排备份。</p>
+<p><strong>性能代价在哪？</strong> fork 后写多会增加 COW 内存，fsync 和重写依赖磁盘性能。Redis 7 的 multipart AOF 有 base、incr、manifest，不是一个旧单文件的全部流程。</p>
+<p><strong>怎样选择？</strong> 若只是可重建缓存，接受窗口可能不同；若当主数据使用，先定义 RPO 并做恢复演练。开启持久化不能替代数据库和消息链的可靠设计。</p>
+</div></details><h2 id="c8-quick-answer">核心要点</h2><p>Redis 常见操作靠内存结构和事件循环，网络 IO 多线程不代表命令全部并行。缓存写库后删仍可能被慢读回填旧值，双删只是减少问题，不能承诺强一致。SET NX PX 加 token 和 Lua 防误删，但锁过期或切换后旧线程仍能写，关键数据用数据库条件或 fencing 保护。缓存故障还要限制回源，RDB、AOF 和异步复制都有各自恢复窗口。</p><h2 id="c8-quick-errors">常见误解与源码</h2><ul>
+<li>高频追问：WAIT 为什么不够？UNLINK 后 RSS 为何仍高？Lua 解锁能否阻止旧 owner？整缓存故障怎样保护 DB？</li>
+<li>容易答错：Redis 7 小结构统一 ziplist；延迟双删必然一致；Watchdog 保证永不失锁；SLOWLOG 包含所有网络延迟。</li>
+<li>常看的源码：<code>setGenericCommand</code>、<code>dbDelete/dbAsyncDelete</code>、<code>dictRehash</code>、<code>aeMain</code> 与 <code>replication.c</code>。</li>
+<li>想清楚：允许缓存旧多久，失效时最多查多少库，以及租期过后谁拦住旧写。</li>
+</ul></section></article><nav aria-label="专题翻页" class="topic-pager"><a href="../rocketmq/">← RocketMQ 消息队列</a><a href="../">全部专题</a><a href="../distributed-transactions/">分布式事务与数据一致性 →</a></nav></main></div>
+<dialog aria-labelledby="search-title" id="search-dialog"><div class="search-head"><h2 id="search-title">全文搜索</h2><button aria-label="关闭搜索" id="search-close">关闭</button></div><label for="search-input">搜索当前专题的关键词、源码方法或学习问题</label><input autocomplete="off" id="search-input" placeholder="例如：sizeCtl、事务回查、Direct buffer" type="search"/><p aria-live="polite" id="search-status" role="status">输入关键词，搜索本篇完整正文与答案。</p><div id="search-results"></div></dialog><div aria-live="polite" id="toast" role="status"></div>
+<footer>按章标注源码版本 · 教学案例与实测排查分别标注 · <a href="./article.md">下载 Markdown 正文</a> · <a href="../VERIFICATION.md">验证范围</a></footer><dialog aria-label="图解放大" id="diagram-dialog"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {
+    if(document.body.dataset.tocScope==='document')return [...$('#main').querySelectorAll('.chapter-title h1,.chapter-title h2,.study h2,.study h3')];
+    return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];
+  }
+  function makeToc() {
+    sections=visibleHeadings();
+    const nav=active && document.querySelector('.chapter-nav[data-chapter="'+active.id+'"]');
+    if(nav){
+      const box=nav.querySelector('div');box.replaceChildren();
+      sections.forEach(h=>{if(!h.id)return;const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';box.append(a);});
+      nav.open=true;
+    }
+    const label=$('#current-label');if(label)label.textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function selectChapter(article) {
+    active=article;
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();
+  }
+  function scrollToTarget(target) {
+    const margin=window.innerWidth<=760?115:90;
+    window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top+window.scrollY-margin),behavior:'instant'});
+  }
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)scrollToTarget($('#review-route'));closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    selectChapter(article);closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      scrollToTarget(target);if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();
+    }
+    updateReading(false);
+  }
+  function updateReading(trackChapter=true) {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;
+    let currentChapter=chapters[0];
+    for(const chapter of chapters){if(chapter.getBoundingClientRect().top<=margin+30)currentChapter=chapter;else break;}
+    const first=chapters[0].getBoundingClientRect(),last=chapters[chapters.length-1].getBoundingClientRect();
+    const box={top:first.top,bottom:last.bottom,height:last.bottom-first.top};
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(progress===100)currentChapter=chapters[chapters.length-1];
+    if(trackChapter && currentChapter!==active)selectChapter(currentChapter);
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('.chapter-nav div a').forEach(a=>{const isCurrent=!!current && a.hash==='#'+current.id;a.classList.toggle('current',isCurrent);if(isCurrent){const details=a.closest('details');if(details)details.open=true;}});
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{
+        const canvas=$('#diagram-content');canvas.classList.add('diagram');
+        canvas.style.margin='0';canvas.style.padding='0';canvas.style.border='0';
+        canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));
+        const ids=new Map([...canvas.querySelectorAll('[id]')].map(el=>[el.id,'zoom-'+el.id]));
+        const keys=[...ids.keys()].sort((a,b)=>b.length-a.length).map(id=>id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+        const pattern=keys.length?new RegExp('#('+keys.join('|')+')(?=$|[^\\w-])','g'):null;
+        const references=value=>pattern?value.replace(pattern,(_,id)=>'#'+ids.get(id)):value;
+        canvas.querySelectorAll('[id]').forEach(el=>{el.id=ids.get(el.id);});
+        // Mermaid scopes CSS selectors to the root SVG ID; keep those selectors
+        // and marker/use references aligned with the renamed clone IDs.
+        canvas.querySelectorAll('style').forEach(el=>{el.textContent=references(el.textContent);});
+        canvas.querySelectorAll('*').forEach(el=>{
+          for(const attr of ['style','fill','stroke','marker-end','marker-start','marker-mid','clip-path','mask','filter','href','xlink:href']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,references(value));
+          }
+          for(const attr of ['aria-labelledby','aria-describedby']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.split(/\s+/).map(id=>ids.get(id)||id).join(' '));
+          }
+        });scale(1);viewer.showModal();
+      });
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
+})();
+</script></body></html>

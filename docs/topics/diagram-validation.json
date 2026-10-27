@@ -1,0 +1,128 @@
+[
+  {
+    "topic": "java-concurrency",
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "topic": "hashmap-concurrenthashmap",
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "topic": "hashmap-concurrenthashmap",
+    "id": "jai-diagram-2",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "topic": "jvm-memory-cms-g1",
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "topic": "jvm-memory-cms-g1",
+    "id": "jai-diagram-2",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "topic": "jvm-oom-troubleshooting",
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "topic": "spring-core-transactions",
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "topic": "database-transactions-mvcc",
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "topic": "rocketmq",
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "topic": "rocketmq",
+    "id": "jai-diagram-2",
+    "rendered": true,
+    "type": "sequenceDiagram"
+  },
+  {
+    "topic": "rocketmq",
+    "id": "jai-diagram-3",
+    "rendered": true,
+    "type": "flowchart TB"
+  },
+  {
+    "topic": "rocketmq",
+    "id": "jai-diagram-4",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "topic": "redis-cache",
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "sequenceDiagram"
+  },
+  {
+    "topic": "distributed-transactions",
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "sequenceDiagram"
+  },
+  {
+    "topic": "distributed-transactions",
+    "id": "jai-diagram-2",
+    "rendered": true,
+    "type": "stateDiagram-v2"
+  },
+  {
+    "topic": "microservices-stability",
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "topic": "microservices-stability",
+    "id": "jai-diagram-2",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "topic": "jit-jmm-memory-barriers",
+    "id": "jai-diagram-1",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "topic": "jit-jmm-memory-barriers",
+    "id": "jai-diagram-2",
+    "rendered": true,
+    "type": "flowchart TD"
+  },
+  {
+    "topic": "jit-jmm-memory-barriers",
+    "id": "jai-diagram-3",
+    "rendered": true,
+    "type": "flowchart LR"
+  },
+  {
+    "topic": "jit-jmm-memory-barriers",
+    "id": "jai-diagram-4",
+    "rendered": true,
+    "type": "flowchart TD"
+  }
+]

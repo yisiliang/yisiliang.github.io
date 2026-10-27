@@ -34,7 +34,7 @@ LangGraph可独立使用。LangChain中的高层Agent适合快速搭建常见循
 
 ## 固定版本，先排除模型干扰
 
-下载离线包后，在解压目录执行：
+在examples目录执行：
 
 ```sh
 python3.13 -m venv .venv
@@ -1541,7 +1541,7 @@ if __name__ == "__main__":
 
 这些实验确认固定版本下的本地调度、状态合并与恢复行为，没有测量模型正确率、真实工具调用、PostgreSQL故障转移、多实例并发或生产吞吐，也没有人为杀进程验证每一种durability崩溃窗口。
 
-源码节选采用Python AST定位完整函数，包含函数体中的全部分支和文档字符串。每段记录固定提交、路径、起止行和SHA-256，页面与Markdown从同一份材料生成。离线包包含本地阅读资源、示例、锁定依赖清单、验证记录和源码许可；阅读无需外部脚本。
+源码节选采用Python AST定位完整函数，包含函数体中的全部分支和文档字符串。每段记录固定提交、路径、起止行和SHA-256，页面与Markdown从同一份材料生成。页面包含本地阅读资源与示例；依赖清单、验证记录和源码许可随页面提供，阅读无需外部脚本。
 
 验证说明见[VERIFICATION.md](VERIFICATION.md)，源码索引见[source-evidence.json](source-evidence.json)，运行结果见[lab-results.json](lab-results.json)。
 

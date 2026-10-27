@@ -2,7 +2,7 @@
 
 > 源码之下，系统之上。固定Spring Boot3.5.16主线、2.7.18对照；Spring Framework6.2.19解释容器与MVC边界。先沿启动旅程理解状态，再用真实调用链验证。
 
-[下载完整离线版](./springboot-offline.zip) · [下载实验工程](./springboot-examples.zip) · [源码许可](./apache-license.txt) · [归属与节选清单](./source-notices.txt) · [验证记录](./VERIFICATION.md)
+[源码许可](./apache-license.txt) · [归属与节选清单](./source-notices.txt) · [验证记录](./VERIFICATION.md)
 
 本文不是官方文档，也不是Spring Boot全部源码的逐行翻译。图中的概念框是机制模型，带行号代码才是固定源码原文；省略的上下文请点固定SHA链接读取。本文把“源码直接可见”“官方迁移背景”“作者分析”和“实验预期”区分开：源码说明这两个版本如何工作，不自动证明所有部署环境都相同。
 
@@ -2020,7 +2020,7 @@ SIGKILL不会运行正常关闭回调；平台终止宽限比应用timeout短会
 
 ### 字段、状态与不变量
 
-实验应用使用Java17语言级别、Spring Boot3.5.16 parent及starter-web/actuator/validation/test。源码目录在离线包的examples中；测试只使用临时上下文，不申请生产连接。DemoProperties是record，通过ConfigurationPropertiesScan注册，便于检查构造绑定。
+实验应用使用Java17语言级别、Spring Boot3.5.16 parent及starter-web/actuator/validation/test。示例源码在仓库的examples目录中；测试只使用临时上下文，不申请生产连接。DemoProperties是record，通过ConfigurationPropertiesScan注册，便于检查构造绑定。
 
 <figure class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 815 215" role="img" aria-labelledby="diagram-title-27"><title id="diagram-title-27">复现实验室：一个小应用验证多条主线：关键状态推进</title><defs><marker id="arrow-27" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0L6 3L0 6" fill="#648eb9"/></marker></defs><path d="M390 58H412 M603 91V114H207V130 M390 162H412" fill="none" stroke="#648eb9" stroke-width="2" marker-end="url(#arrow-27)"/><rect x="25" y="25" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="41" y="52" fill="#254c75" font-size="12">01 · 状态/交接</text><text x="41" y="74" fill="#20324d" font-size="15">单测：Binder/条件/失败</text><rect x="420" y="25" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="436" y="52" fill="#254c75" font-size="12">02 · 状态/交接</text><text x="436" y="74" fill="#20324d" font-size="15">打包：Boot可执行jar</text><rect x="25" y="130" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="41" y="157" fill="#254c75" font-size="12">03 · 状态/交接</text><text x="41" y="179" fill="#20324d" font-size="15">运行：Servlet/MVC/Actuator</text><rect x="420" y="130" width="365" height="66" rx="10" fill="#edf4ff" stroke="#b8cbe4"/><text x="436" y="157" fill="#254c75" font-size="12">04 · 状态/交接</text><text x="436" y="179" fill="#20324d" font-size="15">参数切换：验证不同状态</text></svg><figcaption>图27 · 关键交接点；完整调用及异常分支见正文</figcaption></figure>
 
@@ -2084,7 +2084,7 @@ mvn test运行绑定/条件/启动回归→mvn package生成可执行jar→java 
 
 ### 可复现实验与观察点
 
-从离线包进入examples，执行mvn test，然后mvn package。运行java -jar target/source-lab-1.0.0.jar --server.port=8088；另一个终端执行curl http://127.0.0.1:8088/ping与curl http://127.0.0.1:8088/actuator/health。绑定实验改变demo.timeout，来源实验改变demo.message。操作、预期与实测状态见VERIFICATION.md。
+从 examples 目录进入，执行mvn test，然后mvn package。运行java -jar target/source-lab-1.0.0.jar --server.port=8088；另一个终端执行curl http://127.0.0.1:8088/ping与curl http://127.0.0.1:8088/actuator/health。绑定实验改变demo.timeout，来源实验改变demo.message。操作、预期与实测状态见VERIFICATION.md。
 
 ## 阅读自检：把机制说成因果链
 
@@ -2101,6 +2101,6 @@ mvn test运行绑定/条件/启动回归→mvn package生成可执行jar→java 
 
 ## 文件、归属与实验结果的边界
 
-所有短源码片段来自Spring项目，Apache License2.0许可；源码版权归原作者。本页的图解和机制解释是独立导读，未改写片段中的语义。`source-notices.txt`列出完整文件、固定SHA和行号；`source-manifest.json`提供片段文本及SHA-256，方便复核。离线版不加载统计，不依赖CDN，只有点击上游外链才联网。实验依赖下载需要Maven仓库；这与手册离线阅读无关。
+所有短源码片段来自Spring项目，Apache License2.0许可；源码版权归原作者。本页的图解和机制解释是独立导读，未改写片段中的语义。`source-notices.txt`列出完整文件、固定SHA和行号；`source-manifest.json`提供片段文本及SHA-256，方便复核。页面不依赖CDN，只有点击上游外链和访问统计时才联网。实验依赖下载需要Maven仓库；这与阅读正文无关。
 
 验证记录与局限见[VERIFICATION.md](./VERIFICATION.md)。没有执行的Native/平台探针/真实数据库实验只标预期，不宣称通过。遇到版本漂移先核对本文三组SHA，再做具体环境测试。

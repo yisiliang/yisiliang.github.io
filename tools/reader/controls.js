@@ -55,9 +55,14 @@
     return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];
   }
   function makeToc() {
-    sections=visibleHeadings();$('#toc').replaceChildren();
-    sections.forEach(h=>{const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';$('#toc').append(a);});
-    $('#current-label').textContent=active.dataset.title;
+    sections=visibleHeadings();
+    const nav=active && document.querySelector('.chapter-nav[data-chapter="'+active.id+'"]');
+    if(nav){
+      const box=nav.querySelector('div');box.replaceChildren();
+      sections.forEach(h=>{if(!h.id)return;const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';box.append(a);});
+      nav.open=true;
+    }
+    const label=$('#current-label');if(label)label.textContent=active.dataset.title;
   }
   function setMode(next) {
     mode=next;root.classList.toggle('quick-mode',mode==='quick');
@@ -113,7 +118,7 @@
     if(root.classList.contains('show-route'))progress=0;
     $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
     let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
-    document.querySelectorAll('#toc a,.chapter-nav div a').forEach(a=>a.classList.toggle('current',!!current && a.hash==='#'+current.id));
+    document.querySelectorAll('.chapter-nav div a').forEach(a=>{const isCurrent=!!current && a.hash==='#'+current.id;a.classList.toggle('current',isCurrent);if(isCurrent){const details=a.closest('details');if(details)details.open=true;}});
   }
   window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
   window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});

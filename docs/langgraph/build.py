@@ -13,7 +13,6 @@ import json
 import re
 import subprocess
 import sys
-import zipfile
 from pathlib import Path
 import markdown
 
@@ -129,7 +128,7 @@ def build():
             lambda m: f'<figure class="image-diagram"><img alt="{m[1]}" src="{m[2]}" loading="lazy"><figcaption>{m[1]}</figcaption></figure>', fragment)
         sections.append(f'<section class="chapter" id="chapter-{i:02d}">{fragment}</section>')
     # Offline syntax coloring: highlight.js runs only at build time.
-    plain = '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="description" content="LangGraph核心机制、源码解析与工程实践：状态合并、Pregel执行、持久化、人工审核与幂等。"><title>LangGraph：核心机制、源码解析与工程实践</title><style>.image-diagram{margin:26px 0;padding:12px;border:1px solid var(--border);border-radius:8px;background:#f6f8fc}.image-diagram img{display:block;width:100%;height:auto}.image-diagram figcaption{font-size:12px;padding-top:8px;color:#526780!important}.hljs-comment,.hljs-quote{color:#718199}.hljs-keyword,.hljs-literal{color:#a347a5}.hljs-string{color:#247947}.hljs-number{color:#aa5726}[data-theme=dark] .hljs-keyword{color:#dca9ed}[data-theme=dark] .hljs-string{color:#9bcf9d}</style><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script></head><body><header><p class="lead">从StateGraph与Channel到Pregel执行、Checkpoint、人工审核与业务幂等，沿固定源码与可运行实验理解Agent编排。</p><a href="langgraph-offline.zip">下载离线包</a><a href="langgraph.md">Markdown全文</a><a href="VERIFICATION.md">验证记录</a></header><main><p>固定基线：LangGraph1.2.16 · 提交' + SHA[:12] + '。资料核验与实验日期：2026年10月19日。先学状态与控制流，再读执行与恢复机制，最后运行合成受理案例。源码节选遵循MIT许可，见<a href="UPSTREAM-LICENSE.txt">上游许可</a>。</p>' + ''.join(sections) + '</main></body></html>'
+    plain = '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="description" content="LangGraph核心机制、源码解析与工程实践：状态合并、Pregel执行、持久化、人工审核与幂等。"><title>LangGraph：核心机制、源码解析与工程实践</title><style>.image-diagram{margin:26px 0;padding:12px;border:1px solid var(--border);border-radius:8px;background:#f6f8fc}.image-diagram img{display:block;width:100%;height:auto}.image-diagram figcaption{font-size:12px;padding-top:8px;color:#526780!important}.hljs-comment,.hljs-quote{color:#718199}.hljs-keyword,.hljs-literal{color:#a347a5}.hljs-string{color:#247947}.hljs-number{color:#aa5726}[data-theme=dark] .hljs-keyword{color:#dca9ed}[data-theme=dark] .hljs-string{color:#9bcf9d}</style><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script></head><body><header><p class="lead">从StateGraph与Channel到Pregel执行、Checkpoint、人工审核与业务幂等，沿固定源码与可运行实验理解Agent编排。</p><a href="langgraph.md">Markdown全文</a><a href="VERIFICATION.md">验证记录</a></header><main><p>固定基线：LangGraph1.2.16 · 提交' + SHA[:12] + '。资料核验与实验日期：2026年10月19日。先学状态与控制流，再读执行与恢复机制，最后运行合成受理案例。源码节选遵循MIT许可，见<a href="UPSTREAM-LICENSE.txt">上游许可</a>。</p>' + ''.join(sections) + '</main></body></html>'
     pattern = re.compile(r'<pre><code class="language-([^" ]+)">(.*?)</code></pre>', re.S)
     matches = list(pattern.finditer(plain))
     inputs = [dict(language=m[1] if m[1] in ('python', 'json') else 'bash', code=html.unescape(m[2])) for m in matches]
@@ -138,14 +137,8 @@ def build():
     sys.path.insert(0, str(ROOT/'tools'))
     import style_readers
     online = style_readers.transform(plain, 'langgraph')
-    offline = style_readers.transform(online, 'langgraph', True)
     (HERE/'index.html').write_text(online)
     (HERE/'langgraph.md').write_text('# LangGraph：核心机制、源码解析与工程实践\n\n基线：1.2.16，提交' + SHA + '；核验日期：2026年10月19日。\n\n' + '\n\n'.join(all_md))
-    with zipfile.ZipFile(HERE/'langgraph-offline.zip', 'w', zipfile.ZIP_DEFLATED) as z:
-        z.writestr('langgraph/index.html', offline)
-        for p in sorted(HERE.rglob('*')):
-            if p.is_file() and p.suffix != '.zip' and p.name != 'index.html' and '__pycache__' not in p.parts:
-                z.write(p, 'langgraph/' + str(p.relative_to(HERE)))
     print(f'Built LangGraph: {len(sections)} chapters, {len(evidence)} full functions, 5 diagrams, 10 lab groups')
 
 if __name__ == '__main__':

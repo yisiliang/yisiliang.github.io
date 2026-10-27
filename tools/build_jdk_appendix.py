@@ -5,7 +5,6 @@ import html
 import json
 import re
 import subprocess
-import zipfile
 
 import markdown
 from markdown.extensions.toc import slugify_unicode
@@ -118,22 +117,7 @@ def build():
         end = handbook.index('\n', start)
         handbook = handbook[:end] + link + handbook[end:]
     handbook_path.write_text(handbook)
-    archive = BOOK / 'jdk-source-offline.zip'
-    with zipfile.ZipFile(archive) as z:
-        entries = [(i, z.read(i.filename)) for i in z.infolist()]
-    offline = re.sub(r'<script\b[^>]*src="https://cloud.umami.is/script.js"[^>]*></script>', '', page)
-    generated = {'index.html': offline.encode(), 'handbook.md': handbook.encode(), SOURCE.name: article.encode()}
-    generated.update({str(f.relative_to(BOOK)): f.read_bytes() for f in (BOOK / 'diagrams/appendix-threadlocal').glob('*.svg')})
-    with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:
-        for info, data in entries:
-            z.writestr(info, generated.pop(info.filename, data))
-        for name, data in generated.items():
-            z.writestr(name, data)
-    with zipfile.ZipFile(archive) as z:
-        assert z.testzip() is None
-        assert z.read('handbook.md') == handbook.encode()
-        assert 'umami' not in z.read('index.html').decode().lower()
-    print('Rendered JDK appendix with 6 inline SVGs; synchronized handbook and offline ZIP.')
+    print('Rendered JDK appendix with 6 inline SVGs; synchronized handbook.')
 
 
 if __name__ == '__main__':

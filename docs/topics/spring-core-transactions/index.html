@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><meta content="light dark" name="color-scheme"/>
+<meta name="description" content="从 Bean 生命周期到事务代理，理解 Spring 的初始化顺序、循环依赖与传播行为。">
+<title>Spring 核心原理与事务 · 技术专题 | YiSiliang</title>
+<script data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3" defer="" src="https://cloud.umami.is/script.js"></script>
+<script data-manual="" defer="" src="../vendor/prism.js"></script><script defer="" src="../vendor/prism-c.js"></script><script defer="" src="../vendor/prism-cpp.js"></script><script defer="" src="../vendor/prism-java.js"></script><script defer="" src="../vendor/prism-sql.js"></script><script defer="" src="../vendor/prism-bash.js"></script><script defer="" src="../vendor/prism-yaml.js"></script>
+<style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="topics"] .diagram svg .edgePath path,[data-reader="topics"] .diagram svg .flowchart-link,[data-reader="topics"] .diagram svg .messageLine0,[data-reader="topics"] .diagram svg .messageLine1,[data-reader="topics"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="topics"] .diagram svg .edgeLabel span,[data-reader="topics"] .diagram svg .messageText,[data-reader="topics"] .diagram svg .loopText,[data-reader="topics"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
+}
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader main h4{overflow-wrap:anywhere}
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+
+/* 单侧目录：章节目录、篇内目录与阅读进度都收在左侧。 */
+.layout {
+  max-width: 1280px;
+  grid-template-columns: 300px minmax(0, 880px);
+  gap: 46px;
+}
+#left-nav .reading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 10px;
+  padding: 0 0 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+#left-nav .reading span { display: block; }
+#right-toc { display: none !important; }
+.chapter-nav div a.depth3 { padding-left: 20px; font-size: 11px; }
+.topic-nav-link {
+  display: flex;
+  gap: 8px;
+  padding: 7px 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.topic-nav-link:hover { color: var(--accent); text-decoration: none; }
+.topic-nav-link span:first-child {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font: 11px/2.1 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.topic-nav-index { border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.topic-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 30px 0 10px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.topic-pager a:last-child { text-align: right; }
+@media (min-width: 1450px) {
+  .layout { max-width: 1760px; grid-template-columns: 320px minmax(0, 1fr); gap: 44px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 260px minmax(0, 1fr); gap: 30px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  .topic-pager { flex-wrap: wrap; gap: 10px; }
+  .topic-pager a:last-child { text-align: left; }
+}
+
+/* Keep the theme switch reachable on phones; print is not useful on mobile. */
+@media (max-width: 760px) {
+  #theme { display: inline-block !important; }
+  #print { display: none !important; }
+}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script>
+<!-- social-meta:start --><link rel="canonical" href="https://yisiliang.github.io/topics/spring-core-transactions/"><meta property="og:type" content="article"><meta property="og:site_name" content="源码之下，系统之上"><meta property="og:locale" content="zh_CN"><meta property="og:title" content="Spring 核心原理与事务 · 技术专题 | YiSiliang"><meta property="og:description" content="从 Bean 生命周期到事务代理，理解 Spring 的初始化顺序、循环依赖与传播行为。"><meta property="og:url" content="https://yisiliang.github.io/topics/spring-core-transactions/"><meta property="og:image" content="https://yisiliang.github.io/assets/og-default.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Spring 核心原理与事务 · 技术专题 | YiSiliang"><meta name="twitter:description" content="从 Bean 生命周期到事务代理，理解 Spring 的初始化顺序、循环依赖与传播行为。"><meta name="twitter:image" content="https://yisiliang.github.io/assets/og-default.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><!-- social-meta:end -->
+</head><body class="learning-reader" data-layout="learning-v2" data-reader="topics">
+<a class="skip" href="#main">跳到正文</a>
+<header class="topbar"><button aria-controls="left-nav" aria-expanded="false" aria-label="打开专题导航" class="mobile" id="menu">目录</button><div class="brand"><a class="library-home" href="../../">← 学习库</a>技术专题<span>源码原理 · 故障排查 · 架构实践</span></div><div class="tools"><button aria-label="打开全文搜索" id="search-open">搜索 <kbd>/</kbd></button><button aria-pressed="false" id="mode">要点速览</button><button id="print" type="button">打印</button><button aria-label="切换主题" id="theme">主题：系统</button></div></header>
+<div aria-hidden="true" class="progress-track"><div id="progress-bar"></div></div><div hidden="" id="drawer-backdrop"></div>
+<div class="layout"><nav aria-label="技术专题" id="left-nav"><div class="reading"><span id="progress-text">阅读进度 0%</span><span id="current-label"></span></div><p class="nav-label">技术专题 / 14篇</p><a class="topic-nav-link topic-nav-index" href="../"><span>目录</span>全部专题</a><a class="topic-nav-link" href="../java-concurrency/"><span>01</span>Java 并发编程与锁机制</a><a class="topic-nav-link" href="../hashmap-concurrenthashmap/"><span>02</span>HashMap 与 ConcurrentHashMap</a><a class="topic-nav-link" href="../jvm-memory-cms-g1/"><span>03</span>JVM 内存管理、CMS 与 G1</a><a class="topic-nav-link" href="../jvm-oom-troubleshooting/"><span>04</span>JVM OOM 与生产故障排查</a><details class="chapter-nav current" data-chapter="c5" open=""><summary><a href="./"><span>05</span>Spring 核心原理与事务</a></summary><div></div></details><a class="topic-nav-link" href="../database-transactions-mvcc/"><span>06</span>数据库事务、MVCC 与性能优化</a><a class="topic-nav-link" href="../rocketmq/"><span>07</span>RocketMQ 消息队列</a><a class="topic-nav-link" href="../redis-cache/"><span>08</span>Redis 与分布式缓存</a><a class="topic-nav-link" href="../distributed-transactions/"><span>09</span>分布式事务与数据一致性</a><a class="topic-nav-link" href="../microservices-stability/"><span>10</span>微服务、高并发与系统稳定性</a><a class="topic-nav-link" href="../jit-jmm-memory-barriers/"><span>11</span>JIT即时编译、JMM与内存屏障</a><a class="topic-nav-link" href="../nginx-rate-limiting/"><span>12</span>Nginx限流原理与工程实践</a><a class="topic-nav-link" href="../jvm-memory-structure-oom/"><span>13</span>JVM内存结构与OOM排查实战</a><a class="topic-nav-link" href="../fastjson2-arm64-jit/"><span>14</span>从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷</a></nav><main id="main" tabindex="-1">
+<article class="chapter" data-title="Spring 核心原理与事务" id="c5"><div class="chapter-title"><p class="eyebrow">专题 05 / 完整阅读</p><h1>Spring 核心原理与事务</h1></div><div class="study">
+<p>本章使用 Spring Framework 5.3.31 和 Spring Boot 2.7.18。Spring 创建 Bean、通过代理增强方法、管理数据库事务，是相互配合的几件事。把一次调用从入口走到提交，很多“事务失效”就能解释清楚。</p>
+<h2 id="c5-s1" tabindex="-1">核心知识与原理</h2>
+<h3 id="c5-s2" tabindex="-1">IoC、生命周期与循环依赖</h3>
+<p>假设 OrderService 需要 OrderRepository。IoC 容器先读取 BeanDefinition，知道要创建什么类、注入哪些依赖，再创建对象并完成注入。BeanFactory 提供基础的 Bean 管理；ApplicationContext 在此之上组织启动、资源、事件和国际化等功能。</p>
+<p><code>refresh()</code> 会先处理 Bean 定义，再注册 BeanPostProcessor，最后创建非懒加载单例。BeanFactoryPostProcessor 改的是对象还没创建前的定义；BeanPostProcessor 处理的是已经创建的实例。自动代理主要在后者这一阶段参与，二者不能混记。</p>
+<p>一个 Bean 大致经历实例化、依赖注入、Aware 回调、初始化前处理、初始化回调、初始化后处理。@PostConstruct、afterPropertiesSet、自定义 initMethod 属于初始化相关步骤。容器关闭时会销毁它管理的单例；prototype 对象取出去后，清理通常要由使用者负责。</p>
+<p>循环依赖的问题可以用 A、B 说明：A 已经 new 出来，但注入 B 时发现 B 又需要 A。如果 A 是可提前暴露的单例，容器可以先把 A 的早期引用交给 B，等 B 完成后再把它注入 A。构造器循环却不同：A 连 new 都还没完成，就必须先拿到 B，因此没有现成的 A 可借出去。</p>
+<p>三级缓存分别放完整单例、早期引用和生成早期引用的工厂。第三层的工厂允许后处理器按需生成代理，避免 B 拿到原始 A，而其他调用者后来拿到代理 A。它只能处理部分单例字段/setter 循环，也会受到其他后处理器影响。Boot 2.7 默认禁止循环引用；在新代码里拆开相互依赖，通常比打开开关容易维护。</p>
+<h3 id="c5-s3" tabindex="-1">动态代理与 AOP</h3>
+<p>代理相当于方法外面的一层调用入口。例如进入订单方法前开启事务，方法结束后提交；异常时回滚。这层逻辑由拦截器执行，业务类本身不需要把开始、提交散落在每个方法里。</p>
+<p>JDK 动态代理基于接口，CGLIB 通过子类增强。具体选择还受配置影响，Boot 默认倾向类代理，不能只凭“有接口”猜代理类型。CGLIB 无法覆盖 final 和 private 方法。</p>
+<p>最容易踩到的是自调用：对象内部写 <code>this.save()</code>，调用的是自身方法，没有重新进入外部代理。save 上有 @Transactional，也可能根本没执行事务拦截器。把事务操作放到另一个 Bean，由注入的代理对象调用，通常更清楚。</p>
+<pre><code class="language-java">// 业务示例：跨 Bean 调用，让入口穿过事务代理。
+@Service
+class OrderService {
+    private final OrderWriter writer;
+    OrderService(OrderWriter writer) { this.writer = writer; }
+    public void create(Order order) { writer.persist(order); }
+}
+@Service
+class OrderWriter {
+    @Transactional(rollbackFor = Exception.class)
+    public void persist(Order order) throws Exception {
+        // 同一 DataSource 的持久化路径，异常交给代理作回滚判断。
+    }
+}
+</code></pre>
+<h3 id="c5-s4" tabindex="-1">事务拦截、传播与线程上下文</h3>
+<p>事务调用进入 TransactionInterceptor 后，Spring 先读事务属性，选择 PlatformTransactionManager，再决定开启新事务还是加入已有事务。业务方法返回时提交，抛异常时按规则决定回滚，最后清理调用上下文。</p>
+<p>使用 DataSourceTransactionManager 时，当前事务连接通过 ConnectionHolder 绑定在 TransactionSynchronizationManager 的 ThreadLocal 中。同一线程里的兼容 DAO 操作才能拿到这条连接。手动创建另一条连接，或切到异步线程，不能自动参与原事务。</p>
+<p>默认 RuntimeException 和 Error 回滚，checked exception 需要配置 rollbackFor 等规则。异常在方法里被捕获后正常返回，拦截器可能看到的就是成功。另一种情况是内层 REQUIRED 已把共享事务标记为 rollback-only，外层虽然捕获异常，最终提交仍可能抛 UnexpectedRollbackException。</p>
+<p>REQUIRED 加入已有物理事务；REQUIRES_NEW 挂起外层、再拿一条连接开启独立事务。外层连接并没有被释放，所以嵌套并发容易耗尽连接池。NESTED 通常使用同一连接上的保存点，外层回滚仍会撤销它；具体支持取决于事务管理器和驱动。</p>
+<p>标准代理事务通常以 public 方法为使用范围。排查时还要检查 Bean 是否由 Spring 管理、选了哪个 manager、数据库引擎是否支持事务。Reactor 换线程后不能照搬 JDBC 的 ThreadLocal 事务，需要相应的 reactive manager 和 Context。</p>
+<h3 id="c5-s5" tabindex="-1">Boot 自动配置与 MVC</h3>
+<p>自动配置先找候选，再按条件决定是否启用。Boot 2.7 同时读取 spring.factories 和 <code>AutoConfiguration.imports</code> 中的候选，随后去重、过滤与排序。已有用户 Bean、缺少类或配置条件不满足，都会让某个配置跳过。排查时看条件报告，比盲目扩大扫描范围有效。</p>
+<p>MVC 请求进入 DispatcherServlet，先找 Handler，再找能执行它的 HandlerAdapter。参数解析器准备方法参数，控制器执行后，返回值处理器决定写 JSON 还是解析视图。@ResponseBody 的内容通常由 HttpMessageConverter 写出。</p>
+<p>Servlet Filter 在 Servlet 链上，HandlerInterceptor 则在 MVC 的 handler 流程里。preHandle、postHandle、afterCompletion 发生在不同位置；异步请求还可能再次 dispatch。需要清理的租户、日志上下文，应按实际请求边界处理。</p>
+<pre><code class="language-yaml"># Boot 2.7 配置示例：保持默认禁止循环依赖，推动依赖拆分。
+spring:
+  main:
+    allow-circular-references: false
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+</code></pre>
+<h3 id="c5-s6" tabindex="-1">事务推演：注解隔离级别为何可能被忽略</h3>
+<p>外层已开启 RC 事务，内层 REQUIRED 标注 RR，内层默认仍使用外层那条连接和事务，不会凭注解把它临时切成 RR。启用现有事务属性校验时，冲突可能被拒绝。想要一个独立隔离级别，先要确认是否真的创建了新物理事务。</p>
+<p>查事务问题可以沿五步走：调用有没有经过代理；manager 是否对应这套数据源；DAO 是否取得绑定连接；异常是否传到拦截器；事务有没有被标记 rollback-only。提交后内存回调发 MQ 也有宕机窗口，可靠投递需要<a href="../distributed-transactions/">同事务保存待发事件</a>。</p>
+<h2 id="c5-s7" tabindex="-1">源码级解析与调用链</h2>
+<p>先看单例的 <code>getSingleton</code> 如何依次检查三层缓存，再看事务代理的 <code>invokeWithinTransaction</code> 怎样包住方法。对象创建的主过程是 doCreateBean，MVC 请求主入口是 DispatcherServlet.doDispatch。</p>
+<p>自动配置读取候选的代码很短，适合直接确认 Boot 2.7 到底还读不读 spring.factories。</p>
+<div class="source-caption"><code>DefaultSingletonBeanRegistry.getSingleton</code><span>Spring Framework 5.3.31 · L171–L204 · <a href="https://github.com/spring-projects/spring-framework/blob/v5.3.31/spring-beans/src/main/java/org/springframework/beans/factory/support/DefaultSingletonBeanRegistry.java#L171-L204">完整源码</a></span></div>
+<pre><code class="language-java">    /**
+     * Return the (raw) singleton object registered under the given name.
+     * &lt;p&gt;Checks already instantiated singletons and also allows for an early
+     * reference to a currently created singleton (resolving a circular reference).
+     * @param beanName the name of the bean to look for
+     * @param allowEarlyReference whether early references should be created or not
+     * @return the registered singleton object, or {@code null} if none found
+     */
+    @Nullable
+    protected Object getSingleton(String beanName, boolean allowEarlyReference) {
+        // Quick check for existing instance without full singleton lock
+        Object singletonObject = this.singletonObjects.get(beanName);
+        if (singletonObject == null &amp;&amp; isSingletonCurrentlyInCreation(beanName)) {
+            singletonObject = this.earlySingletonObjects.get(beanName);
+            if (singletonObject == null &amp;&amp; allowEarlyReference) {
+                synchronized (this.singletonObjects) {
+                    // Consistent creation of early reference within full singleton lock
+                    singletonObject = this.singletonObjects.get(beanName);
+                    if (singletonObject == null) {
+                        singletonObject = this.earlySingletonObjects.get(beanName);
+                        if (singletonObject == null) {
+                            ObjectFactory&lt;?&gt; singletonFactory = this.singletonFactories.get(beanName);
+                            if (singletonFactory != null) {
+                                singletonObject = singletonFactory.getObject();
+                                this.earlySingletonObjects.put(beanName, singletonObject);
+                                this.singletonFactories.remove(beanName);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return singletonObject;
+    }
+
+</code></pre>
+<p>早期引用只有在 Bean 正在创建时才有意义。工厂成功生成引用后，将它放入 earlySingletonObjects 并移除工厂；完整单例则仍优先从 singletonObjects 读取。</p>
+<div class="source-caption"><code>TransactionAspectSupport.invokeWithinTransaction</code><span>Spring Framework 5.3.31 · L324–L471 · <a href="https://github.com/spring-projects/spring-framework/blob/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java#L324-L471">完整源码</a></span></div>
+<pre><code class="language-java">    /**
+     * General delegate for around-advice-based subclasses, delegating to several other template
+     * methods on this class. Able to handle {@link CallbackPreferringPlatformTransactionManager}
+     * as well as regular {@link PlatformTransactionManager} implementations and
+     * {@link ReactiveTransactionManager} implementations for reactive return types.
+     * @param method the Method being invoked
+     * @param targetClass the target class that we're invoking the method on
+     * @param invocation the callback to use for proceeding with the target invocation
+     * @return the return value of the method, if any
+     * @throws Throwable propagated from the target invocation
+     */
+    @Nullable
+    protected Object invokeWithinTransaction(Method method, @Nullable Class&lt;?&gt; targetClass,
+            final InvocationCallback invocation) throws Throwable {
+
+        // If the transaction attribute is null, the method is non-transactional.
+        TransactionAttributeSource tas = getTransactionAttributeSource();
+        final TransactionAttribute txAttr = (tas != null ? tas.getTransactionAttribute(method, targetClass) : null);
+        final TransactionManager tm = determineTransactionManager(txAttr);
+
+        if (this.reactiveAdapterRegistry != null &amp;&amp; tm instanceof ReactiveTransactionManager) {
+            boolean isSuspendingFunction = KotlinDetector.isSuspendingFunction(method);
+            boolean hasSuspendingFlowReturnType = isSuspendingFunction &amp;&amp;
+                    COROUTINES_FLOW_CLASS_NAME.equals(new MethodParameter(method, -1).getParameterType().getName());
+            if (isSuspendingFunction &amp;&amp; !(invocation instanceof CoroutinesInvocationCallback)) {
+                throw new IllegalStateException("Coroutines invocation not supported: " + method);
+            }
+            CoroutinesInvocationCallback corInv = (isSuspendingFunction ? (CoroutinesInvocationCallback) invocation : null);
+
+            ReactiveTransactionSupport txSupport = this.transactionSupportCache.computeIfAbsent(method, key -&gt; {
+                Class&lt;?&gt; reactiveType =
+                        (isSuspendingFunction ? (hasSuspendingFlowReturnType ? Flux.class : Mono.class) : method.getReturnType());
+                ReactiveAdapter adapter = this.reactiveAdapterRegistry.getAdapter(reactiveType);
+                if (adapter == null) {
+                    throw new IllegalStateException("Cannot apply reactive transaction to non-reactive return type: " +
+                            method.getReturnType());
+                }
+                return new ReactiveTransactionSupport(adapter);
+            });
+
+            InvocationCallback callback = invocation;
+            if (corInv != null) {
+                callback = () -&gt; CoroutinesUtils.invokeSuspendingFunction(method, corInv.getTarget(), corInv.getArguments());
+            }
+            Object result = txSupport.invokeWithinTransaction(method, targetClass, callback, txAttr, (ReactiveTransactionManager) tm);
+            if (corInv != null) {
+                Publisher&lt;?&gt; pr = (Publisher&lt;?&gt;) result;
+                return (hasSuspendingFlowReturnType ? KotlinDelegate.asFlow(pr) :
+                        KotlinDelegate.awaitSingleOrNull(pr, corInv.getContinuation()));
+            }
+            return result;
+        }
+
+        PlatformTransactionManager ptm = asPlatformTransactionManager(tm);
+        final String joinpointIdentification = methodIdentification(method, targetClass, txAttr);
+
+        if (txAttr == null || !(ptm instanceof CallbackPreferringPlatformTransactionManager)) {
+            // Standard transaction demarcation with getTransaction and commit/rollback calls.
+            TransactionInfo txInfo = createTransactionIfNecessary(ptm, txAttr, joinpointIdentification);
+
+            Object retVal;
+            try {
+                // This is an around advice: Invoke the next interceptor in the chain.
+                // This will normally result in a target object being invoked.
+                retVal = invocation.proceedWithInvocation();
+            }
+            catch (Throwable ex) {
+                // target invocation exception
+                completeTransactionAfterThrowing(txInfo, ex);
+                throw ex;
+            }
+            finally {
+                cleanupTransactionInfo(txInfo);
+            }
+
+            if (retVal != null &amp;&amp; vavrPresent &amp;&amp; VavrDelegate.isVavrTry(retVal)) {
+                // Set rollback-only in case of Vavr failure matching our rollback rules...
+                TransactionStatus status = txInfo.getTransactionStatus();
+                if (status != null &amp;&amp; txAttr != null) {
+                    retVal = VavrDelegate.evaluateTryFailure(retVal, txAttr, status);
+                }
+            }
+
+            commitTransactionAfterReturning(txInfo);
+            return retVal;
+        }
+
+        else {
+            Object result;
+            final ThrowableHolder throwableHolder = new ThrowableHolder();
+
+            // It's a CallbackPreferringPlatformTransactionManager: pass a TransactionCallback in.
+            try {
+                result = ((CallbackPreferringPlatformTransactionManager) ptm).execute(txAttr, status -&gt; {
+                    TransactionInfo txInfo = prepareTransactionInfo(ptm, txAttr, joinpointIdentification, status);
+                    try {
+                        Object retVal = invocation.proceedWithInvocation();
+                        if (retVal != null &amp;&amp; vavrPresent &amp;&amp; VavrDelegate.isVavrTry(retVal)) {
+                            // Set rollback-only in case of Vavr failure matching our rollback rules...
+                            retVal = VavrDelegate.evaluateTryFailure(retVal, txAttr, status);
+                        }
+                        return retVal;
+                    }
+                    catch (Throwable ex) {
+                        if (txAttr.rollbackOn(ex)) {
+                            // A RuntimeException: will lead to a rollback.
+                            if (ex instanceof RuntimeException) {
+                                throw (RuntimeException) ex;
+                            }
+                            else {
+                                throw new ThrowableHolderException(ex);
+                            }
+                        }
+                        else {
+                            // A normal return value: will lead to a commit.
+                            throwableHolder.throwable = ex;
+                            return null;
+                        }
+                    }
+                    finally {
+                        cleanupTransactionInfo(txInfo);
+                    }
+                });
+            }
+            catch (ThrowableHolderException ex) {
+                throw ex.getCause();
+            }
+            catch (TransactionSystemException ex2) {
+                if (throwableHolder.throwable != null) {
+                    logger.error("Application exception overridden by commit exception", throwableHolder.throwable);
+                    ex2.initApplicationException(throwableHolder.throwable);
+                }
+                throw ex2;
+            }
+            catch (Throwable ex2) {
+                if (throwableHolder.throwable != null) {
+                    logger.error("Application exception overridden by commit exception", throwableHolder.throwable);
+                }
+                throw ex2;
+            }
+
+            // Check result state: It might indicate a Throwable to rethrow.
+            if (throwableHolder.throwable != null) {
+                throw throwableHolder.throwable;
+            }
+            return result;
+        }
+    }
+
+</code></pre>
+<p>真正业务调用在 proceedWithInvocation。抛异常时 completeTransactionAfterThrowing 判断回滚规则；finally 恢复事务调用上下文；正常返回才走 commitTransactionAfterReturning。上下文清理本身不等于数据库已经提交。</p>
+<div class="source-caption"><code>AutoConfigurationImportSelector.getCandidateConfigurations</code><span>Spring Boot 2.7.18 · L170–L189 · <a href="https://github.com/spring-projects/spring-boot/blob/v2.7.18/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java#L170-L189">完整源码</a></span></div>
+<pre><code class="language-java">    /**
+     * Return the auto-configuration class names that should be considered. By default
+     * this method will load candidates using {@link ImportCandidates} with
+     * {@link #getSpringFactoriesLoaderFactoryClass()}. For backward compatible reasons it
+     * will also consider {@link SpringFactoriesLoader} with
+     * {@link #getSpringFactoriesLoaderFactoryClass()}.
+     * @param metadata the source metadata
+     * @param attributes the {@link #getAttributes(AnnotationMetadata) annotation
+     * attributes}
+     * @return a list of candidate configurations
+     */
+    protected List&lt;String&gt; getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {
+        List&lt;String&gt; configurations = new ArrayList&lt;&gt;(
+                SpringFactoriesLoader.loadFactoryNames(getSpringFactoriesLoaderFactoryClass(), getBeanClassLoader()));
+        ImportCandidates.load(AutoConfiguration.class, getBeanClassLoader()).forEach(configurations::add);
+        Assert.notEmpty(configurations,
+                "No auto configuration classes found in META-INF/spring.factories nor in META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports. If you "
+                        + "are using a custom packaging, make sure that file is correct.");
+        return configurations;
+    }
+
+</code></pre>
+<p>两行加载来源分别是 SpringFactoriesLoader 与 ImportCandidates。它们一起加入候选列表，后续再过滤；这能直接回答 Boot 2.7 是否已经完全不用 spring.factories。</p>
+<figure class="diagram" data-diagram="1"><svg aria-label="图 1 · 对照上文阅读流程" aria-roledescription="flowchart-v2" id="jai-diagram-1-jai-diagram-1" role="img" style="max-width: 329.98046875px;" viewbox="-8 -8 329.98046875 749" width="100%" xmlns="http://www.w3.org/2000/svg"><style>#jai-diagram-1-jai-diagram-1{font-family:sans-serif;font-size:16px;fill:#182338;}#jai-diagram-1-jai-diagram-1 .error-icon{fill:#f4f6f9;}#jai-diagram-1-jai-diagram-1 .error-text{fill:#0b0906;stroke:#0b0906;}#jai-diagram-1-jai-diagram-1 .edge-thickness-normal{stroke-width:2px;}#jai-diagram-1-jai-diagram-1 .edge-thickness-thick{stroke-width:3.5px;}#jai-diagram-1-jai-diagram-1 .edge-pattern-solid{stroke-dasharray:0;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dashed{stroke-dasharray:3;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dotted{stroke-dasharray:2;}#jai-diagram-1-jai-diagram-1 .marker{fill:#72849a;stroke:#72849a;}#jai-diagram-1-jai-diagram-1 .marker.cross{stroke:#72849a;}#jai-diagram-1-jai-diagram-1 svg{font-family:sans-serif;font-size:16px;}#jai-diagram-1-jai-diagram-1 .label{font-family:sans-serif;color:#182338;}#jai-diagram-1-jai-diagram-1 .cluster-label text{fill:#0b0906;}#jai-diagram-1-jai-diagram-1 .cluster-label span,#jai-diagram-1-jai-diagram-1 p{color:#0b0906;}#jai-diagram-1-jai-diagram-1 .label text,#jai-diagram-1-jai-diagram-1 span,#jai-diagram-1-jai-diagram-1 p{fill:#182338;color:#182338;}#jai-diagram-1-jai-diagram-1 .node rect,#jai-diagram-1-jai-diagram-1 .node circle,#jai-diagram-1-jai-diagram-1 .node ellipse,#jai-diagram-1-jai-diagram-1 .node polygon,#jai-diagram-1-jai-diagram-1 .node path{fill:#e8eef8;stroke:#7890af;stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .flowchart-label text{text-anchor:middle;}#jai-diagram-1-jai-diagram-1 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .node .label{text-align:center;}#jai-diagram-1-jai-diagram-1 .node.clickable{cursor:pointer;}#jai-diagram-1-jai-diagram-1 .arrowheadPath{fill:#0b0b0b;}#jai-diagram-1-jai-diagram-1 .edgePath .path{stroke:#72849a;stroke-width:2.0px;}#jai-diagram-1-jai-diagram-1 .flowchart-link{stroke:#72849a;fill:none;}#jai-diagram-1-jai-diagram-1 .edgeLabel{background-color:#edf2f7;text-align:center;}#jai-diagram-1-jai-diagram-1 .edgeLabel rect{opacity:0.5;background-color:#edf2f7;fill:#edf2f7;}#jai-diagram-1-jai-diagram-1 .labelBkg{background-color:rgba(237, 242, 247, 0.5);}#jai-diagram-1-jai-diagram-1 .cluster rect{fill:#f4f6f9;stroke:hsl(216, 0%, 86.6666666667%);stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .cluster text{fill:#0b0906;}#jai-diagram-1-jai-diagram-1 .cluster span,#jai-diagram-1-jai-diagram-1 p{color:#0b0906;}#jai-diagram-1-jai-diagram-1 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:sans-serif;font-size:12px;background:#f4f6f9;border:1px solid hsl(216, 0%, 86.6666666667%);border-radius:2px;pointer-events:none;z-index:100;}#jai-diagram-1-jai-diagram-1 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#182338;}#jai-diagram-1-jai-diagram-1 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-pointEnd" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="6" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-pointStart" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="4.5" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-circleEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="11" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-circleStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker cross flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-crossEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="12" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker class="marker cross flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-crossStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-B" d="M125.563,37L125.563,41.167C125.563,45.333,125.563,53.667,125.563,61.117C125.563,68.567,125.563,75.133,125.563,78.417L125.563,81.7" id="jai-diagram-1-L-A-B-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-B LE-C" d="M125.563,124L125.563,128.167C125.563,132.333,125.563,140.667,125.563,148.117C125.563,155.567,125.563,162.133,125.563,165.417L125.563,168.7" id="jai-diagram-1-L-B-C-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-C LE-D" d="M93.89,211L86.757,215.167C79.623,219.333,65.357,227.667,58.223,239.083C51.09,250.5,51.09,265,51.09,279.5C51.09,294,51.09,308.5,57.46,319.471C63.831,330.442,76.572,337.885,82.943,341.606L89.314,345.327" id="jai-diagram-1-L-C-D-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-D LE-E" d="M125.563,385L125.563,389.167C125.563,393.333,125.563,401.667,125.563,409.117C125.563,416.567,125.563,423.133,125.563,426.417L125.563,429.7" id="jai-diagram-1-L-D-E-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-E LE-F" d="M125.563,472L125.563,476.167C125.563,480.333,125.563,488.667,125.563,496.117C125.563,503.567,125.563,510.133,125.563,513.417L125.563,516.7" id="jai-diagram-1-L-E-F-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-F LE-G" d="M125.563,559L125.563,563.167C125.563,567.333,125.563,575.667,125.563,583.117C125.563,590.567,125.563,597.133,125.563,600.417L125.563,603.7" id="jai-diagram-1-L-F-G-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-C LE-H" d="M157.235,211L164.368,215.167C171.502,219.333,185.768,227.667,192.902,235.117C200.035,242.567,200.035,249.133,200.035,252.417L200.035,255.7" id="jai-diagram-1-L-C-H-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;stroke-width:2px;stroke-dasharray:3;"></path><path class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-H LE-D" d="M200.035,298L200.035,302.167C200.035,306.333,200.035,314.667,193.665,322.554C187.294,330.442,174.553,337.885,168.182,341.606L161.811,345.327" id="jai-diagram-1-L-H-D-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;stroke-width:2px;stroke-dasharray:3;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-G LE-I" d="M125.563,646L125.563,650.167C125.563,654.333,125.563,662.667,125.563,670.117C125.563,677.567,125.563,684.133,125.563,687.417L125.563,690.7" id="jai-diagram-1-L-G-I-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g></g><g class="nodes"><g class="node default default flowchart-label" data-id="A" data-node="true" id="jai-diagram-1-flowchart-A-96" transform="translate(125.5625, 18.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="147.65625" x="-73.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">refresh / getBean</tspan></text></g></g><g class="node default default flowchart-label" data-id="B" data-node="true" id="jai-diagram-1-flowchart-B-97" transform="translate(125.5625, 105.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="161.59375" x="-80.796875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">createBeanInstance</tspan></text></g></g><g class="node default default flowchart-label" data-id="C" data-node="true" id="jai-diagram-1-flowchart-C-99" transform="translate(125.5625, 192.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="251.125" x="-125.5625" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">singletonFactories / early proxy</tspan></text></g></g><g class="node default default flowchart-label" data-id="D" data-node="true" id="jai-diagram-1-flowchart-D-101" transform="translate(125.5625, 366.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="167.609375" x="-83.8046875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">populateBean / 注入</tspan></text></g></g><g class="node default default flowchart-label" data-id="E" data-node="true" id="jai-diagram-1-flowchart-E-103" transform="translate(125.5625, 453.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="231.59375" x="-115.796875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">Aware / BPP before / 初始化</tspan></text></g></g><g class="node default default flowchart-label" data-id="F" data-node="true" id="jai-diagram-1-flowchart-F-105" transform="translate(125.5625, 540.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="184.734375" x="-92.3671875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">BPP after / AOP proxy</tspan></text></g></g><g class="node default default flowchart-label" data-id="G" data-node="true" id="jai-diagram-1-flowchart-G-107" transform="translate(125.5625, 627.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="222.1875" x="-111.09375" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">singletonObjects / 完整单例</tspan></text></g></g><g class="node default default flowchart-label" data-id="H" data-node="true" id="jai-diagram-1-flowchart-H-109" transform="translate(200.03515625, 279.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="227.890625" x="-113.9453125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">循环依赖读取 early reference</tspan></text></g></g><g class="node default default flowchart-label" data-id="I" data-node="true" id="jai-diagram-1-flowchart-I-113" transform="translate(125.5625, 714.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="161.65625" x="-80.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">容器关闭 / 销毁回调</tspan></text></g></g></g></g></g></svg><figcaption>图 1 · 对照上文阅读流程</figcaption><details><summary>查看 Mermaid 图表源码</summary><pre><code>flowchart TD
+ A["refresh / getBean"] --&gt; B["createBeanInstance"]
+ B --&gt; C["singletonFactories / early proxy"]
+ C --&gt; D["populateBean / 注入"]
+ D --&gt; E["Aware / BPP before / 初始化"]
+ E --&gt; F["BPP after / AOP proxy"]
+ F --&gt; G["singletonObjects / 完整单例"]
+ C -.-&gt; H["循环依赖读取 early reference"]
+ H -.-&gt; D
+ G --&gt; I["容器关闭 / 销毁回调"]
+</code></pre></details></figure>
+<h2 id="c5-s8" tabindex="-1">三层原理问答</h2>
+<details class="question" open=""><summary><h3 id="c5-s9" tabindex="-1">1. 为什么三级缓存而非简单提前放对象？</h3></summary><div class="answer">
+<p>提前给 B 一个原始 A，后面 A 又被做成代理，B 就可能绕过增强。三级缓存中的工厂允许按需生成早期代理，并与最终引用协调。</p>
+<p><strong>getSingleton 按什么顺序找？</strong> 先找 singletonObjects；创建中再找 earlySingletonObjects；允许早期引用时调用 singletonFactories，得到结果后移入第二层并移除工厂。getEarlyBeanReference 让相关后处理器参与。</p>
+<p><strong>需要靠它设计循环吗？</strong> 不建议。它只解决部分单例注入循环，构造器和 prototype 不同。Boot 2.7 默认禁止，先拆职责或显式延迟，初始化过程更容易测试。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c5-s10" tabindex="-1">2. @Transactional 自调用为何失效？</h3></summary><div class="answer">
+<p>因为 this.method 没有经过注入的代理对象。@Transactional 是让拦截器识别的配置，不是 JVM 在方法体里自动开启事务的指令。</p>
+<p><strong>事务具体在哪开始？</strong> 调用进入 TransactionInterceptor 后解析属性，交给 manager 创建或加入事务，再调用目标方法。JDK/CGLIB 形式和方法可拦截性也影响是否到这里。</p>
+<p><strong>怎么改得清楚？</strong> 把事务写操作抽到另一 Bean，从容器注入后调用；也可明确使用 TransactionTemplate。测试调用真实代理并核对数据库结果，避免只做普通对象单测。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c5-s11" tabindex="-1">3. 内层回滚，外层捕获异常为什么仍提交失败？</h3></summary><div class="answer">
+<p>内外层 REQUIRED 通常共用同一个物理事务。内层标记 rollback-only 后，外层捕获异常并不能把它清除，所以最后提交仍可能失败。</p>
+<p><strong>为什么抛 UnexpectedRollbackException？</strong> 管理器发现共享事务必须回滚，就不能让外层调用者误以为提交成功。捕获 Java 异常与改变数据库事务状态是两件事。</p>
+<p><strong>需要独立审计怎么办？</strong> 可以按业务选择独立事务或可靠异步记录，但要承认审计与主业务不再一起提交。不要只为了消掉异常随意改 REQUIRES_NEW，它还占额外连接。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c5-s12" tabindex="-1">4. REQUIRES_NEW 与 NESTED 如何选？</h3></summary><div class="answer">
+<p>REQUIRES_NEW 是独立物理事务，外层失败不一定撤销已提交的内层。NESTED 常是在同一事务中建立保存点，外层回滚仍会把内层结果一起撤销。</p>
+<p><strong>管理器怎样支持？</strong> DataSourceTransactionManager 在允许且驱动支持时可用 savepoint；其他 manager 不一定相同。新事务挂起外层资源后，再借连接，外层连接仍占着。</p>
+<p><strong>如何选择？</strong> 独立审计需要单独提交时可以考虑新事务；同一批工作中局部失败可考虑保存点。按极端并发检查连接需求和锁持有，不把传播选项当成无成本开关。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c5-s13" tabindex="-1">5. 异步方法能继承 JDBC 事务吗？</h3></summary><div class="answer">
+<p>不能自动继承。JDBC 连接通常绑定当前线程，异步任务换了线程，不会自然取得原事务。把同一 Connection 手工塞给多个线程也不是安全替代。</p>
+<p><strong>源码体现在哪里？</strong> TransactionSynchronizationManager 保存 ThreadLocal 资源。Reactor Context 跟订阅走，两者不能等同；reactive 事务要配对应 manager。</p>
+<p><strong>业务如何设计？</strong> 真正必须一起成功的本地修改保持同一事务执行；异步动作定义独立事务，并通过 Outbox 或事务消息可靠通知。普通 afterCommit 回调仍有宕机丢任务的可能。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c5-s14" tabindex="-1">6. 自动配置不生效如何定位？</h3></summary><div class="answer">
+<p>先确认候选配置有没有加载，再查 classpath、属性和现有 Bean。一个用户 Bean 已存在，可能恰好触发 MissingBean 条件不成立，不是扫描失败。</p>
+<p><strong>Boot 2.7 读哪些资源？</strong> getCandidateConfigurations 同时读取 spring.factories 和 AutoConfiguration.imports，再去重和过滤。条件报告可展示哪条条件没有满足。</p>
+<p><strong>自定义 starter 怎么维护？</strong> 固定支持版本，测试有依赖、缺依赖、用户覆盖等情况。排除自动配置时清楚接替它的职责，别复制内部类后期待跨版本一直可用。</p>
+</div></details>
+<h2 id="c5-s15" tabindex="-1">模拟生产案例：新事务耗尽连接池</h2>
+<p>连接池大小 20，20 个请求都先开启外层事务，随后一起调用 REQUIRES_NEW 写审计。它们全部等新连接直到超时。这是一个可用于测试的模拟条件。</p>
+<p>看连接池 active/pending，线程是否停在 borrowConnection，再确认外层事务仍持连接。如果数据库几乎没有执行新 SQL，不能简单认为是 SQL 慢；请求可能还没有拿到连接。</p>
+<p>原因是挂起外层事务不等于归还连接，每个请求内层还要再借一条。先限制这类请求并发；是否增加池，要看数据库能力。审计也可按业务改同事务，或通过 Outbox 异步写，明确成功和失败时要留下什么。</p>
+<p>测试用屏障让外层同时进入内层，检查是否可有界完成。以后把嵌套事务纳入连接需求，分别设置获取连接和事务超时，避免配置只看正常单层请求。</p>
+<h2 id="c5-s16" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c5-s17" tabindex="-1">一分钟要点回顾</h3>
+<p>Spring 先创建和注入 Bean，再通过后处理器做代理。三级缓存只帮助部分单例循环，Boot 2.7 默认禁止循环引用。事务必须经过代理，manager 决定创建或加入，JDBC 连接通常绑定当前线程。自调用、捕获异常和异步换线程都要检查。REQUIRES_NEW 独立提交却再占连接，NESTED 常用保存点。排查沿代理、manager、连接和异常一路看，不只确认注解在不在。</p>
+<h3 id="c5-s18" tabindex="-1">深入理解与机制串联</h3>
+<p>我会先说明对象创建和方法增强是两个过程。Spring 按 BeanDefinition 实例化、注入，再执行初始化与 BeanPostProcessor。提前暴露单例时用工厂生成早期引用，让循环中拿到的引用尽量与最终代理协调，但这不解决构造器循环，Boot 2.7 默认也禁止。</p>
+<p>事务的真正入口是代理里的 TransactionInterceptor。它读属性、选择 manager，创建或加入事务，执行方法，最后提交或按异常规则回滚。JDBC manager 把连接绑定当前线程，所以自己新连接或另起线程，不会自动加入原事务。this 调用没有经过代理，是常见失效原因。</p>
+<p>默认运行时异常和 Error 回滚，checked exception 需要规则。异常被业务方法吞掉，拦截器可能看到成功；内层 REQUIRED 已标 rollback-only，外层捕获又不能清掉这个标记，最后仍会失败。</p>
+<p>传播要看物理资源。REQUIRED 共用现有事务，内层声明隔离不一定重新生效。REQUIRES_NEW 挂起外层并借新连接，外层还占一条；NESTED 在支持时用保存点，外层回滚仍撤销它。连接池要考虑嵌套并发。</p>
+<p>排查时我会依次确认调用经过代理、manager 匹配、DAO 使用绑定连接、异常传播与最终状态。提交后通知下游，也不能只靠内存回调：宕机仍可漏消息，需要可靠待发记录。自动配置则从候选和条件报告查起，MVC 按 handler、adapter、参数和返回值处理解释请求去向。</p>
+<h3 id="c5-s19" tabindex="-1">延伸问题、常见误解与速记</h3>
+<ul>
+<li>高频追问：checked exception 默认回滚吗？捕获异常为何仍提交失败？Boot 2.7 是否仍读 spring.factories？</li>
+<li>容易答错：三级缓存解决所有循环；有接口一定 JDK 代理；挂起释放外层连接；把同一事务连接交给异步线程。</li>
+<li>常看的源码：<code>doCreateBean/getSingleton/getEarlyBeanReference</code>、<code>TransactionInterceptor.invoke</code>、<code>invokeWithinTransaction</code>、<code>AutoConfigurationImportSelector</code>、<code>DispatcherServlet.doDispatch</code>。</li>
+<li>理解事务时，先看这次调用实际经过哪里、使用哪条连接，再看注解配置。</li>
+</ul>
+<h2 id="c5-s20" tabindex="-1">官方资料与版本来源</h2>
+<p>本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 <a href="../source-notices.txt">source-notices.txt</a>，下载记录见 <a href="../sources.json">sources.json</a>。</p>
+<ul>
+<li><a href="https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-beans/src/main/java/org/springframework/beans/factory/support/DefaultSingletonBeanRegistry.java">DefaultSingletonBeanRegistry.getSingleton · Spring Framework 5.3.31</a></li>
+<li><a href="https://raw.githubusercontent.com/spring-projects/spring-framework/v5.3.31/spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java">TransactionAspectSupport.invokeWithinTransaction · Spring Framework 5.3.31</a></li>
+<li><a href="https://raw.githubusercontent.com/spring-projects/spring-boot/v2.7.18/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java">AutoConfigurationImportSelector.getCandidateConfigurations · Spring Boot 2.7.18</a></li>
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c5-quick-core">先记住这几件事</h2><ul><li>Bean 实例化与注入之后，初始化和后处理器参与代理。</li><li>三级缓存只解决部分单例循环，Boot 2.7 默认禁止循环引用。</li><li>事务入口在代理，this 自调用和异步线程不会自动经过它。</li><li>REQUIRES_NEW 再借一条连接，NESTED 常用同事务保存点。</li><li>Boot 2.7 同时读取两类自动配置候选，排查先看条件报告。</li></ul><h2 id="c5-quick-qa">四个重点问题</h2><details class="question" open=""><summary><span class="question-title">1. 为什么三级缓存而非简单提前放对象？</span></summary><div class="answer">
+<p>提前给 B 一个原始 A，后面 A 又被做成代理，B 就可能绕过增强。三级缓存中的工厂允许按需生成早期代理，并与最终引用协调。</p>
+<p><strong>getSingleton 按什么顺序找？</strong> 先找 singletonObjects；创建中再找 earlySingletonObjects；允许早期引用时调用 singletonFactories，得到结果后移入第二层并移除工厂。getEarlyBeanReference 让相关后处理器参与。</p>
+<p><strong>需要靠它设计循环吗？</strong> 不建议。它只解决部分单例注入循环，构造器和 prototype 不同。Boot 2.7 默认禁止，先拆职责或显式延迟，初始化过程更容易测试。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">2. @Transactional 自调用为何失效？</span></summary><div class="answer">
+<p>因为 this.method 没有经过注入的代理对象。@Transactional 是让拦截器识别的配置，不是 JVM 在方法体里自动开启事务的指令。</p>
+<p><strong>事务具体在哪开始？</strong> 调用进入 TransactionInterceptor 后解析属性，交给 manager 创建或加入事务，再调用目标方法。JDK/CGLIB 形式和方法可拦截性也影响是否到这里。</p>
+<p><strong>怎么改得清楚？</strong> 把事务写操作抽到另一 Bean，从容器注入后调用；也可明确使用 TransactionTemplate。测试调用真实代理并核对数据库结果，避免只做普通对象单测。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">3. 内层回滚，外层捕获异常为什么仍提交失败？</span></summary><div class="answer">
+<p>内外层 REQUIRED 通常共用同一个物理事务。内层标记 rollback-only 后，外层捕获异常并不能把它清除，所以最后提交仍可能失败。</p>
+<p><strong>为什么抛 UnexpectedRollbackException？</strong> 管理器发现共享事务必须回滚，就不能让外层调用者误以为提交成功。捕获 Java 异常与改变数据库事务状态是两件事。</p>
+<p><strong>需要独立审计怎么办？</strong> 可以按业务选择独立事务或可靠异步记录，但要承认审计与主业务不再一起提交。不要只为了消掉异常随意改 REQUIRES_NEW，它还占额外连接。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">4. REQUIRES_NEW 与 NESTED 如何选？</span></summary><div class="answer">
+<p>REQUIRES_NEW 是独立物理事务，外层失败不一定撤销已提交的内层。NESTED 常是在同一事务中建立保存点，外层回滚仍会把内层结果一起撤销。</p>
+<p><strong>管理器怎样支持？</strong> DataSourceTransactionManager 在允许且驱动支持时可用 savepoint；其他 manager 不一定相同。新事务挂起外层资源后，再借连接，外层连接仍占着。</p>
+<p><strong>如何选择？</strong> 独立审计需要单独提交时可以考虑新事务；同一批工作中局部失败可考虑保存点。按极端并发检查连接需求和锁持有，不把传播选项当成无成本开关。</p>
+</div></details><h2 id="c5-quick-answer">核心要点</h2><p>Spring 先创建和注入 Bean，再通过后处理器做代理。三级缓存只帮助部分单例循环，Boot 2.7 默认禁止循环引用。事务必须经过代理，manager 决定创建或加入，JDBC 连接通常绑定当前线程。自调用、捕获异常和异步换线程都要检查。REQUIRES_NEW 独立提交却再占连接，NESTED 常用保存点。排查沿代理、manager、连接和异常一路看，不只确认注解在不在。</p><h2 id="c5-quick-errors">常见误解与源码</h2><ul>
+<li>高频追问：checked exception 默认回滚吗？捕获异常为何仍提交失败？Boot 2.7 是否仍读 spring.factories？</li>
+<li>容易答错：三级缓存解决所有循环；有接口一定 JDK 代理；挂起释放外层连接；把同一事务连接交给异步线程。</li>
+<li>常看的源码：<code>doCreateBean/getSingleton/getEarlyBeanReference</code>、<code>TransactionInterceptor.invoke</code>、<code>invokeWithinTransaction</code>、<code>AutoConfigurationImportSelector</code>、<code>DispatcherServlet.doDispatch</code>。</li>
+<li>理解事务时，先看这次调用实际经过哪里、使用哪条连接，再看注解配置。</li>
+</ul></section></article><nav aria-label="专题翻页" class="topic-pager"><a href="../jvm-oom-troubleshooting/">← JVM OOM 与生产故障排查</a><a href="../">全部专题</a><a href="../database-transactions-mvcc/">数据库事务、MVCC 与性能优化 →</a></nav></main></div>
+<dialog aria-labelledby="search-title" id="search-dialog"><div class="search-head"><h2 id="search-title">全文搜索</h2><button aria-label="关闭搜索" id="search-close">关闭</button></div><label for="search-input">搜索当前专题的关键词、源码方法或学习问题</label><input autocomplete="off" id="search-input" placeholder="例如：sizeCtl、事务回查、Direct buffer" type="search"/><p aria-live="polite" id="search-status" role="status">输入关键词，搜索本篇完整正文与答案。</p><div id="search-results"></div></dialog><div aria-live="polite" id="toast" role="status"></div>
+<footer>按章标注源码版本 · 教学案例与实测排查分别标注 · <a href="./article.md">下载 Markdown 正文</a> · <a href="../VERIFICATION.md">验证范围</a></footer><dialog aria-label="图解放大" id="diagram-dialog"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {
+    if(document.body.dataset.tocScope==='document')return [...$('#main').querySelectorAll('.chapter-title h1,.chapter-title h2,.study h2,.study h3')];
+    return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];
+  }
+  function makeToc() {
+    sections=visibleHeadings();
+    const nav=active && document.querySelector('.chapter-nav[data-chapter="'+active.id+'"]');
+    if(nav){
+      const box=nav.querySelector('div');box.replaceChildren();
+      sections.forEach(h=>{if(!h.id)return;const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';box.append(a);});
+      nav.open=true;
+    }
+    const label=$('#current-label');if(label)label.textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function selectChapter(article) {
+    active=article;
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();
+  }
+  function scrollToTarget(target) {
+    const margin=window.innerWidth<=760?115:90;
+    window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top+window.scrollY-margin),behavior:'instant'});
+  }
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)scrollToTarget($('#review-route'));closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    selectChapter(article);closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      scrollToTarget(target);if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();
+    }
+    updateReading(false);
+  }
+  function updateReading(trackChapter=true) {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;
+    let currentChapter=chapters[0];
+    for(const chapter of chapters){if(chapter.getBoundingClientRect().top<=margin+30)currentChapter=chapter;else break;}
+    const first=chapters[0].getBoundingClientRect(),last=chapters[chapters.length-1].getBoundingClientRect();
+    const box={top:first.top,bottom:last.bottom,height:last.bottom-first.top};
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(progress===100)currentChapter=chapters[chapters.length-1];
+    if(trackChapter && currentChapter!==active)selectChapter(currentChapter);
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('.chapter-nav div a').forEach(a=>{const isCurrent=!!current && a.hash==='#'+current.id;a.classList.toggle('current',isCurrent);if(isCurrent){const details=a.closest('details');if(details)details.open=true;}});
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{
+        const canvas=$('#diagram-content');canvas.classList.add('diagram');
+        canvas.style.margin='0';canvas.style.padding='0';canvas.style.border='0';
+        canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));
+        const ids=new Map([...canvas.querySelectorAll('[id]')].map(el=>[el.id,'zoom-'+el.id]));
+        const keys=[...ids.keys()].sort((a,b)=>b.length-a.length).map(id=>id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+        const pattern=keys.length?new RegExp('#('+keys.join('|')+')(?=$|[^\\w-])','g'):null;
+        const references=value=>pattern?value.replace(pattern,(_,id)=>'#'+ids.get(id)):value;
+        canvas.querySelectorAll('[id]').forEach(el=>{el.id=ids.get(el.id);});
+        // Mermaid scopes CSS selectors to the root SVG ID; keep those selectors
+        // and marker/use references aligned with the renamed clone IDs.
+        canvas.querySelectorAll('style').forEach(el=>{el.textContent=references(el.textContent);});
+        canvas.querySelectorAll('*').forEach(el=>{
+          for(const attr of ['style','fill','stroke','marker-end','marker-start','marker-mid','clip-path','mask','filter','href','xlink:href']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,references(value));
+          }
+          for(const attr of ['aria-labelledby','aria-describedby']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.split(/\s+/).map(id=>ids.get(id)||id).join(' '));
+          }
+        });scale(1);viewer.showModal();
+      });
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
+})();
+</script></body></html>

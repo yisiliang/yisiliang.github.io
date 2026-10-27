@@ -3,7 +3,7 @@
 from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
-import json,re,zipfile
+import json,re
 import xml.etree.ElementTree as ET
 ROOT=Path(__file__).resolve().parents[1]
 class Page(HTMLParser):
@@ -26,25 +26,18 @@ def verify(name):
     source=(folder/'index.html').read_text();p=Page();p.feed(source)
     assert not [k for k,v in Counter(p.ids).items() if v>1],f'{name}: duplicate IDs'
     assert all(x in p.ids for x in p.refs),f'{name}: unresolved internal anchors'
-    assert all((folder/u.split('#')[0].split('?')[0]).is_file() for u in p.assets),f'{name}: missing assets {p.assets}'
+    def asset_exists(url):
+        path=url.split('#')[0].split('?')[0]
+        return (ROOT/'docs'/path.lstrip('/')).is_file() if path.startswith('/') else (folder/path).is_file()
+    assert all(asset_exists(u) for u in p.assets),f'{name}: missing assets {p.assets}'
     assert source.count('cloud.umami.is/script.js')==1,f'{name}: tracker count'
     assert not re.search(r'/Users/|/private/tmp/|/tmp/codex-',source),f'{name}: local path published'
     for svg in folder.rglob('*.svg'):ET.parse(svg)
-    packages=list(folder.glob('*offline*.zip'))
-    assert packages,f'{name}: offline archive missing'
-    for archive in packages:
-        with zipfile.ZipFile(archive) as z:
-            assert z.testzip() is None,f'{name}: invalid archive'
-            htmlfiles=[n for n in z.namelist() if n.endswith('.html')]
-            assert htmlfiles,f'{name}: offline HTML missing'
-            for n in htmlfiles:
-                content=z.read(n).decode()
-                assert 'cloud.umami.is/script.js' not in content,f'{name}: offline tracker'
     meta=json.loads((folder/'metadata.json').read_text())
     assert p.codes==meta['excerpts'],f'{name}: excerpt count differs from HTML'
     assert p.svg==meta['diagrams'],f'{name}: diagram count differs from HTML'
     assert re.fullmatch('[0-9a-f]{40}',meta['sha']),f'{name}: fixed SHA missing'
-    return {'handbook':name,'metadata':meta,'html_pre_blocks':p.codes,'inline_svg':p.svg,'svg_files':len(list(folder.rglob('*.svg'))),'anchors':len(p.ids),'offline':[x.name for x in packages]}
+    return {'handbook':name,'metadata':meta,'html_pre_blocks':p.codes,'inline_svg':p.svg,'svg_files':len(list(folder.rglob('*.svg'))),'anchors':len(p.ids)}
 if __name__=='__main__':
     output=[verify(name) for name in ('springboot','mysql','nginx','nacos')]
     print(json.dumps(output,ensure_ascii=False,indent=2))

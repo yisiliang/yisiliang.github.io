@@ -6,14 +6,12 @@
 # macOS Finder metadata
 .DS_Store
 
-# Intermediate offline reader used by the Nacos packager
-/docs/nacos/offline.html
+# Python build caches
+__pycache__/
+*.pyc
+
+# Local build output
 /docs/springboot/examples/target/
-
-/docs/nginx/offline-index.html
-
 .playwright-cli/
-# Generated browser regression screenshots
 /output/playwright/
-
 output/

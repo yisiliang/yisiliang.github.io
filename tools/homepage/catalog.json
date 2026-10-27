@@ -140,67 +140,67 @@
     "layout": "topics",
     "books": [
       {
-        "name": "Java核心技术与架构实践",
-        "version": "深入学习 · 要点速览 · 90分钟回顾路线",
-        "path": "java-architect-interview",
+        "name": "技术专题",
+        "version": "14篇独立文章 · 要点速览 · 90分钟回顾路线",
+        "path": "topics",
         "kind": "topics",
         "detail": "14个专题 · 66道三层问答 · 48张图解",
         "topics": [
           {
-            "title": "Java并发编程与锁机制",
-            "anchor": "c1"
+            "title": "Java 并发编程与锁机制",
+            "slug": "java-concurrency"
           },
           {
-            "title": "HashMap与ConcurrentHashMap",
-            "anchor": "c2"
+            "title": "HashMap 与 ConcurrentHashMap",
+            "slug": "hashmap-concurrenthashmap"
           },
           {
-            "title": "JVM内存管理、CMS与G1",
-            "anchor": "c3"
+            "title": "JVM 内存管理、CMS 与 G1",
+            "slug": "jvm-memory-cms-g1"
           },
           {
-            "title": "JVM OOM与生产故障排查",
-            "anchor": "c4"
+            "title": "JVM OOM 与生产故障排查",
+            "slug": "jvm-oom-troubleshooting"
           },
           {
-            "title": "Spring核心原理与事务",
-            "anchor": "c5"
+            "title": "Spring 核心原理与事务",
+            "slug": "spring-core-transactions"
           },
           {
-            "title": "数据库事务、MVCC与性能优化",
-            "anchor": "c6"
+            "title": "数据库事务、MVCC 与性能优化",
+            "slug": "database-transactions-mvcc"
           },
           {
-            "title": "RocketMQ消息队列",
-            "anchor": "c7"
+            "title": "RocketMQ 消息队列",
+            "slug": "rocketmq"
           },
           {
-            "title": "Redis与分布式缓存",
-            "anchor": "c8"
+            "title": "Redis 与分布式缓存",
+            "slug": "redis-cache"
           },
           {
             "title": "分布式事务与数据一致性",
-            "anchor": "c9"
+            "slug": "distributed-transactions"
           },
           {
             "title": "微服务、高并发与系统稳定性",
-            "anchor": "c10"
+            "slug": "microservices-stability"
           },
           {
             "title": "JIT即时编译、JMM与内存屏障",
-            "anchor": "c11"
+            "slug": "jit-jmm-memory-barriers"
           },
           {
             "title": "Nginx限流原理与工程实践",
-            "anchor": "c12"
+            "slug": "nginx-rate-limiting"
           },
           {
             "title": "JVM内存结构与OOM排查实战",
-            "anchor": "c13"
+            "slug": "jvm-memory-structure-oom"
           },
           {
-            "title": "从Fastjson2解析异常追到ARM64 JIT编译缺陷",
-            "anchor": "c14"
+            "title": "从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷",
+            "slug": "fastjson2-arm64-jit"
           }
         ]
       }

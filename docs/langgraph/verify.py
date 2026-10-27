@@ -7,7 +7,6 @@ import html
 import json
 import re
 import sys
-import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent

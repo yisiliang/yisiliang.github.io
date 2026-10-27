@@ -1,0 +1,198 @@
+[
+  {
+    "n": 1,
+    "slug": "java-concurrency",
+    "title": "Java 并发编程与锁机制",
+    "summary": "从 JMM 与 happens-before 出发，串起 synchronized、CAS、AQS 和线程池的准入与过载边界。",
+    "source": "chapters/01.md",
+    "quick": [
+      "volatile 让相关写入可见，但 count++ 仍可能被两个线程交错执行。",
+      "AQS 获取失败后排队，被唤醒后还要再次尝试拿锁。",
+      "公平 ReentrantLock 的无参数 tryLock 仍可能插队。",
+      "LongAdder 适合统计，不适合检查余额后扣款。",
+      "线程池先 core，再队列，队列满才试 max；无界队列会积压。"
+    ]
+  },
+  {
+    "n": 2,
+    "slug": "hashmap-concurrenthashmap",
+    "title": "HashMap 与 ConcurrentHashMap",
+    "summary": "从 hash 扰动、扩容迁移到树化条件，解释 HashMap 与 ConcurrentHashMap 的并发取舍。",
+    "source": "chapters/02.md",
+    "quick": [
+      "扩容翻倍后，元素留在原桶，或移到原下标加旧容量。",
+      "容量不足 64 时优先扩容，不能只用链长 8 判断树化。",
+      "JDK 8 HashMap 仍可能并发覆盖，fail-fast 不保护写入。",
+      "CHM 空桶用 CAS，非空桶锁桶，旧桶用 ForwardingNode 指向新表。",
+      "size 不是并发快照，computeIfAbsent 避免慢 IO。"
+    ]
+  },
+  {
+    "n": 3,
+    "slug": "jvm-memory-cms-g1",
+    "title": "JVM 内存管理、CMS 与 G1",
+    "summary": "按 HotSpot 8 的对象生命周期理解分代、CMS 与 G1 的暂停、并发和失败恢复。",
+    "source": "chapters/03.md",
+    "quick": [
+      "TLAB 在堆里，只优化分配，对象仍能交给其他线程。",
+      "CMS 初标和重标暂停，正常周期清扫不整理，要留分配余量。",
+      "G1 RSet 找外部引用，SATB 记录被覆盖的旧引用。",
+      "Mixed 回收 Young 与部分 Old；暂停目标不是每次保证。",
+      "JDK 8 G1 Full GC 单线程，大对象和搬迁空间要单独检查。"
+    ]
+  },
+  {
+    "n": 4,
+    "slug": "jvm-oom-troubleshooting",
+    "title": "JVM OOM 与生产故障排查",
+    "summary": "用一条从现象到证据的排查链，区分堆、元空间、Direct Memory、线程与容器限额导致的 OOM。",
+    "source": "chapters/04.md",
+    "quick": [
+      "先按完整 OOM 报错区分堆、类元数据、Direct、线程与容器限额。",
+      "用 GC 后占用、MAT 持有链和代码解释为什么对象仍活着。",
+      "Cleaner 与 ByteBuf 引用计数是不同释放机制。",
+      "NMT reserved、committed 与 RSS 不是同一个数字。",
+      "修复后重放相同条件，还要测拒绝、异常和取消。"
+    ]
+  },
+  {
+    "n": 5,
+    "slug": "spring-core-transactions",
+    "title": "Spring 核心原理与事务",
+    "summary": "从 Bean 生命周期到事务代理，理解 Spring 的初始化顺序、循环依赖与传播行为。",
+    "source": "chapters/05.md",
+    "quick": [
+      "Bean 实例化与注入之后，初始化和后处理器参与代理。",
+      "三级缓存只解决部分单例循环，Boot 2.7 默认禁止循环引用。",
+      "事务入口在代理，this 自调用和异步线程不会自动经过它。",
+      "REQUIRES_NEW 再借一条连接，NESTED 常用同事务保存点。",
+      "Boot 2.7 同时读取两类自动配置候选，排查先看条件报告。"
+    ]
+  },
+  {
+    "n": 6,
+    "slug": "database-transactions-mvcc",
+    "title": "数据库事务、MVCC 与性能优化",
+    "summary": "从 Read View、Undo 到执行计划，解释 MVCC、隔离级别与锁范围。",
+    "source": "chapters/06.md",
+    "quick": [
+      "Read View 判断版本可见性，不可见沿 Undo 找旧版本。",
+      "RC 通常逐语句快照，RR 通常第一次一致性读后复用。",
+      "普通快照读与 UPDATE/FOR UPDATE 的当前读不同。",
+      "实际索引扫描决定成本和锁范围，不只是最终返回行数。",
+      "跨库要核对数据与隔离含义，迁移保证快照、CDC 与对账。"
+    ]
+  },
+  {
+    "n": 7,
+    "slug": "rocketmq",
+    "title": "RocketMQ 消息队列",
+    "summary": "沿 CommitLog、ConsumeQueue、IndexFile 与事务消息，梳理 RocketMQ 的五类失败边界。",
+    "source": "chapters/07.md",
+    "quick": [
+      "CommitLog 存主体，ConsumeQueue 存队列索引，IndexFile 帮 key 查询。",
+      "发送超时可能已写入，刷盘与复制确认是不同保障。",
+      "业务提交后未保存消费位置可能重收，消费去重与业务同事务。",
+      "同 key 队列加顺序消费，还要防异步处理和版本乱序。",
+      "Half 后的结果要可持久回查，清积压靠完成率真正超过到达率。"
+    ]
+  },
+  {
+    "n": 8,
+    "slug": "redis-cache",
+    "title": "Redis 与分布式缓存",
+    "summary": "从单线程命令、持久化到缓存一致性，理解 Redis 的恢复窗口与分布式锁租约。",
+    "source": "chapters/08.md",
+    "quick": [
+      "主命令线程串行，IO 多线程不表示命令全部并行。",
+      "RDB、AOF 与异步复制各有恢复和丢失窗口。",
+      "写库后删缓存仍可能被慢读回填，双删不是绝对保证。",
+      "token 和 Lua 防误删，租期过后旧 owner 仍可能写业务。",
+      "热点合并与总回源限额一起做，缓存宕机也要保护数据库。"
+    ]
+  },
+  {
+    "n": 9,
+    "slug": "distributed-transactions",
+    "title": "分布式事务与数据一致性",
+    "summary": "从 CAP 到 Outbox、幂等与补偿，建立分布式事务的可验证边界。",
+    "source": "chapters/09.md",
+    "quick": [
+      "先说明支付、订单和保单有哪些结果必须成立。",
+      "2PC 需协议；TCC 预留可确认撤销；Saga 补偿是新业务动作。",
+      "Outbox 同事务保存待发事件，发送后标记前死机会重复。",
+      "消费唯一事件与业务同事务，外部调用用稳定幂等键。",
+      "超时是未知，保留查询、重试、对账和人工恢复办法。"
+    ]
+  },
+  {
+    "n": 10,
+    "slug": "microservices-stability",
+    "title": "微服务、高并发与系统稳定性",
+    "summary": "从 EventLoop、背压到重试与容量，讨论高并发系统的过载控制。",
+    "source": "chapters/10.md",
+    "quick": [
+      "一个 EventLoop 处理多个连接，阻塞 JDBC 会影响其他连接。",
+      "subscribeOn 影响源执行，publishOn 影响后续信号。",
+      "背压仍需有界队列，timeout 不保证底层 SQL 已停。",
+      "重试会放大工作量，限制总次数、等待和依赖并发。",
+      "容量按实际耗时验证，灰度保证标签传播和数据可回退。"
+    ]
+  },
+  {
+    "n": 11,
+    "slug": "jit-jmm-memory-barriers",
+    "title": "JIT即时编译、JMM与内存屏障",
+    "summary": "从热点识别、分层编译、OSR 到内存屏障，解释 JIT 与 JMM 的协作。",
+    "source": "chapters/11.md",
+    "quick": [
+      "JIT用热点和类型反馈生成机器码，编译成本与稳态收益分开衡量。",
+      "C1/C2层级由策略选择，OSR可让长循环在方法返回前进入编译代码。",
+      "守卫或依赖失效后恢复逻辑帧；去优化不会自动修复数据竞争。",
+      "volatile发布通过HB链，count++仍需原子更新或锁。",
+      "MemBar节点不等于固定CPU指令；-Xint对照只是定位线索。"
+    ]
+  },
+  {
+    "n": 12,
+    "slug": "nginx-rate-limiting",
+    "title": "Nginx限流原理与工程实践",
+    "summary": "固定 NGINX 1.28.0，解释 excess、rate、burst、nodelay、delay 与多 zone 记账。",
+    "source": "chapters/12.md",
+    "quick": [
+      "excess按请求到达时间记账；burst设接纳上限，delay与nodelay决定延迟策略。",
+      "共享zone在Worker之间共享状态，但多个Nginx实例各自计数，不是全局限额。",
+      "延迟请求通过事件定时器挂起和恢复；限流不等于并发数限制。",
+      "多zone先分别查验，成功后统一提交，拒绝路径需注意状态与引用释放。",
+      "配置可信客户端地址、日志观测与dry-run，再逐步启用并用负载实验验证。"
+    ]
+  },
+  {
+    "n": 13,
+    "slug": "jvm-memory-structure-oom",
+    "title": "JVM内存结构与OOM排查实战",
+    "summary": "以 HotSpot JDK8 为基线，覆盖 Heap、Metaspace、Direct Memory、线程与容器 RSS 的排查。",
+    "source": "chapters/13.md",
+    "quick": [
+      "Java进程内存不等于Heap，Xmx也不是进程或容器的内存上限。",
+      "先按异常文本和容器事件区分Heap、Metaspace、Direct、线程与OOMKilled。",
+      "Heap问题看GC趋势、Heap Dump与GC Roots；Native问题结合RSS、NMT和分配所有权。",
+      "诊断命令有停顿、CPU和磁盘代价，先评估风险并保留现场。",
+      "修复后在相同流量与负载下复测GC后基线、RSS、Direct Memory、类数量和线程数。"
+    ]
+  },
+  {
+    "n": 14,
+    "slug": "fastjson2-arm64-jit",
+    "title": "从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷",
+    "summary": "通过 ARM64 容器、Unsafe 探针与 JDK 对照，把 Fastjson2 解析异常定位到 JDK-8267689。",
+    "source": "chapters/14-fastjson2-arm64-jit.md",
+    "quick": [
+      "固定输入在预热后才失败，是调查JIT编译路径的线索。",
+      "用解释执行、C1、方法排除与-Xcomp做对照，逐步缩小范围。",
+      "独立Unsafe探针把JSON异常缩小为chars[4]读成chars[16]。",
+      "旧AArch64 C2错误匹配地址缩放，JDK-8267689在8u302修复。",
+      "短期排除相关方法编译，长期使用包含修复且完成回归的JDK。"
+    ]
+  }
+]

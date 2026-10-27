@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><meta content="light dark" name="color-scheme"/>
+<meta name="description" content="从 EventLoop、背压到重试与容量，讨论高并发系统的过载控制。">
+<title>微服务、高并发与系统稳定性 · 技术专题 | YiSiliang</title>
+<script data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3" defer="" src="https://cloud.umami.is/script.js"></script>
+<script data-manual="" defer="" src="../vendor/prism.js"></script><script defer="" src="../vendor/prism-c.js"></script><script defer="" src="../vendor/prism-cpp.js"></script><script defer="" src="../vendor/prism-java.js"></script><script defer="" src="../vendor/prism-sql.js"></script><script defer="" src="../vendor/prism-bash.js"></script><script defer="" src="../vendor/prism-yaml.js"></script>
+<style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="topics"] .diagram svg .edgePath path,[data-reader="topics"] .diagram svg .flowchart-link,[data-reader="topics"] .diagram svg .messageLine0,[data-reader="topics"] .diagram svg .messageLine1,[data-reader="topics"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="topics"] .diagram svg .edgeLabel span,[data-reader="topics"] .diagram svg .messageText,[data-reader="topics"] .diagram svg .loopText,[data-reader="topics"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
+}
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader main h4{overflow-wrap:anywhere}
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+
+/* 单侧目录：章节目录、篇内目录与阅读进度都收在左侧。 */
+.layout {
+  max-width: 1280px;
+  grid-template-columns: 300px minmax(0, 880px);
+  gap: 46px;
+}
+#left-nav .reading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 10px;
+  padding: 0 0 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+#left-nav .reading span { display: block; }
+#right-toc { display: none !important; }
+.chapter-nav div a.depth3 { padding-left: 20px; font-size: 11px; }
+.topic-nav-link {
+  display: flex;
+  gap: 8px;
+  padding: 7px 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.topic-nav-link:hover { color: var(--accent); text-decoration: none; }
+.topic-nav-link span:first-child {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font: 11px/2.1 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.topic-nav-index { border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.topic-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 30px 0 10px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.topic-pager a:last-child { text-align: right; }
+@media (min-width: 1450px) {
+  .layout { max-width: 1760px; grid-template-columns: 320px minmax(0, 1fr); gap: 44px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 260px minmax(0, 1fr); gap: 30px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  .topic-pager { flex-wrap: wrap; gap: 10px; }
+  .topic-pager a:last-child { text-align: left; }
+}
+
+/* Keep the theme switch reachable on phones; print is not useful on mobile. */
+@media (max-width: 760px) {
+  #theme { display: inline-block !important; }
+  #print { display: none !important; }
+}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script>
+<!-- social-meta:start --><link rel="canonical" href="https://yisiliang.github.io/topics/microservices-stability/"><meta property="og:type" content="article"><meta property="og:site_name" content="源码之下，系统之上"><meta property="og:locale" content="zh_CN"><meta property="og:title" content="微服务、高并发与系统稳定性 · 技术专题 | YiSiliang"><meta property="og:description" content="从 EventLoop、背压到重试与容量，讨论高并发系统的过载控制。"><meta property="og:url" content="https://yisiliang.github.io/topics/microservices-stability/"><meta property="og:image" content="https://yisiliang.github.io/assets/og-default.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="微服务、高并发与系统稳定性 · 技术专题 | YiSiliang"><meta name="twitter:description" content="从 EventLoop、背压到重试与容量，讨论高并发系统的过载控制。"><meta name="twitter:image" content="https://yisiliang.github.io/assets/og-default.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><!-- social-meta:end -->
+</head><body class="learning-reader" data-layout="learning-v2" data-reader="topics">
+<a class="skip" href="#main">跳到正文</a>
+<header class="topbar"><button aria-controls="left-nav" aria-expanded="false" aria-label="打开专题导航" class="mobile" id="menu">目录</button><div class="brand"><a class="library-home" href="../../">← 学习库</a>技术专题<span>源码原理 · 故障排查 · 架构实践</span></div><div class="tools"><button aria-label="打开全文搜索" id="search-open">搜索 <kbd>/</kbd></button><button aria-pressed="false" id="mode">要点速览</button><button id="print" type="button">打印</button><button aria-label="切换主题" id="theme">主题：系统</button></div></header>
+<div aria-hidden="true" class="progress-track"><div id="progress-bar"></div></div><div hidden="" id="drawer-backdrop"></div>
+<div class="layout"><nav aria-label="技术专题" id="left-nav"><div class="reading"><span id="progress-text">阅读进度 0%</span><span id="current-label"></span></div><p class="nav-label">技术专题 / 14篇</p><a class="topic-nav-link topic-nav-index" href="../"><span>目录</span>全部专题</a><a class="topic-nav-link" href="../java-concurrency/"><span>01</span>Java 并发编程与锁机制</a><a class="topic-nav-link" href="../hashmap-concurrenthashmap/"><span>02</span>HashMap 与 ConcurrentHashMap</a><a class="topic-nav-link" href="../jvm-memory-cms-g1/"><span>03</span>JVM 内存管理、CMS 与 G1</a><a class="topic-nav-link" href="../jvm-oom-troubleshooting/"><span>04</span>JVM OOM 与生产故障排查</a><a class="topic-nav-link" href="../spring-core-transactions/"><span>05</span>Spring 核心原理与事务</a><a class="topic-nav-link" href="../database-transactions-mvcc/"><span>06</span>数据库事务、MVCC 与性能优化</a><a class="topic-nav-link" href="../rocketmq/"><span>07</span>RocketMQ 消息队列</a><a class="topic-nav-link" href="../redis-cache/"><span>08</span>Redis 与分布式缓存</a><a class="topic-nav-link" href="../distributed-transactions/"><span>09</span>分布式事务与数据一致性</a><details class="chapter-nav current" data-chapter="c10" open=""><summary><a href="./"><span>10</span>微服务、高并发与系统稳定性</a></summary><div></div></details><a class="topic-nav-link" href="../jit-jmm-memory-barriers/"><span>11</span>JIT即时编译、JMM与内存屏障</a><a class="topic-nav-link" href="../nginx-rate-limiting/"><span>12</span>Nginx限流原理与工程实践</a><a class="topic-nav-link" href="../jvm-memory-structure-oom/"><span>13</span>JVM内存结构与OOM排查实战</a><a class="topic-nav-link" href="../fastjson2-arm64-jit/"><span>14</span>从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷</a></nav><main id="main" tabindex="-1">
+<article class="chapter" data-title="微服务、高并发与系统稳定性" id="c10"><div class="chapter-title"><p class="eyebrow">专题 10 / 完整阅读</p><h1>微服务、高并发与系统稳定性</h1></div><div class="study">
+<p>使用 Gateway 3.1.8、Reactor 3.4.34 和 Netty 4.1.108.Final 解释 Spring Boot 2.7 时代的实现。先从一个现象讲起：认证数据库变慢，为什么网关里不需要认证的接口也跟着卡住？</p>
+<h2 id="c10-s1" tabindex="-1">核心知识与原理</h2>
+<h3 id="c10-s2" tabindex="-1">Gateway、Reactor 与 EventLoop</h3>
+<p>Gateway 找到匹配的 Route 后，把 GlobalFilter 与路由过滤器合并排序，沿过滤器链调用。NettyRoutingFilter 发出下游请求，响应再沿 reactive 链返回，NettyWriteResponseFilter 负责写回。Servlet Filter 与这条 WebFlux 链属于不同模型。</p>
+<p>Netty 一个 EventLoop 通常负责多个连接，轮流处理 IO 就绪事件和任务。它不是一个连接一条线程。若认证过滤器在里面直接执行阻塞 JDBC，EventLoop 等数据库结果时，其负责的其他连接也无法及时处理。这就解释了“一个依赖慢，许多无关请求一起慢”。</p>
+<p>返回 Mono 并不会改变已经执行的阻塞代码。Mono 表示零或一个结果，Flux 表示多个结果，它们需要订阅后才按链执行。桥接阻塞调用时，应延迟执行，并把它放到适当的工作线程中，例如下面的 fromCallable 与 subscribeOn。</p>
+<pre><code class="language-java">// 把阻塞查询放到工作线程，另设连接和语句超时。
+Mono&lt;Order&gt; load(long id) {
+    return Mono.fromCallable(() -&gt; blockingDao.find(id))
+        .subscribeOn(Schedulers.boundedElastic())
+        .timeout(Duration.ofMillis(300));
+    // timeout 后 SQL 可能仍在执行，不能只靠这个限制数据库压力。
+}
+</code></pre>
+<p>subscribeOn 影响订阅和源的执行位置，publishOn 影响后续信号处理的线程。把 publishOn 写在一个已经执行的 JDBC 调用后面，不会把那次调用重新搬走。boundedElastic 也有线程和排队限制，还需要数据库连接限额和超时。过滤器内部手动 subscribe 后马上返回，会脱离请求的错误、完成与取消管理，通常应直接返回组合后的链。</p>
+<pre><code class="language-xml">&lt;!-- 项目配置示例：版本由 Boot/Cloud BOM 管理，不能混入 Gateway MVC starter。 --&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;
+  &lt;artifactId&gt;spring-cloud-starter-gateway&lt;/artifactId&gt;
+&lt;/dependency&gt;
+</code></pre>
+<h3 id="c10-s3" tabindex="-1">背压的范围与取消</h3>
+<p>下游一次只能处理 10 条，就通过 request(10) 向上游声明需求，按 Reactive Streams 规则接收信号。publishOn 会用队列和预取在不同线程之间转交，消费完一定数量后再补需求。这是背压的核心，不是让所有外部系统自动按你的速度生产。</p>
+<p>无限 onBackpressureBuffer 会把来不及处理的内容继续留在内存，仍可能 OOM。Drop 或 Latest 适合允许丢弃中间状态的场景，支付事件则不能照这样丢掉。数据库、HTTP 和 MQ 有各自的流控，要在接入处明确如何限量。</p>
+<p>timeout 后订阅被取消，也不保证 JDBC 语句立即停止。底层驱动可能仍在等结果，继续占连接。跨 scheduler 传递租户、追踪或事务信息时，需要 Reactor Context 和相应桥接；ThreadLocal 只跟线程走，不能自动跟每个请求走。</p>
+<h3 id="c10-s4" tabindex="-1">限流、熔断与隔离</h3>
+<p>令牌桶允许按补充速率处理请求，并允许桶容量范围内的突发。漏桶更偏向平滑输出，来得太快就排队或拒绝。滑动窗口检查最近一段时间，比固定窗口减少某些跨边界突发，代价是更复杂的统计。分布式限流若依赖 Redis，还要决定 Redis 故障时放行还是拒绝。</p>
+<p>超时限制等多久；熔断在持续失败或慢调用时暂时快速拒绝；降级给可接受的替代结果；舱壁则限制某个依赖占用的线程、连接或并发，避免它耗尽整个服务资源。这些措施要一起看，而不是只加一个注解。</p>
+<p>重试会增加请求。若三个调用层每层最多尝试三次，一个原始请求最坏会触发 27 次底层调用。原调用超时却还没结束时，重试还会和它同时运行。应只对适合重试的幂等操作使用有限次数、总时间限制、退避与抖动，尽量在合适的一层重试。</p>
+<h3 id="c10-s5" tabindex="-1">高可用、灰度与容量规划</h3>
+<p>链路追踪先帮我们拆开等待：时间花在网关、排队、借连接、SQL，还是下游网络？再看每段的请求量、错误和耗时分位数，平均值常会掩盖少数很慢的请求。</p>
+<p>灰度应让同一用户或租户稳定进入指定版本，并把标记传到后续调用和消息里。数据库结构先做兼容扩展，旧消费者也应能处理新事件。回滚代码不会自动恢复已经写错的数据，发布前要把数据修复和回退条件想清楚。</p>
+<p>容量要用实际服务时间估算。稳定条件下，并发量大致是吞吐乘以耗时，再通过压测检查资源竞争和长尾。两台实例不等于能扛住一台故障：剩余实例、数据库和缓存都要留余量，故障域也不能完全重合。</p>
+<p>压测应覆盖慢依赖、缓存故障、Broker 切换和突发。某些闭环工具在服务变慢后自己降低发送速度，让排队问题看起来没那么严重，需要补充按固定到达率施压的测试。</p>
+<h3 id="c10-s6" tabindex="-1">容量与雪崩的数值推演</h3>
+<p>一个依赖每秒处理 1000 个请求，平均 20ms，平均同时执行的请求约 20。耗时变成 500ms、到达率仍不变时，需求并发变成约 500。连接不够就排队，排队耗时又触发重试，于是情况继续恶化。</p>
+<p>先限制新请求进入，给等不到资源的请求明确失败，对非关键功能降级，再逐步恢复。直接把线程数调到 500，只会让更多线程等同一批数据库连接。恢复时也要慢慢放量，避免所有实例重启后一起预热，制造第二次冲击。关联阅读：<a href="../java-concurrency/">线程池</a>、<a href="../jvm-oom-troubleshooting/">Netty 内存</a>、<a href="../redis-cache/">缓存回源</a>。</p>
+<h2 id="c10-s7" tabindex="-1">源码级解析与调用链</h2>
+<p>Gateway 从 <code>FilteringWebHandler.handle</code> 建立过滤器链。Netty 的 <code>NioEventLoop.run</code> 轮流执行 IO 和队列任务，Reactor 的 <code>FluxPublishOn</code> 把信号放入队列，交由 scheduler 消费。</p>
+<p>沿这三个片段，分别回答请求先过哪些过滤器、线程什么时候被占住，以及数据在哪个队列等下游。这样比看到 Mono 就断言非阻塞更具体。</p>
+<div class="source-caption"><code>FilteringWebHandler.handle</code><span>Spring Cloud Gateway 3.1.8 · L69–L89 · <a href="https://github.com/spring-cloud/spring-cloud-gateway/blob/v3.1.8/spring-cloud-gateway-server/src/main/java/org/springframework/cloud/gateway/handler/FilteringWebHandler.java#L69-L89">完整源码</a></span></div>
+<pre><code class="language-java">    /*
+     * TODO: relocate @EventListener(RefreshRoutesEvent.class) void handleRefresh() {
+     * this.combinedFiltersForRoute.clear();
+     */
+
+    @Override
+    public Mono&lt;Void&gt; handle(ServerWebExchange exchange) {
+        Route route = exchange.getRequiredAttribute(GATEWAY_ROUTE_ATTR);
+        List&lt;GatewayFilter&gt; gatewayFilters = route.getFilters();
+
+        List&lt;GatewayFilter&gt; combined = new ArrayList&lt;&gt;(this.globalFilters);
+        combined.addAll(gatewayFilters);
+        // TODO: needed or cached?
+        AnnotationAwareOrderComparator.sort(combined);
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("Sorted gatewayFilterFactories: " + combined);
+        }
+
+        return new DefaultGatewayFilterChain(combined).filter(exchange);
+    }
+
+</code></pre>
+<p>过滤器链把全局过滤器与路由过滤器放在一起排序，再继续执行。调用顺序由 order 决定，不能只根据 Bean 注册顺序判断。</p>
+<div class="source-caption"><code>NioEventLoop.run</code><span>Netty 4.1.108.Final · L503–L607 · <a href="https://github.com/netty/netty/blob/netty-4.1.108.Final/transport/src/main/java/io/netty/channel/nio/NioEventLoop.java#L503-L607">完整源码</a></span></div>
+<pre><code class="language-java">    @Override
+    protected void run() {
+        int selectCnt = 0;
+        for (;;) {
+            try {
+                int strategy;
+                try {
+                    strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
+                    switch (strategy) {
+                    case SelectStrategy.CONTINUE:
+                        continue;
+
+                    case SelectStrategy.BUSY_WAIT:
+                        // fall-through to SELECT since the busy-wait is not supported with NIO
+
+                    case SelectStrategy.SELECT:
+                        long curDeadlineNanos = nextScheduledTaskDeadlineNanos();
+                        if (curDeadlineNanos == -1L) {
+                            curDeadlineNanos = NONE; // nothing on the calendar
+                        }
+                        nextWakeupNanos.set(curDeadlineNanos);
+                        try {
+                            if (!hasTasks()) {
+                                strategy = select(curDeadlineNanos);
+                            }
+                        } finally {
+                            // This update is just to help block unnecessary selector wakeups
+                            // so use of lazySet is ok (no race condition)
+                            nextWakeupNanos.lazySet(AWAKE);
+                        }
+                        // fall through
+                    default:
+                    }
+                } catch (IOException e) {
+                    // If we receive an IOException here its because the Selector is messed up. Let's rebuild
+                    // the selector and retry. https://github.com/netty/netty/issues/8566
+                    rebuildSelector0();
+                    selectCnt = 0;
+                    handleLoopException(e);
+                    continue;
+                }
+
+                selectCnt++;
+                cancelledKeys = 0;
+                needsToSelectAgain = false;
+                final int ioRatio = this.ioRatio;
+                boolean ranTasks;
+                if (ioRatio == 100) {
+                    try {
+                        if (strategy &gt; 0) {
+                            processSelectedKeys();
+                        }
+                    } finally {
+                        // Ensure we always run tasks.
+                        ranTasks = runAllTasks();
+                    }
+                } else if (strategy &gt; 0) {
+                    final long ioStartTime = System.nanoTime();
+                    try {
+                        processSelectedKeys();
+                    } finally {
+                        // Ensure we always run tasks.
+                        final long ioTime = System.nanoTime() - ioStartTime;
+                        ranTasks = runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
+                    }
+                } else {
+                    ranTasks = runAllTasks(0); // This will run the minimum number of tasks
+                }
+
+                if (ranTasks || strategy &gt; 0) {
+                    if (selectCnt &gt; MIN_PREMATURE_SELECTOR_RETURNS &amp;&amp; logger.isDebugEnabled()) {
+                        logger.debug("Selector.select() returned prematurely {} times in a row for Selector {}.",
+                                selectCnt - 1, selector);
+                    }
+                    selectCnt = 0;
+                } else if (unexpectedSelectorWakeup(selectCnt)) { // Unexpected wakeup (unusual case)
+                    selectCnt = 0;
+                }
+            } catch (CancelledKeyException e) {
+                // Harmless exception - log anyway
+                if (logger.isDebugEnabled()) {
+                    logger.debug(CancelledKeyException.class.getSimpleName() + " raised by a Selector {} - JDK bug?",
+                            selector, e);
+                }
+            } catch (Error e) {
+                throw e;
+            } catch (Throwable t) {
+                handleLoopException(t);
+            } finally {
+                // Always handle shutdown even if the loop processing threw an exception.
+                try {
+                    if (isShuttingDown()) {
+                        closeAll();
+                        if (confirmShutdown()) {
+                            return;
+                        }
+                    }
+                } catch (Error e) {
+                    throw e;
+                } catch (Throwable t) {
+                    handleLoopException(t);
+                }
+            }
+        }
+    }
+
+</code></pre>
+<p>ioRatio 为 100 时处理 IO 后运行任务；其他情况下按 IO 用时为任务分配时间。一个任务自己阻塞很久，这种时间分配也无法让它凭空变成可中断的异步调用。</p>
+<div class="source-caption"><code>FluxPublishOn.onNext</code><span>Reactor 3.4.34 · L213–L238 · <a href="https://github.com/reactor/reactor-core/blob/v3.4.34/reactor-core/src/main/java/reactor/core/publisher/FluxPublishOn.java#L213-L238">完整源码</a></span></div>
+<pre><code class="language-java">        @Override
+        public void onNext(T t) {
+            if (sourceMode == ASYNC) {
+                trySchedule(this, null, null /* t always null */);
+                return;
+            }
+
+            if (done) {
+                Operators.onNextDropped(t, actual.currentContext());
+                return;
+            }
+
+            if (cancelled) {
+                Operators.onDiscard(t, actual.currentContext());
+                return;
+            }
+
+            if (!queue.offer(t)) {
+                Operators.onDiscard(t, actual.currentContext());
+                error = Operators.onOperatorError(s,
+                        Exceptions.failWithOverflow(Exceptions.BACKPRESSURE_ERROR_QUEUE_FULL),
+                        t, actual.currentContext());
+                done = true;
+            }
+            trySchedule(this, null, t);
+        }
+
+</code></pre>
+<p>onNext 先把值交给队列，再触发调度。队列满等异常会沿错误处理传递。后续 drain 与 request 配合，才构成跨线程处理和需求补充。</p>
+<figure class="diagram" data-diagram="1"><svg aria-label="图 1 · 对照上文阅读流程" aria-roledescription="flowchart-v2" id="jai-diagram-1-jai-diagram-1" role="img" style="max-width: 1682.4375px;" viewbox="-8 -8 1682.4375 203.5" width="100%" xmlns="http://www.w3.org/2000/svg"><style>#jai-diagram-1-jai-diagram-1{font-family:sans-serif;font-size:16px;fill:#182338;}#jai-diagram-1-jai-diagram-1 .error-icon{fill:#f4f6f9;}#jai-diagram-1-jai-diagram-1 .error-text{fill:#0b0906;stroke:#0b0906;}#jai-diagram-1-jai-diagram-1 .edge-thickness-normal{stroke-width:2px;}#jai-diagram-1-jai-diagram-1 .edge-thickness-thick{stroke-width:3.5px;}#jai-diagram-1-jai-diagram-1 .edge-pattern-solid{stroke-dasharray:0;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dashed{stroke-dasharray:3;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dotted{stroke-dasharray:2;}#jai-diagram-1-jai-diagram-1 .marker{fill:#72849a;stroke:#72849a;}#jai-diagram-1-jai-diagram-1 .marker.cross{stroke:#72849a;}#jai-diagram-1-jai-diagram-1 svg{font-family:sans-serif;font-size:16px;}#jai-diagram-1-jai-diagram-1 .label{font-family:sans-serif;color:#182338;}#jai-diagram-1-jai-diagram-1 .cluster-label text{fill:#0b0906;}#jai-diagram-1-jai-diagram-1 .cluster-label span,#jai-diagram-1-jai-diagram-1 p{color:#0b0906;}#jai-diagram-1-jai-diagram-1 .label text,#jai-diagram-1-jai-diagram-1 span,#jai-diagram-1-jai-diagram-1 p{fill:#182338;color:#182338;}#jai-diagram-1-jai-diagram-1 .node rect,#jai-diagram-1-jai-diagram-1 .node circle,#jai-diagram-1-jai-diagram-1 .node ellipse,#jai-diagram-1-jai-diagram-1 .node polygon,#jai-diagram-1-jai-diagram-1 .node path{fill:#e8eef8;stroke:#7890af;stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .flowchart-label text{text-anchor:middle;}#jai-diagram-1-jai-diagram-1 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .node .label{text-align:center;}#jai-diagram-1-jai-diagram-1 .node.clickable{cursor:pointer;}#jai-diagram-1-jai-diagram-1 .arrowheadPath{fill:#0b0b0b;}#jai-diagram-1-jai-diagram-1 .edgePath .path{stroke:#72849a;stroke-width:2.0px;}#jai-diagram-1-jai-diagram-1 .flowchart-link{stroke:#72849a;fill:none;}#jai-diagram-1-jai-diagram-1 .edgeLabel{background-color:#edf2f7;text-align:center;}#jai-diagram-1-jai-diagram-1 .edgeLabel rect{opacity:0.5;background-color:#edf2f7;fill:#edf2f7;}#jai-diagram-1-jai-diagram-1 .labelBkg{background-color:rgba(237, 242, 247, 0.5);}#jai-diagram-1-jai-diagram-1 .cluster rect{fill:#f4f6f9;stroke:hsl(216, 0%, 86.6666666667%);stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .cluster text{fill:#0b0906;}#jai-diagram-1-jai-diagram-1 .cluster span,#jai-diagram-1-jai-diagram-1 p{color:#0b0906;}#jai-diagram-1-jai-diagram-1 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:sans-serif;font-size:12px;background:#f4f6f9;border:1px solid hsl(216, 0%, 86.6666666667%);border-radius:2px;pointer-events:none;z-index:100;}#jai-diagram-1-jai-diagram-1 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#182338;}#jai-diagram-1-jai-diagram-1 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-pointEnd" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="6" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-pointStart" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="4.5" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-circleEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="11" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-circleStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker cross flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-crossEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="12" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker class="marker cross flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-crossStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-B" d="M180.234,125.5L184.401,125.5C188.568,125.5,196.901,125.5,204.351,125.5C211.801,125.5,218.368,125.5,221.651,125.5L224.934,125.5" id="jai-diagram-1-L-A-B-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-B LE-C" d="M407.737,107L421.346,102.833C434.955,98.667,462.173,90.333,479.065,86.167C495.957,82,502.524,82,505.807,82L509.091,82" id="jai-diagram-1-L-B-C-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-C LE-D" d="M722.766,82L726.932,82C731.099,82,739.432,82,746.882,82C754.332,82,760.899,82,764.182,82L767.466,82" id="jai-diagram-1-L-C-D-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-B LE-E" d="M407.737,144L421.346,148.167C434.955,152.333,462.173,160.667,479.927,164.833C497.681,169,505.972,169,510.117,169L514.263,169" id="jai-diagram-1-L-B-E-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-D LE-F" d="M944.844,82L949.01,82C953.177,82,961.51,82,969.044,82.066C976.577,82.132,983.311,82.264,986.678,82.33L990.045,82.396" id="jai-diagram-1-L-D-F-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-F LE-G" d="M1136.839,59.995L1146.006,56.413C1155.174,52.83,1173.509,45.665,1187.293,42.083C1201.077,38.5,1210.31,38.5,1214.927,38.5L1219.544,38.5" id="jai-diagram-1-L-F-G-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-F LE-H" d="M1136.839,105.005L1146.006,108.421C1155.174,111.836,1173.509,118.668,1188.249,122.084C1202.989,125.5,1214.133,125.5,1219.706,125.5L1225.278,125.5" id="jai-diagram-1-L-F-H-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-G LE-I" d="M1402.5,38.5L1406.667,38.5C1410.833,38.5,1419.167,38.5,1435.135,42.39C1451.104,46.28,1474.707,54.061,1486.509,57.951L1498.311,61.841" id="jai-diagram-1-L-G-I-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-H LE-I" d="M1396.766,125.5L1401.888,125.5C1407.01,125.5,1417.255,125.5,1434.179,121.61C1451.104,117.72,1474.707,109.939,1486.509,106.049L1498.311,102.159" id="jai-diagram-1-L-H-I-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel" transform="translate(1191.84375, 38.5)"><g class="label" transform="translate(-8, -11)"><rect height="22.629600524902344" rx="0" ry="0" width="15.994634628295898"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">是</tspan></text></g></g><g class="edgeLabel" transform="translate(1191.84375, 125.5)"><g class="label" transform="translate(-8, -11)"><rect height="22.629600524902344" rx="0" ry="0" width="15.994634628295898"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">否</tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g></g><g class="nodes"><g class="node default default flowchart-label" data-id="A" data-node="true" id="jai-diagram-1-flowchart-A-186" transform="translate(90.1171875, 125.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="180.234375" x="-90.1171875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">多个 Channel / socket</tspan></text></g></g><g class="node default default flowchart-label" data-id="B" data-node="true" id="jai-diagram-1-flowchart-B-187" transform="translate(347.3125, 125.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="234.15625" x="-117.078125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">同一 NioEventLoop / selector</tspan></text></g></g><g class="node default default flowchart-label" data-id="C" data-node="true" id="jai-diagram-1-flowchart-C-189" transform="translate(618.578125, 82)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="208.375" x="-104.1875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">processSelectedKeys / IO</tspan></text></g></g><g class="node default default flowchart-label" data-id="D" data-node="true" id="jai-diagram-1-flowchart-D-191" transform="translate(858.8046875, 82)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="172.078125" x="-86.0390625" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">Pipeline / reactive 链</tspan></text></g></g><g class="node default default flowchart-label" data-id="E" data-node="true" id="jai-diagram-1-flowchart-E-193" transform="translate(618.578125, 169)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="198.03125" x="-99.015625" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">taskQueue / runAllTasks</tspan></text></g></g><g class="node default default flowchart-label" data-id="F" data-node="true" id="jai-diagram-1-flowchart-F-195" transform="translate(1076.84375, 82)"><polygon class="label-container" points="82,0 164,-82 82,-164 0,-82" style="" transform="translate(-82,82)"></polygon><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">是否阻塞工作？</tspan></text></g></g><g class="node default default flowchart-label" data-id="G" data-node="true" id="jai-diagram-1-flowchart-G-197" transform="translate(1313.671875, 38.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="177.65625" x="-88.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">有界工作池 / 限制并发</tspan></text></g></g><g class="node default default flowchart-label" data-id="H" data-node="true" id="jai-diagram-1-flowchart-H-199" transform="translate(1313.671875, 125.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="166.1875" x="-83.09375" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">异步 IO / 返回 Mono</tspan></text></g></g><g class="node default default flowchart-label" data-id="I" data-node="true" id="jai-diagram-1-flowchart-I-201" transform="translate(1559.46875, 82)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="213.9375" x="-106.96875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">结果信号 / EventLoop 写回</tspan></text></g></g></g></g></g></svg><figcaption>图 1 · 对照上文阅读流程</figcaption><details><summary>查看 Mermaid 图表源码</summary><pre><code>flowchart LR
+ A["多个 Channel / socket"] --&gt; B["同一 NioEventLoop / selector"]
+ B --&gt; C["processSelectedKeys / IO"]
+ C --&gt; D["Pipeline / reactive 链"]
+ B --&gt; E["taskQueue / runAllTasks"]
+ D --&gt; F{"是否阻塞工作？"}
+ F --&gt;|是| G["有界工作池 / 限制并发"]
+ F --&gt;|否| H["异步 IO / 返回 Mono"]
+ G --&gt; I["结果信号 / EventLoop 写回"]
+ H --&gt; I
+</code></pre></details></figure>
+<figure class="diagram" data-diagram="2"><svg aria-label="图 2 · 对照上文阅读流程" aria-roledescription="flowchart-v2" id="jai-diagram-2-jai-diagram-2" role="img" style="max-width: 666.8125px;" viewbox="-8 -8 666.8125 889" width="100%" xmlns="http://www.w3.org/2000/svg"><style>#jai-diagram-2-jai-diagram-2{font-family:sans-serif;font-size:16px;fill:#182338;}#jai-diagram-2-jai-diagram-2 .error-icon{fill:#f4f6f9;}#jai-diagram-2-jai-diagram-2 .error-text{fill:#0b0906;stroke:#0b0906;}#jai-diagram-2-jai-diagram-2 .edge-thickness-normal{stroke-width:2px;}#jai-diagram-2-jai-diagram-2 .edge-thickness-thick{stroke-width:3.5px;}#jai-diagram-2-jai-diagram-2 .edge-pattern-solid{stroke-dasharray:0;}#jai-diagram-2-jai-diagram-2 .edge-pattern-dashed{stroke-dasharray:3;}#jai-diagram-2-jai-diagram-2 .edge-pattern-dotted{stroke-dasharray:2;}#jai-diagram-2-jai-diagram-2 .marker{fill:#72849a;stroke:#72849a;}#jai-diagram-2-jai-diagram-2 .marker.cross{stroke:#72849a;}#jai-diagram-2-jai-diagram-2 svg{font-family:sans-serif;font-size:16px;}#jai-diagram-2-jai-diagram-2 .label{font-family:sans-serif;color:#182338;}#jai-diagram-2-jai-diagram-2 .cluster-label text{fill:#0b0906;}#jai-diagram-2-jai-diagram-2 .cluster-label span,#jai-diagram-2-jai-diagram-2 p{color:#0b0906;}#jai-diagram-2-jai-diagram-2 .label text,#jai-diagram-2-jai-diagram-2 span,#jai-diagram-2-jai-diagram-2 p{fill:#182338;color:#182338;}#jai-diagram-2-jai-diagram-2 .node rect,#jai-diagram-2-jai-diagram-2 .node circle,#jai-diagram-2-jai-diagram-2 .node ellipse,#jai-diagram-2-jai-diagram-2 .node polygon,#jai-diagram-2-jai-diagram-2 .node path{fill:#e8eef8;stroke:#7890af;stroke-width:1px;}#jai-diagram-2-jai-diagram-2 .flowchart-label text{text-anchor:middle;}#jai-diagram-2-jai-diagram-2 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#jai-diagram-2-jai-diagram-2 .node .label{text-align:center;}#jai-diagram-2-jai-diagram-2 .node.clickable{cursor:pointer;}#jai-diagram-2-jai-diagram-2 .arrowheadPath{fill:#0b0b0b;}#jai-diagram-2-jai-diagram-2 .edgePath .path{stroke:#72849a;stroke-width:2.0px;}#jai-diagram-2-jai-diagram-2 .flowchart-link{stroke:#72849a;fill:none;}#jai-diagram-2-jai-diagram-2 .edgeLabel{background-color:#edf2f7;text-align:center;}#jai-diagram-2-jai-diagram-2 .edgeLabel rect{opacity:0.5;background-color:#edf2f7;fill:#edf2f7;}#jai-diagram-2-jai-diagram-2 .labelBkg{background-color:rgba(237, 242, 247, 0.5);}#jai-diagram-2-jai-diagram-2 .cluster rect{fill:#f4f6f9;stroke:hsl(216, 0%, 86.6666666667%);stroke-width:1px;}#jai-diagram-2-jai-diagram-2 .cluster text{fill:#0b0906;}#jai-diagram-2-jai-diagram-2 .cluster span,#jai-diagram-2-jai-diagram-2 p{color:#0b0906;}#jai-diagram-2-jai-diagram-2 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:sans-serif;font-size:12px;background:#f4f6f9;border:1px solid hsl(216, 0%, 86.6666666667%);border-radius:2px;pointer-events:none;z-index:100;}#jai-diagram-2-jai-diagram-2 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#182338;}#jai-diagram-2-jai-diagram-2 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-pointEnd" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="6" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-pointStart" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="4.5" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-circleEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="11" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-circleStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker cross flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-crossEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="12" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker class="marker cross flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-crossStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-B" d="M261.742,37L261.742,41.167C261.742,45.333,261.742,53.667,261.742,61.117C261.742,68.567,261.742,75.133,261.742,78.417L261.742,81.7" id="jai-diagram-2-L-A-B-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-B LE-C" d="M261.742,124L261.742,128.167C261.742,132.333,261.742,140.667,261.742,148.117C261.742,155.567,261.742,162.133,261.742,165.417L261.742,168.7" id="jai-diagram-2-L-B-C-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-C LE-D" d="M228.357,211L220.838,215.167C213.319,219.333,198.281,227.667,190.761,235.117C183.242,242.567,183.242,249.133,183.242,252.417L183.242,255.7" id="jai-diagram-2-L-C-D-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-D LE-E" d="M183.242,298L183.242,302.167C183.242,306.333,183.242,314.667,183.308,322.2C183.374,329.734,183.506,336.467,183.572,339.834L183.638,343.201" id="jai-diagram-2-L-D-E-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-E LE-F" d="M154.778,419.536L139.786,430.28C124.795,441.024,94.811,462.512,79.82,495.623C64.828,528.733,64.828,573.467,64.828,595.833L64.828,618.2" id="jai-diagram-2-L-E-F-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-E LE-G" d="M212.706,419.536L227.531,430.28C242.356,441.024,272.006,462.512,286.903,478.456C301.799,494.4,301.941,504.8,302.012,510L302.084,515.2" id="jai-diagram-2-L-E-G-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-G LE-H" d="M302.156,764.5L302.073,770.417C301.99,776.333,301.823,788.167,309.656,799.58C317.489,810.992,333.323,821.985,341.239,827.481L349.156,832.977" id="jai-diagram-2-L-G-H-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-H LE-C" d="M410.338,836L420.127,830C429.915,824,449.493,812,459.282,779.667C469.07,747.333,469.07,694.667,469.07,642C469.07,589.333,469.07,536.667,469.07,496C469.07,455.333,469.07,426.667,469.07,399.833C469.07,373,469.07,348,469.07,328.25C469.07,308.5,469.07,294,469.07,279.5C469.07,265,469.07,250.5,441.963,237.563C414.857,224.625,360.643,213.251,333.536,207.563L306.429,201.876" id="jai-diagram-2-L-H-C-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-G LE-I" d="M380.578,686.079L414.812,705.065C449.047,724.052,517.515,762.026,551.75,786.13C585.984,810.233,585.984,820.467,585.984,825.583L585.984,830.7" id="jai-diagram-2-L-G-I-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel" transform="translate(64.828125, 484)"><g class="label" transform="translate(-8, -11)"><rect height="22" rx="0" ry="0" width="16"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">是</tspan></text></g></g><g class="edgeLabel" transform="translate(301.65625, 484)"><g class="label" transform="translate(-8, -11)"><rect height="22" rx="0" ry="0" width="16"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">否</tspan></text></g></g><g class="edgeLabel" transform="translate(301.65625, 800)"><g class="label" transform="translate(-8, -11)"><rect height="22" rx="0" ry="0" width="16"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">是</tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel" transform="translate(585.984375, 800)"><g class="label" transform="translate(-8, -11)"><rect height="22" rx="0" ry="0" width="16"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">否</tspan></text></g></g></g><g class="nodes"><g class="node default default flowchart-label" data-id="A" data-node="true" id="jai-diagram-2-flowchart-A-204" transform="translate(261.7421875, 18.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="209.65625" x="-104.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">请求进入 / 限定总等待时间</tspan></text></g></g><g class="node default default flowchart-label" data-id="B" data-node="true" id="jai-diagram-2-flowchart-B-205" transform="translate(261.7421875, 105.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="161.65625" x="-80.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">限流 / 检查依赖并发</tspan></text></g></g><g class="node default default flowchart-label" data-id="C" data-node="true" id="jai-diagram-2-flowchart-C-207" transform="translate(261.7421875, 192.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="79" x="-39.5" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">熔断检查</tspan></text></g></g><g class="node default default flowchart-label" data-id="D" data-node="true" id="jai-diagram-2-flowchart-D-209" transform="translate(183.2421875, 279.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="161.65625" x="-80.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">调用依赖 / 单次超时</tspan></text></g></g><g class="node default default flowchart-label" data-id="E" data-node="true" id="jai-diagram-2-flowchart-E-211" transform="translate(183.2421875, 398)"><polygon class="label-container" points="50,0 100,-50 50,-100 0,-50" style="" transform="translate(-50,50)"></polygon><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">成功？</tspan></text></g></g><g class="node default default flowchart-label" data-id="F" data-node="true" id="jai-diagram-2-flowchart-F-213" transform="translate(64.828125, 642)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="129.65625" x="-64.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">返回 / 记录指标</tspan></text></g></g><g class="node default default flowchart-label" data-id="G" data-node="true" id="jai-diagram-2-flowchart-G-215" transform="translate(301.65625, 642)"><polygon class="label-container" points="122,0 244,-122 122,-244 0,-122" style="" transform="translate(-122,122)"></polygon><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">可安全重试，且尚未超限？</tspan></text></g></g><g class="node default default flowchart-label" data-id="H" data-node="true" id="jai-diagram-2-flowchart-H-217" transform="translate(380.15625, 854.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="182" x="-91" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">退避 + 抖动 / 有界次数</tspan></text></g></g><g class="node default default flowchart-label" data-id="I" data-node="true" id="jai-diagram-2-flowchart-I-221" transform="translate(585.984375, 854.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="129.65625" x="-64.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">降级 / 明确失败</tspan></text></g></g></g></g></g></svg><figcaption>图 2 · 对照上文阅读流程</figcaption><details><summary>查看 Mermaid 图表源码</summary><pre><code>flowchart TD
+ A["请求进入 / 限定总等待时间"] --&gt; B["限流 / 检查依赖并发"]
+ B --&gt; C["熔断检查"]
+ C --&gt; D["调用依赖 / 单次超时"]
+ D --&gt; E{"成功？"}
+ E --&gt;|是| F["返回 / 记录指标"]
+ E --&gt;|否| G{"可安全重试，且尚未超限？"}
+ G --&gt;|是| H["退避 + 抖动 / 有界次数"]
+ H --&gt; C
+ G --&gt;|否| I["降级 / 明确失败"]
+</code></pre></details></figure>
+<h2 id="c10-s8" tabindex="-1">三层原理问答</h2>
+<details class="question" open=""><summary><h3 id="c10-s9" tabindex="-1">1. Gateway 用了 Reactor，为何还会全站卡顿？</h3></summary><div class="answer">
+<p>因为 reactive 不会把同步调用自动变成非阻塞。EventLoop 内执行 JDBC，数据库慢时同一线程负责的多个连接都会等。</p>
+<p><strong>怎样定位到这段代码？</strong> 多次线程栈看到 reactor-http-nio 停在同步查询或 read，而不是继续处理 NioEventLoop 的事件。trace 再确认时间确实花在认证依赖。</p>
+<p><strong>怎么修？</strong> 采用异步客户端，必要阻塞调用放有界工作池，配独立并发与连接超时。慢依赖压测看其他路由是否受影响，不只加 Netty 线程。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c10-s10" tabindex="-1">2. publishOn 和 subscribeOn 如何区分？</h3></summary><div class="answer">
+<p>subscribeOn 影响订阅和源执行的位置，publishOn 影响它之后的信号处理线程。位置决定作用，不能只背“切线程”。</p>
+<p><strong>publishOn 做了什么？</strong> 它入队、按 scheduler drain，再按消费进度补请求。阻塞源可用 fromCallable 配 subscribeOn；已经发生的阻塞不会因后面一个操作符重新搬家。</p>
+<p><strong>怎么避免滥用？</strong> 不每一步都换池，控制队列和预取，正确传 Context。涉及 JDBC 时重新确认事务在哪个线程开始，不把 ThreadLocal 当跨线程状态。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c10-s11" tabindex="-1">3. 背压是否等于不会 OOM？</h3></summary><div class="answer">
+<p>不等于。协议内控制需求，但无界缓冲、外部不遵守需求的来源、业务长期持有对象，仍可能把内存用完。</p>
+<p><strong>预取和取消呢？</strong> request、prefetch、队列协调每段处理。onBackpressureBuffer 若无界，只是把压力转到内存；取消也不一定让底层 JDBC 立即停止。</p>
+<p><strong>怎样保护资源？</strong> 每个接入点明确容量、并发、超时与拒绝方式。不能对重要支付直接 Drop/Latest；需要可靠队列承接，再按下游能力处理。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c10-s12" tabindex="-1">4. 重试为什么会导致雪崩？</h3></summary><div class="answer">
+<p>它把新增工作发给一个已经忙不过来的依赖，原来超时的请求还可能继续执行。多个层分别重试，又会把次数相乘。</p>
+<p><strong>抖动解决什么？</strong> 固定等待会让许多调用一起再次冲击，随机抖动把它们错开。但它不能使超载系统突然有更多能力，还需要限制总次数和总时间。</p>
+<p><strong>如何配合其他措施？</strong> 只在合适的一层做幂等、有界重试，持续失败时熔断，按依赖隔离并发，过载时限流和降级。监控重试占比，不等失败后无限补调用。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c10-s13" tabindex="-1">5. 线程池和连接池应该设多大？</h3></summary><div class="answer">
+<p>先看实际到达率、执行时间和下游容量，没有对所有任务都合适的 CPU 乘数。数据库最多承受多少并行查询，比开多少等待线程更重要。</p>
+<p><strong>L≈λW 怎么用？</strong> 它描述稳定情况下的平均并发关系，可做初步估算；排队、长尾和争用要再压测。线程比连接多得多时，许多线程只是等连接。</p>
+<p><strong>怎样验收容量？</strong> 找吞吐拐点和尾延迟，控制排队和拒绝，预留一台故障后的剩余能力。不能以压测“没拒绝”为唯一目标，长时间排队也是失败。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c10-s14" tabindex="-1">6. 灰度发布如何保证可恢复？</h3></summary><div class="answer">
+<p>稳定划分流量，观测新旧版本，提前规定回退条件，同时保证数据库和事件格式兼容。灰度不只是把 5% 请求随机打给新实例。</p>
+<p><strong>异步链路怎么处理？</strong> 标签需要跨调用和 MQ 传递，旧消费者仍要认识事件。schema 先兼容扩展，再迁移，否则旧代码可能已无法回退。</p>
+<p><strong>数据写错了怎么办？</strong> 代码回滚不会撤销已提交的数据。重要变更准备修复和对账，灰度比较租户结果、错误率和 p99，并演练真正的回退过程。</p>
+</div></details>
+<h2 id="c10-s15" tabindex="-1">模拟生产案例：认证过滤器阻塞事件循环</h2>
+<p>认证 GlobalFilter 直接调用 JDBC，下游变慢后，多条无关路由同时超时，CPU 却不高。这是共享 EventLoop 被阻塞的模拟情境。</p>
+<p>看 trace 里认证时间，连续线程栈看 reactor-http-nio 是否停在同步查询，再看连接池 pending 和客户端重试。若其他路由也由这些 EventLoop 处理，就能解释为什么影响扩大。</p>
+<p>用异步客户端，或把必要阻塞操作移到有界工作池，并限制认证并发和连接等待。根据安全要求设计缓存与失败响应，不把所有失败直接放行。减少多层重复重试，逐步恢复流量。</p>
+<p>用慢 DAO 验证无关路由能继续处理，认证则按设定时间明确失败。以后测试依赖变慢、取消后任务残留与 Context 传播，同时监控 EventLoop 延迟和总重试量。</p>
+<h2 id="c10-s16" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c10-s17" tabindex="-1">一分钟要点回顾</h3>
+<p>一个 Netty EventLoop 服务多个连接，阻塞 JDBC 会让其他连接一起等。Reactor 用需求和队列协调处理，subscribeOn 与 publishOn 位置不同，返回 Mono 不自动非阻塞。稳定性要限制总等待、重试与并发，持续故障时熔断和降级，按依赖隔离资源。容量用实际吞吐和耗时估算并压测，灰度还需标签传播、数据兼容和真实回退，代码回滚不会撤销已写数据。</p>
+<h3 id="c10-s18" tabindex="-1">深入理解与机制串联</h3>
+<p>我先解释线程模型：EventLoop 轮流处理多个 channel 的 IO 和任务，不是一连接一线程。Gateway 过滤器若在里面做同步 JDBC，数据库慢会让这一批连接都不能及时继续。返回 Mono 只是类型，已执行的阻塞代码不会自动改变。</p>
+<p>阻塞源可以用 fromCallable 延迟，再用 subscribeOn 放到合适工作线程；publishOn 主要影响后续信号。队列、预取和 request 协调背压，但无限 buffer 仍能占满内存，外部来源也需单独限量。timeout 取消后 JDBC 可能仍占连接，线程上下文要正确转成订阅 Context。</p>
+<p>当一个依赖变慢，平均并发需求约为到达率乘耗时。1000QPS 从 20ms 变 500ms，需要的平均并发从 20 变 500，池不够开始排队；再加重试就更坏。先限制准入、等待和总尝试，退避带抖动，只对可重试且幂等操作执行。持续故障用熔断，按依赖隔离线程或并发，非关键功能降级。</p>
+<p>容量测试找吞吐拐点与业务 p99，覆盖缓存故障、慢依赖和一台实例退出。不要让闭环工具自动降到达率后误以为稳定，也不要只增加线程和连接。</p>
+<p>发布则稳定分用户或租户，标签传到异步消息，数据库和事件先保证新旧兼容。回退条件用错误率、尾延迟和业务结果；写错数据要有修复方案。最后通过 trace、队列、连接和线程栈定位等待发生在哪一段，再决定改法。</p>
+<h3 id="c10-s19" tabindex="-1">延伸问题、常见误解与速记</h3>
+<ul>
+<li>高频追问：timeout 会停止 SQL 吗？发布后哪些线程处理信号？MDC 怎么传？闭环压测会漏什么？</li>
+<li>容易答错：一连接一线程；返回 Mono 就非阻塞；boundedElastic 无限；背压不会 OOM；多加连接一定快；代码回滚恢复数据。</li>
+<li>常看的源码：<code>FilteringWebHandler.handle</code>、<code>DefaultGatewayFilterChain.filter</code>、<code>NioEventLoop.run/runAllTasks</code>、<code>FluxPublishOn.onNext</code> 和 request 处理。</li>
+<li>顺着一次请求看它在哪等，资源被谁占，再决定限流、隔离还是改调用方式。</li>
+</ul>
+<h2 id="c10-s20" tabindex="-1">官方资料与版本来源</h2>
+<p>本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 <a href="../source-notices.txt">source-notices.txt</a>，下载记录见 <a href="../sources.json">sources.json</a>。</p>
+<ul>
+<li><a href="https://raw.githubusercontent.com/netty/netty/netty-4.1.108.Final/transport/src/main/java/io/netty/channel/nio/NioEventLoop.java">NioEventLoop.run · Netty 4.1.108.Final</a></li>
+<li><a href="https://raw.githubusercontent.com/reactor/reactor-core/v3.4.34/reactor-core/src/main/java/reactor/core/publisher/FluxPublishOn.java">FluxPublishOn.onNext · Reactor 3.4.34</a></li>
+<li><a href="https://raw.githubusercontent.com/spring-cloud/spring-cloud-gateway/v3.1.8/spring-cloud-gateway-server/src/main/java/org/springframework/cloud/gateway/handler/FilteringWebHandler.java">FilteringWebHandler.handle · Spring Cloud Gateway 3.1.8</a></li>
+<li><a href="https://projectreactor.io/docs/core/3.4.34/reference/">Reactor 3.4.34 Reference</a></li>
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c10-quick-core">先记住这几件事</h2><ul><li>一个 EventLoop 处理多个连接，阻塞 JDBC 会影响其他连接。</li><li>subscribeOn 影响源执行，publishOn 影响后续信号。</li><li>背压仍需有界队列，timeout 不保证底层 SQL 已停。</li><li>重试会放大工作量，限制总次数、等待和依赖并发。</li><li>容量按实际耗时验证，灰度保证标签传播和数据可回退。</li></ul><h2 id="c10-quick-qa">四个重点问题</h2><details class="question" open=""><summary><span class="question-title">1. Gateway 用了 Reactor，为何还会全站卡顿？</span></summary><div class="answer">
+<p>因为 reactive 不会把同步调用自动变成非阻塞。EventLoop 内执行 JDBC，数据库慢时同一线程负责的多个连接都会等。</p>
+<p><strong>怎样定位到这段代码？</strong> 多次线程栈看到 reactor-http-nio 停在同步查询或 read，而不是继续处理 NioEventLoop 的事件。trace 再确认时间确实花在认证依赖。</p>
+<p><strong>怎么修？</strong> 采用异步客户端，必要阻塞调用放有界工作池，配独立并发与连接超时。慢依赖压测看其他路由是否受影响，不只加 Netty 线程。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">2. publishOn 和 subscribeOn 如何区分？</span></summary><div class="answer">
+<p>subscribeOn 影响订阅和源执行的位置，publishOn 影响它之后的信号处理线程。位置决定作用，不能只背“切线程”。</p>
+<p><strong>publishOn 做了什么？</strong> 它入队、按 scheduler drain，再按消费进度补请求。阻塞源可用 fromCallable 配 subscribeOn；已经发生的阻塞不会因后面一个操作符重新搬家。</p>
+<p><strong>怎么避免滥用？</strong> 不每一步都换池，控制队列和预取，正确传 Context。涉及 JDBC 时重新确认事务在哪个线程开始，不把 ThreadLocal 当跨线程状态。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">3. 背压是否等于不会 OOM？</span></summary><div class="answer">
+<p>不等于。协议内控制需求，但无界缓冲、外部不遵守需求的来源、业务长期持有对象，仍可能把内存用完。</p>
+<p><strong>预取和取消呢？</strong> request、prefetch、队列协调每段处理。onBackpressureBuffer 若无界，只是把压力转到内存；取消也不一定让底层 JDBC 立即停止。</p>
+<p><strong>怎样保护资源？</strong> 每个接入点明确容量、并发、超时与拒绝方式。不能对重要支付直接 Drop/Latest；需要可靠队列承接，再按下游能力处理。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">4. 重试为什么会导致雪崩？</span></summary><div class="answer">
+<p>它把新增工作发给一个已经忙不过来的依赖，原来超时的请求还可能继续执行。多个层分别重试，又会把次数相乘。</p>
+<p><strong>抖动解决什么？</strong> 固定等待会让许多调用一起再次冲击，随机抖动把它们错开。但它不能使超载系统突然有更多能力，还需要限制总次数和总时间。</p>
+<p><strong>如何配合其他措施？</strong> 只在合适的一层做幂等、有界重试，持续失败时熔断，按依赖隔离并发，过载时限流和降级。监控重试占比，不等失败后无限补调用。</p>
+</div></details><h2 id="c10-quick-answer">核心要点</h2><p>一个 Netty EventLoop 服务多个连接，阻塞 JDBC 会让其他连接一起等。Reactor 用需求和队列协调处理，subscribeOn 与 publishOn 位置不同，返回 Mono 不自动非阻塞。稳定性要限制总等待、重试与并发，持续故障时熔断和降级，按依赖隔离资源。容量用实际吞吐和耗时估算并压测，灰度还需标签传播、数据兼容和真实回退，代码回滚不会撤销已写数据。</p><h2 id="c10-quick-errors">常见误解与源码</h2><ul>
+<li>高频追问：timeout 会停止 SQL 吗？发布后哪些线程处理信号？MDC 怎么传？闭环压测会漏什么？</li>
+<li>容易答错：一连接一线程；返回 Mono 就非阻塞；boundedElastic 无限；背压不会 OOM；多加连接一定快；代码回滚恢复数据。</li>
+<li>常看的源码：<code>FilteringWebHandler.handle</code>、<code>DefaultGatewayFilterChain.filter</code>、<code>NioEventLoop.run/runAllTasks</code>、<code>FluxPublishOn.onNext</code> 和 request 处理。</li>
+<li>顺着一次请求看它在哪等，资源被谁占，再决定限流、隔离还是改调用方式。</li>
+</ul></section></article><nav aria-label="专题翻页" class="topic-pager"><a href="../distributed-transactions/">← 分布式事务与数据一致性</a><a href="../">全部专题</a><a href="../jit-jmm-memory-barriers/">JIT即时编译、JMM与内存屏障 →</a></nav></main></div>
+<dialog aria-labelledby="search-title" id="search-dialog"><div class="search-head"><h2 id="search-title">全文搜索</h2><button aria-label="关闭搜索" id="search-close">关闭</button></div><label for="search-input">搜索当前专题的关键词、源码方法或学习问题</label><input autocomplete="off" id="search-input" placeholder="例如：sizeCtl、事务回查、Direct buffer" type="search"/><p aria-live="polite" id="search-status" role="status">输入关键词，搜索本篇完整正文与答案。</p><div id="search-results"></div></dialog><div aria-live="polite" id="toast" role="status"></div>
+<footer>按章标注源码版本 · 教学案例与实测排查分别标注 · <a href="./article.md">下载 Markdown 正文</a> · <a href="../VERIFICATION.md">验证范围</a></footer><dialog aria-label="图解放大" id="diagram-dialog"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {
+    if(document.body.dataset.tocScope==='document')return [...$('#main').querySelectorAll('.chapter-title h1,.chapter-title h2,.study h2,.study h3')];
+    return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];
+  }
+  function makeToc() {
+    sections=visibleHeadings();
+    const nav=active && document.querySelector('.chapter-nav[data-chapter="'+active.id+'"]');
+    if(nav){
+      const box=nav.querySelector('div');box.replaceChildren();
+      sections.forEach(h=>{if(!h.id)return;const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';box.append(a);});
+      nav.open=true;
+    }
+    const label=$('#current-label');if(label)label.textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function selectChapter(article) {
+    active=article;
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();
+  }
+  function scrollToTarget(target) {
+    const margin=window.innerWidth<=760?115:90;
+    window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top+window.scrollY-margin),behavior:'instant'});
+  }
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)scrollToTarget($('#review-route'));closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    selectChapter(article);closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      scrollToTarget(target);if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();
+    }
+    updateReading(false);
+  }
+  function updateReading(trackChapter=true) {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;
+    let currentChapter=chapters[0];
+    for(const chapter of chapters){if(chapter.getBoundingClientRect().top<=margin+30)currentChapter=chapter;else break;}
+    const first=chapters[0].getBoundingClientRect(),last=chapters[chapters.length-1].getBoundingClientRect();
+    const box={top:first.top,bottom:last.bottom,height:last.bottom-first.top};
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(progress===100)currentChapter=chapters[chapters.length-1];
+    if(trackChapter && currentChapter!==active)selectChapter(currentChapter);
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('.chapter-nav div a').forEach(a=>{const isCurrent=!!current && a.hash==='#'+current.id;a.classList.toggle('current',isCurrent);if(isCurrent){const details=a.closest('details');if(details)details.open=true;}});
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{
+        const canvas=$('#diagram-content');canvas.classList.add('diagram');
+        canvas.style.margin='0';canvas.style.padding='0';canvas.style.border='0';
+        canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));
+        const ids=new Map([...canvas.querySelectorAll('[id]')].map(el=>[el.id,'zoom-'+el.id]));
+        const keys=[...ids.keys()].sort((a,b)=>b.length-a.length).map(id=>id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+        const pattern=keys.length?new RegExp('#('+keys.join('|')+')(?=$|[^\\w-])','g'):null;
+        const references=value=>pattern?value.replace(pattern,(_,id)=>'#'+ids.get(id)):value;
+        canvas.querySelectorAll('[id]').forEach(el=>{el.id=ids.get(el.id);});
+        // Mermaid scopes CSS selectors to the root SVG ID; keep those selectors
+        // and marker/use references aligned with the renamed clone IDs.
+        canvas.querySelectorAll('style').forEach(el=>{el.textContent=references(el.textContent);});
+        canvas.querySelectorAll('*').forEach(el=>{
+          for(const attr of ['style','fill','stroke','marker-end','marker-start','marker-mid','clip-path','mask','filter','href','xlink:href']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,references(value));
+          }
+          for(const attr of ['aria-labelledby','aria-describedby']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.split(/\s+/).map(id=>ids.get(id)||id).join(' '));
+          }
+        });scale(1);viewer.showModal();
+      });
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
+})();
+</script></body></html>

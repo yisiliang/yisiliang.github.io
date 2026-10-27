@@ -27,3 +27,5 @@
 body{background:var(--bg);color:var(--text)}
 /* 长名称手册保留标题与箭头的空间，窄卡片自动改为单列。 */
 #ai .books{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))}
+
+.topics-all { margin: 14px 0 0; font-size: 13px; }

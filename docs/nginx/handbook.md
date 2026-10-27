@@ -5,7 +5,7 @@
 
 **固定基线：NGINX开源版1.28.0 · 24章 · 24幅机制图 · 24段真实C源码。**
 
-[自包含离线包](./nginx-offline.zip) · [实验说明](./experiments.md) · [核验记录](./VERIFICATION.md) · [源码许可](./nginx-license.txt) · [来源与范围](./source-notices.txt)
+[实验说明](./experiments.md) · [核验记录](./VERIFICATION.md) · [源码许可](./nginx-license.txt) · [来源与范围](./source-notices.txt)
 
 发行标签`release-1.28.0`指向annotated tag对象`f6f8d515885fcda20f09b83583d576337fbabe0a`，解引用后的完整commit为`481d28cb4e04c8096b9b6134856891dc52ecc68f`。所有源码节选和GitHub行号都固定到此commit。它是稳定发行的历史学习基线；本书不宣称它是当前最新版本，也不提供生产版本安全选型结论。
 

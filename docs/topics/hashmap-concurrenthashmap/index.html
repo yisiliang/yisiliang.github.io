@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><meta content="light dark" name="color-scheme"/>
+<meta name="description" content="从 hash 扰动、扩容迁移到树化条件，解释 HashMap 与 ConcurrentHashMap 的并发取舍。">
+<title>HashMap 与 ConcurrentHashMap · 技术专题 | YiSiliang</title>
+<script data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3" defer="" src="https://cloud.umami.is/script.js"></script>
+<script data-manual="" defer="" src="../vendor/prism.js"></script><script defer="" src="../vendor/prism-c.js"></script><script defer="" src="../vendor/prism-cpp.js"></script><script defer="" src="../vendor/prism-java.js"></script><script defer="" src="../vendor/prism-sql.js"></script><script defer="" src="../vendor/prism-bash.js"></script><script defer="" src="../vendor/prism-yaml.js"></script>
+<style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="topics"] .diagram svg .edgePath path,[data-reader="topics"] .diagram svg .flowchart-link,[data-reader="topics"] .diagram svg .messageLine0,[data-reader="topics"] .diagram svg .messageLine1,[data-reader="topics"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="topics"] .diagram svg .edgeLabel span,[data-reader="topics"] .diagram svg .messageText,[data-reader="topics"] .diagram svg .loopText,[data-reader="topics"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
+}
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader main h4{overflow-wrap:anywhere}
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+
+/* 单侧目录：章节目录、篇内目录与阅读进度都收在左侧。 */
+.layout {
+  max-width: 1280px;
+  grid-template-columns: 300px minmax(0, 880px);
+  gap: 46px;
+}
+#left-nav .reading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 10px;
+  padding: 0 0 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+#left-nav .reading span { display: block; }
+#right-toc { display: none !important; }
+.chapter-nav div a.depth3 { padding-left: 20px; font-size: 11px; }
+.topic-nav-link {
+  display: flex;
+  gap: 8px;
+  padding: 7px 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.topic-nav-link:hover { color: var(--accent); text-decoration: none; }
+.topic-nav-link span:first-child {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font: 11px/2.1 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.topic-nav-index { border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.topic-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 30px 0 10px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.topic-pager a:last-child { text-align: right; }
+@media (min-width: 1450px) {
+  .layout { max-width: 1760px; grid-template-columns: 320px minmax(0, 1fr); gap: 44px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 260px minmax(0, 1fr); gap: 30px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  .topic-pager { flex-wrap: wrap; gap: 10px; }
+  .topic-pager a:last-child { text-align: left; }
+}
+
+/* Keep the theme switch reachable on phones; print is not useful on mobile. */
+@media (max-width: 760px) {
+  #theme { display: inline-block !important; }
+  #print { display: none !important; }
+}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script>
+<!-- social-meta:start --><link rel="canonical" href="https://yisiliang.github.io/topics/hashmap-concurrenthashmap/"><meta property="og:type" content="article"><meta property="og:site_name" content="源码之下，系统之上"><meta property="og:locale" content="zh_CN"><meta property="og:title" content="HashMap 与 ConcurrentHashMap · 技术专题 | YiSiliang"><meta property="og:description" content="从 hash 扰动、扩容迁移到树化条件，解释 HashMap 与 ConcurrentHashMap 的并发取舍。"><meta property="og:url" content="https://yisiliang.github.io/topics/hashmap-concurrenthashmap/"><meta property="og:image" content="https://yisiliang.github.io/assets/og-default.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="HashMap 与 ConcurrentHashMap · 技术专题 | YiSiliang"><meta name="twitter:description" content="从 hash 扰动、扩容迁移到树化条件，解释 HashMap 与 ConcurrentHashMap 的并发取舍。"><meta name="twitter:image" content="https://yisiliang.github.io/assets/og-default.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><!-- social-meta:end -->
+</head><body class="learning-reader" data-layout="learning-v2" data-reader="topics">
+<a class="skip" href="#main">跳到正文</a>
+<header class="topbar"><button aria-controls="left-nav" aria-expanded="false" aria-label="打开专题导航" class="mobile" id="menu">目录</button><div class="brand"><a class="library-home" href="../../">← 学习库</a>技术专题<span>源码原理 · 故障排查 · 架构实践</span></div><div class="tools"><button aria-label="打开全文搜索" id="search-open">搜索 <kbd>/</kbd></button><button aria-pressed="false" id="mode">要点速览</button><button id="print" type="button">打印</button><button aria-label="切换主题" id="theme">主题：系统</button></div></header>
+<div aria-hidden="true" class="progress-track"><div id="progress-bar"></div></div><div hidden="" id="drawer-backdrop"></div>
+<div class="layout"><nav aria-label="技术专题" id="left-nav"><div class="reading"><span id="progress-text">阅读进度 0%</span><span id="current-label"></span></div><p class="nav-label">技术专题 / 14篇</p><a class="topic-nav-link topic-nav-index" href="../"><span>目录</span>全部专题</a><a class="topic-nav-link" href="../java-concurrency/"><span>01</span>Java 并发编程与锁机制</a><details class="chapter-nav current" data-chapter="c2" open=""><summary><a href="./"><span>02</span>HashMap 与 ConcurrentHashMap</a></summary><div></div></details><a class="topic-nav-link" href="../jvm-memory-cms-g1/"><span>03</span>JVM 内存管理、CMS 与 G1</a><a class="topic-nav-link" href="../jvm-oom-troubleshooting/"><span>04</span>JVM OOM 与生产故障排查</a><a class="topic-nav-link" href="../spring-core-transactions/"><span>05</span>Spring 核心原理与事务</a><a class="topic-nav-link" href="../database-transactions-mvcc/"><span>06</span>数据库事务、MVCC 与性能优化</a><a class="topic-nav-link" href="../rocketmq/"><span>07</span>RocketMQ 消息队列</a><a class="topic-nav-link" href="../redis-cache/"><span>08</span>Redis 与分布式缓存</a><a class="topic-nav-link" href="../distributed-transactions/"><span>09</span>分布式事务与数据一致性</a><a class="topic-nav-link" href="../microservices-stability/"><span>10</span>微服务、高并发与系统稳定性</a><a class="topic-nav-link" href="../jit-jmm-memory-barriers/"><span>11</span>JIT即时编译、JMM与内存屏障</a><a class="topic-nav-link" href="../nginx-rate-limiting/"><span>12</span>Nginx限流原理与工程实践</a><a class="topic-nav-link" href="../jvm-memory-structure-oom/"><span>13</span>JVM内存结构与OOM排查实战</a><a class="topic-nav-link" href="../fastjson2-arm64-jit/"><span>14</span>从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷</a></nav><main id="main" tabindex="-1">
+<article class="chapter" data-title="HashMap 与 ConcurrentHashMap" id="c2"><div class="chapter-title"><p class="eyebrow">专题 02 / 完整阅读</p><h1>HashMap 与 ConcurrentHashMap</h1></div><div class="study">
+<p>本章看 OpenJDK 8u462-b08。读 Map 源码时，沿着“一个 key 放在哪里、冲突怎么办、扩容时怎么搬”这三个问题往下走，会比先背阈值更容易理解。</p>
+<h2 id="c2-s1" tabindex="-1">核心知识与原理</h2>
+<h3 id="c2-s2" tabindex="-1">HashMap 的桶、树与迁移</h3>
+<p>HashMap 可以先看成一个数组。每个数组位置叫一个桶，key 的 hash 决定它进哪个桶。两个 key 落到同一个桶时，用链表串起来；碰撞太多且数组容量足够大时，再把这个桶改成红黑树。</p>
+<p>数组长度是 2 的幂，因此可以用 <code>(n - 1) &amp; hash</code> 找下标。长度为 16 时，只用到 hash 的低 4 位。如果很多 key 的差异都在高位，它们仍会挤到少数桶里。<code>hash()</code> 先做 <code>h ^ (h &gt;&gt;&gt; 16)</code>，把高位信息混入低位，就是为了缓解这类碰撞。这一步无法拯救所有糟糕的 hashCode，更不是加密。</p>
+<p>默认负载因子是 0.75。长度 16 的表通常在元素数量超过 12 时扩容，但 table 是第一次 put 时才分配的。Node 保存 hash、key、value 和 next。key 放进去后，参与 hashCode 或 equals 的字段应保持稳定，否则再次查询可能算出另一个桶，原来的数据明明还在，却查不到。</p>
+<p>树化涉及三个数字：链长阈值 8、退树阈值 6、最小树化容量 64。它们不是“第 8 个元素必定成树，第 6 个必定退树”的机械规则。<code>treeifyBin</code> 发现容量不足 64 时会先扩容；具体第几次插入触发调用要看 putVal 的链长计数。扩容拆树时会看分组后的数量，而普通删除还会检查树形。</p>
+<p>JDK 7 的某些扩容交错会把链表接成环，JDK 8 改变迁移方式后解决了这一类问题。但两个线程仍可能同时写同一个桶，把对方的更新覆盖掉，size 也可能算错。所以 JDK 8 HashMap 依然不能用于没有同步保护的并发读写。fail-fast 迭代器能尽力报告修改，却不能替你保护数据。</p>
+<h3 id="c2-s3" tabindex="-1">ConcurrentHashMap 的读写协议</h3>
+<p>JDK 8 ConcurrentHashMap 的主体也是数组和桶，不再依靠 JDK 7 那套 Segment 数组。插入时，如果目标桶是空的，就用 CAS 放入第一个节点；如果桶已有节点，就锁住桶头，修改这个桶。拿到锁后还要确认它仍是当前桶头，因为等待期间可能发生了扩容。</p>
+<p>get 通常不需要取得桶锁。它通过带 volatile 语义的槽位读取，以及节点中的 volatile value、next，查找已经发布的节点。遇到普通链表就沿链走，遇到特殊节点就交给它的 find 方法。树桶由 TreeBin 管理，有自己的读写协调方式。</p>
+<p>扩容时的难题是：搬到一半，其他线程仍在读写。CHM 的办法是在搬完的旧桶里放一个 ForwardingNode，它指向新数组。读线程遇到它就去新表找，写线程遇到 MOVED 时还可以帮助搬迁。</p>
+<p><code>transferIndex</code> 记录还有哪些区间没分配，各线程领取不同区间，减少重复搬迁。<code>sizeCtl</code> 平时用于初始化或扩容阈值，扩容时还编码了本轮扩容标识和参与者信息，不能简单理解成一个负的线程数。最后负责收尾的线程才把新表正式发布为 table。</p>
+<p>元素数量也被分散统计：低竞争时更新 baseCount，竞争激烈时更新 CounterCell。size 把它们相加，并没有暂停全表的更新。因此没有并发修改时可以得到准确数量，修改期间应把它当作估计。mappingCount 返回 long，仍不意味着它是一份全表快照。CHM 不接受 null key 或 value，这让 get 返回 null 可以明确表示没有映射。</p>
+<h3 id="c2-s4" tabindex="-1">原子 API 的边界</h3>
+<p>下面的写法有竞态：先 get，发现没有，再 put。两个线程可能都发现没有，各自写入。putIfAbsent 把检查和插入放在一个操作里，只有一个线程能安装自己的值。</p>
+<p>computeIfAbsent 进一步允许你在缺值时计算结果。不过，JDK 8 的某些路径会在桶锁内运行计算函数：若函数去访问一个很慢的远程接口，碰撞到同一个桶的其他 key 也会跟着等。空桶路径还可能使用 ReservationNode 占位。函数应短小，不要递归修改这个 Map；返回 null 或抛异常都不会成功安装映射，以后的调用还可能重算。</p>
+<p>缓存远程数据时，可以先用短操作安装一个 Future，再在单独的线程池里执行加载。这样仍需处理加载失败、过期和容量，不能只把一个慢操作改成无界异步任务。Map 能保证自己的单次修改，却不能保证远程调用只执行一次，也不能替两个 key 的联合修改提供事务。</p>
+<h3 id="c2-s5" tabindex="-1">手工推演：从 16 扩容到 32</h3>
+<p>旧表长度是 16。hash=3 和 hash=19 都会进入桶 3，因为它们的低 4 位相同。扩成 32 后多用一位：<code>3 &amp; 16</code> 是 0，所以留在桶 3；<code>19 &amp; 16</code> 不是 0，所以移到桶 19，也就是旧下标加 16。</p>
+<p>因此每个旧桶只拆成两组，元素不会散到任意新桶。HashMap 在拆链时保留每组的相对顺序。CHM 的细节略有不同：它可以复用 lastRun 后缀，并为前面部分建立新节点。共同点是，CHM 必须先发布新表中的两个桶，再把旧桶替换成 ForwardingNode。否则读线程顺着指引过去，却找不到已经迁移的内容。</p>
+<h2 id="c2-s6" tabindex="-1">源码级解析与调用链</h2>
+<p>先看 <code>HashMap.hash</code> 为什么混高位，再看 CHM 的 <code>putVal</code> 怎样分空桶、迁移桶和普通桶。<code>transfer</code> 则是搬迁主循环，它最重要的顺序是先放新桶，后放旧桶的路标。</p>
+<p>HashMap 完整插入入口是 putVal，扩容入口是 resize，树化入口是 treeifyBin。更新已有 key 不会增加 size，新增节点才算一次结构修改。CHM 的遍历允许并发变化，通常不抛 ConcurrentModificationException，也不保证一次完整快照。</p>
+<div class="source-caption"><code>HashMap.hash</code><span>OpenJDK 8u462-b08 · L320–L341 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/HashMap.java#L320-L341">完整源码</a></span></div>
+<pre><code class="language-java">    /* ---------------- Static utilities -------------- */
+
+    /**
+     * Computes key.hashCode() and spreads (XORs) higher bits of hash
+     * to lower.  Because the table uses power-of-two masking, sets of
+     * hashes that vary only in bits above the current mask will
+     * always collide. (Among known examples are sets of Float keys
+     * holding consecutive whole numbers in small tables.)  So we
+     * apply a transform that spreads the impact of higher bits
+     * downward. There is a tradeoff between speed, utility, and
+     * quality of bit-spreading. Because many common sets of hashes
+     * are already reasonably distributed (so don't benefit from
+     * spreading), and because we use trees to handle large sets of
+     * collisions in bins, we just XOR some shifted bits in the
+     * cheapest possible way to reduce systematic lossage, as well as
+     * to incorporate impact of the highest bits that would otherwise
+     * never be used in index calculations because of table bounds.
+     */
+    static final int hash(Object key) {
+        int h;
+        return (key == null) ? 0 : (h = key.hashCode()) ^ (h &gt;&gt;&gt; 16);
+    }
+
+</code></pre>
+<p>null key 的 hash 是 0。其余 key 先保存 hashCode，再把高 16 位右移与原值异或。最后桶下标仍由 table 长度决定。</p>
+<div class="source-caption"><code>ConcurrentHashMap.transfer</code><span>OpenJDK 8u462-b08 · L2361–L2496 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L2361-L2496">完整源码</a></span></div>
+<pre><code class="language-java">    /**
+     * Moves and/or copies the nodes in each bin to new table. See
+     * above for explanation.
+     */
+    private final void transfer(Node&lt;K,V&gt;[] tab, Node&lt;K,V&gt;[] nextTab) {
+        int n = tab.length, stride;
+        if ((stride = (NCPU &gt; 1) ? (n &gt;&gt;&gt; 3) / NCPU : n) &lt; MIN_TRANSFER_STRIDE)
+            stride = MIN_TRANSFER_STRIDE; // subdivide range
+        if (nextTab == null) {            // initiating
+            try {
+                @SuppressWarnings("unchecked")
+                Node&lt;K,V&gt;[] nt = (Node&lt;K,V&gt;[])new Node&lt;?,?&gt;[n &lt;&lt; 1];
+                nextTab = nt;
+            } catch (Throwable ex) {      // try to cope with OOME
+                sizeCtl = Integer.MAX_VALUE;
+                return;
+            }
+            nextTable = nextTab;
+            transferIndex = n;
+        }
+        int nextn = nextTab.length;
+        ForwardingNode&lt;K,V&gt; fwd = new ForwardingNode&lt;K,V&gt;(nextTab);
+        boolean advance = true;
+        boolean finishing = false; // to ensure sweep before committing nextTab
+        for (int i = 0, bound = 0;;) {
+            Node&lt;K,V&gt; f; int fh;
+            while (advance) {
+                int nextIndex, nextBound;
+                if (--i &gt;= bound || finishing)
+                    advance = false;
+                else if ((nextIndex = transferIndex) &lt;= 0) {
+                    i = -1;
+                    advance = false;
+                }
+                else if (U.compareAndSwapInt
+                         (this, TRANSFERINDEX, nextIndex,
+                          nextBound = (nextIndex &gt; stride ?
+                                       nextIndex - stride : 0))) {
+                    bound = nextBound;
+                    i = nextIndex - 1;
+                    advance = false;
+                }
+            }
+            if (i &lt; 0 || i &gt;= n || i + n &gt;= nextn) {
+                int sc;
+                if (finishing) {
+                    nextTable = null;
+                    table = nextTab;
+                    sizeCtl = (n &lt;&lt; 1) - (n &gt;&gt;&gt; 1);
+                    return;
+                }
+                if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
+                    if ((sc - 2) != resizeStamp(n) &lt;&lt; RESIZE_STAMP_SHIFT)
+                        return;
+                    finishing = advance = true;
+                    i = n; // recheck before commit
+                }
+            }
+            else if ((f = tabAt(tab, i)) == null)
+                advance = casTabAt(tab, i, null, fwd);
+            else if ((fh = f.hash) == MOVED)
+                advance = true; // already processed
+            else {
+                synchronized (f) {
+                    if (tabAt(tab, i) == f) {
+                        Node&lt;K,V&gt; ln, hn;
+                        if (fh &gt;= 0) {
+                            int runBit = fh &amp; n;
+                            Node&lt;K,V&gt; lastRun = f;
+                            for (Node&lt;K,V&gt; p = f.next; p != null; p = p.next) {
+                                int b = p.hash &amp; n;
+                                if (b != runBit) {
+                                    runBit = b;
+                                    lastRun = p;
+                                }
+                            }
+                            if (runBit == 0) {
+                                ln = lastRun;
+                                hn = null;
+                            }
+                            else {
+                                hn = lastRun;
+                                ln = null;
+                            }
+                            for (Node&lt;K,V&gt; p = f; p != lastRun; p = p.next) {
+                                int ph = p.hash; K pk = p.key; V pv = p.val;
+                                if ((ph &amp; n) == 0)
+                                    ln = new Node&lt;K,V&gt;(ph, pk, pv, ln);
+                                else
+                                    hn = new Node&lt;K,V&gt;(ph, pk, pv, hn);
+                            }
+                            setTabAt(nextTab, i, ln);
+                            setTabAt(nextTab, i + n, hn);
+                            setTabAt(tab, i, fwd);
+                            advance = true;
+                        }
+                        else if (f instanceof TreeBin) {
+                            TreeBin&lt;K,V&gt; t = (TreeBin&lt;K,V&gt;)f;
+                            TreeNode&lt;K,V&gt; lo = null, loTail = null;
+                            TreeNode&lt;K,V&gt; hi = null, hiTail = null;
+                            int lc = 0, hc = 0;
+                            for (Node&lt;K,V&gt; e = t.first; e != null; e = e.next) {
+                                int h = e.hash;
+                                TreeNode&lt;K,V&gt; p = new TreeNode&lt;K,V&gt;
+                                    (h, e.key, e.val, null, null);
+                                if ((h &amp; n) == 0) {
+                                    if ((p.prev = loTail) == null)
+                                        lo = p;
+                                    else
+                                        loTail.next = p;
+                                    loTail = p;
+                                    ++lc;
+                                }
+                                else {
+                                    if ((p.prev = hiTail) == null)
+                                        hi = p;
+                                    else
+                                        hiTail.next = p;
+                                    hiTail = p;
+                                    ++hc;
+                                }
+                            }
+                            ln = (lc &lt;= UNTREEIFY_THRESHOLD) ? untreeify(lo) :
+                                (hc != 0) ? new TreeBin&lt;K,V&gt;(lo) : t;
+                            hn = (hc &lt;= UNTREEIFY_THRESHOLD) ? untreeify(hi) :
+                                (lc != 0) ? new TreeBin&lt;K,V&gt;(hi) : t;
+                            setTabAt(nextTab, i, ln);
+                            setTabAt(nextTab, i + n, hn);
+                            setTabAt(tab, i, fwd);
+                            advance = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+</code></pre>
+<p>ln 和 hn 是拆出的两组。最后三次 setTabAt 先写新表两槽，后写旧槽 fwd；这就是读线程能安全跟着 ForwardingNode 去找新桶的原因。前面的 lastRun 用于复用可用的链表后缀。</p>
+<div class="source-caption"><code>ConcurrentHashMap.putVal</code><span>OpenJDK 8u462-b08 · L1008–L1072 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java#L1008-L1072">完整源码</a></span></div>
+<pre><code class="language-java">
+    /** Implementation for put and putIfAbsent */
+    final V putVal(K key, V value, boolean onlyIfAbsent) {
+        if (key == null || value == null) throw new NullPointerException();
+        int hash = spread(key.hashCode());
+        int binCount = 0;
+        for (Node&lt;K,V&gt;[] tab = table;;) {
+            Node&lt;K,V&gt; f; int n, i, fh;
+            if (tab == null || (n = tab.length) == 0)
+                tab = initTable();
+            else if ((f = tabAt(tab, i = (n - 1) &amp; hash)) == null) {
+                if (casTabAt(tab, i, null,
+                             new Node&lt;K,V&gt;(hash, key, value, null)))
+                    break;                   // no lock when adding to empty bin
+            }
+            else if ((fh = f.hash) == MOVED)
+                tab = helpTransfer(tab, f);
+            else {
+                V oldVal = null;
+                synchronized (f) {
+                    if (tabAt(tab, i) == f) {
+                        if (fh &gt;= 0) {
+                            binCount = 1;
+                            for (Node&lt;K,V&gt; e = f;; ++binCount) {
+                                K ek;
+                                if (e.hash == hash &amp;&amp;
+                                    ((ek = e.key) == key ||
+                                     (ek != null &amp;&amp; key.equals(ek)))) {
+                                    oldVal = e.val;
+                                    if (!onlyIfAbsent)
+                                        e.val = value;
+                                    break;
+                                }
+                                Node&lt;K,V&gt; pred = e;
+                                if ((e = e.next) == null) {
+                                    pred.next = new Node&lt;K,V&gt;(hash, key,
+                                                              value, null);
+                                    break;
+                                }
+                            }
+                        }
+                        else if (f instanceof TreeBin) {
+                            Node&lt;K,V&gt; p;
+                            binCount = 2;
+                            if ((p = ((TreeBin&lt;K,V&gt;)f).putTreeVal(hash, key,
+                                                           value)) != null) {
+                                oldVal = p.val;
+                                if (!onlyIfAbsent)
+                                    p.val = value;
+                            }
+                        }
+                    }
+                }
+                if (binCount != 0) {
+                    if (binCount &gt;= TREEIFY_THRESHOLD)
+                        treeifyBin(tab, i);
+                    if (oldVal != null)
+                        return oldVal;
+                    break;
+                }
+            }
+        }
+        addCount(1L, binCount);
+        return null;
+    }
+
+</code></pre>
+<p>桶空时 casTabAt 安装第一个 Node；看到 MOVED 时帮扩容；其他情况才 synchronized(f)。进入锁后重新比较当前槽和 f，避免用过时桶头修改。</p>
+<figure class="diagram" data-diagram="1"><svg aria-label="图 1 · 对照上文阅读流程" aria-roledescription="flowchart-v2" id="jai-diagram-1-jai-diagram-1" role="img" style="max-width: 912.109375px;" viewbox="-8 -8 912.109375 227" width="100%" xmlns="http://www.w3.org/2000/svg"><style>#jai-diagram-1-jai-diagram-1{font-family:sans-serif;font-size:16px;fill:#182338;}#jai-diagram-1-jai-diagram-1 .error-icon{fill:#f4f6f9;}#jai-diagram-1-jai-diagram-1 .error-text{fill:#0b0906;stroke:#0b0906;}#jai-diagram-1-jai-diagram-1 .edge-thickness-normal{stroke-width:2px;}#jai-diagram-1-jai-diagram-1 .edge-thickness-thick{stroke-width:3.5px;}#jai-diagram-1-jai-diagram-1 .edge-pattern-solid{stroke-dasharray:0;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dashed{stroke-dasharray:3;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dotted{stroke-dasharray:2;}#jai-diagram-1-jai-diagram-1 .marker{fill:#72849a;stroke:#72849a;}#jai-diagram-1-jai-diagram-1 .marker.cross{stroke:#72849a;}#jai-diagram-1-jai-diagram-1 svg{font-family:sans-serif;font-size:16px;}#jai-diagram-1-jai-diagram-1 .label{font-family:sans-serif;color:#182338;}#jai-diagram-1-jai-diagram-1 .cluster-label text{fill:#0b0906;}#jai-diagram-1-jai-diagram-1 .cluster-label span,#jai-diagram-1-jai-diagram-1 p{color:#0b0906;}#jai-diagram-1-jai-diagram-1 .label text,#jai-diagram-1-jai-diagram-1 span,#jai-diagram-1-jai-diagram-1 p{fill:#182338;color:#182338;}#jai-diagram-1-jai-diagram-1 .node rect,#jai-diagram-1-jai-diagram-1 .node circle,#jai-diagram-1-jai-diagram-1 .node ellipse,#jai-diagram-1-jai-diagram-1 .node polygon,#jai-diagram-1-jai-diagram-1 .node path{fill:#e8eef8;stroke:#7890af;stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .flowchart-label text{text-anchor:middle;}#jai-diagram-1-jai-diagram-1 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .node .label{text-align:center;}#jai-diagram-1-jai-diagram-1 .node.clickable{cursor:pointer;}#jai-diagram-1-jai-diagram-1 .arrowheadPath{fill:#0b0b0b;}#jai-diagram-1-jai-diagram-1 .edgePath .path{stroke:#72849a;stroke-width:2.0px;}#jai-diagram-1-jai-diagram-1 .flowchart-link{stroke:#72849a;fill:none;}#jai-diagram-1-jai-diagram-1 .edgeLabel{background-color:#edf2f7;text-align:center;}#jai-diagram-1-jai-diagram-1 .edgeLabel rect{opacity:0.5;background-color:#edf2f7;fill:#edf2f7;}#jai-diagram-1-jai-diagram-1 .labelBkg{background-color:rgba(237, 242, 247, 0.5);}#jai-diagram-1-jai-diagram-1 .cluster rect{fill:#f4f6f9;stroke:hsl(216, 0%, 86.6666666667%);stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .cluster text{fill:#0b0906;}#jai-diagram-1-jai-diagram-1 .cluster span,#jai-diagram-1-jai-diagram-1 p{color:#0b0906;}#jai-diagram-1-jai-diagram-1 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:sans-serif;font-size:12px;background:#f4f6f9;border:1px solid hsl(216, 0%, 86.6666666667%);border-radius:2px;pointer-events:none;z-index:100;}#jai-diagram-1-jai-diagram-1 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#182338;}#jai-diagram-1-jai-diagram-1 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-pointEnd" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="6" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-pointStart" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="4.5" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-circleEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="11" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-circleStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker cross flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-crossEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="12" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker class="marker cross flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-crossStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-B" d="M72.116,87L82.625,75.583C93.134,64.167,114.153,41.333,136.446,29.917C158.739,18.5,182.305,18.5,194.089,18.5L205.872,18.5" id="jai-diagram-1-L-A-B-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-C" d="M110.172,105.5L114.339,105.5C118.505,105.5,126.839,105.5,143.152,105.5C159.465,105.5,183.758,105.5,195.905,105.5L208.052,105.5" id="jai-diagram-1-L-A-C-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-B LE-D" d="M331.828,18.5L344.495,18.5C357.161,18.5,382.495,18.5,402.268,18.5C422.041,18.5,436.253,18.5,443.359,18.5L450.466,18.5" id="jai-diagram-1-L-B-D-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-C LE-E" d="M329.648,105.5L342.678,105.5C355.708,105.5,381.768,105.5,400.352,105.5C418.936,105.5,430.045,105.5,435.599,105.5L441.153,105.5" id="jai-diagram-1-L-C-E-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-F" d="M72.116,124L82.625,135.417C93.134,146.833,114.153,169.667,127.946,181.083C141.739,192.5,148.305,192.5,151.589,192.5L154.872,192.5" id="jai-diagram-1-L-A-F-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-F LE-G" d="M382.828,192.5L386.995,192.5C391.161,192.5,399.495,192.5,406.945,192.5C414.395,192.5,420.961,192.5,424.245,192.5L427.528,192.5" id="jai-diagram-1-L-F-G-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-G LE-H" d="M626.484,192.5L630.651,192.5C634.818,192.5,643.151,192.5,650.601,192.5C658.051,192.5,664.618,192.5,667.901,192.5L671.184,192.5" id="jai-diagram-1-L-G-H-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g></g><g class="nodes"><g class="node default default flowchart-label" data-id="A" data-node="true" id="jai-diagram-1-flowchart-A-16" transform="translate(55.0859375, 105.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="110.171875" x="-55.0859375" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">table n / 桶 j</tspan></text></g></g><g class="node default default flowchart-label" data-id="B" data-node="true" id="jai-diagram-1-flowchart-B-17" transform="translate(271.5, 18.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="120.65625" x="-60.328125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">hash &amp; n == 0</tspan></text></g></g><g class="node default default flowchart-label" data-id="C" data-node="true" id="jai-diagram-1-flowchart-C-19" transform="translate(271.5, 105.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="116.296875" x="-58.1484375" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">hash &amp; n != 0</tspan></text></g></g><g class="node default default flowchart-label" data-id="D" data-node="true" id="jai-diagram-1-flowchart-D-21" transform="translate(529.65625, 18.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="147.78125" x="-73.890625" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">nextTable j / 低组</tspan></text></g></g><g class="node default default flowchart-label" data-id="E" data-node="true" id="jai-diagram-1-flowchart-E-23" transform="translate(529.65625, 105.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="166.40625" x="-83.203125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">nextTable j+n / 高组</tspan></text></g></g><g class="node default default flowchart-label" data-id="F" data-node="true" id="jai-diagram-1-flowchart-F-25" transform="translate(271.5, 192.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="222.65625" x="-111.328125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">迁移完成放 ForwardingNode</tspan></text></g></g><g class="node default default flowchart-label" data-id="G" data-node="true" id="jai-diagram-1-flowchart-G-27" transform="translate(529.65625, 192.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="193.65625" x="-96.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">读转向新表 / 写协助迁移</tspan></text></g></g><g class="node default default flowchart-label" data-id="H" data-node="true" id="jai-diagram-1-flowchart-H-29" transform="translate(786.296875, 192.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="219.625" x="-109.8125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">所有区间完成 / 发布新 table</tspan></text></g></g></g></g></g></svg><figcaption>图 1 · 对照上文阅读流程</figcaption><details><summary>查看 Mermaid 图表源码</summary><pre><code>flowchart LR
+ A["table n / 桶 j"] --&gt; B["hash &amp; n == 0"]
+ A --&gt; C["hash &amp; n != 0"]
+ B --&gt; D["nextTable j / 低组"]
+ C --&gt; E["nextTable j+n / 高组"]
+ A --&gt; F["迁移完成放 ForwardingNode"]
+ F --&gt; G["读转向新表 / 写协助迁移"]
+ G --&gt; H["所有区间完成 / 发布新 table"]
+</code></pre></details></figure>
+<figure class="diagram" data-diagram="2"><svg aria-label="图 2 · 对照上文阅读流程" aria-roledescription="flowchart-v2" id="jai-diagram-2-jai-diagram-2" role="img" style="max-width: 406.1015625px;" viewbox="-8 -8 406.1015625 314" width="100%" xmlns="http://www.w3.org/2000/svg"><style>#jai-diagram-2-jai-diagram-2{font-family:sans-serif;font-size:16px;fill:#182338;}#jai-diagram-2-jai-diagram-2 .error-icon{fill:#f4f6f9;}#jai-diagram-2-jai-diagram-2 .error-text{fill:#0b0906;stroke:#0b0906;}#jai-diagram-2-jai-diagram-2 .edge-thickness-normal{stroke-width:2px;}#jai-diagram-2-jai-diagram-2 .edge-thickness-thick{stroke-width:3.5px;}#jai-diagram-2-jai-diagram-2 .edge-pattern-solid{stroke-dasharray:0;}#jai-diagram-2-jai-diagram-2 .edge-pattern-dashed{stroke-dasharray:3;}#jai-diagram-2-jai-diagram-2 .edge-pattern-dotted{stroke-dasharray:2;}#jai-diagram-2-jai-diagram-2 .marker{fill:#72849a;stroke:#72849a;}#jai-diagram-2-jai-diagram-2 .marker.cross{stroke:#72849a;}#jai-diagram-2-jai-diagram-2 svg{font-family:sans-serif;font-size:16px;}#jai-diagram-2-jai-diagram-2 .label{font-family:sans-serif;color:#182338;}#jai-diagram-2-jai-diagram-2 .cluster-label text{fill:#0b0906;}#jai-diagram-2-jai-diagram-2 .cluster-label span,#jai-diagram-2-jai-diagram-2 p{color:#0b0906;}#jai-diagram-2-jai-diagram-2 .label text,#jai-diagram-2-jai-diagram-2 span,#jai-diagram-2-jai-diagram-2 p{fill:#182338;color:#182338;}#jai-diagram-2-jai-diagram-2 .node rect,#jai-diagram-2-jai-diagram-2 .node circle,#jai-diagram-2-jai-diagram-2 .node ellipse,#jai-diagram-2-jai-diagram-2 .node polygon,#jai-diagram-2-jai-diagram-2 .node path{fill:#e8eef8;stroke:#7890af;stroke-width:1px;}#jai-diagram-2-jai-diagram-2 .flowchart-label text{text-anchor:middle;}#jai-diagram-2-jai-diagram-2 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#jai-diagram-2-jai-diagram-2 .node .label{text-align:center;}#jai-diagram-2-jai-diagram-2 .node.clickable{cursor:pointer;}#jai-diagram-2-jai-diagram-2 .arrowheadPath{fill:#0b0b0b;}#jai-diagram-2-jai-diagram-2 .edgePath .path{stroke:#72849a;stroke-width:2.0px;}#jai-diagram-2-jai-diagram-2 .flowchart-link{stroke:#72849a;fill:none;}#jai-diagram-2-jai-diagram-2 .edgeLabel{background-color:#edf2f7;text-align:center;}#jai-diagram-2-jai-diagram-2 .edgeLabel rect{opacity:0.5;background-color:#edf2f7;fill:#edf2f7;}#jai-diagram-2-jai-diagram-2 .labelBkg{background-color:rgba(237, 242, 247, 0.5);}#jai-diagram-2-jai-diagram-2 .cluster rect{fill:#f4f6f9;stroke:hsl(216, 0%, 86.6666666667%);stroke-width:1px;}#jai-diagram-2-jai-diagram-2 .cluster text{fill:#0b0906;}#jai-diagram-2-jai-diagram-2 .cluster span,#jai-diagram-2-jai-diagram-2 p{color:#0b0906;}#jai-diagram-2-jai-diagram-2 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:sans-serif;font-size:12px;background:#f4f6f9;border:1px solid hsl(216, 0%, 86.6666666667%);border-radius:2px;pointer-events:none;z-index:100;}#jai-diagram-2-jai-diagram-2 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#182338;}#jai-diagram-2-jai-diagram-2 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-pointEnd" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="6" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-pointStart" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="4.5" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-circleEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="11" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-circleStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker cross flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-crossEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="12" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker class="marker cross flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-crossStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-B" d="M155.102,32.245L143.737,37.205C132.372,42.164,109.643,52.082,98.279,60.324C86.914,68.567,86.914,75.133,86.914,78.417L86.914,81.7" id="jai-diagram-2-L-A-B-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-B LE-C" d="M86.914,124L86.914,128.167C86.914,132.333,86.914,140.667,86.914,148.117C86.914,155.567,86.914,162.133,86.914,165.417L86.914,168.7" id="jai-diagram-2-L-B-C-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-C LE-D" d="M86.914,211L86.914,215.167C86.914,219.333,86.914,227.667,86.914,235.117C86.914,242.567,86.914,249.133,86.914,252.417L86.914,255.7" id="jai-diagram-2-L-C-D-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-E" d="M218.102,32.245L229.466,37.205C240.831,42.164,263.56,52.082,274.924,60.324C286.289,68.567,286.289,75.133,286.289,78.417L286.289,81.7" id="jai-diagram-2-L-A-E-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-E LE-F" d="M286.289,124L286.289,128.167C286.289,132.333,286.289,140.667,286.289,148.117C286.289,155.567,286.289,162.133,286.289,165.417L286.289,168.7" id="jai-diagram-2-L-E-F-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g></g><g class="nodes"><g class="node default default flowchart-label" data-id="A" data-node="true" id="jai-diagram-2-flowchart-A-30" transform="translate(186.6015625, 18.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="63" x="-31.5" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">数组槽</tspan></text></g></g><g class="node default default flowchart-label" data-id="B" data-node="true" id="jai-diagram-2-flowchart-B-31" transform="translate(86.9140625, 105.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="173.828125" x="-86.9140625" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">Node hash/key/value</tspan></text></g></g><g class="node default default flowchart-label" data-id="C" data-node="true" id="jai-diagram-2-flowchart-C-33" transform="translate(86.9140625, 192.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="91.125" x="-45.5625" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">next Node</tspan></text></g></g><g class="node default default flowchart-label" data-id="D" data-node="true" id="jai-diagram-2-flowchart-D-35" transform="translate(86.9140625, 279.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="63" x="-31.5" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">碰撞链</tspan></text></g></g><g class="node default default flowchart-label" data-id="E" data-node="true" id="jai-diagram-2-flowchart-E-37" transform="translate(286.2890625, 105.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="72.390625" x="-36.1953125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">TreeBin</tspan></text></g></g><g class="node default default flowchart-label" data-id="F" data-node="true" id="jai-diagram-2-flowchart-F-39" transform="translate(286.2890625, 192.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="207.625" x="-103.8125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">红黑树 TreeNode / 双向链</tspan></text></g></g></g></g></g></svg><figcaption>图 2 · 对照上文阅读流程</figcaption><details><summary>查看 Mermaid 图表源码</summary><pre><code>flowchart TD
+ A["数组槽"] --&gt; B["Node hash/key/value"]
+ B --&gt; C["next Node"]
+ C --&gt; D["碰撞链"]
+ A --&gt; E["TreeBin"]
+ E --&gt; F["红黑树 TreeNode / 双向链"]
+</code></pre></details></figure>
+<h2 id="c2-s7" tabindex="-1">三层原理问答</h2>
+<details class="question" open=""><summary><h3 id="c2-s8" tabindex="-1">1. 为什么用 2 的幂容量和 hash 扰动？</h3></summary><div class="answer">
+<p>长度为 2 的幂时，可以用位与取下标，扩容也只需看新增的一位。扰动把 hashCode 的高位混到低位，避免只看低几位时一些 key 都进同一个桶。</p>
+<p><strong>扩容为什么不用重新算 hashCode？</strong> 节点已经保存扰动后的 hash。长度翻倍时检查 hash &amp; oldCap，就能决定留在原下标还是移到原下标加 oldCap。完整 hash 不需要重算。</p>
+<p><strong>容量怎么定？</strong> 预估元素数量和负载因子，减少峰值期间迁移。过度预分配也占内存、拖慢某些遍历。若用户 key 的 hashCode 本身很差，还要检查分布和碰撞，不能只扩容。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c2-s9" tabindex="-1">2. 树化阈值是 8，为何有时仍是链表？</h3></summary><div class="answer">
+<p>桶里链表较长时会考虑树化，但表长度不足 64 时优先扩容。较小的表里碰撞多，可能只是桶太少，扩容后就分开了，没有必要立即换更重的树节点。</p>
+<p><strong>8 和 6 是怎么用的？</strong> putVal 的链长计数决定何时调用 treeifyBin，不能直接说第 8 个一定树化。扩容拆树时有数量判定，普通删除也会考虑树形；不同路径要分开读。</p>
+<p><strong>树化是不是性能优化首选？</strong> 它主要保护碰撞严重时的表现。先改善 key 的分布。不可比较的 key 在某些树查找路径也有额外代价，不应把所有情况都简化成固定 logN。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c2-s10" tabindex="-1">3. JDK 8 HashMap 没有迁移环，还安全吗？</h3></summary><div class="answer">
+<p>仍不安全。JDK 8 避免了旧迁移方式产生环的一类问题，但没有给 HashMap 增加并发写保护。两个 put 仍可能覆盖，读也没有自动获得需要的发布保证。</p>
+<p><strong>具体会错在哪里？</strong> 两线程都看到空桶并分别写入，后写者可能覆盖前写者；size 的增量也不是原子操作。modCount 和 fail-fast 只是尝试发现结构变化，不会互斥地保护数据。</p>
+<p><strong>只读配置能用吗？</strong> 可以先在单线程中构建，安全发布完整引用，并确保之后不修改。动态共享更新可用 CHM，不过多个 key 一起变化的业务规则仍要另加保护。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c2-s11" tabindex="-1">4. CHM 扩容期间 get 会不会漏数据？</h3></summary><div class="answer">
+<p>迁移完的旧桶会变成 ForwardingNode，告诉读线程到新表继续找。因此 get 不必等全表搬完。还没迁移的桶仍按原来的结构查询。</p>
+<p><strong>发布顺序有什么讲究？</strong> transfer 先在 nextTable 放好低、高两组，再把旧槽放成 forwarding。写线程遇到 MOVED 可协助迁移，读通过 find 转到新表。不能先给路标，再迟迟没有目的数据。</p>
+<p><strong>两次 get 能保证一起吗？</strong> 不能。每次查询正常，不代表两次之间没人修改。需要多 key 一致状态时，应保存一个整体不可变对象、用外部同步或数据库事务。容量预估只是减少迁移成本。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c2-s12" tabindex="-1">5. computeIfAbsent 能用来加载远程数据吗？</h3></summary><div class="answer">
+<p>可以写，但不适合把慢远程 IO 直接放进去。JDK 8 的部分路径会在桶锁内运行函数，同桶其他 key 也会被拖慢。映射函数最好快速完成。</p>
+<p><strong>会不会只执行一次外部动作？</strong> 返回 null 或抛异常不会安装映射，后续可能重算；删除后也可能再加载。ReservationNode 与锁保护的是 Map 操作，不是远程付款等副作用。也不要在函数中递归修改 Map。</p>
+<p><strong>如何改加载？</strong> 用短操作安装 Future，加载交给有界执行器。失败清理用 remove(key, 同一个Future)，免得删掉后来新装的值。还要处理超时、过期和缓存总量。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c2-s13" tabindex="-1">6. size 能作为并发限流依据吗？</h3></summary><div class="answer">
+<p>不能。两个线程都可能在 size() 小于上限时通过，然后分别插入。即使 size 读取完全准确，检查和插入之间仍会有竞态。</p>
+<p><strong>为什么并发 size 还是估计？</strong> sumCount 分别读 baseCount 和 CounterCell，其他线程并没有停下来。mappingCount 用 long 解决表达范围，不提供一份冻结的全表快照。</p>
+<p><strong>限额用什么？</strong> 用 Semaphore 或原子条件计数控制准入，并处理失败、取消和过期时的释放。若计数与 Map 插入分离，也要确保失败后两边不会永远不一致。</p>
+</div></details>
+<h2 id="c2-s14" tabindex="-1">模拟生产案例：缓存加载造成桶级阻塞</h2>
+<p>画像缓存用 computeIfAbsent 调远程接口，一个接口超时后，一些不同用户的加载也突然变慢。这是模拟情境，重点检查是否误把远程调用放进了桶锁。</p>
+<p>先比较阻塞线程的 Monitor 地址和调用栈，再检查 key 的 hash 分布。若多个不同 key 碰撞到同一桶，应该能看到一个线程在映射函数里等网络，其他线程等同一个 Node Monitor。线程池总体有余量，也不排除这种局部阻塞。</p>
+<p>改成快速安装加载 Future，再由有界执行器做 IO。失败时只删除自己安装的那个 Future，设置超时与缓存上限。改善 hashCode 能减少碰撞，但不能代替移出慢操作。</p>
+<p>可在测试中使用固定 hashCode 的 key 和慢加载器对照：改后不同 key 不再因为桶锁一起等，重复同 key 仍按预定方式合并。以后测试热点和碰撞，不只测试均匀随机 key。</p>
+<h2 id="c2-s15" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c2-s16" tabindex="-1">一分钟要点回顾</h3>
+<p>HashMap 用数组找桶，碰撞用链表，长链且容量足够时换树。扩容翻倍后只需看旧容量那一位，决定留原桶还是加旧容量。JDK 8 HashMap 仍不适合无同步并发写。CHM 空桶 CAS、有节点时锁桶，搬完的旧桶放 ForwardingNode，读去新表找、写可帮忙搬。size 是并发估计，computeIfAbsent 不适合慢 IO；单个 Map 操作正确，也不等于多个业务步骤有事务。</p>
+<h3 id="c2-s17" tabindex="-1">深入理解与机制串联</h3>
+<p>我会从一个 put 讲起。HashMap 先扰动 hash，把高位信息混到低位，再用长度减一做位与定位桶。桶空就插入，有节点就比较 key，相同则更新，否则追加。链长到触发条件时还要看容量，表不足 64 会先扩容，不是背一个 8 就结束。</p>
+<p>扩容可以手算：旧长度 16，hash 3 和 19 都在桶 3。长度变 32 后，3 的新增位是 0，仍在 3；19 的新增位是 1，去 19。HashMap 拆链保留分组内相对顺序，解决了旧头插迁移形成环的一类问题，但没有增加并发保护，覆盖写和 size 错误仍可能发生。</p>
+<p>CHM 的空槽用 CAS 安装，非空桶锁住头节点后重查，防止等待期间桶已经变化。读取通过带 volatile 语义的槽和链接查找。扩容先把新桶放好，再在旧桶放 ForwardingNode；读者沿它转向新表，写者还可以协助。transferIndex 分配搬迁区间，最后收尾发布新 table。</p>
+<p>计数用 baseCount 和 CounterCell 分散更新，size 求和没有暂停其他线程，所以不能先 size 小于限额再插入。computeIfAbsent 也只负责映射操作，慢计算可能挡住同桶 key，失败还可能再次计算，不能借它保证付款只执行一次。</p>
+<p>实际做缓存，我会检查 key 是否稳定、hash 分布、加载耗时和容量。需要多 key 一起变化时另设计同步或数据库事务；加载 IO 则与快速安装占位分开，并测试超时、失败和旧任务清理。</p>
+<h3 id="c2-s18" tabindex="-1">延伸问题、常见误解与速记</h3>
+<ul>
+<li>高频追问：为什么 CHM 不接受 null？扩容什么时候发布新表？key 改了为什么查不到？</li>
+<li>容易答错：CHM 完全无锁；负 sizeCtl 就是负线程数；HashMap 没环就线程安全；映射函数外部副作用只执行一次。</li>
+<li>常看的源码：<code>HashMap.hash/putVal/resize/treeifyBin</code>、<code>ConcurrentHashMap.putVal/transfer/helpTransfer/addCount/sumCount/computeIfAbsent</code>。</li>
+<li>阅读时分清：放入一个 key 的过程，与同时改变多个业务值的过程。</li>
+</ul>
+<h2 id="c2-s19" tabindex="-1">官方资料与版本来源</h2>
+<p>本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 <a href="../source-notices.txt">source-notices.txt</a>，下载记录见 <a href="../sources.json">sources.json</a>。</p>
+<ul>
+<li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/HashMap.java">HashMap.hash · OpenJDK 8u462-b08</a></li>
+<li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/jdk/src/share/classes/java/util/concurrent/ConcurrentHashMap.java">ConcurrentHashMap.transfer · OpenJDK 8u462-b08</a></li>
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c2-quick-core">先记住这几件事</h2><ul><li>扩容翻倍后，元素留在原桶，或移到原下标加旧容量。</li><li>容量不足 64 时优先扩容，不能只用链长 8 判断树化。</li><li>JDK 8 HashMap 仍可能并发覆盖，fail-fast 不保护写入。</li><li>CHM 空桶用 CAS，非空桶锁桶，旧桶用 ForwardingNode 指向新表。</li><li>size 不是并发快照，computeIfAbsent 避免慢 IO。</li></ul><h2 id="c2-quick-qa">四个重点问题</h2><details class="question" open=""><summary><span class="question-title">1. 为什么用 2 的幂容量和 hash 扰动？</span></summary><div class="answer">
+<p>长度为 2 的幂时，可以用位与取下标，扩容也只需看新增的一位。扰动把 hashCode 的高位混到低位，避免只看低几位时一些 key 都进同一个桶。</p>
+<p><strong>扩容为什么不用重新算 hashCode？</strong> 节点已经保存扰动后的 hash。长度翻倍时检查 hash &amp; oldCap，就能决定留在原下标还是移到原下标加 oldCap。完整 hash 不需要重算。</p>
+<p><strong>容量怎么定？</strong> 预估元素数量和负载因子，减少峰值期间迁移。过度预分配也占内存、拖慢某些遍历。若用户 key 的 hashCode 本身很差，还要检查分布和碰撞，不能只扩容。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">2. 树化阈值是 8，为何有时仍是链表？</span></summary><div class="answer">
+<p>桶里链表较长时会考虑树化，但表长度不足 64 时优先扩容。较小的表里碰撞多，可能只是桶太少，扩容后就分开了，没有必要立即换更重的树节点。</p>
+<p><strong>8 和 6 是怎么用的？</strong> putVal 的链长计数决定何时调用 treeifyBin，不能直接说第 8 个一定树化。扩容拆树时有数量判定，普通删除也会考虑树形；不同路径要分开读。</p>
+<p><strong>树化是不是性能优化首选？</strong> 它主要保护碰撞严重时的表现。先改善 key 的分布。不可比较的 key 在某些树查找路径也有额外代价，不应把所有情况都简化成固定 logN。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">3. JDK 8 HashMap 没有迁移环，还安全吗？</span></summary><div class="answer">
+<p>仍不安全。JDK 8 避免了旧迁移方式产生环的一类问题，但没有给 HashMap 增加并发写保护。两个 put 仍可能覆盖，读也没有自动获得需要的发布保证。</p>
+<p><strong>具体会错在哪里？</strong> 两线程都看到空桶并分别写入，后写者可能覆盖前写者；size 的增量也不是原子操作。modCount 和 fail-fast 只是尝试发现结构变化，不会互斥地保护数据。</p>
+<p><strong>只读配置能用吗？</strong> 可以先在单线程中构建，安全发布完整引用，并确保之后不修改。动态共享更新可用 CHM，不过多个 key 一起变化的业务规则仍要另加保护。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">4. CHM 扩容期间 get 会不会漏数据？</span></summary><div class="answer">
+<p>迁移完的旧桶会变成 ForwardingNode，告诉读线程到新表继续找。因此 get 不必等全表搬完。还没迁移的桶仍按原来的结构查询。</p>
+<p><strong>发布顺序有什么讲究？</strong> transfer 先在 nextTable 放好低、高两组，再把旧槽放成 forwarding。写线程遇到 MOVED 可协助迁移，读通过 find 转到新表。不能先给路标，再迟迟没有目的数据。</p>
+<p><strong>两次 get 能保证一起吗？</strong> 不能。每次查询正常，不代表两次之间没人修改。需要多 key 一致状态时，应保存一个整体不可变对象、用外部同步或数据库事务。容量预估只是减少迁移成本。</p>
+</div></details><h2 id="c2-quick-answer">核心要点</h2><p>HashMap 用数组找桶，碰撞用链表，长链且容量足够时换树。扩容翻倍后只需看旧容量那一位，决定留原桶还是加旧容量。JDK 8 HashMap 仍不适合无同步并发写。CHM 空桶 CAS、有节点时锁桶，搬完的旧桶放 ForwardingNode，读去新表找、写可帮忙搬。size 是并发估计，computeIfAbsent 不适合慢 IO；单个 Map 操作正确，也不等于多个业务步骤有事务。</p><h2 id="c2-quick-errors">常见误解与源码</h2><ul>
+<li>高频追问：为什么 CHM 不接受 null？扩容什么时候发布新表？key 改了为什么查不到？</li>
+<li>容易答错：CHM 完全无锁；负 sizeCtl 就是负线程数；HashMap 没环就线程安全；映射函数外部副作用只执行一次。</li>
+<li>常看的源码：<code>HashMap.hash/putVal/resize/treeifyBin</code>、<code>ConcurrentHashMap.putVal/transfer/helpTransfer/addCount/sumCount/computeIfAbsent</code>。</li>
+<li>阅读时分清：放入一个 key 的过程，与同时改变多个业务值的过程。</li>
+</ul></section></article><nav aria-label="专题翻页" class="topic-pager"><a href="../java-concurrency/">← Java 并发编程与锁机制</a><a href="../">全部专题</a><a href="../jvm-memory-cms-g1/">JVM 内存管理、CMS 与 G1 →</a></nav></main></div>
+<dialog aria-labelledby="search-title" id="search-dialog"><div class="search-head"><h2 id="search-title">全文搜索</h2><button aria-label="关闭搜索" id="search-close">关闭</button></div><label for="search-input">搜索当前专题的关键词、源码方法或学习问题</label><input autocomplete="off" id="search-input" placeholder="例如：sizeCtl、事务回查、Direct buffer" type="search"/><p aria-live="polite" id="search-status" role="status">输入关键词，搜索本篇完整正文与答案。</p><div id="search-results"></div></dialog><div aria-live="polite" id="toast" role="status"></div>
+<footer>按章标注源码版本 · 教学案例与实测排查分别标注 · <a href="./article.md">下载 Markdown 正文</a> · <a href="../VERIFICATION.md">验证范围</a></footer><dialog aria-label="图解放大" id="diagram-dialog"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {
+    if(document.body.dataset.tocScope==='document')return [...$('#main').querySelectorAll('.chapter-title h1,.chapter-title h2,.study h2,.study h3')];
+    return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];
+  }
+  function makeToc() {
+    sections=visibleHeadings();
+    const nav=active && document.querySelector('.chapter-nav[data-chapter="'+active.id+'"]');
+    if(nav){
+      const box=nav.querySelector('div');box.replaceChildren();
+      sections.forEach(h=>{if(!h.id)return;const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';box.append(a);});
+      nav.open=true;
+    }
+    const label=$('#current-label');if(label)label.textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function selectChapter(article) {
+    active=article;
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();
+  }
+  function scrollToTarget(target) {
+    const margin=window.innerWidth<=760?115:90;
+    window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top+window.scrollY-margin),behavior:'instant'});
+  }
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)scrollToTarget($('#review-route'));closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    selectChapter(article);closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      scrollToTarget(target);if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();
+    }
+    updateReading(false);
+  }
+  function updateReading(trackChapter=true) {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;
+    let currentChapter=chapters[0];
+    for(const chapter of chapters){if(chapter.getBoundingClientRect().top<=margin+30)currentChapter=chapter;else break;}
+    const first=chapters[0].getBoundingClientRect(),last=chapters[chapters.length-1].getBoundingClientRect();
+    const box={top:first.top,bottom:last.bottom,height:last.bottom-first.top};
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(progress===100)currentChapter=chapters[chapters.length-1];
+    if(trackChapter && currentChapter!==active)selectChapter(currentChapter);
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('.chapter-nav div a').forEach(a=>{const isCurrent=!!current && a.hash==='#'+current.id;a.classList.toggle('current',isCurrent);if(isCurrent){const details=a.closest('details');if(details)details.open=true;}});
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{
+        const canvas=$('#diagram-content');canvas.classList.add('diagram');
+        canvas.style.margin='0';canvas.style.padding='0';canvas.style.border='0';
+        canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));
+        const ids=new Map([...canvas.querySelectorAll('[id]')].map(el=>[el.id,'zoom-'+el.id]));
+        const keys=[...ids.keys()].sort((a,b)=>b.length-a.length).map(id=>id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+        const pattern=keys.length?new RegExp('#('+keys.join('|')+')(?=$|[^\\w-])','g'):null;
+        const references=value=>pattern?value.replace(pattern,(_,id)=>'#'+ids.get(id)):value;
+        canvas.querySelectorAll('[id]').forEach(el=>{el.id=ids.get(el.id);});
+        // Mermaid scopes CSS selectors to the root SVG ID; keep those selectors
+        // and marker/use references aligned with the renamed clone IDs.
+        canvas.querySelectorAll('style').forEach(el=>{el.textContent=references(el.textContent);});
+        canvas.querySelectorAll('*').forEach(el=>{
+          for(const attr of ['style','fill','stroke','marker-end','marker-start','marker-mid','clip-path','mask','filter','href','xlink:href']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,references(value));
+          }
+          for(const attr of ['aria-labelledby','aria-describedby']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.split(/\s+/).map(id=>ids.get(id)||id).join(' '));
+          }
+        });scale(1);viewer.showModal();
+      });
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
+})();
+</script></body></html>

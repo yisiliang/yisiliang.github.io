@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://yisiliang.github.io/sitemap.xml

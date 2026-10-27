@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark">
+<meta name="description" content="技术专题：14 篇独立长文，覆盖 Java 并发、JVM、Spring、数据库、RocketMQ、Redis、分布式事务、稳定性、JIT 与 Nginx 限流。">
+<title>技术专题 · 源码之下，系统之上 | YiSiliang</title>
+<style>:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+</style>
+<script>(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script>
+<script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.8 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+a{color:var(--accent);text-decoration:none}.wrap{max-width:1180px;margin:0 auto;padding:0 26px}
+header{border-bottom:1px solid var(--border);background:var(--surface)}.bar{display:flex;align-items:center;justify-content:space-between;min-height:70px;gap:16px;flex-wrap:wrap}
+.brand{font-weight:700}.brand span{font-size:11px;color:var(--muted);font-weight:400;margin-left:8px}nav a{margin-left:16px;font-size:14px}
+.hero{padding:54px 0 30px;border-bottom:1px solid var(--border)}.eyebrow{font-size:11px;letter-spacing:.12em;color:var(--muted);font-weight:600;margin:0}
+h1{font-size:36px;margin:14px 0 10px;letter-spacing:-.02em}.hero p{max-width:760px;color:var(--muted);margin:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:32px 0 12px}
+.topic-card{border:1px solid var(--border);border-radius:10px;background:var(--surface);transition:.15s}.topic-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.topic-card a{display:block;padding:20px 22px 18px;color:var(--text)}.num{font:12px/1.4 ui-monospace,monospace;color:var(--muted)}
+.topic-card h2{font-size:19px;margin:6px 0 8px;line-height:1.45}.topic-card p{font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.7}
+.more{font-size:12px;color:var(--accent)}.route{padding:26px 0 60px}.route h2{font-size:22px;margin:0 0 14px}
+.route ol{list-style:none;padding:0;display:grid;gap:8px}.route li{display:grid;grid-template-columns:110px 1fr;gap:14px;font-size:14px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.route time{color:var(--muted)}footer{border-top:1px solid var(--border);padding:24px 0;font-size:12px;color:var(--muted)}
+@media(max-width:640px){h1{font-size:28px}.hero{padding:34px 0 22px}.grid{grid-template-columns:1fr}}
+</style>
+<!-- social-meta:start --><link rel="canonical" href="https://yisiliang.github.io/topics/"><meta property="og:type" content="website"><meta property="og:site_name" content="源码之下，系统之上"><meta property="og:locale" content="zh_CN"><meta property="og:title" content="技术专题 · 源码之下，系统之上 | YiSiliang"><meta property="og:description" content="技术专题：14 篇独立长文，覆盖 Java 并发、JVM、Spring、数据库、RocketMQ、Redis、分布式事务、稳定性、JIT 与 Nginx 限流。"><meta property="og:url" content="https://yisiliang.github.io/topics/"><meta property="og:image" content="https://yisiliang.github.io/assets/og-default.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="技术专题 · 源码之下，系统之上 | YiSiliang"><meta name="twitter:description" content="技术专题：14 篇独立长文，覆盖 Java 并发、JVM、Spring、数据库、RocketMQ、Redis、分布式事务、稳定性、JIT 与 Nginx 限流。"><meta name="twitter:image" content="https://yisiliang.github.io/assets/og-default.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><!-- social-meta:end -->
+</head><body>
+<header><div class="wrap bar"><div class="brand"><a href="../">← 学习库</a><span>SOURCE NOTES / TECHNICAL DEEP DIVES</span></div><nav><a href="../">首页</a><a href="https://github.com/yisiliang/yisiliang.github.io" target="_blank" rel="noreferrer">GitHub</a><button id="theme" type="button" style="margin-left:16px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)">主题：系统</button></nav></div></header>
+<main class="wrap"><section class="hero"><p class="eyebrow">TECHNICAL DEEP DIVES</p><h1>技术专题</h1><p>14 篇独立长文，按问题读原理，再对照固定版本源码。每篇都有自己的目录与搜索，不再合并成一个总页。</p></section>
+<section class="grid"><article class="topic-card"><a href="./java-concurrency/"><span class="num">01</span><h2>Java 并发编程与锁机制</h2><p>从 JMM 与 happens-before 出发，串起 synchronized、CAS、AQS 和线程池的准入与过载边界。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./hashmap-concurrenthashmap/"><span class="num">02</span><h2>HashMap 与 ConcurrentHashMap</h2><p>从 hash 扰动、扩容迁移到树化条件，解释 HashMap 与 ConcurrentHashMap 的并发取舍。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./jvm-memory-cms-g1/"><span class="num">03</span><h2>JVM 内存管理、CMS 与 G1</h2><p>按 HotSpot 8 的对象生命周期理解分代、CMS 与 G1 的暂停、并发和失败恢复。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./jvm-oom-troubleshooting/"><span class="num">04</span><h2>JVM OOM 与生产故障排查</h2><p>用一条从现象到证据的排查链，区分堆、元空间、Direct Memory、线程与容器限额导致的 OOM。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./spring-core-transactions/"><span class="num">05</span><h2>Spring 核心原理与事务</h2><p>从 Bean 生命周期到事务代理，理解 Spring 的初始化顺序、循环依赖与传播行为。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./database-transactions-mvcc/"><span class="num">06</span><h2>数据库事务、MVCC 与性能优化</h2><p>从 Read View、Undo 到执行计划，解释 MVCC、隔离级别与锁范围。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./rocketmq/"><span class="num">07</span><h2>RocketMQ 消息队列</h2><p>沿 CommitLog、ConsumeQueue、IndexFile 与事务消息，梳理 RocketMQ 的五类失败边界。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./redis-cache/"><span class="num">08</span><h2>Redis 与分布式缓存</h2><p>从单线程命令、持久化到缓存一致性，理解 Redis 的恢复窗口与分布式锁租约。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./distributed-transactions/"><span class="num">09</span><h2>分布式事务与数据一致性</h2><p>从 CAP 到 Outbox、幂等与补偿，建立分布式事务的可验证边界。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./microservices-stability/"><span class="num">10</span><h2>微服务、高并发与系统稳定性</h2><p>从 EventLoop、背压到重试与容量，讨论高并发系统的过载控制。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./jit-jmm-memory-barriers/"><span class="num">11</span><h2>JIT即时编译、JMM与内存屏障</h2><p>从热点识别、分层编译、OSR 到内存屏障，解释 JIT 与 JMM 的协作。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./nginx-rate-limiting/"><span class="num">12</span><h2>Nginx限流原理与工程实践</h2><p>固定 NGINX 1.28.0，解释 excess、rate、burst、nodelay、delay 与多 zone 记账。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./jvm-memory-structure-oom/"><span class="num">13</span><h2>JVM内存结构与OOM排查实战</h2><p>以 HotSpot JDK8 为基线，覆盖 Heap、Metaspace、Direct Memory、线程与容器 RSS 的排查。</p><span class="more">完整阅读 ↗</span></a></article><article class="topic-card"><a href="./fastjson2-arm64-jit/"><span class="num">14</span><h2>从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷</h2><p>通过 ARM64 容器、Unsafe 探针与 JDK 对照，把 Fastjson2 解析异常定位到 JDK-8267689。</p><span class="more">完整阅读 ↗</span></a></article></section>
+<section class="route" id="review-route"><h2>90分钟回顾路线</h2><p>按下面顺序复习，先回顾每篇的要点速览，再展开原理问答；RocketMQ 留 15 分钟。</p><ol><li><time>0–8 分钟</time><a href="./java-concurrency/">JMM、AQS 与线程池准入</a></li><li><time>8–15 分钟</time><a href="./hashmap-concurrenthashmap/">CHM 迁移协议与原子 API</a></li><li><time>15–24 分钟</time><a href="./jvm-memory-cms-g1/">CMS/G1 正常、失败与恢复</a></li><li><time>24–32 分钟</time><a href="./jvm-oom-troubleshooting/">OOM 分类与证据链</a></li><li><time>32–40 分钟</time><a href="./spring-core-transactions/">代理、事务与连接预算</a></li><li><time>40–49 分钟</time><a href="./database-transactions-mvcc/">MVCC、锁与执行计划</a></li><li><time>49–64 分钟</time><a href="./rocketmq/">RocketMQ 五类失败边界</a></li><li><time>64–72 分钟</time><a href="./redis-cache/">缓存一致性与锁租约</a></li><li><time>72–81 分钟</time><a href="./distributed-transactions/">Outbox、幂等与补偿</a></li><li><time>81–90 分钟</time><a href="./microservices-stability/">EventLoop、重试与容量</a></li></ol><p>扩展阅读：<a href="./jit-jmm-memory-barriers/">JIT即时编译、JMM与内存屏障</a>、<a href="./nginx-rate-limiting/">Nginx限流原理与工程实践</a>、<a href="./jvm-memory-structure-oom/">JVM内存结构与OOM排查实战</a>、<a href="./fastjson2-arm64-jit/">Fastjson2与ARM64 JIT编译缺陷排查</a>。</p></section></main>
+<footer><div class="wrap">共 14 篇 · 66 道三层问答 · 48 张图解 · 按篇标注源码版本 · <a href="../">源码学习库</a></footer>
+<script>const names={system:'系统',light:'浅色',dark:'深色'};const button=document.getElementById('theme');const label=()=>{button.textContent='主题：'+names[learningTheme.get()];};label();button.addEventListener('click',()=>{learningTheme.cycle();label();});window.addEventListener('learning-theme-change',label);</script>
+</body></html>

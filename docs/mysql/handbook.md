@@ -4,7 +4,7 @@
 
 **固定版本：mysql-8.4.0（8.4 LTS起点）**；官方提交：`dc86e412f18b36ce271f791026714e8caa0ec919`。这是一份固定源码基线的机制教程，不是最新补丁部署建议。研究覆盖Classic Protocol、Server优化执行与InnoDB；不覆盖NDB、X Protocol、商业插件及完整SQL语法。
 
-[交互阅读](index.html) · [离线包](mysql-offline.zip) · [核验记录](VERIFICATION.md) · [源码许可](source-notices.txt)
+[交互阅读](index.html) · [核验记录](VERIFICATION.md) · [源码许可](source-notices.txt)
 
 每章先说明为什么需要这一步，再落到对象、字段、条件和失败路径。流程图是作者机制示意，省略支线，不能代替完整源码。真实源码固定SHA；函数窗口包含完整函数与分支，声明类窗口保留所讨论的字段或枚举，完整文件由永久链接提供。实验SQL**未执行**，所有预期均需在隔离的MySQL8.4环境复核。
 

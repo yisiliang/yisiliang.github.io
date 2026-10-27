@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Unify catalog readers with the technical-topic layout, preserving raw source/SVG.
+"""Unify catalog readers with the single-sidebar learning layout.
 
 Run after a book generator. HTML adapters preserve old anchors, downloadable
-resources and byte-exact code. Shared CSS/JS are inlined for existing offline ZIPs.
+Markdown resources and byte-exact code. Shared CSS/JS are inlined into every page.
 """
 from html.parser import HTMLParser
 from pathlib import Path
-import html,json,re,zipfile
+import html,json,re
 from reader.learning_words import html_wording
 ROOT=Path(__file__).resolve().parents[1]
 CSS=(ROOT/'tools/reader/theme.css').read_text()+(ROOT/'tools/reader/style.css').read_text()
 JS=(ROOT/'tools/reader/controls.js').read_text()
 THEME=(ROOT/'tools/reader/theme.js').read_text()
-BOOKS={b['path']:b for c in json.loads((ROOT/'tools/homepage/catalog.json').read_text()) for b in c['books']}
+BOOKS={b['path']:b for c in json.loads((ROOT/'tools/homepage/catalog.json').read_text()) if c.get('layout')!='topics' for b in c['books']}
 VOID={'area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr'}
 
 def esc(value):return html.escape(str(value),quote=True)
@@ -59,8 +59,16 @@ def refresh(source,offline):
         else:source=source.replace('</head>' if tag=='style' or label=='reader-theme' else '</body>',fragment+('</head>' if tag=='style' or label=='reader-theme' else '</body>'),1)
     # Full reading includes answers and source/version notes on first load.
     source=re.sub(r"<details\b([^>]*)>", lambda m: m[0] if 'class="chapter-nav"' in m[1] or re.search(r"\bopen\b", m[1]) else "<details"+m[1]+" open>", source)
+    # One sidebar only: fold the old right-hand page outline into the left navigation.
+    source=re.sub(r'<aside\b[^>]*id="right-toc".*?</aside>','',source,flags=re.S)
+    if 'class="reading"' not in source:
+        source=re.sub(r'(<nav\b[^>]*id="left-nav"[^>]*>)',r'\1<div class="reading"><span id="progress-text">阅读进度 0%</span><span id="current-label"></span></div>',source,count=1)
+    # ZIP downloads are retired; keep Markdown and verification links.
+    source=re.sub(r'<a\b[^>]*href="[^" ]*\.zip"[^>]*>.*?</a>、?','',source,flags=re.S)
+    source=re.sub(r'、(?:、)+','、',source)
     source=html_wording(source)
     source=re.sub(r'(<div class="reader-downloads">)(.*?)(</div>)',lambda m:m[1]+m[2].replace(' · ','')+m[3],source,flags=re.S)
+    source=re.sub(r'<div class="reader-downloads">\s*</div>','',source)
     if offline:
         source=re.sub(r'<script\b[^>]*src="https://cloud\.umami\.is/script\.js"[^>]*></script>','',source)
         source=source.replace('href="../"','href="https://yisiliang.github.io/"')
@@ -73,13 +81,6 @@ def refresh(source,offline):
 def transform(source,name,offline=False):
     if 'data-layout="learning-v2"' in source:return refresh(source,offline)
     book=BOOKS[name]
-    if name=='java-architect-interview':
-        # The chosen reference already has chapter, search, progress and drawer markup.
-        source=re.sub(r'<link\b[^>]*href="\./style.css[^" ]*"[^>]*>','',source)
-        source=re.sub(r'<script\b[^>]*src="\./(?:app|theme).js[^" ]*"[^>]*></script>','',source)
-        source=source.replace('<body>','<body class="learning-reader" data-layout="learning-v2" data-reader="java-architect-interview">',1)
-        source=source.replace('<div class="brand">','<div class="brand"><a class="library-home" href="../">← 学习库</a>',1)
-        return refresh(source,offline)
     parser=Elements(source);parser.feed(source)
     nodes=parser.nodes
     main=next(n for n in nodes if n['tag']=='main')
@@ -156,7 +157,7 @@ def transform(source,name,offline=False):
     page=head_html+attention+'</head><body class="learning-reader" data-layout="learning-v2" data-reader="'+name+'">'
     page+='<a class="skip" href="#main">跳到正文</a><header class="topbar"><button id="menu" class="mobile" aria-label="打开章节导航" aria-expanded="false" aria-controls="left-nav">目录</button><div class="brand"><a class="library-home" href="../">← 学习库</a>'+esc(book['name'])+'学习手册<span>'+esc(book['version'])+'</span></div><div class="tools"><button id="search-open" aria-label="打开全文搜索">搜索 <kbd>/</kbd></button><button id="print" type="button">打印</button><button id="theme" aria-label="切换主题">主题：系统</button></div></header><div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div><div id="drawer-backdrop" hidden></div>'
     alias=f'<span id="{esc(main["attrs"]["id"])}"></span>' if main['attrs'].get('id') and main['attrs']['id']!='main' else ''
-    page+='<div class="layout"><nav id="left-nav" aria-label="章节目录"><p class="nav-label">学习目录 / '+str(len(chapters))+'章</p>'+''.join(nav)+'</nav><main id="main" tabindex="-1">'+alias+intro+''.join(articles)+'</main><aside id="right-toc" aria-label="当前章节目录"><div class="reading"><span id="progress-text">阅读进度0%</span><span id="current-label"></span></div><p class="nav-label">本篇目录</p><nav id="toc"></nav></aside></div>'
+    page+='<div class="layout"><nav id="left-nav" aria-label="章节目录"><div class="reading"><span id="progress-text">阅读进度 0%</span><span id="current-label"></span></div><p class="nav-label">学习目录 / '+str(len(chapters))+'章</p>'+''.join(nav)+'</nav><main id="main" tabindex="-1">'+alias+intro+''.join(articles)+'</main></div>'
     page+='<dialog id="search-dialog" aria-labelledby="search-title"><div class="search-head"><h2 id="search-title">全文搜索</h2><button id="search-close" aria-label="关闭搜索">关闭</button></div><label for="search-input">搜索关键词、源码方法或原理问题</label><input id="search-input" type="search" placeholder="输入关键词，搜索完整正文" autocomplete="off"><p id="search-status" role="status" aria-live="polite">输入关键词，搜索完整正文。</p><div id="search-results"></div></dialog><div id="toast" role="status" aria-live="polite"></div><dialog id="diagram-dialog" aria-label="图解放大"><button id="diagram-close" type="button">关闭</button><div id="diagram-content"></div></dialog>'+footer_html+'</body></html>'
     return refresh(page,offline)
 
@@ -165,30 +166,10 @@ def source_title(source,node):return esc(text(source[node['inner']:node['close']
 def main():
     for name in BOOKS:
         folder=ROOT/'docs'/name
-        public=transform((folder/'index.html').read_text(),name,False)
-        for page in [folder/'index.html',folder/'offline.html',folder/'offline-index.html']:
-            if page.exists():
-                old=page.read_text();new=public if page.name=='index.html' else transform(public,name,True)
-                if new!=old:page.write_text(new)
-        for archive in folder.glob('*offline*.zip'):
-            with zipfile.ZipFile(archive) as z:entries=[(info,z.read(info.filename)) for info in z.infolist()]
-            index=next(info.filename for info,data in entries if info.filename.endswith('index.html'))
-            rebuilt=[];changed=False
-            for info,data in entries:
-                if info.filename.endswith('.html'):
-                    new=transform(public if info.filename==index else data.decode(),name,True).encode();changed|=new!=data;data=new
-                elif not info.is_dir():
-                    local=folder/Path(info.filename).relative_to(Path(index).parent)
-                    if local.is_file():
-                        new=local.read_bytes();changed|=new!=data;data=new
-                rebuilt.append((info,data))
-            if changed:
-                with zipfile.ZipFile(archive,'w') as z:
-                    for info,data in rebuilt:z.writestr(info,data)
-        print(name+': learning layout applied to public and existing offline pages')
-    # The reference keeps its local assets usable for standalone generation.
-    folder=ROOT/'docs/java-architect-interview'
-    for file,content in [('style.css',CSS),('app.js',JS),('theme.js',THEME)]:
-        (folder/file).write_text(content)
+        page=folder/'index.html'
+        old=page.read_text()
+        new=transform(old,name,False)
+        if new!=old:page.write_text(new)
+        print(name+': single-sidebar learning layout applied')
 
 if __name__=='__main__':main()

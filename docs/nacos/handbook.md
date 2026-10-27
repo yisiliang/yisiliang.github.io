@@ -4,7 +4,7 @@
 
 这是一条从SDK长连接到服务实例、配置正文和AI资源的状态推导路径。所有源码窗口逐字取自固定官方提交。机制图是教学抽象，不承诺运行时同步发生。本文没有执行完整服务端构建、Java集成测试或真实升级实验；源码与静态交付检查已执行。
 
-[网页阅读](index.html) · [离线包](nacos-offline.zip) · [核验记录](VERIFICATION.md) · [源码许可](apache-license.txt)
+[网页阅读](index.html) · [核验记录](VERIFICATION.md) · [源码许可](apache-license.txt)
 
 ## 阅读顺序
 

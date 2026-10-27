@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://yisiliang.github.io/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/jdk-source/</loc><lastmod>2026-10-09</lastmod></url>
+  <url><loc>https://yisiliang.github.io/jvm/</loc><lastmod>2026-10-09</lastmod></url>
+  <url><loc>https://yisiliang.github.io/springboot/</loc><lastmod>2026-10-09</lastmod></url>
+  <url><loc>https://yisiliang.github.io/mysql/</loc><lastmod>2026-10-09</lastmod></url>
+  <url><loc>https://yisiliang.github.io/redis/</loc><lastmod>2026-10-09</lastmod></url>
+  <url><loc>https://yisiliang.github.io/rocketmq/</loc><lastmod>2026-10-09</lastmod></url>
+  <url><loc>https://yisiliang.github.io/nginx/</loc><lastmod>2026-10-09</lastmod></url>
+  <url><loc>https://yisiliang.github.io/distributed/</loc><lastmod>2026-10-09</lastmod></url>
+  <url><loc>https://yisiliang.github.io/nacos/</loc><lastmod>2026-10-09</lastmod></url>
+  <url><loc>https://yisiliang.github.io/transformer/</loc><lastmod>2026-10-09</lastmod></url>
+  <url><loc>https://yisiliang.github.io/langgraph/</loc><lastmod>2026-10-19</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/java-concurrency/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/hashmap-concurrenthashmap/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/jvm-memory-cms-g1/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/jvm-oom-troubleshooting/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/spring-core-transactions/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/database-transactions-mvcc/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/rocketmq/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/redis-cache/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/distributed-transactions/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/microservices-stability/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/jit-jmm-memory-barriers/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/nginx-rate-limiting/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/jvm-memory-structure-oom/</loc><lastmod>2026-10-27</lastmod></url>
+  <url><loc>https://yisiliang.github.io/topics/fastjson2-arm64-jit/</loc><lastmod>2026-10-27</lastmod></url>
+</urlset>

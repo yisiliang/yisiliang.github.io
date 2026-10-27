@@ -4,7 +4,7 @@
 
 > 主线Redis7.2.6，对照6.2.14。真实C源码、结构图、字段变化、故障推演与知识回顾；面向只读学习，无需编译或做实验。
 
-[完整离线版](./redis-offline.zip) · [引用的原始源码包](./redis-source.zip) · [上游COPYING](./redis-copying.txt) · [源码归属与许可说明](./source-notices.txt)
+[上游COPYING](./redis-copying.txt) · [源码归属与许可说明](./source-notices.txt)
 
 所有案例均为虚构。本页不含个人履历、业务系统信息、真实日志、账号、生产配置或本地路径。图、搜索、样式与语法高亮全部内嵌；访问上游源码和文档链接才需要网络。主题偏好保存在本地，不上传阅读内容。
 

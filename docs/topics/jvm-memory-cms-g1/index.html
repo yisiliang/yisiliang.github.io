@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><meta content="light dark" name="color-scheme"/>
+<meta name="description" content="按 HotSpot 8 的对象生命周期理解分代、CMS 与 G1 的暂停、并发和失败恢复。">
+<title>JVM 内存管理、CMS 与 G1 · 技术专题 | YiSiliang</title>
+<script data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3" defer="" src="https://cloud.umami.is/script.js"></script>
+<script data-manual="" defer="" src="../vendor/prism.js"></script><script defer="" src="../vendor/prism-c.js"></script><script defer="" src="../vendor/prism-cpp.js"></script><script defer="" src="../vendor/prism-java.js"></script><script defer="" src="../vendor/prism-sql.js"></script><script defer="" src="../vendor/prism-bash.js"></script><script defer="" src="../vendor/prism-yaml.js"></script>
+<style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="topics"] .diagram svg .edgePath path,[data-reader="topics"] .diagram svg .flowchart-link,[data-reader="topics"] .diagram svg .messageLine0,[data-reader="topics"] .diagram svg .messageLine1,[data-reader="topics"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="topics"] .diagram svg .edgeLabel span,[data-reader="topics"] .diagram svg .messageText,[data-reader="topics"] .diagram svg .loopText,[data-reader="topics"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
+}
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader main h4{overflow-wrap:anywhere}
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+
+/* 单侧目录：章节目录、篇内目录与阅读进度都收在左侧。 */
+.layout {
+  max-width: 1280px;
+  grid-template-columns: 300px minmax(0, 880px);
+  gap: 46px;
+}
+#left-nav .reading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 10px;
+  padding: 0 0 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+#left-nav .reading span { display: block; }
+#right-toc { display: none !important; }
+.chapter-nav div a.depth3 { padding-left: 20px; font-size: 11px; }
+.topic-nav-link {
+  display: flex;
+  gap: 8px;
+  padding: 7px 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.topic-nav-link:hover { color: var(--accent); text-decoration: none; }
+.topic-nav-link span:first-child {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font: 11px/2.1 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.topic-nav-index { border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.topic-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 30px 0 10px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.topic-pager a:last-child { text-align: right; }
+@media (min-width: 1450px) {
+  .layout { max-width: 1760px; grid-template-columns: 320px minmax(0, 1fr); gap: 44px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 260px minmax(0, 1fr); gap: 30px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  .topic-pager { flex-wrap: wrap; gap: 10px; }
+  .topic-pager a:last-child { text-align: left; }
+}
+
+/* Keep the theme switch reachable on phones; print is not useful on mobile. */
+@media (max-width: 760px) {
+  #theme { display: inline-block !important; }
+  #print { display: none !important; }
+}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script>
+<!-- social-meta:start --><link rel="canonical" href="https://yisiliang.github.io/topics/jvm-memory-cms-g1/"><meta property="og:type" content="article"><meta property="og:site_name" content="源码之下，系统之上"><meta property="og:locale" content="zh_CN"><meta property="og:title" content="JVM 内存管理、CMS 与 G1 · 技术专题 | YiSiliang"><meta property="og:description" content="按 HotSpot 8 的对象生命周期理解分代、CMS 与 G1 的暂停、并发和失败恢复。"><meta property="og:url" content="https://yisiliang.github.io/topics/jvm-memory-cms-g1/"><meta property="og:image" content="https://yisiliang.github.io/assets/og-default.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="JVM 内存管理、CMS 与 G1 · 技术专题 | YiSiliang"><meta name="twitter:description" content="按 HotSpot 8 的对象生命周期理解分代、CMS 与 G1 的暂停、并发和失败恢复。"><meta name="twitter:image" content="https://yisiliang.github.io/assets/og-default.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><!-- social-meta:end -->
+</head><body class="learning-reader" data-layout="learning-v2" data-reader="topics">
+<a class="skip" href="#main">跳到正文</a>
+<header class="topbar"><button aria-controls="left-nav" aria-expanded="false" aria-label="打开专题导航" class="mobile" id="menu">目录</button><div class="brand"><a class="library-home" href="../../">← 学习库</a>技术专题<span>源码原理 · 故障排查 · 架构实践</span></div><div class="tools"><button aria-label="打开全文搜索" id="search-open">搜索 <kbd>/</kbd></button><button aria-pressed="false" id="mode">要点速览</button><button id="print" type="button">打印</button><button aria-label="切换主题" id="theme">主题：系统</button></div></header>
+<div aria-hidden="true" class="progress-track"><div id="progress-bar"></div></div><div hidden="" id="drawer-backdrop"></div>
+<div class="layout"><nav aria-label="技术专题" id="left-nav"><div class="reading"><span id="progress-text">阅读进度 0%</span><span id="current-label"></span></div><p class="nav-label">技术专题 / 14篇</p><a class="topic-nav-link topic-nav-index" href="../"><span>目录</span>全部专题</a><a class="topic-nav-link" href="../java-concurrency/"><span>01</span>Java 并发编程与锁机制</a><a class="topic-nav-link" href="../hashmap-concurrenthashmap/"><span>02</span>HashMap 与 ConcurrentHashMap</a><details class="chapter-nav current" data-chapter="c3" open=""><summary><a href="./"><span>03</span>JVM 内存管理、CMS 与 G1</a></summary><div></div></details><a class="topic-nav-link" href="../jvm-oom-troubleshooting/"><span>04</span>JVM OOM 与生产故障排查</a><a class="topic-nav-link" href="../spring-core-transactions/"><span>05</span>Spring 核心原理与事务</a><a class="topic-nav-link" href="../database-transactions-mvcc/"><span>06</span>数据库事务、MVCC 与性能优化</a><a class="topic-nav-link" href="../rocketmq/"><span>07</span>RocketMQ 消息队列</a><a class="topic-nav-link" href="../redis-cache/"><span>08</span>Redis 与分布式缓存</a><a class="topic-nav-link" href="../distributed-transactions/"><span>09</span>分布式事务与数据一致性</a><a class="topic-nav-link" href="../microservices-stability/"><span>10</span>微服务、高并发与系统稳定性</a><a class="topic-nav-link" href="../jit-jmm-memory-barriers/"><span>11</span>JIT即时编译、JMM与内存屏障</a><a class="topic-nav-link" href="../nginx-rate-limiting/"><span>12</span>Nginx限流原理与工程实践</a><a class="topic-nav-link" href="../jvm-memory-structure-oom/"><span>13</span>JVM内存结构与OOM排查实战</a><a class="topic-nav-link" href="../fastjson2-arm64-jit/"><span>14</span>从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷</a></nav><main id="main" tabindex="-1">
+<article class="chapter" data-title="JVM 内存管理、CMS 与 G1" id="c3"><div class="chapter-title"><p class="eyebrow">专题 03 / 完整阅读</p><h1>JVM 内存管理、CMS 与 G1</h1></div><div class="study">
+<p>本章限定 HotSpot 8u462-b08。JDK 8 服务端通常默认使用 Parallel GC；以下 CMS 和 G1 的流程，需要按实际启动参数选择。尤其注意：这里的 G1 Full GC 仍是单线程实现。</p>
+<h2 id="c3-s1" tabindex="-1">核心知识与原理</h2>
+<h3 id="c3-s2" tabindex="-1">内存、对象分配与安全点</h3>
+<p>一次请求创建了很多临时对象，请求结束后却不一定立即释放内存。Java 不在对象离开方法时逐个 free，而是在 GC 时判断它们还能不能被访问到。理解这一点，就能区分“还没回收”和“始终回收不掉”。</p>
+<p>对象主要在堆中。线程栈保存方法执行需要的局部变量、返回信息等，每个线程有自己的栈；程序计数器和本地方法栈也与线程有关。JDK 8 的类元数据主要放在本地内存中的 Metaspace，字符串对象仍在堆里。方法区是 JVM 规范中的概念，不能把它和某一块具体内存简单画等号。</p>
+<p>普通小对象常在 Eden 分配。为了避免每个线程分配时都争抢同一个指针，JVM 会给线程一小块 TLAB，让它在里面快速分配。TLAB 仍属于堆，只是暂时由该线程负责分配；里面的对象照样可以交给其他线程。空间不够时再申请 TLAB 或走慢路径。JIT 还可能通过逃逸分析和标量替换消除某些分配。</p>
+<p>Young GC 会把存活对象移到 Survivor，或晋升到老年代。什么时候晋升既看年龄，也看 Survivor 剩余空间和具体收集器策略，因此不能只背一个固定年龄。G1 中超过半个 Region 的对象属于 Humongous，通常需要连续 Region；大数组会带来特别的空间压力。</p>
+<p>GC 从 Roots 开始寻找可达对象，例如线程栈中的引用、JNI handle 和活跃类相关引用。两个对象互相引用，但没有任何 Roots 能到达它们，仍可一起回收。为了准确读取线程状态，JVM 需要让线程到达安全点。一次长停顿既可能花在回收工作上，也可能花在等待线程到达安全点上，日志分析时要分清。</p>
+<h3 id="c3-s3" tabindex="-1">CMS：并发并不意味着无停顿</h3>
+<p>CMS 主要处理老年代，年轻代通常搭配 ParNew。它希望把大部分工作与应用同时执行，减少连续暂停的时间。大致过程是：暂停做初始标记，恢复应用并发标记，预清理一部分变化，再暂停做重新标记，最后并发清扫和重置。</p>
+<p>为什么还要重新标记？因为应用在并发标记期间继续改引用：原来没有被扫描到的对象可能变得可达，已经扫描的对象也可能连上新对象。CMS 需要借助写屏障、卡信息等补齐工作，最终在重新标记时确认哪些对象不能回收。</p>
+<p>CMS 正常周期采用标记清扫，不把所有存活对象搬到一起。清出的空间像大小不同的空隙，可能有碎片；标记期间后来才变成垃圾的一部分对象，也要留到下一轮，这叫浮动垃圾。应用仍在分配和晋升，所以不能等老年代快满了才启动。</p>
+<p>如果并发回收来不及提供空间，就可能出现 Concurrent Mode Failure，转入前台回收，停顿明显变长。Young GC 晋升失败的 Promotion Failed 是另一种日志现象，二者可能相关，但不是同一个名称的两种写法。排查时要同时看分配速度、CMS 周期、可用空间和碎片，而不是看到 Full GC 就改一个阈值。</p>
+<h3 id="c3-s4" tabindex="-1">G1：Region、RSet 与 SATB</h3>
+<p>G1 把堆切成等大的 Region。同一块 Region 可以在不同阶段担任 Eden、Survivor 或 Old。Young GC 暂停应用，将选中区域里的存活对象复制出去，原区域随后可以整体复用。</p>
+<p>只回收部分 Region 时，怎么知道外面的对象还引用着里面？RSet 保存来自其他区域的引用信息，帮助 GC 找到这些入口。Card Table 用较粗的卡片粒度标记发生引用更新的位置，后台 refinement 再整理相关信息。因此 RSet 不是一张精确的全堆引用图，维护它也需要 CPU 和内存。</p>
+<p>G1 的并发标记使用 SATB。假设 A 原来指向 B，标记开始后应用把这个引用清掉；若 GC 还没扫描到 B，就可能错过标记开始时它仍可达的事实。写前屏障会记录被覆盖的旧引用，帮助保留这份开始时的快照。记住“旧引用”比只背三色标记更能解释这段代码。</p>
+<p>初始标记通常搭在一次 Young 停顿里，随后进行 root region scan 和并发标记，再暂停做 remark，并做 cleanup。标记结果告诉 G1 哪些 Old Region 垃圾多、回收划算。之后的 Mixed GC 同时回收 Young 和部分 Old，分几次完成，避免一次把所有 Old 都搬完。</p>
+<p><code>MaxGCPauseMillis</code> 是希望达到的目标。G1 根据历史扫描、复制耗时估计本次该选多少 Region，但对象存活率、RSet 大小、CPU 配额都可能改变实际成本，所以它不能保证每次严格按时结束。to-space exhausted 表示搬迁目的空间不够，失败处理会增加工作，严重时可能进入 JDK 8 的单线程 Full GC。</p>
+<h3 id="c3-s5" tabindex="-1">CMS 与 G1 的选择</h3>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>CMS（JDK 8）</th>
+<th>G1（JDK 8）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>老年代怎样腾空间？</td>
+<td>并发标记后清扫空块，正常周期不整理</td>
+<td>标记后分批选择 Region，在暂停中复制存活对象</td>
+</tr>
+<tr>
+<td>主要怕什么？</td>
+<td>回收跟不上分配、浮动垃圾、碎片</td>
+<td>搬迁空间不足、RSet 成本、大对象占连续区域</td>
+</tr>
+<tr>
+<td>该看哪些数据？</td>
+<td>并发周期、晋升速度、重标记与失败日志</td>
+<td>Young/Mixed 耗时、存活字节、Humongous、标记启动时间</td>
+</tr>
+</tbody>
+</table>
+<p>已有 CMS 系统是否值得换 G1，要用相同流量和数据量测试暂停、吞吐与 CPU。换收集器不会让仍被静态集合引用的对象消失；这种问题需要去看<a href="../jvm-oom-troubleshooting/">对象是谁持有的</a>。</p>
+<h3 id="c3-s6" tabindex="-1">回收来得及吗？算一遍新增内存</h3>
+<p>假设 CMS 一轮并发周期要 4 秒，应用每秒向老年代新增 200MB。回收完成前，应用大约还要用掉 800MB。如果启动时只剩 300MB，就很容易来不及。这个算例不能直接算出最佳参数，但能解释为什么“使用率还没到 100%”也会退化。</p>
+<p>G1 也要给并发标记期间的增长、后续 Mixed 和下一次对象搬迁留空间。调低暂停目标可能缩小 Young、增加回收次数，单次暂停变短，总 GC CPU 却上升。每次调整都应保留 JVM 更新号、启动参数、CPU 配额和相同负载下的日志，分别比较 Young、remark、Mixed、Full GC，而不是只比较一次最长停顿。</p>
+<h2 id="c3-s7" tabindex="-1">源码级解析与调用链</h2>
+<p>GC 主过程在 HotSpot 的 C++ 中。CMS 看 <code>CMSCollector::collect_in_background</code> 的状态推进，再找每个暂停阶段提交的 VM operation。G1 看 <code>do_collection_pause_at_safepoint</code>，并结合 G1CollectorPolicy 的选区预测。</p>
+<p>下面两个片段只是入口。并发标记还要看 ConcurrentMark，SATB 屏障涉及 G1SATBCardTableModRefBS。读入口时先确认哪些工作要求安全点，再追实际标记、扫描和复制；仅看 System.gc 的 Java 调用无法解释这些阶段。</p>
+<div class="source-caption"><code>CMSCollector::collect_in_background</code><span>HotSpot 8u462-b08 · L2250–L2504 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp#L2250-L2504">完整源码</a></span></div>
+<pre><code class="language-cpp">// There are separate collect_in_background and collect_in_foreground because of
+// the different locking requirements of the background collector and the
+// foreground collector.  There was originally an attempt to share
+// one "collect" method between the background collector and the foreground
+// collector but the if-then-else required made it cleaner to have
+// separate methods.
+void CMSCollector::collect_in_background(bool clear_all_soft_refs, GCCause::Cause cause) {
+  assert(Thread::current()-&gt;is_ConcurrentGC_thread(),
+    "A CMS asynchronous collection is only allowed on a CMS thread.");
+
+  GenCollectedHeap* gch = GenCollectedHeap::heap();
+  {
+    bool safepoint_check = Mutex::_no_safepoint_check_flag;
+    MutexLockerEx hl(Heap_lock, safepoint_check);
+    FreelistLocker fll(this);
+    MutexLockerEx x(CGC_lock, safepoint_check);
+    if (_foregroundGCIsActive || !UseAsyncConcMarkSweepGC) {
+      // The foreground collector is active or we're
+      // not using asynchronous collections.  Skip this
+      // background collection.
+      assert(!_foregroundGCShouldWait, "Should be clear");
+      return;
+    } else {
+      assert(_collectorState == Idling, "Should be idling before start.");
+      _collectorState = InitialMarking;
+      register_gc_start(cause);
+      // Reset the expansion cause, now that we are about to begin
+      // a new cycle.
+      clear_expansion_cause();
+
+      // Clear the MetaspaceGC flag since a concurrent collection
+      // is starting but also clear it after the collection.
+      MetaspaceGC::set_should_concurrent_collect(false);
+    }
+    // Decide if we want to enable class unloading as part of the
+    // ensuing concurrent GC cycle.
+    update_should_unload_classes();
+    _full_gc_requested = false;           // acks all outstanding full gc requests
+    _full_gc_cause = GCCause::_no_gc;
+    // Signal that we are about to start a collection
+    gch-&gt;increment_total_full_collections();  // ... starting a collection cycle
+    _collection_count_start = gch-&gt;total_full_collections();
+  }
+
+  // Used for PrintGC
+  size_t prev_used = 0;
+  if (PrintGC &amp;&amp; Verbose) {
+    prev_used = _cmsGen-&gt;used(); // XXXPERM
+  }
+
+  // The change of the collection state is normally done at this level;
+  // the exceptions are phases that are executed while the world is
+  // stopped.  For those phases the change of state is done while the
+  // world is stopped.  For baton passing purposes this allows the
+  // background collector to finish the phase and change state atomically.
+  // The foreground collector cannot wait on a phase that is done
+  // while the world is stopped because the foreground collector already
+  // has the world stopped and would deadlock.
+  while (_collectorState != Idling) {
+    if (TraceCMSState) {
+      gclog_or_tty-&gt;print_cr("Thread " INTPTR_FORMAT " in CMS state %d",
+        Thread::current(), _collectorState);
+    }
+    // The foreground collector
+    //   holds the Heap_lock throughout its collection.
+    //   holds the CMS token (but not the lock)
+    //     except while it is waiting for the background collector to yield.
+    //
+    // The foreground collector should be blocked (not for long)
+    //   if the background collector is about to start a phase
+    //   executed with world stopped.  If the background
+    //   collector has already started such a phase, the
+    //   foreground collector is blocked waiting for the
+    //   Heap_lock.  The stop-world phases (InitialMarking and FinalMarking)
+    //   are executed in the VM thread.
+    //
+    // The locking order is
+    //   PendingListLock (PLL)  -- if applicable (FinalMarking)
+    //   Heap_lock  (both this &amp; PLL locked in VM_CMS_Operation::prologue())
+    //   CMS token  (claimed in
+    //                stop_world_and_do() --&gt;
+    //                  safepoint_synchronize() --&gt;
+    //                    CMSThread::synchronize())
+
+    {
+      // Check if the FG collector wants us to yield.
+      CMSTokenSync x(true); // is cms thread
+      if (waitForForegroundGC()) {
+        // We yielded to a foreground GC, nothing more to be
+        // done this round.
+        assert(_foregroundGCShouldWait == false, "We set it to false in "
+               "waitForForegroundGC()");
+        if (TraceCMSState) {
+          gclog_or_tty-&gt;print_cr("CMS Thread " INTPTR_FORMAT
+            " exiting collection CMS state %d",
+            Thread::current(), _collectorState);
+        }
+        return;
+      } else {
+        // The background collector can run but check to see if the
+        // foreground collector has done a collection while the
+        // background collector was waiting to get the CGC_lock
+        // above.  If yes, break so that _foregroundGCShouldWait
+        // is cleared before returning.
+        if (_collectorState == Idling) {
+          break;
+        }
+      }
+    }
+
+    assert(_foregroundGCShouldWait, "Foreground collector, if active, "
+      "should be waiting");
+
+    switch (_collectorState) {
+      case InitialMarking:
+        {
+          ReleaseForegroundGC x(this);
+          stats().record_cms_begin();
+          VM_CMS_Initial_Mark initial_mark_op(this);
+          VMThread::execute(&amp;initial_mark_op);
+        }
+        // The collector state may be any legal state at this point
+        // since the background collector may have yielded to the
+        // foreground collector.
+        break;
+      case Marking:
+        // initial marking in checkpointRootsInitialWork has been completed
+        if (markFromRoots(true)) { // we were successful
+          assert(_collectorState == Precleaning, "Collector state should "
+            "have changed");
+        } else {
+          assert(_foregroundGCIsActive, "Internal state inconsistency");
+        }
+        break;
+      case Precleaning:
+        if (UseAdaptiveSizePolicy) {
+          size_policy()-&gt;concurrent_precleaning_begin();
+        }
+        // marking from roots in markFromRoots has been completed
+        preclean();
+        if (UseAdaptiveSizePolicy) {
+          size_policy()-&gt;concurrent_precleaning_end();
+        }
+        assert(_collectorState == AbortablePreclean ||
+               _collectorState == FinalMarking,
+               "Collector state should have changed");
+        break;
+      case AbortablePreclean:
+        if (UseAdaptiveSizePolicy) {
+        size_policy()-&gt;concurrent_phases_resume();
+        }
+        abortable_preclean();
+        if (UseAdaptiveSizePolicy) {
+          size_policy()-&gt;concurrent_precleaning_end();
+        }
+        assert(_collectorState == FinalMarking, "Collector state should "
+          "have changed");
+        break;
+      case FinalMarking:
+        {
+          ReleaseForegroundGC x(this);
+
+          VM_CMS_Final_Remark final_remark_op(this);
+          VMThread::execute(&amp;final_remark_op);
+        }
+        assert(_foregroundGCShouldWait, "block post-condition");
+        break;
+      case Sweeping:
+        if (UseAdaptiveSizePolicy) {
+          size_policy()-&gt;concurrent_sweeping_begin();
+        }
+        // final marking in checkpointRootsFinal has been completed
+        sweep(true);
+        assert(_collectorState == Resizing, "Collector state change "
+          "to Resizing must be done under the free_list_lock");
+        _full_gcs_since_conc_gc = 0;
+
+        // Stop the timers for adaptive size policy for the concurrent phases
+        if (UseAdaptiveSizePolicy) {
+          size_policy()-&gt;concurrent_sweeping_end();
+          size_policy()-&gt;concurrent_phases_end(gch-&gt;gc_cause(),
+                                             gch-&gt;prev_gen(_cmsGen)-&gt;capacity(),
+                                             _cmsGen-&gt;free());
+        }
+
+      case Resizing: {
+        // Sweeping has been completed...
+        // At this point the background collection has completed.
+        // Don't move the call to compute_new_size() down
+        // into code that might be executed if the background
+        // collection was preempted.
+        {
+          ReleaseForegroundGC x(this);   // unblock FG collection
+          MutexLockerEx       y(Heap_lock, Mutex::_no_safepoint_check_flag);
+          CMSTokenSync        z(true);   // not strictly needed.
+          if (_collectorState == Resizing) {
+            compute_new_size();
+            save_heap_summary();
+            _collectorState = Resetting;
+          } else {
+            assert(_collectorState == Idling, "The state should only change"
+                   " because the foreground collector has finished the collection");
+          }
+        }
+        break;
+      }
+      case Resetting:
+        // CMS heap resizing has been completed
+        reset(true);
+        assert(_collectorState == Idling, "Collector state should "
+          "have changed");
+
+        MetaspaceGC::set_should_concurrent_collect(false);
+
+        stats().record_cms_end();
+        // Don't move the concurrent_phases_end() and compute_new_size()
+        // calls to here because a preempted background collection
+        // has it's state set to "Resetting".
+        break;
+      case Idling:
+      default:
+        ShouldNotReachHere();
+        break;
+    }
+    if (TraceCMSState) {
+      gclog_or_tty-&gt;print_cr("  Thread " INTPTR_FORMAT " done - next CMS state %d",
+        Thread::current(), _collectorState);
+    }
+    assert(_foregroundGCShouldWait, "block post-condition");
+  }
+
+  // Should this be in gc_epilogue?
+  collector_policy()-&gt;counters()-&gt;update_counters();
+
+  {
+    // Clear _foregroundGCShouldWait and, in the event that the
+    // foreground collector is waiting, notify it, before
+    // returning.
+    MutexLockerEx x(CGC_lock, Mutex::_no_safepoint_check_flag);
+    _foregroundGCShouldWait = false;
+    if (_foregroundGCIsActive) {
+      CGC_lock-&gt;notify();
+    }
+    assert(!ConcurrentMarkSweepThread::cms_thread_has_cms_token(),
+           "Possible deadlock");
+  }
+  if (TraceCMSState) {
+    gclog_or_tty-&gt;print_cr("CMS Thread " INTPTR_FORMAT
+      " exiting collection CMS state %d",
+      Thread::current(), _collectorState);
+  }
+  if (PrintGC &amp;&amp; Verbose) {
+    _cmsGen-&gt;print_heap_change(prev_used);
+  }
+}
+
+</code></pre>
+<p>入口先串行协调一次 CMS 周期，并准备老年代相关状态。真正分阶段的工作在后续状态循环中；这个片段不能单独证明所有阶段都没有停顿，要继续读 InitialMarking 和 FinalMarking 的 VM 操作。</p>
+<div class="source-caption"><code>G1CollectedHeap::do_collection_pause_at_safepoint</code><span>HotSpot 8u462-b08 · L3972–L4381 · <a href="https://github.com/openjdk/jdk8u/blob/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp#L3972-L4381">完整源码</a></span></div>
+<pre><code class="language-cpp">bool
+G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
+  assert_at_safepoint(true /* should_be_vm_thread */);
+  guarantee(!is_gc_active(), "collection is not reentrant");
+
+  if (GC_locker::check_active_before_gc()) {
+    return false;
+  }
+
+  _gc_timer_stw-&gt;register_gc_start();
+
+  _gc_tracer_stw-&gt;report_gc_start(gc_cause(), _gc_timer_stw-&gt;gc_start());
+
+  SvcGCMarker sgcm(SvcGCMarker::MINOR);
+  ResourceMark rm;
+
+  print_heap_before_gc();
+  trace_heap_before_gc(_gc_tracer_stw);
+
+  verify_region_sets_optional();
+  verify_dirty_young_regions();
+
+  // This call will decide whether this pause is an initial-mark
+  // pause. If it is, during_initial_mark_pause() will return true
+  // for the duration of this pause.
+  g1_policy()-&gt;decide_on_conc_mark_initiation();
+
+  // We do not allow initial-mark to be piggy-backed on a mixed GC.
+  assert(!g1_policy()-&gt;during_initial_mark_pause() ||
+          g1_policy()-&gt;gcs_are_young(), "sanity");
+
+  // We also do not allow mixed GCs during marking.
+  assert(!mark_in_progress() || g1_policy()-&gt;gcs_are_young(), "sanity");
+
+  // Record whether this pause is an initial mark. When the current
+  // thread has completed its logging output and it's safe to signal
+  // the CM thread, the flag's value in the policy has been reset.
+  bool should_start_conc_mark = g1_policy()-&gt;during_initial_mark_pause();
+
+  // Inner scope for scope based logging, timers, and stats collection
+  {
+    EvacuationInfo evacuation_info;
+
+    if (g1_policy()-&gt;during_initial_mark_pause()) {
+      // We are about to start a marking cycle, so we increment the
+      // full collection counter.
+      increment_old_marking_cycles_started();
+      register_concurrent_cycle_start(_gc_timer_stw-&gt;gc_start());
+    }
+
+    _gc_tracer_stw-&gt;report_yc_type(yc_type());
+
+    TraceCPUTime tcpu(G1Log::finer(), true, gclog_or_tty);
+
+    uint active_workers = AdaptiveSizePolicy::calc_active_workers(workers()-&gt;total_workers(),
+                                                                  workers()-&gt;active_workers(),
+                                                                  Threads::number_of_non_daemon_threads());
+    assert(UseDynamicNumberOfGCThreads ||
+           active_workers == workers()-&gt;total_workers(),
+           "If not dynamic should be using all the  workers");
+    workers()-&gt;set_active_workers(active_workers);
+
+
+    double pause_start_sec = os::elapsedTime();
+    g1_policy()-&gt;phase_times()-&gt;note_gc_start(active_workers, mark_in_progress());
+    log_gc_header();
+
+    TraceCollectorStats tcs(g1mm()-&gt;incremental_collection_counters());
+    TraceMemoryManagerStats tms(false /* fullGC */, gc_cause(),
+                                yc_type() == Mixed /* allMemoryPoolsAffected */);
+
+    // If the secondary_free_list is not empty, append it to the
+    // free_list. No need to wait for the cleanup operation to finish;
+    // the region allocation code will check the secondary_free_list
+    // and wait if necessary. If the G1StressConcRegionFreeing flag is
+    // set, skip this step so that the region allocation code has to
+    // get entries from the secondary_free_list.
+    if (!G1StressConcRegionFreeing) {
+      append_secondary_free_list_if_not_empty_with_lock();
+    }
+
+    assert(check_young_list_well_formed(), "young list should be well formed");
+    assert(check_heap_region_claim_values(HeapRegion::InitialClaimValue),
+           "sanity check");
+
+    // Don't dynamically change the number of GC threads this early.  A value of
+    // 0 is used to indicate serial work.  When parallel work is done,
+    // it will be set.
+
+    { // Call to jvmpi::post_class_unload_events must occur outside of active GC
+      IsGCActiveMark x;
+
+      gc_prologue(false);
+      increment_total_collections(false /* full gc */);
+      increment_gc_time_stamp();
+
+      if (VerifyRememberedSets) {
+        if (!VerifySilently) {
+          gclog_or_tty-&gt;print_cr("[Verifying RemSets before GC]");
+        }
+        VerifyRegionRemSetClosure v_cl;
+        heap_region_iterate(&amp;v_cl);
+      }
+
+      verify_before_gc();
+      check_bitmaps("GC Start");
+
+      COMPILER2_PRESENT(DerivedPointerTable::clear());
+
+      // Please see comment in g1CollectedHeap.hpp and
+      // G1CollectedHeap::ref_processing_init() to see how
+      // reference processing currently works in G1.
+
+      // Enable discovery in the STW reference processor
+      ref_processor_stw()-&gt;enable_discovery(true /*verify_disabled*/,
+                                            true /*verify_no_refs*/);
+
+      {
+        // We want to temporarily turn off discovery by the
+        // CM ref processor, if necessary, and turn it back on
+        // on again later if we do. Using a scoped
+        // NoRefDiscovery object will do this.
+        NoRefDiscovery no_cm_discovery(ref_processor_cm());
+
+        // Forget the current alloc region (we might even choose it to be part
+        // of the collection set!).
+        _allocator-&gt;release_mutator_alloc_region();
+
+        // We should call this after we retire the mutator alloc
+        // region(s) so that all the ALLOC / RETIRE events are generated
+        // before the start GC event.
+        _hr_printer.start_gc(false /* full */, (size_t) total_collections());
+
+        // This timing is only used by the ergonomics to handle our pause target.
+        // It is unclear why this should not include the full pause. We will
+        // investigate this in CR 7178365.
+        //
+        // Preserving the old comment here if that helps the investigation:
+        //
+        // The elapsed time induced by the start time below deliberately elides
+        // the possible verification above.
+        double sample_start_time_sec = os::elapsedTime();
+
+#if YOUNG_LIST_VERBOSE
+        gclog_or_tty-&gt;print_cr("\nBefore recording pause start.\nYoung_list:");
+        _young_list-&gt;print();
+        g1_policy()-&gt;print_collection_set(g1_policy()-&gt;inc_cset_head(), gclog_or_tty);
+#endif // YOUNG_LIST_VERBOSE
+
+        g1_policy()-&gt;record_collection_pause_start(sample_start_time_sec, *_gc_tracer_stw);
+
+        double scan_wait_start = os::elapsedTime();
+        // We have to wait until the CM threads finish scanning the
+        // root regions as it's the only way to ensure that all the
+        // objects on them have been correctly scanned before we start
+        // moving them during the GC.
+        bool waited = _cm-&gt;root_regions()-&gt;wait_until_scan_finished();
+        double wait_time_ms = 0.0;
+        if (waited) {
+          double scan_wait_end = os::elapsedTime();
+          wait_time_ms = (scan_wait_end - scan_wait_start) * 1000.0;
+        }
+        g1_policy()-&gt;phase_times()-&gt;record_root_region_scan_wait_time(wait_time_ms);
+
+#if YOUNG_LIST_VERBOSE
+        gclog_or_tty-&gt;print_cr("\nAfter recording pause start.\nYoung_list:");
+        _young_list-&gt;print();
+#endif // YOUNG_LIST_VERBOSE
+
+        if (g1_policy()-&gt;during_initial_mark_pause()) {
+          concurrent_mark()-&gt;checkpointRootsInitialPre();
+        }
+
+#if YOUNG_LIST_VERBOSE
+        gclog_or_tty-&gt;print_cr("\nBefore choosing collection set.\nYoung_list:");
+        _young_list-&gt;print();
+        g1_policy()-&gt;print_collection_set(g1_policy()-&gt;inc_cset_head(), gclog_or_tty);
+#endif // YOUNG_LIST_VERBOSE
+
+        g1_policy()-&gt;finalize_cset(target_pause_time_ms, evacuation_info);
+
+        // Make sure the remembered sets are up to date. This needs to be
+        // done before register_humongous_regions_with_cset(), because the
+        // remembered sets are used there to choose eager reclaim candidates.
+        // If the remembered sets are not up to date we might miss some
+        // entries that need to be handled.
+        g1_rem_set()-&gt;cleanupHRRS();
+
+        register_humongous_regions_with_in_cset_fast_test();
+
+        assert(check_cset_fast_test(), "Inconsistency in the InCSetState table.");
+
+        _cm-&gt;note_start_of_gc();
+        // We call this after finalize_cset() to
+        // ensure that the CSet has been finalized.
+        _cm-&gt;verify_no_cset_oops();
+
+        if (_hr_printer.is_active()) {
+          HeapRegion* hr = g1_policy()-&gt;collection_set();
+          while (hr != NULL) {
+            _hr_printer.cset(hr);
+            hr = hr-&gt;next_in_collection_set();
+          }
+        }
+
+#ifdef ASSERT
+        VerifyCSetClosure cl;
+        collection_set_iterate(&amp;cl);
+#endif // ASSERT
+
+        setup_surviving_young_words();
+
+        // Initialize the GC alloc regions.
+        _allocator-&gt;init_gc_alloc_regions(evacuation_info);
+
+        // Actually do the work...
+        evacuate_collection_set(evacuation_info);
+
+        free_collection_set(g1_policy()-&gt;collection_set(), evacuation_info);
+
+        eagerly_reclaim_humongous_regions();
+
+        g1_policy()-&gt;clear_collection_set();
+
+        cleanup_surviving_young_words();
+
+        // Start a new incremental collection set for the next pause.
+        g1_policy()-&gt;start_incremental_cset_building();
+
+        clear_cset_fast_test();
+
+        _young_list-&gt;reset_sampled_info();
+
+        // Don't check the whole heap at this point as the
+        // GC alloc regions from this pause have been tagged
+        // as survivors and moved on to the survivor list.
+        // Survivor regions will fail the !is_young() check.
+        assert(check_young_list_empty(false /* check_heap */),
+          "young list should be empty");
+
+#if YOUNG_LIST_VERBOSE
+        gclog_or_tty-&gt;print_cr("Before recording survivors.\nYoung List:");
+        _young_list-&gt;print();
+#endif // YOUNG_LIST_VERBOSE
+
+        g1_policy()-&gt;record_survivor_regions(_young_list-&gt;survivor_length(),
+                                             _young_list-&gt;first_survivor_region(),
+                                             _young_list-&gt;last_survivor_region());
+
+        _young_list-&gt;reset_auxilary_lists();
+
+        if (evacuation_failed()) {
+          _allocator-&gt;set_used(recalculate_used());
+          uint n_queues = MAX2((int)ParallelGCThreads, 1);
+          for (uint i = 0; i &lt; n_queues; i++) {
+            if (_evacuation_failed_info_array[i].has_failed()) {
+              _gc_tracer_stw-&gt;report_evacuation_failed(_evacuation_failed_info_array[i]);
+            }
+          }
+        } else {
+          // The "used" of the the collection set have already been subtracted
+          // when they were freed.  Add in the bytes evacuated.
+          _allocator-&gt;increase_used(g1_policy()-&gt;bytes_copied_during_gc());
+        }
+
+        if (g1_policy()-&gt;during_initial_mark_pause()) {
+          // We have to do this before we notify the CM threads that
+          // they can start working to make sure that all the
+          // appropriate initialization is done on the CM object.
+          concurrent_mark()-&gt;checkpointRootsInitialPost();
+          set_marking_started();
+          // Note that we don't actually trigger the CM thread at
+          // this point. We do that later when we're sure that
+          // the current thread has completed its logging output.
+        }
+
+        allocate_dummy_regions();
+
+#if YOUNG_LIST_VERBOSE
+        gclog_or_tty-&gt;print_cr("\nEnd of the pause.\nYoung_list:");
+        _young_list-&gt;print();
+        g1_policy()-&gt;print_collection_set(g1_policy()-&gt;inc_cset_head(), gclog_or_tty);
+#endif // YOUNG_LIST_VERBOSE
+
+        _allocator-&gt;init_mutator_alloc_region();
+
+        {
+          size_t expand_bytes = g1_policy()-&gt;expansion_amount();
+          if (expand_bytes &gt; 0) {
+            size_t bytes_before = capacity();
+            // No need for an ergo verbose message here,
+            // expansion_amount() does this when it returns a value &gt; 0.
+            if (!expand(expand_bytes)) {
+              // We failed to expand the heap. Cannot do anything about it.
+            }
+          }
+        }
+
+        // We redo the verification but now wrt to the new CSet which
+        // has just got initialized after the previous CSet was freed.
+        _cm-&gt;verify_no_cset_oops();
+        _cm-&gt;note_end_of_gc();
+
+        // This timing is only used by the ergonomics to handle our pause target.
+        // It is unclear why this should not include the full pause. We will
+        // investigate this in CR 7178365.
+        double sample_end_time_sec = os::elapsedTime();
+        double pause_time_ms = (sample_end_time_sec - sample_start_time_sec) * MILLIUNITS;
+        g1_policy()-&gt;record_collection_pause_end(pause_time_ms, evacuation_info);
+
+        MemoryService::track_memory_usage();
+
+        // In prepare_for_verify() below we'll need to scan the deferred
+        // update buffers to bring the RSets up-to-date if
+        // G1HRRSFlushLogBuffersOnVerify has been set. While scanning
+        // the update buffers we'll probably need to scan cards on the
+        // regions we just allocated to (i.e., the GC alloc
+        // regions). However, during the last GC we called
+        // set_saved_mark() on all the GC alloc regions, so card
+        // scanning might skip the [saved_mark_word()...top()] area of
+        // those regions (i.e., the area we allocated objects into
+        // during the last GC). But it shouldn't. Given that
+        // saved_mark_word() is conditional on whether the GC time stamp
+        // on the region is current or not, by incrementing the GC time
+        // stamp here we invalidate all the GC time stamps on all the
+        // regions and saved_mark_word() will simply return top() for
+        // all the regions. This is a nicer way of ensuring this rather
+        // than iterating over the regions and fixing them. In fact, the
+        // GC time stamp increment here also ensures that
+        // saved_mark_word() will return top() between pauses, i.e.,
+        // during concurrent refinement. So we don't need the
+        // is_gc_active() check to decided which top to use when
+        // scanning cards (see CR 7039627).
+        increment_gc_time_stamp();
+
+        if (VerifyRememberedSets) {
+          if (!VerifySilently) {
+            gclog_or_tty-&gt;print_cr("[Verifying RemSets after GC]");
+          }
+          VerifyRegionRemSetClosure v_cl;
+          heap_region_iterate(&amp;v_cl);
+        }
+
+        verify_after_gc();
+        check_bitmaps("GC End");
+
+        assert(!ref_processor_stw()-&gt;discovery_enabled(), "Postcondition");
+        ref_processor_stw()-&gt;verify_no_references_recorded();
+
+        // CM reference discovery will be re-enabled if necessary.
+      }
+
+      // We should do this after we potentially expand the heap so
+      // that all the COMMIT events are generated before the end GC
+      // event, and after we retire the GC alloc regions so that all
+      // RETIRE events are generated before the end GC event.
+      _hr_printer.end_gc(false /* full */, (size_t) total_collections());
+
+#ifdef TRACESPINNING
+      ParallelTaskTerminator::print_termination_counts();
+#endif
+
+      gc_epilogue(false);
+    }
+
+    // Print the remainder of the GC log output.
+    log_gc_footer(os::elapsedTime() - pause_start_sec);
+
+    // It is not yet to safe to tell the concurrent mark to
+    // start as we have some optional output below. We don't want the
+    // output from the concurrent mark thread interfering with this
+    // logging output either.
+
+    _hrm.verify_optional();
+    verify_region_sets_optional();
+
+    TASKQUEUE_STATS_ONLY(if (ParallelGCVerbose) print_taskqueue_stats());
+    TASKQUEUE_STATS_ONLY(reset_taskqueue_stats());
+
+    print_heap_after_gc();
+    trace_heap_after_gc(_gc_tracer_stw);
+
+    // We must call G1MonitoringSupport::update_sizes() in the same scoping level
+    // as an active TraceMemoryManagerStats object (i.e. before the destructor for the
+    // TraceMemoryManagerStats is called) so that the G1 memory pools are updated
+    // before any GC notifications are raised.
+    g1mm()-&gt;update_sizes();
+
+    _gc_tracer_stw-&gt;report_evacuation_info(&amp;evacuation_info);
+    _gc_tracer_stw-&gt;report_tenuring_threshold(_g1_policy-&gt;tenuring_threshold());
+    _gc_timer_stw-&gt;register_gc_end();
+    _gc_tracer_stw-&gt;report_gc_end(_gc_timer_stw-&gt;gc_end(), _gc_timer_stw-&gt;time_partitions());
+  }
+  // It should now be safe to tell the concurrent mark thread to start
+  // without its logging output interfering with the logging output
+  // that came from the pause.
+
+  if (should_start_conc_mark) {
+    // CAUTION: after the doConcurrentMark() call below,
+    // the concurrent marking thread(s) could be running
+    // concurrently with us. Make sure that anything after
+    // this point does not assume that we are the only GC thread
+    // running. Note: of course, the actual marking work will
+    // not start until the safepoint itself is released in
+    // SuspendibleThreadSet::desynchronize().
+    doConcurrentMark();
+  }
+
+  return true;
+}
+
+</code></pre>
+<p>方法直接要求当前处于安全点，并禁止 GC 重入。这里就是一次暂停的入口，后面计时和扫描才开始；不能把 G1 的整个过程都称作后台执行。</p>
+<figure class="diagram" data-diagram="1"><svg aria-label="图 1 · 对照上文阅读流程" aria-roledescription="flowchart-v2" id="jai-diagram-1-jai-diagram-1" role="img" style="max-width: 246.9609375px;" viewbox="-8 -8 246.9609375 662" width="100%" xmlns="http://www.w3.org/2000/svg"><style>#jai-diagram-1-jai-diagram-1{font-family:sans-serif;font-size:16px;fill:#182338;}#jai-diagram-1-jai-diagram-1 .error-icon{fill:#f4f6f9;}#jai-diagram-1-jai-diagram-1 .error-text{fill:#0b0906;stroke:#0b0906;}#jai-diagram-1-jai-diagram-1 .edge-thickness-normal{stroke-width:2px;}#jai-diagram-1-jai-diagram-1 .edge-thickness-thick{stroke-width:3.5px;}#jai-diagram-1-jai-diagram-1 .edge-pattern-solid{stroke-dasharray:0;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dashed{stroke-dasharray:3;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dotted{stroke-dasharray:2;}#jai-diagram-1-jai-diagram-1 .marker{fill:#72849a;stroke:#72849a;}#jai-diagram-1-jai-diagram-1 .marker.cross{stroke:#72849a;}#jai-diagram-1-jai-diagram-1 svg{font-family:sans-serif;font-size:16px;}#jai-diagram-1-jai-diagram-1 .label{font-family:sans-serif;color:#182338;}#jai-diagram-1-jai-diagram-1 .cluster-label text{fill:#0b0906;}#jai-diagram-1-jai-diagram-1 .cluster-label span,#jai-diagram-1-jai-diagram-1 p{color:#0b0906;}#jai-diagram-1-jai-diagram-1 .label text,#jai-diagram-1-jai-diagram-1 span,#jai-diagram-1-jai-diagram-1 p{fill:#182338;color:#182338;}#jai-diagram-1-jai-diagram-1 .node rect,#jai-diagram-1-jai-diagram-1 .node circle,#jai-diagram-1-jai-diagram-1 .node ellipse,#jai-diagram-1-jai-diagram-1 .node polygon,#jai-diagram-1-jai-diagram-1 .node path{fill:#e8eef8;stroke:#7890af;stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .flowchart-label text{text-anchor:middle;}#jai-diagram-1-jai-diagram-1 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .node .label{text-align:center;}#jai-diagram-1-jai-diagram-1 .node.clickable{cursor:pointer;}#jai-diagram-1-jai-diagram-1 .arrowheadPath{fill:#0b0b0b;}#jai-diagram-1-jai-diagram-1 .edgePath .path{stroke:#72849a;stroke-width:2.0px;}#jai-diagram-1-jai-diagram-1 .flowchart-link{stroke:#72849a;fill:none;}#jai-diagram-1-jai-diagram-1 .edgeLabel{background-color:#edf2f7;text-align:center;}#jai-diagram-1-jai-diagram-1 .edgeLabel rect{opacity:0.5;background-color:#edf2f7;fill:#edf2f7;}#jai-diagram-1-jai-diagram-1 .labelBkg{background-color:rgba(237, 242, 247, 0.5);}#jai-diagram-1-jai-diagram-1 .cluster rect{fill:#f4f6f9;stroke:hsl(216, 0%, 86.6666666667%);stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .cluster text{fill:#0b0906;}#jai-diagram-1-jai-diagram-1 .cluster span,#jai-diagram-1-jai-diagram-1 p{color:#0b0906;}#jai-diagram-1-jai-diagram-1 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:sans-serif;font-size:12px;background:#f4f6f9;border:1px solid hsl(216, 0%, 86.6666666667%);border-radius:2px;pointer-events:none;z-index:100;}#jai-diagram-1-jai-diagram-1 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#182338;}#jai-diagram-1-jai-diagram-1 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-pointEnd" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="6" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-pointStart" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="4.5" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-circleEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="11" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-circleStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker cross flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-crossEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="12" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker class="marker cross flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-crossStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-B" d="M80.219,37L80.219,41.167C80.219,45.333,80.219,53.667,80.219,61.117C80.219,68.567,80.219,75.133,80.219,78.417L80.219,81.7" id="jai-diagram-1-L-A-B-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-B LE-C" d="M80.219,124L80.219,128.167C80.219,132.333,80.219,140.667,80.219,148.117C80.219,155.567,80.219,162.133,80.219,165.417L80.219,168.7" id="jai-diagram-1-L-B-C-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-C LE-D" d="M106.55,211L112.48,215.167C118.411,219.333,130.272,227.667,136.202,235.117C142.133,242.567,142.133,249.133,142.133,252.417L142.133,255.7" id="jai-diagram-1-L-C-D-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-D LE-E" d="M142.133,298L142.133,302.167C142.133,306.333,142.133,314.667,142.133,322.117C142.133,329.567,142.133,336.133,142.133,339.417L142.133,342.7" id="jai-diagram-1-L-D-E-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-E LE-F" d="M142.133,385L142.133,389.167C142.133,393.333,142.133,401.667,142.133,409.117C142.133,416.567,142.133,423.133,142.133,426.417L142.133,429.7" id="jai-diagram-1-L-E-F-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-C LE-X" d="M53.887,211L47.957,215.167C42.027,219.333,30.166,227.667,24.235,239.083C18.305,250.5,18.305,265,18.305,279.5C18.305,294,18.305,308.5,18.305,323C18.305,337.5,18.305,352,18.305,366.5C18.305,381,18.305,395.5,18.305,410C18.305,424.5,18.305,439,18.305,453.5C18.305,468,18.305,482.5,23.512,493.409C28.72,504.318,39.135,511.635,44.343,515.294L49.551,518.953" id="jai-diagram-1-L-C-X-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;stroke-width:2px;stroke-dasharray:3;"></path><path class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-F LE-X" d="M142.133,472L142.133,476.167C142.133,480.333,142.133,488.667,136.925,496.492C131.717,504.318,121.302,511.635,116.094,515.294L110.887,518.953" id="jai-diagram-1-L-F-X-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;stroke-width:2px;stroke-dasharray:3;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-X LE-Y" d="M80.219,559L80.219,563.167C80.219,567.333,80.219,575.667,80.219,583.117C80.219,590.567,80.219,597.133,80.219,600.417L80.219,603.7" id="jai-diagram-1-L-X-Y-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g></g><g class="nodes"><g class="node default default flowchart-label" data-id="A" data-node="true" id="jai-diagram-1-flowchart-A-40" transform="translate(80.21875, 18.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="127" x="-63.5" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">开始回收老年代</tspan></text></g></g><g class="node default default flowchart-label" data-id="B" data-node="true" id="jai-diagram-1-flowchart-B-41" transform="translate(80.21875, 105.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="160.4375" x="-80.21875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">CMS 初始标记 STW</tspan></text></g></g><g class="node default default flowchart-label" data-id="C" data-node="true" id="jai-diagram-1-flowchart-C-43" transform="translate(80.21875, 192.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="79" x="-39.5" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">并发标记</tspan></text></g></g><g class="node default default flowchart-label" data-id="D" data-node="true" id="jai-diagram-1-flowchart-D-45" transform="translate(142.1328125, 279.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="177.65625" x="-88.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">预清理 / 可中止预清理</tspan></text></g></g><g class="node default default flowchart-label" data-id="E" data-node="true" id="jai-diagram-1-flowchart-E-47" transform="translate(142.1328125, 366.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="119.234375" x="-59.6171875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">重新标记 STW</tspan></text></g></g><g class="node default default flowchart-label" data-id="F" data-node="true" id="jai-diagram-1-flowchart-F-49" transform="translate(142.1328125, 453.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="129.65625" x="-64.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">并发清扫 / 重置</tspan></text></g></g><g class="node default default flowchart-label" data-id="X" data-node="true" id="jai-diagram-1-flowchart-X-51" transform="translate(80.21875, 540.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="145.65625" x="-72.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">分配跟不上 / 碎片</tspan></text></g></g><g class="node default default flowchart-label" data-id="Y" data-node="true" id="jai-diagram-1-flowchart-Y-55" transform="translate(80.21875, 627.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="145.65625" x="-72.828125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">前台回收 / 长停顿</tspan></text></g></g></g></g></g></svg><figcaption>图 1 · 对照上文阅读流程</figcaption><details><summary>查看 Mermaid 图表源码</summary><pre><code>flowchart TD
+ A["开始回收老年代"] --&gt; B["CMS 初始标记 STW"]
+ B --&gt; C["并发标记"]
+ C --&gt; D["预清理 / 可中止预清理"]
+ D --&gt; E["重新标记 STW"]
+ E --&gt; F["并发清扫 / 重置"]
+ C -.-&gt; X["分配跟不上 / 碎片"]
+ F -.-&gt; X
+ X --&gt; Y["前台回收 / 长停顿"]
+</code></pre></details></figure>
+<figure class="diagram" data-diagram="2"><svg aria-label="图 2 · 对照上文阅读流程" aria-roledescription="flowchart-v2" id="jai-diagram-2-jai-diagram-2" role="img" style="max-width: 530.0234375px;" viewbox="-8 -8 530.0234375 662" width="100%" xmlns="http://www.w3.org/2000/svg"><style>#jai-diagram-2-jai-diagram-2{font-family:sans-serif;font-size:16px;fill:#182338;}#jai-diagram-2-jai-diagram-2 .error-icon{fill:#f4f6f9;}#jai-diagram-2-jai-diagram-2 .error-text{fill:#0b0906;stroke:#0b0906;}#jai-diagram-2-jai-diagram-2 .edge-thickness-normal{stroke-width:2px;}#jai-diagram-2-jai-diagram-2 .edge-thickness-thick{stroke-width:3.5px;}#jai-diagram-2-jai-diagram-2 .edge-pattern-solid{stroke-dasharray:0;}#jai-diagram-2-jai-diagram-2 .edge-pattern-dashed{stroke-dasharray:3;}#jai-diagram-2-jai-diagram-2 .edge-pattern-dotted{stroke-dasharray:2;}#jai-diagram-2-jai-diagram-2 .marker{fill:#72849a;stroke:#72849a;}#jai-diagram-2-jai-diagram-2 .marker.cross{stroke:#72849a;}#jai-diagram-2-jai-diagram-2 svg{font-family:sans-serif;font-size:16px;}#jai-diagram-2-jai-diagram-2 .label{font-family:sans-serif;color:#182338;}#jai-diagram-2-jai-diagram-2 .cluster-label text{fill:#0b0906;}#jai-diagram-2-jai-diagram-2 .cluster-label span,#jai-diagram-2-jai-diagram-2 p{color:#0b0906;}#jai-diagram-2-jai-diagram-2 .label text,#jai-diagram-2-jai-diagram-2 span,#jai-diagram-2-jai-diagram-2 p{fill:#182338;color:#182338;}#jai-diagram-2-jai-diagram-2 .node rect,#jai-diagram-2-jai-diagram-2 .node circle,#jai-diagram-2-jai-diagram-2 .node ellipse,#jai-diagram-2-jai-diagram-2 .node polygon,#jai-diagram-2-jai-diagram-2 .node path{fill:#e8eef8;stroke:#7890af;stroke-width:1px;}#jai-diagram-2-jai-diagram-2 .flowchart-label text{text-anchor:middle;}#jai-diagram-2-jai-diagram-2 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#jai-diagram-2-jai-diagram-2 .node .label{text-align:center;}#jai-diagram-2-jai-diagram-2 .node.clickable{cursor:pointer;}#jai-diagram-2-jai-diagram-2 .arrowheadPath{fill:#0b0b0b;}#jai-diagram-2-jai-diagram-2 .edgePath .path{stroke:#72849a;stroke-width:2.0px;}#jai-diagram-2-jai-diagram-2 .flowchart-link{stroke:#72849a;fill:none;}#jai-diagram-2-jai-diagram-2 .edgeLabel{background-color:#edf2f7;text-align:center;}#jai-diagram-2-jai-diagram-2 .edgeLabel rect{opacity:0.5;background-color:#edf2f7;fill:#edf2f7;}#jai-diagram-2-jai-diagram-2 .labelBkg{background-color:rgba(237, 242, 247, 0.5);}#jai-diagram-2-jai-diagram-2 .cluster rect{fill:#f4f6f9;stroke:hsl(216, 0%, 86.6666666667%);stroke-width:1px;}#jai-diagram-2-jai-diagram-2 .cluster text{fill:#0b0906;}#jai-diagram-2-jai-diagram-2 .cluster span,#jai-diagram-2-jai-diagram-2 p{color:#0b0906;}#jai-diagram-2-jai-diagram-2 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:sans-serif;font-size:12px;background:#f4f6f9;border:1px solid hsl(216, 0%, 86.6666666667%);border-radius:2px;pointer-events:none;z-index:100;}#jai-diagram-2-jai-diagram-2 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#182338;}#jai-diagram-2-jai-diagram-2 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-pointEnd" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="6" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-pointStart" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="4.5" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-circleEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="11" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-circleStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker cross flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-crossEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="12" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker class="marker cross flowchart" id="jai-diagram-2-jai-diagram-2_flowchart-crossStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-B" d="M195.251,37L184.733,41.167C174.214,45.333,153.178,53.667,142.659,61.117C132.141,68.567,132.141,75.133,132.141,78.417L132.141,81.7" id="jai-diagram-2-L-A-B-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-B LE-C" d="M132.141,124L132.141,128.167C132.141,132.333,132.141,140.667,132.141,148.117C132.141,155.567,132.141,162.133,132.141,165.417L132.141,168.7" id="jai-diagram-2-L-B-C-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-C LE-D" d="M132.141,211L132.141,215.167C132.141,219.333,132.141,227.667,132.141,235.117C132.141,242.567,132.141,249.133,132.141,252.417L132.141,255.7" id="jai-diagram-2-L-C-D-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-D LE-E" d="M132.141,298L132.141,302.167C132.141,306.333,132.141,314.667,132.141,322.117C132.141,329.567,132.141,336.133,132.141,339.417L132.141,342.7" id="jai-diagram-2-L-D-E-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-E LE-F" d="M132.141,385L132.141,389.167C132.141,393.333,132.141,401.667,132.141,409.117C132.141,416.567,132.141,423.133,132.141,426.417L132.141,429.7" id="jai-diagram-2-L-E-F-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-F LE-G" d="M127.888,472L126.93,476.167C125.972,480.333,124.056,488.667,123.098,496.117C122.141,503.567,122.141,510.133,122.141,513.417L122.141,516.7" id="jai-diagram-2-L-F-G-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-A LE-H" d="M297.161,37L309.595,41.167C322.029,45.333,346.897,53.667,359.331,65.083C371.766,76.5,371.766,91,371.766,105.5C371.766,120,371.766,134.5,371.766,149C371.766,163.5,371.766,178,371.766,192.5C371.766,207,371.766,221.5,371.766,236C371.766,250.5,371.766,265,371.766,279.5C371.766,294,371.766,308.5,371.766,323C371.766,337.5,371.766,352,371.766,366.5C371.766,381,371.766,395.5,371.766,410C371.766,424.5,371.766,439,371.766,453.5C371.766,468,371.766,482.5,371.006,493.056C370.246,503.612,368.726,510.223,367.966,513.529L367.206,516.835" id="jai-diagram-2-L-A-H-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;stroke-width:2px;stroke-dasharray:3;"></path><path class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-F LE-H" d="M183.095,472L194.572,476.167C206.048,480.333,229.001,488.667,250.174,496.675C271.348,504.683,290.742,512.365,300.439,516.207L310.136,520.048" id="jai-diagram-2-L-F-H-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;stroke-width:2px;stroke-dasharray:3;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-H LE-I" d="M361.766,559L361.766,563.167C361.766,567.333,361.766,575.667,361.766,583.117C361.766,590.567,361.766,597.133,361.766,600.417L361.766,603.7" id="jai-diagram-2-L-H-I-0" marker-end="url(#jai-diagram-2-jai-diagram-2_flowchart-pointEnd)" style="fill:none;"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g></g><g class="nodes"><g class="node default default flowchart-label" data-id="A" data-node="true" id="jai-diagram-2-flowchart-A-56" transform="translate(241.953125, 18.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="290.515625" x="-145.2578125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">Young evacuation STW + Initial Mark</tspan></text></g></g><g class="node default default flowchart-label" data-id="B" data-node="true" id="jai-diagram-2-flowchart-B-57" transform="translate(132.140625, 105.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="149.234375" x="-74.6171875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">Root Region Scan</tspan></text></g></g><g class="node default default flowchart-label" data-id="C" data-node="true" id="jai-diagram-2-flowchart-C-59" transform="translate(132.140625, 192.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="200.578125" x="-100.2890625" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">Concurrent Mark / SATB</tspan></text></g></g><g class="node default default flowchart-label" data-id="D" data-node="true" id="jai-diagram-2-flowchart-D-61" transform="translate(132.140625, 279.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="111.859375" x="-55.9296875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">Remark STW</tspan></text></g></g><g class="node default default flowchart-label" data-id="E" data-node="true" id="jai-diagram-2-flowchart-E-63" transform="translate(132.140625, 366.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="158.171875" x="-79.0859375" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">Cleanup / 统计收益</tspan></text></g></g><g class="node default default flowchart-label" data-id="F" data-node="true" id="jai-diagram-2-flowchart-F-65" transform="translate(132.140625, 453.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="264.28125" x="-132.140625" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">多轮 Mixed GC / Young+选定 Old</tspan></text></g></g><g class="node default default flowchart-label" data-id="G" data-node="true" id="jai-diagram-2-flowchart-G-67" transform="translate(122.140625, 540.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="214.3125" x="-107.15625" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">继续 Young / 下一标记周期</tspan></text></g></g><g class="node default default flowchart-label" data-id="H" data-node="true" id="jai-diagram-2-flowchart-H-69" transform="translate(361.765625, 540.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="164.9375" x="-82.46875" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">to-space exhausted</tspan></text></g></g><g class="node default default flowchart-label" data-id="I" data-node="true" id="jai-diagram-2-flowchart-I-73" transform="translate(361.765625, 627.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="304.515625" x="-152.2578125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">失败处理 / 必要时 JDK8 单线程 Full GC</tspan></text></g></g></g></g></g></svg><figcaption>图 2 · 对照上文阅读流程</figcaption><details><summary>查看 Mermaid 图表源码</summary><pre><code>flowchart TD
+ A["Young evacuation STW + Initial Mark"] --&gt; B["Root Region Scan"]
+ B --&gt; C["Concurrent Mark / SATB"]
+ C --&gt; D["Remark STW"]
+ D --&gt; E["Cleanup / 统计收益"]
+ E --&gt; F["多轮 Mixed GC / Young+选定 Old"]
+ F --&gt; G["继续 Young / 下一标记周期"]
+ A -.-&gt; H["to-space exhausted"]
+ F -.-&gt; H
+ H --&gt; I["失败处理 / 必要时 JDK8 单线程 Full GC"]
+</code></pre></details></figure>
+<h2 id="c3-s8" tabindex="-1">三层原理问答</h2>
+<details class="question" open=""><summary><h3 id="c3-s9" tabindex="-1">1. TLAB 会不会导致线程间对象无法访问？</h3></summary><div class="answer">
+<p>不会。TLAB 是堆里暂时分给线程的一块分配空间，目的是减少分配指针竞争。对象分配完后，仍然可以由其他线程引用。</p>
+<p><strong>用完 TLAB 怎么办？</strong> 线程尝试申请下一块，或走慢分配路径，必要时触发 GC。TLAB 的分配所有权和对象能否被其他线程看见是两件事，发布仍要遵守 JMM。</p>
+<p><strong>性能上怎么观察？</strong> 看分配速度、TLAB waste 和 GC 时间。如果只是跨线程传对象，不需要关 TLAB；盲目关闭反而可能增加分配竞争。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c3-s10" tabindex="-1">2. CMS 为什么重新标记，为什么产生浮动垃圾？</h3></summary><div class="answer">
+<p>并发标记时应用仍在改引用，CMS 需要重新检查这期间产生的变化，所以有重新标记暂停。有些已经标记的对象随后才变成垃圾，这轮仍可能留下，形成浮动垃圾。</p>
+<p><strong>CMS 与 SATB 一样吗？</strong> CMS 通过自身写屏障、卡记录等完成补充标记；G1 的 SATB 保留旧引用快照是另一套具体机制。不能只画同一张三色图，就当两者源码相同。</p>
+<p><strong>空间该留多少？</strong> 看并发周期有多长，期间还会分配和晋升多少。重标记慢还要检查脏卡、年轻代状态和引用处理，不能只调老年代开始回收的百分比。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c3-s11" tabindex="-1">3. Concurrent Mode Failure 如何定位？</h3></summary><div class="answer">
+<p>先确认日志里的 Concurrent Mode Failure，说明 CMS 并发期间没能及时提供所需空间，可能转入前台回收。它和 Young 晋升失败的 Promotion Failed 要分别看。</p>
+<p><strong>哪些数据帮助区分？</strong> 比较老年代增长、CMS 周期和启动位置，检查碎片及分配需求。总剩余空间不少却没有合适空块，也可能失败。容器 CPU 变少还会拖长并发周期。</p>
+<p><strong>怎样恢复和修复？</strong> 先限流、保留日志，减少突发分配。再根据证据考虑提前启动、增加合理余量或迁移 G1；若存活对象持续增长，仍要查持有者。重启只说明暂时腾出空间。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c3-s12" tabindex="-1">4. G1 的 RSet 和 SATB 有何区别？</h3></summary><div class="answer">
+<p>RSet 帮助回收某些 Region 时找到外部指向它们的引用；SATB 帮助并发标记记住开始时还可达的对象。一个解决局部扫描，一个解决标记期间引用变化。</p>
+<p><strong>屏障记录什么？</strong> SATB 写前记录被覆盖的旧引用；卡记录和 refinement 帮助维护跨 Region 的引用信息。RSet 粒度与卡有关，并非逐对象的精确全引用图。</p>
+<p><strong>耗时高怎样查？</strong> remembered set 扫描与并发标记分开看。长寿命大容器反复指向短命对象，会提高相关工作量。先看对象布局和引用变化，再决定是否调 Region 参数。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c3-s13" tabindex="-1">5. Mixed GC 是否等于 Full GC？</h3></summary><div class="answer">
+<p>不是。Mixed 只在一次暂停里回收 Young 和选中的一部分 Old，通常分多轮完成。Full GC 是全堆的另一条路径。</p>
+<p><strong>为什么不一次回收全部 Old？</strong> G1 根据标记结果、存活率和预计成本选 Region，避免一次搬太多存活对象。JDK 8 Full GC 仍是单线程，不能拿较新 JDK 的并行实现解释。</p>
+<p><strong>出现 Full GC 看什么？</strong> 看标记是否太晚、目的空间是否不足、Humongous 是否占连续区域，以及 Mixed 真正释放多少。GC 次数少不等于空间回收有效。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c3-s14" tabindex="-1">6. 如何制定 GC 的停顿目标？</h3></summary><div class="answer">
+<p>从业务允许的延迟出发，再看 GC 可用的时间。例如接口还有数据库和网络等待，不应把全部 p99 目标都分给 GC。G1 的暂停参数是期望，不是硬实时保证。</p>
+<p><strong>目标太小会怎样？</strong> G1 可能缩小年轻代、增加回收频率，单次变短但总开销增大。模型还受实际存活、RSet 和 CPU 影响，过去的估计不一定适合这次。</p>
+<p><strong>怎样证明更好？</strong> 用同样负载对照暂停分位数、GC CPU、吞吐和业务尾延迟，记录 JVM 更新号和资源限制。只挑一条变短的日志不能说明调优成功。</p>
+</div></details>
+<h2 id="c3-s15" tabindex="-1">模拟生产案例：大报表使 G1 退化</h2>
+<p>报表并发上升后，JDK 8 G1 日志出现 to-space exhausted，随后有很长的 Full GC。堆看起来尚有一些空闲。这是模拟情境，不代表某次真实事故记录。</p>
+<p>检查 Region 大小、大数组尺寸、Humongous 占用、存活量和搬迁日志。若每份报表都先拼成巨大 byte[]，应该能看到数组超过半个 Region，且高并发时目的空间紧张。仅有总空闲字节不能解释是否满足这些分配。</p>
+<p>先限制并发，改分批查询和流式输出，减少同时存活的大数组。再依据日志评估标记启动和搬迁预留，不先盲目增堆，挤占本地内存。</p>
+<p>用相同数据量、慢客户端和并发对照，看 Humongous、Old 与目的空间失败是否下降，业务吞吐是否仍可接受。以后把大报表纳入容量测试，同时监控进程 RSS。</p>
+<h2 id="c3-s16" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c3-s17" tabindex="-1">一分钟要点回顾</h3>
+<p>JDK 8 对象通常在 Eden/TLAB 分配，GC 从 Roots 判断是否可达。CMS 老年代并发标记清扫，初标和重标会暂停，需防碎片与回收来不及。G1 按 Region 回收，RSet 找外部引用，SATB 记录旧引用；Young 和 Mixed 都会暂停搬对象，Mixed 只带部分 Old。暂停目标不是保证，JDK 8 G1 Full GC 单线程。调优先看分配、存活和可用空间，再比较暂停与吞吐。</p>
+<h3 id="c3-s18" tabindex="-1">深入理解与机制串联</h3>
+<p>我先看对象为什么会活到 GC。Roots 仍能到达的对象不能回收，互相引用但整体不可达的对象可以回收。小对象通常在 Eden，通过 TLAB 减少分配竞争；TLAB 还是堆，对象也可以被其他线程使用。晋升既看年龄，也看 Survivor 空间，不是永远等固定次数。</p>
+<p>CMS 主要回收老年代。初始标记暂停，接着并发标记和预清理，重新标记暂停补齐应用改引用期间的工作，再并发清扫。清扫没有把存活对象紧凑搬到一起，所以有碎片；后来才变成垃圾的一部分对象留下本轮，也是浮动垃圾。回收周期里仍有分配和晋升，剩余空间不足就可能 Concurrent Mode Failure。</p>
+<p>G1 用等大 Region，Young 时复制存活对象。只回收部分区域，就靠 RSet 找外面指进来的引用；并发标记的 SATB 写前记录旧引用，保持开始时的可达信息。标记完成后根据垃圾和成本，Mixed 分批回收 Young 及部分 Old。</p>
+<p>暂停时间根据历史预测，若存活突然增多或 CPU 变少，预测就可能失准。目的空间不足会增加失败处理，严重时进入 JDK 8 单线程 Full GC。Humongous 大对象还有连续区域需求，所以总空闲不少也可能出问题。</p>
+<p>调优时我会用一轮周期内的新增量解释余量。例如四秒周期、每秒新增两百 MB，就不能只剩三百 MB 才开始。再对照同负载的暂停分位数、GC CPU 和业务延迟。换收集器不能让被静态缓存长期引用的对象消失；有增长趋势仍要查持有代码。</p>
+<h3 id="c3-s19" tabindex="-1">延伸问题、常见误解与速记</h3>
+<ul>
+<li>高频追问：Mixed 和 Full GC 的区别？CMS failure 与晋升失败什么关系？安全点等待算在哪段？</li>
+<li>容易答错：JDK 8 默认 G1；G1 Full GC 已并行；SATB 记录新引用；RSet 是完整的对象引用图。</li>
+<li>常看的源码：<code>CMSCollector::collect_in_background</code>、<code>G1CollectedHeap::do_collection_pause_at_safepoint</code>、<code>G1CollectorPolicy</code>、<code>ConcurrentMark</code>。</li>
+<li>阅读时分清：怎样确认存活，怎样腾空间，以及失败时为何变成长停顿。</li>
+</ul>
+<h2 id="c3-s20" tabindex="-1">官方资料与版本来源</h2>
+<p>本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 <a href="../source-notices.txt">source-notices.txt</a>，下载记录见 <a href="../sources.json">sources.json</a>。</p>
+<ul>
+<li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/concurrentMarkSweep/concurrentMarkSweepGeneration.cpp">CMSCollector::collect_in_background · HotSpot 8u462-b08</a></li>
+<li><a href="https://raw.githubusercontent.com/openjdk/jdk8u/jdk8u462-b08/hotspot/src/share/vm/gc_implementation/g1/g1CollectedHeap.cpp">G1CollectedHeap::do_collection_pause_at_safepoint · HotSpot 8u462-b08</a></li>
+<li><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/vm/gctuning/">Oracle JDK8 GC Tuning Guide</a></li>
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c3-quick-core">先记住这几件事</h2><ul><li>TLAB 在堆里，只优化分配，对象仍能交给其他线程。</li><li>CMS 初标和重标暂停，正常周期清扫不整理，要留分配余量。</li><li>G1 RSet 找外部引用，SATB 记录被覆盖的旧引用。</li><li>Mixed 回收 Young 与部分 Old；暂停目标不是每次保证。</li><li>JDK 8 G1 Full GC 单线程，大对象和搬迁空间要单独检查。</li></ul><h2 id="c3-quick-qa">四个重点问题</h2><details class="question" open=""><summary><span class="question-title">1. TLAB 会不会导致线程间对象无法访问？</span></summary><div class="answer">
+<p>不会。TLAB 是堆里暂时分给线程的一块分配空间，目的是减少分配指针竞争。对象分配完后，仍然可以由其他线程引用。</p>
+<p><strong>用完 TLAB 怎么办？</strong> 线程尝试申请下一块，或走慢分配路径，必要时触发 GC。TLAB 的分配所有权和对象能否被其他线程看见是两件事，发布仍要遵守 JMM。</p>
+<p><strong>性能上怎么观察？</strong> 看分配速度、TLAB waste 和 GC 时间。如果只是跨线程传对象，不需要关 TLAB；盲目关闭反而可能增加分配竞争。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">2. CMS 为什么重新标记，为什么产生浮动垃圾？</span></summary><div class="answer">
+<p>并发标记时应用仍在改引用，CMS 需要重新检查这期间产生的变化，所以有重新标记暂停。有些已经标记的对象随后才变成垃圾，这轮仍可能留下，形成浮动垃圾。</p>
+<p><strong>CMS 与 SATB 一样吗？</strong> CMS 通过自身写屏障、卡记录等完成补充标记；G1 的 SATB 保留旧引用快照是另一套具体机制。不能只画同一张三色图，就当两者源码相同。</p>
+<p><strong>空间该留多少？</strong> 看并发周期有多长，期间还会分配和晋升多少。重标记慢还要检查脏卡、年轻代状态和引用处理，不能只调老年代开始回收的百分比。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">3. Concurrent Mode Failure 如何定位？</span></summary><div class="answer">
+<p>先确认日志里的 Concurrent Mode Failure，说明 CMS 并发期间没能及时提供所需空间，可能转入前台回收。它和 Young 晋升失败的 Promotion Failed 要分别看。</p>
+<p><strong>哪些数据帮助区分？</strong> 比较老年代增长、CMS 周期和启动位置，检查碎片及分配需求。总剩余空间不少却没有合适空块，也可能失败。容器 CPU 变少还会拖长并发周期。</p>
+<p><strong>怎样恢复和修复？</strong> 先限流、保留日志，减少突发分配。再根据证据考虑提前启动、增加合理余量或迁移 G1；若存活对象持续增长，仍要查持有者。重启只说明暂时腾出空间。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">4. G1 的 RSet 和 SATB 有何区别？</span></summary><div class="answer">
+<p>RSet 帮助回收某些 Region 时找到外部指向它们的引用；SATB 帮助并发标记记住开始时还可达的对象。一个解决局部扫描，一个解决标记期间引用变化。</p>
+<p><strong>屏障记录什么？</strong> SATB 写前记录被覆盖的旧引用；卡记录和 refinement 帮助维护跨 Region 的引用信息。RSet 粒度与卡有关，并非逐对象的精确全引用图。</p>
+<p><strong>耗时高怎样查？</strong> remembered set 扫描与并发标记分开看。长寿命大容器反复指向短命对象，会提高相关工作量。先看对象布局和引用变化，再决定是否调 Region 参数。</p>
+</div></details><h2 id="c3-quick-answer">核心要点</h2><p>JDK 8 对象通常在 Eden/TLAB 分配，GC 从 Roots 判断是否可达。CMS 老年代并发标记清扫，初标和重标会暂停，需防碎片与回收来不及。G1 按 Region 回收，RSet 找外部引用，SATB 记录旧引用；Young 和 Mixed 都会暂停搬对象，Mixed 只带部分 Old。暂停目标不是保证，JDK 8 G1 Full GC 单线程。调优先看分配、存活和可用空间，再比较暂停与吞吐。</p><h2 id="c3-quick-errors">常见误解与源码</h2><ul>
+<li>高频追问：Mixed 和 Full GC 的区别？CMS failure 与晋升失败什么关系？安全点等待算在哪段？</li>
+<li>容易答错：JDK 8 默认 G1；G1 Full GC 已并行；SATB 记录新引用；RSet 是完整的对象引用图。</li>
+<li>常看的源码：<code>CMSCollector::collect_in_background</code>、<code>G1CollectedHeap::do_collection_pause_at_safepoint</code>、<code>G1CollectorPolicy</code>、<code>ConcurrentMark</code>。</li>
+<li>阅读时分清：怎样确认存活，怎样腾空间，以及失败时为何变成长停顿。</li>
+</ul></section></article><nav aria-label="专题翻页" class="topic-pager"><a href="../hashmap-concurrenthashmap/">← HashMap 与 ConcurrentHashMap</a><a href="../">全部专题</a><a href="../jvm-oom-troubleshooting/">JVM OOM 与生产故障排查 →</a></nav></main></div>
+<dialog aria-labelledby="search-title" id="search-dialog"><div class="search-head"><h2 id="search-title">全文搜索</h2><button aria-label="关闭搜索" id="search-close">关闭</button></div><label for="search-input">搜索当前专题的关键词、源码方法或学习问题</label><input autocomplete="off" id="search-input" placeholder="例如：sizeCtl、事务回查、Direct buffer" type="search"/><p aria-live="polite" id="search-status" role="status">输入关键词，搜索本篇完整正文与答案。</p><div id="search-results"></div></dialog><div aria-live="polite" id="toast" role="status"></div>
+<footer>按章标注源码版本 · 教学案例与实测排查分别标注 · <a href="./article.md">下载 Markdown 正文</a> · <a href="../VERIFICATION.md">验证范围</a></footer><dialog aria-label="图解放大" id="diagram-dialog"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {
+    if(document.body.dataset.tocScope==='document')return [...$('#main').querySelectorAll('.chapter-title h1,.chapter-title h2,.study h2,.study h3')];
+    return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];
+  }
+  function makeToc() {
+    sections=visibleHeadings();
+    const nav=active && document.querySelector('.chapter-nav[data-chapter="'+active.id+'"]');
+    if(nav){
+      const box=nav.querySelector('div');box.replaceChildren();
+      sections.forEach(h=>{if(!h.id)return;const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';box.append(a);});
+      nav.open=true;
+    }
+    const label=$('#current-label');if(label)label.textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function selectChapter(article) {
+    active=article;
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();
+  }
+  function scrollToTarget(target) {
+    const margin=window.innerWidth<=760?115:90;
+    window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top+window.scrollY-margin),behavior:'instant'});
+  }
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)scrollToTarget($('#review-route'));closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    selectChapter(article);closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      scrollToTarget(target);if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();
+    }
+    updateReading(false);
+  }
+  function updateReading(trackChapter=true) {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;
+    let currentChapter=chapters[0];
+    for(const chapter of chapters){if(chapter.getBoundingClientRect().top<=margin+30)currentChapter=chapter;else break;}
+    const first=chapters[0].getBoundingClientRect(),last=chapters[chapters.length-1].getBoundingClientRect();
+    const box={top:first.top,bottom:last.bottom,height:last.bottom-first.top};
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(progress===100)currentChapter=chapters[chapters.length-1];
+    if(trackChapter && currentChapter!==active)selectChapter(currentChapter);
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('.chapter-nav div a').forEach(a=>{const isCurrent=!!current && a.hash==='#'+current.id;a.classList.toggle('current',isCurrent);if(isCurrent){const details=a.closest('details');if(details)details.open=true;}});
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{
+        const canvas=$('#diagram-content');canvas.classList.add('diagram');
+        canvas.style.margin='0';canvas.style.padding='0';canvas.style.border='0';
+        canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));
+        const ids=new Map([...canvas.querySelectorAll('[id]')].map(el=>[el.id,'zoom-'+el.id]));
+        const keys=[...ids.keys()].sort((a,b)=>b.length-a.length).map(id=>id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+        const pattern=keys.length?new RegExp('#('+keys.join('|')+')(?=$|[^\\w-])','g'):null;
+        const references=value=>pattern?value.replace(pattern,(_,id)=>'#'+ids.get(id)):value;
+        canvas.querySelectorAll('[id]').forEach(el=>{el.id=ids.get(el.id);});
+        // Mermaid scopes CSS selectors to the root SVG ID; keep those selectors
+        // and marker/use references aligned with the renamed clone IDs.
+        canvas.querySelectorAll('style').forEach(el=>{el.textContent=references(el.textContent);});
+        canvas.querySelectorAll('*').forEach(el=>{
+          for(const attr of ['style','fill','stroke','marker-end','marker-start','marker-mid','clip-path','mask','filter','href','xlink:href']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,references(value));
+          }
+          for(const attr of ['aria-labelledby','aria-describedby']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.split(/\s+/).map(id=>ids.get(id)||id).join(' '));
+          }
+        });scale(1);viewer.showModal();
+      });
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
+})();
+</script></body></html>

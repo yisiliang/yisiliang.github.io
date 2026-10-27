@@ -4,7 +4,7 @@
 
 > 固定基线：Apache RocketMQ5.3.4，标签rocketmq-all-5.3.4。面向只读学习：真实源码、机制图、状态推演与知识回顾；无需实验。
 
-[下载完整离线版](./rocketmq-offline.zip) · [下载本文引用的原始源码](./rocketmq-source.zip) · [Apache许可](./apache-license.txt) · [上游NOTICE](./apache-notice.txt) · [源码归属说明](./source-notices.txt)
+[Apache许可](./apache-license.txt) · [上游NOTICE](./apache-notice.txt) · [源码归属说明](./source-notices.txt)
 
 本文是独立的公开源码导读，所有案例均为虚构，不含个人履历、业务系统细节、生产配置、账号或本地路径。页面图、样式、搜索与语法高亮均内嵌；打开源码外链时才需要网络。搜索和主题设置在本地处理，不上传阅读内容。
 

@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><meta content="light dark" name="color-scheme"/>
+<meta name="description" content="从 Read View、Undo 到执行计划，解释 MVCC、隔离级别与锁范围。">
+<title>数据库事务、MVCC 与性能优化 · 技术专题 | YiSiliang</title>
+<script data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3" defer="" src="https://cloud.umami.is/script.js"></script>
+<script data-manual="" defer="" src="../vendor/prism.js"></script><script defer="" src="../vendor/prism-c.js"></script><script defer="" src="../vendor/prism-cpp.js"></script><script defer="" src="../vendor/prism-java.js"></script><script defer="" src="../vendor/prism-sql.js"></script><script defer="" src="../vendor/prism-bash.js"></script><script defer="" src="../vendor/prism-yaml.js"></script>
+<style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="topics"] .diagram svg .edgePath path,[data-reader="topics"] .diagram svg .flowchart-link,[data-reader="topics"] .diagram svg .messageLine0,[data-reader="topics"] .diagram svg .messageLine1,[data-reader="topics"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="topics"] .diagram svg .edgeLabel span,[data-reader="topics"] .diagram svg .messageText,[data-reader="topics"] .diagram svg .loopText,[data-reader="topics"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="topics"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
+}
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader main h4{overflow-wrap:anywhere}
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+
+/* 单侧目录：章节目录、篇内目录与阅读进度都收在左侧。 */
+.layout {
+  max-width: 1280px;
+  grid-template-columns: 300px minmax(0, 880px);
+  gap: 46px;
+}
+#left-nav .reading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 10px;
+  padding: 0 0 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+#left-nav .reading span { display: block; }
+#right-toc { display: none !important; }
+.chapter-nav div a.depth3 { padding-left: 20px; font-size: 11px; }
+.topic-nav-link {
+  display: flex;
+  gap: 8px;
+  padding: 7px 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.topic-nav-link:hover { color: var(--accent); text-decoration: none; }
+.topic-nav-link span:first-child {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font: 11px/2.1 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.topic-nav-index { border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.topic-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 30px 0 10px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.topic-pager a:last-child { text-align: right; }
+@media (min-width: 1450px) {
+  .layout { max-width: 1760px; grid-template-columns: 320px minmax(0, 1fr); gap: 44px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 260px minmax(0, 1fr); gap: 30px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  .topic-pager { flex-wrap: wrap; gap: 10px; }
+  .topic-pager a:last-child { text-align: left; }
+}
+
+/* Keep the theme switch reachable on phones; print is not useful on mobile. */
+@media (max-width: 760px) {
+  #theme { display: inline-block !important; }
+  #print { display: none !important; }
+}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script>
+<!-- social-meta:start --><link rel="canonical" href="https://yisiliang.github.io/topics/database-transactions-mvcc/"><meta property="og:type" content="article"><meta property="og:site_name" content="源码之下，系统之上"><meta property="og:locale" content="zh_CN"><meta property="og:title" content="数据库事务、MVCC 与性能优化 · 技术专题 | YiSiliang"><meta property="og:description" content="从 Read View、Undo 到执行计划，解释 MVCC、隔离级别与锁范围。"><meta property="og:url" content="https://yisiliang.github.io/topics/database-transactions-mvcc/"><meta property="og:image" content="https://yisiliang.github.io/assets/og-default.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="数据库事务、MVCC 与性能优化 · 技术专题 | YiSiliang"><meta name="twitter:description" content="从 Read View、Undo 到执行计划，解释 MVCC、隔离级别与锁范围。"><meta name="twitter:image" content="https://yisiliang.github.io/assets/og-default.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><!-- social-meta:end -->
+</head><body class="learning-reader" data-layout="learning-v2" data-reader="topics">
+<a class="skip" href="#main">跳到正文</a>
+<header class="topbar"><button aria-controls="left-nav" aria-expanded="false" aria-label="打开专题导航" class="mobile" id="menu">目录</button><div class="brand"><a class="library-home" href="../../">← 学习库</a>技术专题<span>源码原理 · 故障排查 · 架构实践</span></div><div class="tools"><button aria-label="打开全文搜索" id="search-open">搜索 <kbd>/</kbd></button><button aria-pressed="false" id="mode">要点速览</button><button id="print" type="button">打印</button><button aria-label="切换主题" id="theme">主题：系统</button></div></header>
+<div aria-hidden="true" class="progress-track"><div id="progress-bar"></div></div><div hidden="" id="drawer-backdrop"></div>
+<div class="layout"><nav aria-label="技术专题" id="left-nav"><div class="reading"><span id="progress-text">阅读进度 0%</span><span id="current-label"></span></div><p class="nav-label">技术专题 / 14篇</p><a class="topic-nav-link topic-nav-index" href="../"><span>目录</span>全部专题</a><a class="topic-nav-link" href="../java-concurrency/"><span>01</span>Java 并发编程与锁机制</a><a class="topic-nav-link" href="../hashmap-concurrenthashmap/"><span>02</span>HashMap 与 ConcurrentHashMap</a><a class="topic-nav-link" href="../jvm-memory-cms-g1/"><span>03</span>JVM 内存管理、CMS 与 G1</a><a class="topic-nav-link" href="../jvm-oom-troubleshooting/"><span>04</span>JVM OOM 与生产故障排查</a><a class="topic-nav-link" href="../spring-core-transactions/"><span>05</span>Spring 核心原理与事务</a><details class="chapter-nav current" data-chapter="c6" open=""><summary><a href="./"><span>06</span>数据库事务、MVCC 与性能优化</a></summary><div></div></details><a class="topic-nav-link" href="../rocketmq/"><span>07</span>RocketMQ 消息队列</a><a class="topic-nav-link" href="../redis-cache/"><span>08</span>Redis 与分布式缓存</a><a class="topic-nav-link" href="../distributed-transactions/"><span>09</span>分布式事务与数据一致性</a><a class="topic-nav-link" href="../microservices-stability/"><span>10</span>微服务、高并发与系统稳定性</a><a class="topic-nav-link" href="../jit-jmm-memory-barriers/"><span>11</span>JIT即时编译、JMM与内存屏障</a><a class="topic-nav-link" href="../nginx-rate-limiting/"><span>12</span>Nginx限流原理与工程实践</a><a class="topic-nav-link" href="../jvm-memory-structure-oom/"><span>13</span>JVM内存结构与OOM排查实战</a><a class="topic-nav-link" href="../fastjson2-arm64-jit/"><span>14</span>从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷</a></nav><main id="main" tabindex="-1">
+<article class="chapter" data-title="数据库事务、MVCC 与性能优化" id="c6"><div class="chapter-title"><p class="eyebrow">专题 06 / 完整阅读</p><h1>数据库事务、MVCC 与性能优化</h1></div><div class="study">
+<p>主要使用 MySQL 8.0.36 InnoDB，另外对照 PostgreSQL 16、Oracle 19c 和 OceanBase 4.x。不同数据库可以都叫 MVCC，却把旧版本放在不同地方，也不一定采用相同的锁和隔离规则。</p>
+<h2 id="c6-s1" tabindex="-1">核心知识与原理</h2>
+<h3 id="c6-s2" tabindex="-1">ACID、日志与可见性</h3>
+<p>转账时，扣款和加款必须一起成功或一起撤销，这对应 Atomicity。金额约束、账户关系和业务规则要一直成立，这是 Consistency。并发事务能看到什么、会互相等到什么程度，由 Isolation 决定。成功提交后，按配置承诺的数据应能从故障中恢复，这是 Durability。</p>
+<p>InnoDB 修改数据页后，不必立刻把每个页都写到磁盘。它先写 redo，崩溃后据此重做必要修改。WAL 要求相关日志先于数据页落盘。Undo 则用来撤销未成功事务，并为快照读提供旧版本。Redo 和 Undo 解决的是不同问题，都不是备份。</p>
+<p>MySQL 的 binlog 又是另一层日志，主要服务复制和逻辑恢复。InnoDB 提交需要与 binlog 协调，持久程度还受 <code>innodb_flush_log_at_trx_commit</code>、<code>sync_binlog</code> 和存储设备影响。数据库返回成功，不等于异步副本当时一定已有这笔数据。</p>
+<h3 id="c6-s3" tabindex="-1">InnoDB Read View 与 RC/RR</h3>
+<p>假设余额从 100 改为 80，写事务尚未提交。另一个线程做普通 SELECT，不必看到未提交的 80，也不一定要等写锁：它可以沿 Undo 找到之前的 100。MVCC 就是让不同事务按规则读到合适的版本。</p>
+<p>InnoDB 聚簇记录含事务 ID 和 Undo 指针。Read View 保存创建者、快照时活跃的读写事务集合，以及判断区间的界限。<code>changes_visible()</code> 先判断版本是否早于活跃事务界限、是否为自己写入，再检查新事务界限和活跃集合。不可见时，就沿 Undo 找更旧的版本。</p>
+<p>RC 下，普通一致性读通常每条语句新建快照：第一次查完后别人提交修改，第二次就可能读到新值。RR 通常在第一次一致性读建立快照，后续复用；不是写 BEGIN 的那一刻必然建立。显式 consistent snapshot 等路径另有创建时机。</p>
+<p>这里的“普通读”很重要。SELECT FOR UPDATE 和 UPDATE 要读取可以锁定和修改的较新状态，走当前读。一个 RR 事务先普通 SELECT，再 UPDATE，不应假定两个动作都只面对同一份旧快照。长快照还会让 purge 保留它可能用到的 Undo，影响清理。</p>
+<h3 id="c6-s4" tabindex="-1">索引、范围锁与执行计划</h3>
+<p>InnoDB 的主键索引叶子保存整行，二级索引叶子保存索引值和主键。通过二级索引找到主键，再去取整行，叫回表。查询所需列都在索引里时可以减少回表，这就是覆盖索引，但增加宽索引也会占内存、增加写成本。</p>
+<p>联合索引 <code>(tenant_id, created_at, id)</code> 按这几列依次排序。tenant_id 等值能缩小到某个租户，created_at 范围再缩小连续扫描区间。范围之后的列不一定继续缩小这个区间，但仍可能用于 ICP 或过滤，不能一句“范围后索引失效”就结束。</p>
+<p>范围更新或锁定读还涉及间隙。记录锁保护已有索引记录，Gap Lock 保护记录之间的空隙，Next-Key Lock 把记录和前间隙一起保护。RR 下某些范围锁定读用它阻止插入；唯一索引完整等值命中通常只锁记录，未命中又要另看。RC 大多数搜索不使用 gap lock，但外键和重复键检查有例外。</p>
+<p>SQL 最终只返回一行，不代表只锁一行。若访问路径扫描了很大范围，锁也可能很多。EXPLAIN 先看 key、rows、访问类型和 Extra，再在受控环境用 EXPLAIN ANALYZE 比较实际扫描量。后者会真实执行，不能随意对生产重查询使用。死锁时应有界重试整个事务，重新做决策，而不是只补最后一条 SQL。</p>
+<pre><code class="language-sql">-- 业务示例：幂等键与条件状态转换放进同一个事务。
+START TRANSACTION;
+INSERT INTO processed_event(event_id) VALUES ('pay-20261008-001');
+UPDATE orders SET status='PAID'
+ WHERE id=1001 AND status='PENDING';
+-- 调用方检查 affected rows，并区分首次成功、已处理与非法状态。
+COMMIT;
+-- 联合索引示例：tenant_id 等值、created_at 范围，id 用于稳定排序。
+CREATE INDEX idx_order_tenant_time ON orders(tenant_id, created_at, id);
+</code></pre>
+<h3 id="c6-s5" tabindex="-1">数据库实现差异与迁移</h3>
+<table>
+<thead>
+<tr>
+<th>数据库</th>
+<th>旧版本与快照怎样处理？</th>
+<th>实践中需要留意什么？</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MySQL InnoDB</td>
+<td>Undo 链配合 Read View，默认 RR</td>
+<td>next-key、聚簇主键、长事务阻碍 purge</td>
+</tr>
+<tr>
+<td>PostgreSQL 16</td>
+<td>表里保留 tuple 版本，VACUUM 清理，默认 RC</td>
+<td>长快照影响清理；RR 是快照隔离，Serializable 用 SSI 检测危险冲突</td>
+</tr>
+<tr>
+<td>Oracle 19c</td>
+<td>使用 SCN 和 Undo 构造一致读，默认 RC</td>
+<td>没有可直接照搬的同名 RR；可能遇到 ORA-08177 或 Undo 不足的 ORA-01555</td>
+</tr>
+<tr>
+<td>OceanBase 4.x</td>
+<td>分布式多版本存储与事务协调</td>
+<td>MySQL/Oracle 租户模式不是完全等价实现，应核对小版本、功能与分布式计划</td>
+</tr>
+</tbody>
+</table>
+<p>迁移先检查数据含义：时区、decimal、字符排序、NULL 和空字符串。在 Oracle 中空字符串按 NULL 处理，就可能改变唯一性或筛选结果。语法能执行只是第一步，事务结果和访问成本也要测。</p>
+<p>全量复制应对应明确快照位点，CDC 从正确位置接上增量。按主键范围比较行数和规范化后的字段内容，重要业务再对金额与状态账；只比行数，漏一行同时多一行也可能“通过”。切换前等增量追平，控制写路由，预演回退。双写会产生自己的失败和乱序问题，需要单独对账。</p>
+<h3 id="c6-s6" tabindex="-1">Read View 手工推演与写偏差</h3>
+<p>假设快照里的活跃事务是 {100,104}，最小活跃 ID 是 100，新事务界限是 108，创建者为 106。版本 99 可见；100、104 因仍活跃不可见；105 不在活跃集合里且未超界，可以看见；108 及以后不可见；自己的 106 可见。若当前版本是 104，就沿 Undo 找到可见的旧版。</p>
+<p>快照也不是所有业务规则的保险。两名值班人员各自看到对方在线，于是分别把自己改为离线，写的不是同一行，最后却无人值班。要保护“至少一人在线”，可以锁住共同的约束记录，或使用数据库支持的更严格方式。不同产品的 Serializable 和冲突处理不同，应测试后再选；重试时也必须重新读取、重新判断。</p>
+<h2 id="c6-s7" tabindex="-1">源码级解析与调用链</h2>
+<p>InnoDB 普通读会经过 <code>row_search_mvcc</code> 及相关可见性检查。<code>ReadView::changes_visible</code> 判定版本能否返回；不行则由 <code>row_vers_build_for_consistent_read</code> 重建旧版本后再判断。</p>
+<p>下面这段判断与前面的 {100,104} 例子对应，注意 m_up_limit_id 和 m_low_limit_id 的历史命名，按代码比较方向理解，不凭英文名称猜。</p>
+<div class="source-caption"><code>ReadView::changes_visible</code><span>MySQL 8.0.36 · L44–L319 · <a href="https://github.com/mysql/mysql-server/blob/mysql-8.0.36/storage/innobase/include/read0types.h#L44-L319">完整源码</a></span></div>
+<pre><code class="language-cpp">/** Read view lists the trx ids of those transactions for which a consistent
+read should not see the modifications to the database. */
+
+class ReadView {
+  /** This is similar to a std::vector but it is not a drop
+  in replacement. It is specific to ReadView. */
+  class ids_t {
+    typedef trx_ids_t::value_type value_type;
+
+    /**
+    Constructor */
+    ids_t() : m_ptr(), m_size(), m_reserved() {}
+
+    /**
+    Destructor */
+    ~ids_t() { ut::delete_arr(m_ptr); }
+
+    /** Try and increase the size of the array. Old elements are copied across.
+    It is a no-op if n is &lt; current size.
+    @param n            Make space for n elements */
+    void reserve(ulint n);
+
+    /**
+    Resize the array, sets the current element count.
+    @param n            new size of the array, in elements */
+    void resize(ulint n) {
+      ut_ad(n &lt;= capacity());
+
+      m_size = n;
+    }
+
+    /**
+    Reset the size to 0 */
+    void clear() { resize(0); }
+
+    /**
+    @return the capacity of the array in elements */
+    ulint capacity() const { return (m_reserved); }
+
+    /**
+    Copy and overwrite the current array contents
+
+    @param start                Source array
+    @param end          Pointer to end of array */
+    void assign(const value_type *start, const value_type *end);
+
+    /**
+    Insert the value in the correct slot, preserving the order.
+    Doesn't check for duplicates. */
+    void insert(value_type value);
+
+    /**
+    @return the value of the first element in the array */
+    value_type front() const {
+      ut_ad(!empty());
+
+      return (m_ptr[0]);
+    }
+
+    /**
+    @return the value of the last element in the array */
+    value_type back() const {
+      ut_ad(!empty());
+
+      return (m_ptr[m_size - 1]);
+    }
+
+    /**
+    Append a value to the array.
+    @param value                the value to append */
+    void push_back(value_type value);
+
+    /**
+    @return a pointer to the start of the array */
+    trx_id_t *data() { return (m_ptr); }
+
+    /**
+    @return a const pointer to the start of the array */
+    const trx_id_t *data() const { return (m_ptr); }
+
+    /**
+    @return the number of elements in the array */
+    ulint size() const { return (m_size); }
+
+    /**
+    @return true if size() == 0 */
+    bool empty() const { return (size() == 0); }
+
+   private:
+    // Prevent copying
+    ids_t(const ids_t &amp;);
+    ids_t &amp;operator=(const ids_t &amp;);
+
+   private:
+    /** Memory for the array */
+    value_type *m_ptr;
+
+    /** Number of active elements in the array */
+    ulint m_size;
+
+    /** Size of m_ptr in elements */
+    ulint m_reserved;
+
+    friend class ReadView;
+  };
+
+ public:
+  ReadView();
+  ~ReadView();
+  /** Check whether transaction id is valid.
+  @param[in]    id              transaction id to check
+  @param[in]    name            table name */
+  static void check_trx_id_sanity(trx_id_t id, const table_name_t &amp;name);
+
+  /** Check whether the changes by id are visible.
+  @param[in]    id      transaction id to check against the view
+  @param[in]    name    table name
+  @return whether the view sees the modifications of id. */
+  [[nodiscard]] bool changes_visible(trx_id_t id,
+                                     const table_name_t &amp;name) const {
+    ut_ad(id &gt; 0);
+
+    if (id &lt; m_up_limit_id || id == m_creator_trx_id) {
+      return (true);
+    }
+
+    check_trx_id_sanity(id, name);
+
+    if (id &gt;= m_low_limit_id) {
+      return (false);
+
+    } else if (m_ids.empty()) {
+      return (true);
+    }
+
+    const ids_t::value_type *p = m_ids.data();
+
+    return (!std::binary_search(p, p + m_ids.size(), id));
+  }
+
+  /**
+  @param id             transaction to check
+  @return true if view sees transaction id */
+  bool sees(trx_id_t id) const { return (id &lt; m_up_limit_id); }
+
+  /**
+  Mark the view as closed */
+  void close() {
+    ut_ad(m_creator_trx_id != TRX_ID_MAX);
+    m_creator_trx_id = TRX_ID_MAX;
+  }
+
+  /**
+  @return true if the view is closed */
+  bool is_closed() const { return (m_closed); }
+
+  /**
+  Write the limits to the file.
+  @param file           file to write to */
+  void print_limits(FILE *file) const {
+    fprintf(file,
+            "Trx read view will not see trx with"
+            " id &gt;= " TRX_ID_FMT ", sees &lt; " TRX_ID_FMT "\n",
+            m_low_limit_id, m_up_limit_id);
+  }
+
+  /** Check and reduce low limit number for read view. Used to
+  block purge till GTID is persisted on disk table.
+  @param[in]    trx_no  transaction number to check with */
+  void reduce_low_limit(trx_id_t trx_no) {
+    if (trx_no &lt; m_low_limit_no) {
+      /* Save low limit number set for Read View for MVCC. */
+      ut_d(m_view_low_limit_no = m_low_limit_no);
+      m_low_limit_no = trx_no;
+    }
+  }
+
+  /**
+  @return the low limit no */
+  trx_id_t low_limit_no() const { return (m_low_limit_no); }
+
+  /**
+  @return the low limit id */
+  trx_id_t low_limit_id() const { return (m_low_limit_id); }
+
+  /**
+  @return true if there are no transaction ids in the snapshot */
+  bool empty() const { return (m_ids.empty()); }
+
+#ifdef UNIV_DEBUG
+  /**
+  @return the view low limit number */
+  trx_id_t view_low_limit_no() const { return (m_view_low_limit_no); }
+
+  /**
+  @param rhs            view to compare with
+  @return truen if this view is less than or equal rhs */
+  bool le(const ReadView *rhs) const {
+    return (m_low_limit_no &lt;= rhs-&gt;m_low_limit_no);
+  }
+#endif /* UNIV_DEBUG */
+ private:
+  /**
+  Copy the transaction ids from the source vector */
+  inline void copy_trx_ids(const trx_ids_t &amp;trx_ids);
+
+  /**
+  Opens a read view where exactly the transactions serialized before this
+  point in time are seen in the view.
+  @param id             Creator transaction id */
+  inline void prepare(trx_id_t id);
+
+  /**
+  Copy state from another view. Must call copy_complete() to finish.
+  @param other          view to copy from */
+  inline void copy_prepare(const ReadView &amp;other);
+
+  /**
+  Complete the copy, insert the creator transaction id into the
+  m_trx_ids too and adjust the m_up_limit_id *, if required */
+  inline void copy_complete();
+
+  /**
+  Set the creator transaction id, existing id must be 0 */
+  void creator_trx_id(trx_id_t id) {
+    ut_ad(m_creator_trx_id == 0);
+    m_creator_trx_id = id;
+  }
+
+  friend class MVCC;
+
+ private:
+  // Disable copying
+  ReadView(const ReadView &amp;);
+  ReadView &amp;operator=(const ReadView &amp;);
+
+ private:
+  /** The read should not see any transaction with trx id &gt;= this
+  value. In other words, this is the "high water mark". */
+  trx_id_t m_low_limit_id;
+
+  /** The read should see all trx ids which are strictly
+  smaller (&lt;) than this value.  In other words, this is the
+  low water mark". */
+  trx_id_t m_up_limit_id;
+
+  /** trx id of creating transaction, set to TRX_ID_MAX for free
+  views. */
+  trx_id_t m_creator_trx_id;
+
+  /** Set of RW transactions that was active when this snapshot
+  was taken */
+  ids_t m_ids;
+
+  /** The view does not need to see the undo logs for transactions
+  whose transaction number is strictly smaller (&lt;) than this value:
+  they can be removed in purge if not needed by other views */
+  trx_id_t m_low_limit_no;
+
+#ifdef UNIV_DEBUG
+  /** The low limit number up to which read views don't need to access
+  undo log records for MVCC. This could be higher than m_low_limit_no
+  if purge is blocked for GTID persistence. Currently used for debug
+  variable INNODB_PURGE_VIEW_TRX_ID_AGE. */
+  trx_id_t m_view_low_limit_no;
+#endif /* UNIV_DEBUG */
+
+  /** AC-NL-RO transaction view that has been "closed". */
+  bool m_closed;
+
+  typedef UT_LIST_NODE_T(ReadView) node_t;
+
+  /** List of read views in trx_sys */
+  byte pad1[64 - sizeof(node_t)];
+  node_t m_view_list;
+};
+
+</code></pre>
+<p>先允许较早版本和自己的版本，再拒绝超出新事务界限的版本，最后在活跃事务集合里查找。binary_search 找不到，才表示这个中间区间的事务版本可见。</p>
+<figure class="diagram" data-diagram="1"><svg aria-label="图 1 · 对照上文阅读流程" aria-roledescription="flowchart-v2" id="jai-diagram-1-jai-diagram-1" role="img" style="max-width: 1184.1875px;" viewbox="-8 -8 1184.1875 246.71484375" width="100%" xmlns="http://www.w3.org/2000/svg"><style>#jai-diagram-1-jai-diagram-1{font-family:sans-serif;font-size:16px;fill:#182338;}#jai-diagram-1-jai-diagram-1 .error-icon{fill:#f4f6f9;}#jai-diagram-1-jai-diagram-1 .error-text{fill:#0b0906;stroke:#0b0906;}#jai-diagram-1-jai-diagram-1 .edge-thickness-normal{stroke-width:2px;}#jai-diagram-1-jai-diagram-1 .edge-thickness-thick{stroke-width:3.5px;}#jai-diagram-1-jai-diagram-1 .edge-pattern-solid{stroke-dasharray:0;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dashed{stroke-dasharray:3;}#jai-diagram-1-jai-diagram-1 .edge-pattern-dotted{stroke-dasharray:2;}#jai-diagram-1-jai-diagram-1 .marker{fill:#72849a;stroke:#72849a;}#jai-diagram-1-jai-diagram-1 .marker.cross{stroke:#72849a;}#jai-diagram-1-jai-diagram-1 svg{font-family:sans-serif;font-size:16px;}#jai-diagram-1-jai-diagram-1 .label{font-family:sans-serif;color:#182338;}#jai-diagram-1-jai-diagram-1 .cluster-label text{fill:#0b0906;}#jai-diagram-1-jai-diagram-1 .cluster-label span,#jai-diagram-1-jai-diagram-1 p{color:#0b0906;}#jai-diagram-1-jai-diagram-1 .label text,#jai-diagram-1-jai-diagram-1 span,#jai-diagram-1-jai-diagram-1 p{fill:#182338;color:#182338;}#jai-diagram-1-jai-diagram-1 .node rect,#jai-diagram-1-jai-diagram-1 .node circle,#jai-diagram-1-jai-diagram-1 .node ellipse,#jai-diagram-1-jai-diagram-1 .node polygon,#jai-diagram-1-jai-diagram-1 .node path{fill:#e8eef8;stroke:#7890af;stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .flowchart-label text{text-anchor:middle;}#jai-diagram-1-jai-diagram-1 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .node .label{text-align:center;}#jai-diagram-1-jai-diagram-1 .node.clickable{cursor:pointer;}#jai-diagram-1-jai-diagram-1 .arrowheadPath{fill:#0b0b0b;}#jai-diagram-1-jai-diagram-1 .edgePath .path{stroke:#72849a;stroke-width:2.0px;}#jai-diagram-1-jai-diagram-1 .flowchart-link{stroke:#72849a;fill:none;}#jai-diagram-1-jai-diagram-1 .edgeLabel{background-color:#edf2f7;text-align:center;}#jai-diagram-1-jai-diagram-1 .edgeLabel rect{opacity:0.5;background-color:#edf2f7;fill:#edf2f7;}#jai-diagram-1-jai-diagram-1 .labelBkg{background-color:rgba(237, 242, 247, 0.5);}#jai-diagram-1-jai-diagram-1 .cluster rect{fill:#f4f6f9;stroke:hsl(216, 0%, 86.6666666667%);stroke-width:1px;}#jai-diagram-1-jai-diagram-1 .cluster text{fill:#0b0906;}#jai-diagram-1-jai-diagram-1 .cluster span,#jai-diagram-1-jai-diagram-1 p{color:#0b0906;}#jai-diagram-1-jai-diagram-1 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:sans-serif;font-size:12px;background:#f4f6f9;border:1px solid hsl(216, 0%, 86.6666666667%);border-radius:2px;pointer-events:none;z-index:100;}#jai-diagram-1-jai-diagram-1 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#182338;}#jai-diagram-1-jai-diagram-1 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-pointEnd" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="6" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-pointStart" markerheight="12" markerunits="userSpaceOnUse" markerwidth="12" orient="auto" refx="4.5" refy="5" viewbox="0 0 10 10"><path class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-circleEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="11" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-circleStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5" viewbox="0 0 10 10"><circle class="arrowMarkerPath" cx="5" cy="5" r="5" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker class="marker cross flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-crossEnd" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="12" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker class="marker cross flowchart" id="jai-diagram-1-jai-diagram-1_flowchart-crossStart" markerheight="11" markerunits="userSpaceOnUse" markerwidth="11" orient="auto" refx="-1" refy="5.2" viewbox="0 0 11 11"><path class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-B" d="M180.453,21.781L191.924,20.944C203.396,20.108,226.339,18.435,255.973,17.598C285.607,16.762,321.932,16.762,362.258,16.762C402.583,16.762,446.909,16.762,483.583,24.111C520.257,31.46,549.28,46.158,563.792,53.507L578.304,60.856" id="jai-diagram-1-L-A-B-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-B LE-C" d="M657.63,63.25L672.977,55.792C688.323,48.333,719.017,33.417,741.951,25.958C764.884,18.5,780.058,18.5,787.645,18.5L795.231,18.5" id="jai-diagram-1-L-B-C-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-V LE-D" d="M224.281,156.738L228.448,156.738C232.615,156.738,240.948,156.738,249.66,156.397C258.372,156.056,267.463,155.375,272.009,155.034L276.554,154.693" id="jai-diagram-1-L-V-D-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-D" d="M151.18,45.262L167.53,53.01C183.88,60.758,216.581,76.254,241.088,88.155C265.595,100.057,281.908,108.364,290.065,112.517L298.221,116.67" id="jai-diagram-1-L-A-D-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-D LE-B" d="M442.734,147.238L450.818,147.155C458.901,147.072,475.068,146.905,497.663,139.473C520.257,132.04,549.28,117.342,563.792,109.993L578.304,102.644" id="jai-diagram-1-L-D-B-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-B LE-E" d="M657.63,100.25L672.977,107.708C688.323,115.167,719.017,130.083,746.922,137.62C774.827,145.156,799.943,145.311,812.501,145.389L825.059,145.467" id="jai-diagram-1-L-B-E-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path><path class="edge-thickness-normal edge-pattern-solid flowchart-link LS-E LE-F" d="M946.359,145.5L957.997,145.417C969.635,145.333,992.911,145.167,1010.499,145.083C1028.087,145,1039.988,145,1045.938,145L1051.888,145" id="jai-diagram-1-L-E-F-0" marker-end="url(#jai-diagram-1-jai-diagram-1_flowchart-pointEnd)" style="fill:none;"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(358.2578125, 16.76171875)"><g class="label" transform="translate(-25.8203125, -11)"><rect height="22.001047134399414" rx="0" ry="0" width="51.61183166503906"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">roll_ptr</tspan></text></g></g><g class="edgeLabel" transform="translate(749.7109375, 18.5)"><g class="label" transform="translate(-25.8203125, -11)"><rect height="22.001047134399414" rx="0" ry="0" width="51.61183166503906"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">roll_ptr</tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel" transform="translate(491.234375, 146.73828125)"><g class="label" transform="translate(-24, -11)"><rect height="22.001047134399414" rx="0" ry="0" width="47.986656188964844"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">不可见</tspan></text></g></g><g class="edgeLabel"><g class="label" transform="translate(0, 0)"><rect height="0" rx="0" ry="0" width="0"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel" transform="translate(1016.1875, 145)"><g class="label" transform="translate(-16, -11)"><rect height="22.001047134399414" rx="0" ry="0" width="31.985897064208984"></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">可见</tspan></text></g></g></g><g class="nodes"><g class="node default default flowchart-label" data-id="A" data-node="true" id="jai-diagram-1-flowchart-A-114" transform="translate(112.140625, 26.76171875)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="136.625" x="-68.3125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">聚簇行 / trx=105</tspan></text></g></g><g class="node default default flowchart-label" data-id="B" data-node="true" id="jai-diagram-1-flowchart-B-115" transform="translate(619.5625, 81.75)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="158.65625" x="-79.328125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">Undo 旧版 / trx=99</tspan></text></g></g><g class="node default default flowchart-label" data-id="C" data-node="true" id="jai-diagram-1-flowchart-C-117" transform="translate(887.859375, 18.5)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="174.65625" x="-87.328125" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">Undo 更旧版 / trx=82</tspan></text></g></g><g class="node default default flowchart-label" data-id="V" data-node="true" id="jai-diagram-1-flowchart-V-118" transform="translate(112.140625, 156.73828125)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="224.28125" x="-112.140625" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">Read View / 活跃事务与界限</tspan></text></g></g><g class="node default default flowchart-label" data-id="D" data-node="true" id="jai-diagram-1-flowchart-D-119" transform="translate(358.2578125, 146.73828125)"><polygon class="label-container" points="83.9765625,0 167.953125,-83.9765625 83.9765625,-167.953125 0,-83.9765625" style="" transform="translate(-83.9765625,83.9765625)"></polygon><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">changes_visible</tspan></text></g></g><g class="node default default flowchart-label" data-id="E" data-node="true" id="jai-diagram-1-flowchart-E-125" transform="translate(887.859375, 145)"><polygon class="label-container" points="58,0 116,-58 58,-116 0,-58" style="" transform="translate(-58,58)"></polygon><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">再次检查</tspan></text></g></g><g class="node default default flowchart-label" data-id="F" data-node="true" id="jai-diagram-1-flowchart-F-127" transform="translate(1112.6875, 145)"><rect class="basic label-container" height="37" rx="0" ry="0" style="" width="111" x="-55.5" y="-18.5"></rect><g class="label" style="" transform="translate(0, -11)"><rect></rect><text style=""><tspan class="row" dy="1em" x="0" xml:space="preserve">返回快照版本</tspan></text></g></g></g></g></g></svg><figcaption>图 1 · 对照上文阅读流程</figcaption><details><summary>查看 Mermaid 图表源码</summary><pre><code>flowchart LR
+ A["聚簇行 / trx=105"] --&gt;|roll_ptr| B["Undo 旧版 / trx=99"]
+ B --&gt;|roll_ptr| C["Undo 更旧版 / trx=82"]
+ V["Read View / 活跃事务与界限"] --&gt; D{"changes_visible"}
+ A --&gt; D
+ D --&gt;|不可见| B
+ B --&gt; E{"再次检查"}
+ E --&gt;|可见| F["返回快照版本"]
+</code></pre></details></figure>
+<h2 id="c6-s8" tabindex="-1">三层原理问答</h2>
+<details class="question" open=""><summary><h3 id="c6-s9" tabindex="-1">1. RR 快照什么时候建立？</h3></summary><div class="answer">
+<p>InnoDB RR 一般在第一次一致性读时建立快照，后续复用；BEGIN 本身不一定已经创建。RC 则通常每次一致性读更新快照。</p>
+<p><strong>为什么能读旧值？</strong> ReadView::changes_visible 判断当前版本所属事务是否可见，不可见时沿 Undo 重建旧版本。显式 consistent snapshot 和锁定读走不同流程。</p>
+<p><strong>长事务会怎样？</strong> 旧快照可能还要用历史数据，purge 不敢清理它们。报表要控制事务时长，跨批次读也要先想清楚是否接受不同时点的数据。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c6-s10" tabindex="-1">2. MVCC 是否让读写完全不阻塞？</h3></summary><div class="answer">
+<p>普通快照读通常不需要等写锁，但写写冲突、SELECT FOR UPDATE 和元数据锁仍可能等待。MVCC 没有把数据库里所有等待都取消。</p>
+<p><strong>等在哪层？</strong> 快照读重建 Undo，当前读协调索引锁，DDL 还可能等待 MDL。看到查询慢，需要分清行锁、MDL、IO 与内部竞争，才能解释等待。</p>
+<p><strong>怎样处理？</strong> 找持有者及事务年龄，缩短长事务、安排变更窗口。只扩大连接池会让更多请求排队，不会解除一个仍未结束的持锁事务。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c6-s11" tabindex="-1">3. MySQL RR 能防所有幻读吗？</h3></summary><div class="answer">
+<p>要先说明哪种读。快照 SELECT 重复读同一快照；锁定范围读可能使用 next-key 防止相关范围插入。把这两种机制混成一句“RR 没幻读”，无法解释实际操作。</p>
+<p><strong>普通读后 UPDATE 会怎样？</strong> UPDATE 是当前读，可能处理后来出现、符合条件的行。唯一等值命中、未命中和范围查询的锁也不同，需沿实际索引区间分析。</p>
+<p><strong>唯一业务怎样保证？</strong> 用唯一索引约束订单号或事件 ID，不靠查不到再插入。库存扣减用条件更新；跨数据库的结果还需要明确消息和补偿处理。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c6-s12" tabindex="-1">4. Redo、Undo、binlog 都是日志，为何不能互换？</h3></summary><div class="answer">
+<p>它们面向不同工作。Redo 帮崩溃恢复重做修改，Undo 帮回滚和重建旧版本，binlog 主要用于复制及逻辑恢复，不能互相替代。</p>
+<p><strong>提交为什么要协调？</strong> 相关 WAL 先于数据页落盘，InnoDB 与 binlog 还要协调提交结果，避免崩溃后两层日志对成功事务产生分歧。刷盘配置决定具体的持久承诺。</p>
+<p><strong>高可用够不够？</strong> 还要看副本确认、备份、恢复速度和演练。异步副本可能落后，也会复制错误删除，所以它既不是零丢失保证，也不是完整备份。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c6-s13" tabindex="-1">5. 慢 SQL 有索引为什么仍慢？</h3></summary><div class="answer">
+<p>索引存在，不代表筛掉了足够多的数据。低选择性索引、大量回表、排序、返回过多行或锁等待，都可能使查询慢。</p>
+<p><strong>怎样看到真实工作量？</strong> 比较计划中的估计与实际 rows、loops，检查类型转换、统计和排序。范围后的字段仍可能参与 ICP，但未必缩小扫描区间。EXPLAIN ANALYZE 会真实执行。</p>
+<p><strong>索引以外怎么改？</strong> 控制返回列和批量，深分页考虑稳定游标。新索引用接近生产分布的数据验证，还要看写入与缓存成本，不能只测一个很小的查询样本。</p>
+</div></details>
+<details class="question" open=""><summary><h3 id="c6-s14" tabindex="-1">6. 数据库迁移怎样证明一致？</h3></summary><div class="answer">
+<p>先有一致快照与增量位点，再按范围比较内容，切换后做业务对账。行数一样不代表每行一样，简单 sum(id) 也不能证明没有错漏。</p>
+<p><strong>哪些内容需要规范化？</strong> 时区、decimal、字符编码、排序规则和 NULL。CDC 还要处理更新、删除、断点与顺序，跨产品同名隔离级别不保证行为一致。</p>
+<p><strong>切换怎么恢复？</strong> 先灰度验证，增量追平后控制写路由，并预演回退。金融类数据按金额和状态核对，发现偏差有明确修复流程，而非只宣布 checksum 通过。</p>
+</div></details>
+<h2 id="c6-s15" tabindex="-1">模拟生产案例：长快照拖住 Undo</h2>
+<p>更新业务看起来正常，Undo 和 history list 却持续增长，磁盘与查询压力越来越大。这是一个长 RR 报表事务影响清理的模拟情境。</p>
+<p>先看 innodb_trx 中事务年龄、report 连接和 history list，再检查 purge 是否追得上。如果有一个报表很早建立快照却一直不提交，它可能仍需要历史版本，不能只怪更新量大。</p>
+<p>受控结束该报表事务后，应观察 purge 是否逐渐追赶，这是检验假设的重要对照。改成明确的批次或分析读取方式，但先决定业务是否必须看到同一时点，避免拆批后结果含义变化。</p>
+<p>长期设事务年龄告警和报表超时，检查连接复用时是否完成事务。备份、迁移的大快照同样需要评估保留历史版本的代价。</p>
+<h2 id="c6-s16" tabindex="-1">知识梳理与核心总结</h2>
+<h3 id="c6-s17" tabindex="-1">一分钟要点回顾</h3>
+<p>InnoDB 普通一致性读用 Read View 判断当前版本，不可见就沿 Undo 读旧版。RC 通常每条读新快照，RR 通常首次一致读后复用；FOR UPDATE 和写操作则读当前状态。索引决定扫描和锁范围，不能只看返回行数。Redo、Undo、binlog 分别负责不同恢复工作。慢查询看实际扫描、回表和等待；迁移还要验证数据含义、CDC 位点和业务结果，不能只比行数。</p>
+<h3 id="c6-s18" tabindex="-1">深入理解与机制串联</h3>
+<p>我会从一个未提交余额修改讲 MVCC。别人把 100 改成 80 尚未提交，普通读可以借 Undo 看到旧 100。Read View 根据版本事务、活跃集合和界限判断可见性，必要时沿历史链回退。</p>
+<p>RC 每次一致性读通常换快照，RR 则通常首次读后复用，不一定 BEGIN 时已经创建。SELECT FOR UPDATE、UPDATE 要看可锁定的当前状态，不能把它们和普通 SELECT 当同一快照。长事务还会保留旧版本，阻碍 purge。</p>
+<p>索引方面，主键叶子存整行，二级索引带主键，非覆盖时要回表。联合索引先用等值前缀，再用范围，后续列可能参与过滤或 ICP。范围锁沿实际访问路径建立，缺好索引会扫描和锁更多记录；唯一完整等值命中与未命中也要分别看。</p>
+<p>慢 SQL 先看计划、实际 rows 和 loops，再查锁等待、IO 和返回量。EXPLAIN ANALYZE 会执行，需要控制影响。死锁按整个事务有界重试，重新读和判断，不能只补最后一条。</p>
+<p>跨库我不会把 InnoDB Undo 当所有 MVCC 的实现。PG 用 tuple 与 VACUUM，Oracle 用 SCN/Undo，OceanBase 还有分布式协调。迁移先核对时区、NULL、精度和约束，再保证全量与 CDC 位点衔接，按范围比内容和业务金额状态。切换与回退预演过，才说明方案可以恢复。</p>
+<h3 id="c6-s19" tabindex="-1">延伸问题、常见误解与速记</h3>
+<ul>
+<li>高频追问：RR 快照何时创建？长事务为何拖 purge？唯一未命中锁什么？范围后哪些列还有用？</li>
+<li>容易答错：所有数据库默认 RR；快照读和当前读相同；PG 用 InnoDB Undo；有索引一定快；副本就是备份。</li>
+<li>常看的源码：<code>ReadView::changes_visible</code>、<code>row_search_mvcc</code>、<code>row_vers_build_for_consistent_read</code>、<code>trx_assign_read_view</code>。</li>
+<li>推导时把读到哪个版本、扫描哪个区间、锁住哪些位置分开。</li>
+</ul>
+<h2 id="c6-s20" tabindex="-1">官方资料与版本来源</h2>
+<p>本文按上述版本阅读官方源码，函数窗口保留完整分支与边界，声明窗口聚焦所讨论的字段或配置。版权见 <a href="../source-notices.txt">source-notices.txt</a>，下载记录见 <a href="../sources.json">sources.json</a>。</p>
+<ul>
+<li><a href="https://raw.githubusercontent.com/mysql/mysql-server/mysql-8.0.36/storage/innobase/include/read0types.h">ReadView::changes_visible · MySQL 8.0.36</a></li>
+<li><a href="https://www.postgresql.org/docs/16/transaction-iso.html">PostgreSQL16 隔离级别</a></li>
+<li><a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/data-concurrency-and-consistency.html">Oracle19c 并发与一致性</a></li>
+<li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html">MySQL 一致性读</a></li>
+<li><a href="https://en.oceanbase.com/docs">OceanBase 官方文档（须选择实际租户版本）</a></li>
+</ul></div><section aria-label="要点速览" class="quick"><h2 id="c6-quick-core">先记住这几件事</h2><ul><li>Read View 判断版本可见性，不可见沿 Undo 找旧版本。</li><li>RC 通常逐语句快照，RR 通常第一次一致性读后复用。</li><li>普通快照读与 UPDATE/FOR UPDATE 的当前读不同。</li><li>实际索引扫描决定成本和锁范围，不只是最终返回行数。</li><li>跨库要核对数据与隔离含义，迁移保证快照、CDC 与对账。</li></ul><h2 id="c6-quick-qa">四个重点问题</h2><details class="question" open=""><summary><span class="question-title">1. RR 快照什么时候建立？</span></summary><div class="answer">
+<p>InnoDB RR 一般在第一次一致性读时建立快照，后续复用；BEGIN 本身不一定已经创建。RC 则通常每次一致性读更新快照。</p>
+<p><strong>为什么能读旧值？</strong> ReadView::changes_visible 判断当前版本所属事务是否可见，不可见时沿 Undo 重建旧版本。显式 consistent snapshot 和锁定读走不同流程。</p>
+<p><strong>长事务会怎样？</strong> 旧快照可能还要用历史数据，purge 不敢清理它们。报表要控制事务时长，跨批次读也要先想清楚是否接受不同时点的数据。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">2. MVCC 是否让读写完全不阻塞？</span></summary><div class="answer">
+<p>普通快照读通常不需要等写锁，但写写冲突、SELECT FOR UPDATE 和元数据锁仍可能等待。MVCC 没有把数据库里所有等待都取消。</p>
+<p><strong>等在哪层？</strong> 快照读重建 Undo，当前读协调索引锁，DDL 还可能等待 MDL。看到查询慢，需要分清行锁、MDL、IO 与内部竞争，才能解释等待。</p>
+<p><strong>怎样处理？</strong> 找持有者及事务年龄，缩短长事务、安排变更窗口。只扩大连接池会让更多请求排队，不会解除一个仍未结束的持锁事务。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">3. MySQL RR 能防所有幻读吗？</span></summary><div class="answer">
+<p>要先说明哪种读。快照 SELECT 重复读同一快照；锁定范围读可能使用 next-key 防止相关范围插入。把这两种机制混成一句“RR 没幻读”，无法解释实际操作。</p>
+<p><strong>普通读后 UPDATE 会怎样？</strong> UPDATE 是当前读，可能处理后来出现、符合条件的行。唯一等值命中、未命中和范围查询的锁也不同，需沿实际索引区间分析。</p>
+<p><strong>唯一业务怎样保证？</strong> 用唯一索引约束订单号或事件 ID，不靠查不到再插入。库存扣减用条件更新；跨数据库的结果还需要明确消息和补偿处理。</p>
+</div></details><details class="question" open=""><summary><span class="question-title">4. Redo、Undo、binlog 都是日志，为何不能互换？</span></summary><div class="answer">
+<p>它们面向不同工作。Redo 帮崩溃恢复重做修改，Undo 帮回滚和重建旧版本，binlog 主要用于复制及逻辑恢复，不能互相替代。</p>
+<p><strong>提交为什么要协调？</strong> 相关 WAL 先于数据页落盘，InnoDB 与 binlog 还要协调提交结果，避免崩溃后两层日志对成功事务产生分歧。刷盘配置决定具体的持久承诺。</p>
+<p><strong>高可用够不够？</strong> 还要看副本确认、备份、恢复速度和演练。异步副本可能落后，也会复制错误删除，所以它既不是零丢失保证，也不是完整备份。</p>
+</div></details><h2 id="c6-quick-answer">核心要点</h2><p>InnoDB 普通一致性读用 Read View 判断当前版本，不可见就沿 Undo 读旧版。RC 通常每条读新快照，RR 通常首次一致读后复用；FOR UPDATE 和写操作则读当前状态。索引决定扫描和锁范围，不能只看返回行数。Redo、Undo、binlog 分别负责不同恢复工作。慢查询看实际扫描、回表和等待；迁移还要验证数据含义、CDC 位点和业务结果，不能只比行数。</p><h2 id="c6-quick-errors">常见误解与源码</h2><ul>
+<li>高频追问：RR 快照何时创建？长事务为何拖 purge？唯一未命中锁什么？范围后哪些列还有用？</li>
+<li>容易答错：所有数据库默认 RR；快照读和当前读相同；PG 用 InnoDB Undo；有索引一定快；副本就是备份。</li>
+<li>常看的源码：<code>ReadView::changes_visible</code>、<code>row_search_mvcc</code>、<code>row_vers_build_for_consistent_read</code>、<code>trx_assign_read_view</code>。</li>
+<li>推导时把读到哪个版本、扫描哪个区间、锁住哪些位置分开。</li>
+</ul></section></article><nav aria-label="专题翻页" class="topic-pager"><a href="../spring-core-transactions/">← Spring 核心原理与事务</a><a href="../">全部专题</a><a href="../rocketmq/">RocketMQ 消息队列 →</a></nav></main></div>
+<dialog aria-labelledby="search-title" id="search-dialog"><div class="search-head"><h2 id="search-title">全文搜索</h2><button aria-label="关闭搜索" id="search-close">关闭</button></div><label for="search-input">搜索当前专题的关键词、源码方法或学习问题</label><input autocomplete="off" id="search-input" placeholder="例如：sizeCtl、事务回查、Direct buffer" type="search"/><p aria-live="polite" id="search-status" role="status">输入关键词，搜索本篇完整正文与答案。</p><div id="search-results"></div></dialog><div aria-live="polite" id="toast" role="status"></div>
+<footer>按章标注源码版本 · 教学案例与实测排查分别标注 · <a href="./article.md">下载 Markdown 正文</a> · <a href="../VERIFICATION.md">验证范围</a></footer><dialog aria-label="图解放大" id="diagram-dialog"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {
+    if(document.body.dataset.tocScope==='document')return [...$('#main').querySelectorAll('.chapter-title h1,.chapter-title h2,.study h2,.study h3')];
+    return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];
+  }
+  function makeToc() {
+    sections=visibleHeadings();
+    const nav=active && document.querySelector('.chapter-nav[data-chapter="'+active.id+'"]');
+    if(nav){
+      const box=nav.querySelector('div');box.replaceChildren();
+      sections.forEach(h=>{if(!h.id)return;const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';box.append(a);});
+      nav.open=true;
+    }
+    const label=$('#current-label');if(label)label.textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function selectChapter(article) {
+    active=article;
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();
+  }
+  function scrollToTarget(target) {
+    const margin=window.innerWidth<=760?115:90;
+    window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top+window.scrollY-margin),behavior:'instant'});
+  }
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)scrollToTarget($('#review-route'));closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    selectChapter(article);closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      scrollToTarget(target);if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();
+    }
+    updateReading(false);
+  }
+  function updateReading(trackChapter=true) {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;
+    let currentChapter=chapters[0];
+    for(const chapter of chapters){if(chapter.getBoundingClientRect().top<=margin+30)currentChapter=chapter;else break;}
+    const first=chapters[0].getBoundingClientRect(),last=chapters[chapters.length-1].getBoundingClientRect();
+    const box={top:first.top,bottom:last.bottom,height:last.bottom-first.top};
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(progress===100)currentChapter=chapters[chapters.length-1];
+    if(trackChapter && currentChapter!==active)selectChapter(currentChapter);
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('.chapter-nav div a').forEach(a=>{const isCurrent=!!current && a.hash==='#'+current.id;a.classList.toggle('current',isCurrent);if(isCurrent){const details=a.closest('details');if(details)details.open=true;}});
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{
+        const canvas=$('#diagram-content');canvas.classList.add('diagram');
+        canvas.style.margin='0';canvas.style.padding='0';canvas.style.border='0';
+        canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));
+        const ids=new Map([...canvas.querySelectorAll('[id]')].map(el=>[el.id,'zoom-'+el.id]));
+        const keys=[...ids.keys()].sort((a,b)=>b.length-a.length).map(id=>id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+        const pattern=keys.length?new RegExp('#('+keys.join('|')+')(?=$|[^\\w-])','g'):null;
+        const references=value=>pattern?value.replace(pattern,(_,id)=>'#'+ids.get(id)):value;
+        canvas.querySelectorAll('[id]').forEach(el=>{el.id=ids.get(el.id);});
+        // Mermaid scopes CSS selectors to the root SVG ID; keep those selectors
+        // and marker/use references aligned with the renamed clone IDs.
+        canvas.querySelectorAll('style').forEach(el=>{el.textContent=references(el.textContent);});
+        canvas.querySelectorAll('*').forEach(el=>{
+          for(const attr of ['style','fill','stroke','marker-end','marker-start','marker-mid','clip-path','mask','filter','href','xlink:href']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,references(value));
+          }
+          for(const attr of ['aria-labelledby','aria-describedby']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.split(/\s+/).map(id=>ids.get(id)||id).join(' '));
+          }
+        });scale(1);viewer.showModal();
+      });
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
+})();
+</script></body></html>
