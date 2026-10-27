@@ -1,0 +1,50 @@
+[
+  {
+    "version": "292",
+    "test": "version",
+    "status": 0,
+    "log": "boundary-292-version.log"
+  },
+  {
+    "version": "292",
+    "test": "scale",
+    "status": 1,
+    "log": "boundary-292-scale.log"
+  },
+  {
+    "version": "292",
+    "test": "char",
+    "status": 1,
+    "log": "boundary-292-char.log"
+  },
+  {
+    "version": "292",
+    "test": "json",
+    "status": 1,
+    "log": "boundary-292-json.log"
+  },
+  {
+    "version": "302",
+    "test": "version",
+    "status": 0,
+    "log": "boundary-302-version.log"
+  },
+  {
+    "version": "302",
+    "test": "scale",
+    "status": 0,
+    "log": "boundary-302-scale.log"
+  },
+  {
+    "version": "302",
+    "test": "char",
+    "status": 0,
+    "log": "boundary-302-char.log"
+  },
+  {
+    "version": "302",
+    "test": "json",
+    "status": 0,
+    "log": "boundary-302-json.log"
+  }
+]

@@ -40,6 +40,8 @@ npm ci --prefix tools
 
 ## 源码学习库首页
 
+Fastjson2 ARM64 故障复盘的正文位于 `docs/fastjson2-arm-jit/article.md`，运行该目录 `build.py` 生成页面与证据包后，再构建首页。该页直接使用统一阅读器，不需要重新生成其他手册；实验原始日志与复现源码在 `evidence/`。
+
 六大技术领域与第七类“技术专题”记录在`homepage/catalog.json`，样式源文件是`homepage/style.css`。专题分类使用`layout: topics`横跨整行，`topics`数组维护各章节标题与锚点；栏目名称不包含数量，统计由目录自动计算。新增教程时填写真实版本与统计，并运行：
 
 ```sh

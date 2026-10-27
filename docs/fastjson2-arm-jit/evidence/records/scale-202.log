@@ -1,0 +1,34 @@
+CompilerOracle: compileonly UnsafeScaleProbe.read
+CompilerOracle: print UnsafeScaleProbe.read
+OpenJDK 64-Bit Server VM warning: printing of assembly code is enabled; turning on DebugNonSafepoints to gain additional output
+java=1.8.0_202-BellSoft-b08 charBase=16
+Compiled method (c1)      38    1       3       UnsafeScaleProbe::read (16 bytes)
+ total in heap  [0x0000ea5f0016dbd0,0x0000ea5f0016dfa0] = 976
+ relocation     [0x0000ea5f0016dcf0,0x0000ea5f0016dd20] = 48
+ main code      [0x0000ea5f0016dd40,0x0000ea5f0016dec0] = 384
+ stub code      [0x0000ea5f0016dec0,0x0000ea5f0016dee8] = 40
+ oops           [0x0000ea5f0016dee8,0x0000ea5f0016def8] = 16
+ metadata       [0x0000ea5f0016def8,0x0000ea5f0016df10] = 24
+ scopes data    [0x0000ea5f0016df10,0x0000ea5f0016df38] = 40
+ scopes pcs     [0x0000ea5f0016df38,0x0000ea5f0016df98] = 96
+ dependencies   [0x0000ea5f0016df98,0x0000ea5f0016dfa0] = 8
+Could not load hsdis-aarch64.so; library not loadable; PrintAssembly is disabled
+OopMapSet contains 2 OopMaps
+
+#0 
+OopMap{off=268}
+#1 
+OopMap{c_rarg1=Oop off=304}
+Compiled method (c2)      40    2       4       UnsafeScaleProbe::read (16 bytes)
+ total in heap  [0x0000ea5f0016d9d0,0x0000ea5f0016dbb8] = 488
+ relocation     [0x0000ea5f0016daf0,0x0000ea5f0016db00] = 16
+ main code      [0x0000ea5f0016db00,0x0000ea5f0016db40] = 64
+ stub code      [0x0000ea5f0016db40,0x0000ea5f0016db50] = 16
+ oops           [0x0000ea5f0016db50,0x0000ea5f0016db58] = 8
+ metadata       [0x0000ea5f0016db58,0x0000ea5f0016db60] = 8
+ scopes data    [0x0000ea5f0016db60,0x0000ea5f0016db70] = 16
+ scopes pcs     [0x0000ea5f0016db70,0x0000ea5f0016dbb0] = 64
+ dependencies   [0x0000ea5f0016dbb0,0x0000ea5f0016dbb8] = 8
+OopMapSet contains 0 OopMaps
+
+FAIL iteration=5376 index=4 expected=0x1007100610051004 actual=0x1013101210111010 actualFirstCharIndex=16

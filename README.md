@@ -30,6 +30,8 @@ JDK附录[ThreadLocal状态残留与偶发SQL异常](https://yisiliang.github.io
 
 首页目录维护与发布检查见[tools/README.md](tools/README.md)。Support、Privacy Policy和历史技术文章保留原地址，不在首页展示。
 
+新增故障复盘：[从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷](docs/fastjson2-arm-jit/article.md)。通过 ARM64 Linux 容器、独立 Unsafe 探针与 BellSoft 8u292 / 8u302 对照，将 Fastjson2 2.0.61 的解析异常对应到 JDK-8267689，附实验代码与日志。该独立文章列于首页“技术专题”，Java 核心技术手册仍保留原有 13 个专题。
+
 JIT专题从热点识别、分层编译、OSR与去优化展开，串联JMM、volatile发布、CAS及C2内存屏障，附固定OpenJDK源码窗口和机制图解：[JIT即时编译、JMM与内存屏障](https://yisiliang.github.io/java-architect-interview/#c11)。
 
 第13专题“JVM内存结构与OOM排查实战”以HotSpot JDK8为主要基线，覆盖Heap、Metaspace、Direct Memory、线程与容器RSS、常见OOM、诊断命令和故障案例，包含23张SVG图解及应急清单。

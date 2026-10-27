@@ -1,0 +1,3 @@
+flags=-Xcomp -Xms128m -Xmx512m
+java=1.8.0_504-b01 charBase=16
+PASS reads=1000000 expected=0x1007100610051004

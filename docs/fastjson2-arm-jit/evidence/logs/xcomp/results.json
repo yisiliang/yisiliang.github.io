@@ -1,0 +1,46 @@
+[
+  {
+    "version": "202",
+    "probe": "json",
+    "flags": [
+      "-Xcomp",
+      "-Xms128m",
+      "-Xmx512m"
+    ],
+    "exit": 1,
+    "seconds": 2.04
+  },
+  {
+    "version": "202",
+    "probe": "scale",
+    "flags": [
+      "-Xcomp",
+      "-Xms128m",
+      "-Xmx512m"
+    ],
+    "exit": 1,
+    "seconds": 0.53
+  },
+  {
+    "version": "504",
+    "probe": "json",
+    "flags": [
+      "-Xcomp",
+      "-Xms128m",
+      "-Xmx512m"
+    ],
+    "exit": 0,
+    "seconds": 3.33
+  },
+  {
+    "version": "504",
+    "probe": "scale",
+    "flags": [
+      "-Xcomp",
+      "-Xms128m",
+      "-Xmx512m"
+    ],
+    "exit": 0,
+    "seconds": 0.44
+  }
+]

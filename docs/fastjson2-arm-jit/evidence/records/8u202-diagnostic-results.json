@@ -1,0 +1,62 @@
+[
+  {
+    "name": "char-jit",
+    "status": 1,
+    "seconds": 0.19
+  },
+  {
+    "name": "byte-jit",
+    "status": 0,
+    "seconds": 0.14
+  },
+  {
+    "name": "char-c1",
+    "status": 0,
+    "seconds": 0.12
+  },
+  {
+    "name": "byte-c1",
+    "status": 0,
+    "seconds": 0.12
+  },
+  {
+    "name": "json-jit-1",
+    "status": 1,
+    "seconds": 0.23
+  },
+  {
+    "name": "json-jit-2",
+    "status": 1,
+    "seconds": 0.23
+  },
+  {
+    "name": "json-jit-3",
+    "status": 1,
+    "seconds": 0.25
+  },
+  {
+    "name": "json-xint",
+    "status": 0,
+    "seconds": 4.37
+  },
+  {
+    "name": "json-exclude",
+    "status": 0,
+    "seconds": 9.98
+  },
+  {
+    "name": "json-c1",
+    "status": 0,
+    "seconds": 1.84
+  },
+  {
+    "name": "control504-char",
+    "status": 0,
+    "seconds": 0.13
+  },
+  {
+    "name": "control504-json",
+    "status": 0,
+    "seconds": 0.96
+  }
+]

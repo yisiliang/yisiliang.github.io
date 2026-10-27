@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 420" role="img" aria-labelledby="address-title address-desc">
+<title id="address-title">下标四为什么读成下标十六</title><desc id="address-desc">char 下标四应乘二得到八字节偏移；错误的八倍缩放得到三十二字节偏移，读到下标十六至十九。</desc>
+<style>text{font-family:Arial,'PingFang SC',sans-serif;fill:#24354a;font-size:18px}.small{font-size:15px;fill:#596b82}.mono{font-family:Menlo,monospace;font-size:17px}</style>
+<rect width="860" height="420" rx="12" fill="#f6f8fb"/>
+<text x="32" y="42" font-weight="bold">同一个 Java 表达式：BASE + ((long) index &lt;&lt; 1)</text>
+<text x="32" y="72" class="small">index = 4 · 每个 char 2 字节 · 一次 getLong 读 8 字节</text>
+<rect x="32" y="100" width="796" height="120" rx="10" fill="#e8f4ee" stroke="#6b9f82"/>
+<text x="52" y="132" font-weight="bold">正确地址</text><text x="52" y="162" class="mono">4 × 2 = 8 bytes</text>
+<path d="M280 155H352" stroke="#478161" stroke-width="2"/><path d="m345 149 8 6-8 6" fill="none" stroke="#478161" stroke-width="2"/>
+<text x="380" y="132">读取 chars[4..7]</text>
+<text x="380" y="165" class="mono">1004  1005  1006  1007</text>
+<text x="380" y="195" class="small">小端打包：0x1007100610051004</text>
+<rect x="32" y="240" width="796" height="120" rx="10" fill="#fff0eb" stroke="#ce8b76"/>
+<text x="52" y="272" font-weight="bold">旧 C2 的错误缩放</text><text x="52" y="302" class="mono">4 × 8 = 32 bytes</text>
+<path d="M280 295H352" stroke="#b16b52" stroke-width="2"/><path d="m345 289 8 6-8 6" fill="none" stroke="#b16b52" stroke-width="2"/>
+<text x="380" y="272">读取 chars[16..19]</text>
+<text x="380" y="305" class="mono">1010  1011  1012  1013</text>
+<text x="380" y="335" class="small">实测返回：0x1013101210111010</text>
+<text x="32" y="394" class="small">图中位模式来自最小探针；并非本次捕获的反汇编指令。</text>
+</svg>

@@ -1,0 +1,2 @@
+Exception in thread "main" java.lang.AssertionError: mode=char iteration=11568 offset=260 expected=0xf7c2d8d3b9e49af5 actual=0x0ee9c49f7a55300b
+	at LongReadProbe.main(LongReadProbe.java:24)

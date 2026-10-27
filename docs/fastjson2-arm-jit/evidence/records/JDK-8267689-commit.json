@@ -1,0 +1,101 @@
+{
+  "sha": "3c41cd8e624173834fa7b9ee8ede148c4e5541d0",
+  "node_id": "MDY6Q29tbWl0MzM5NDM0MjkyOjNjNDFjZDhlNjI0MTczODM0ZmE3YjllZThlZGUxNDhjNGU1NTQxZDA=",
+  "commit": {
+    "author": {
+      "name": "Volker Simonis",
+      "email": "simonis@openjdk.org",
+      "date": "2021-05-07T19:42:53Z"
+    },
+    "committer": {
+      "name": "Volker Simonis",
+      "email": "simonis@openjdk.org",
+      "date": "2021-05-07T19:42:53Z"
+    },
+    "message": "8267689: [aarch64] Crash due to bad shift in indirect addressing mode\n\nReviewed-by: adinn, aph, phh",
+    "tree": {
+      "sha": "503e4363c9e4df22b1382df6c08ddc3e660463f0",
+      "url": "https://api.github.com/repos/openjdk/jdk8u/git/trees/503e4363c9e4df22b1382df6c08ddc3e660463f0"
+    },
+    "url": "https://api.github.com/repos/openjdk/jdk8u/git/commits/3c41cd8e624173834fa7b9ee8ede148c4e5541d0",
+    "comment_count": 0,
+    "verification": {
+      "verified": false,
+      "reason": "unsigned",
+      "signature": null,
+      "payload": null,
+      "verified_at": null
+    }
+  },
+  "url": "https://api.github.com/repos/openjdk/jdk8u/commits/3c41cd8e624173834fa7b9ee8ede148c4e5541d0",
+  "html_url": "https://github.com/openjdk/jdk8u/commit/3c41cd8e624173834fa7b9ee8ede148c4e5541d0",
+  "comments_url": "https://api.github.com/repos/openjdk/jdk8u/commits/3c41cd8e624173834fa7b9ee8ede148c4e5541d0/comments",
+  "author": {
+    "login": "simonis",
+    "id": 3178197,
+    "node_id": "MDQ6VXNlcjMxNzgxOTc=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/3178197?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/simonis",
+    "html_url": "https://github.com/simonis",
+    "followers_url": "https://api.github.com/users/simonis/followers",
+    "following_url": "https://api.github.com/users/simonis/following{/other_user}",
+    "gists_url": "https://api.github.com/users/simonis/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/simonis/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/simonis/subscriptions",
+    "organizations_url": "https://api.github.com/users/simonis/orgs",
+    "repos_url": "https://api.github.com/users/simonis/repos",
+    "events_url": "https://api.github.com/users/simonis/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/simonis/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "simonis",
+    "id": 3178197,
+    "node_id": "MDQ6VXNlcjMxNzgxOTc=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/3178197?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/simonis",
+    "html_url": "https://github.com/simonis",
+    "followers_url": "https://api.github.com/users/simonis/followers",
+    "following_url": "https://api.github.com/users/simonis/following{/other_user}",
+    "gists_url": "https://api.github.com/users/simonis/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/simonis/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/simonis/subscriptions",
+    "organizations_url": "https://api.github.com/users/simonis/orgs",
+    "repos_url": "https://api.github.com/users/simonis/repos",
+    "events_url": "https://api.github.com/users/simonis/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/simonis/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "0f8c1b4522634058dc197619a465b79288e9c25d",
+      "url": "https://api.github.com/repos/openjdk/jdk8u/commits/0f8c1b4522634058dc197619a465b79288e9c25d",
+      "html_url": "https://github.com/openjdk/jdk8u/commit/0f8c1b4522634058dc197619a465b79288e9c25d"
+    }
+  ],
+  "stats": {
+    "total": 48,
+    "additions": 43,
+    "deletions": 5
+  },
+  "files": [
+    {
+      "sha": "f5ccd72c542ad1367f9419026aa409e71560f557",
+      "filename": "hotspot/src/cpu/aarch64/vm/aarch64.ad",
+      "status": "modified",
+      "additions": 43,
+      "deletions": 5,
+      "changes": 48,
+      "blob_url": "https://github.com/openjdk/jdk8u/blob/3c41cd8e624173834fa7b9ee8ede148c4e5541d0/hotspot%2Fsrc%2Fcpu%2Faarch64%2Fvm%2Faarch64.ad",
+      "raw_url": "https://github.com/openjdk/jdk8u/raw/3c41cd8e624173834fa7b9ee8ede148c4e5541d0/hotspot%2Fsrc%2Fcpu%2Faarch64%2Fvm%2Faarch64.ad",
+      "contents_url": "https://api.github.com/repos/openjdk/jdk8u/contents/hotspot%2Fsrc%2Fcpu%2Faarch64%2Fvm%2Faarch64.ad?ref=3c41cd8e624173834fa7b9ee8ede148c4e5541d0",
+      "patch": "@@ -926,6 +926,8 @@ definitions %{\n \n source_hpp %{\n \n+#include \"opto/addnode.hpp\"\n+\n class CallStubImpl {\n  \n   //--------------------------------------------------------------\n@@ -980,6 +982,9 @@ class HandlerImpl {\n \n   // predicate controlling translation of StoreCM\n   bool unnecessary_storestore(const Node *storecm);\n+\n+  // predicate controlling addressing modes\n+  bool size_fits_all_mem_uses(AddPNode* addp, int shift);\n %}\n \n source %{\n@@ -2159,6 +2164,19 @@ const RegMask Matcher::method_handle_invoke_SP_save_mask() {\n   return FP_REG_mask();\n }\n \n+bool size_fits_all_mem_uses(AddPNode* addp, int shift) {\n+  for (DUIterator_Fast imax, i = addp->fast_outs(imax); i < imax; i++) {\n+    Node* u = addp->fast_out(i);\n+    if (u->is_Mem()) {\n+      int opsize = u->as_Mem()->memory_size();\n+      assert(opsize > 0, \"unexpected memory operand size\");\n+      if (u->as_Mem()->memory_size() != (1<<shift)) {\n+        return false;\n+      }\n+    }\n+  }\n+  return true;\n+}\n \n #define MOV_VOLATILE(REG, BASE, INDEX, SCALE, DISP, SCRATCH, INSN)\t\\\n   MacroAssembler _masm(&cbuf);\t\t\t\t\t\t\\\n@@ -4755,6 +4773,8 @@ operand indirect(iRegP reg)\n \n operand indIndexScaledOffsetI(iRegP reg, iRegL lreg, immIScale scale, immIU12 off)\n %{\n+  predicate(size_fits_all_mem_uses(n->as_AddP(),\n+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));\n   constraint(ALLOC_IN_RC(ptr_reg));\n   match(AddP (AddP reg (LShiftL lreg scale)) off);\n   op_cost(INSN_COST);\n@@ -4769,6 +4789,8 @@ operand indIndexScaledOffsetI(iRegP reg, iRegL lreg, immIScale scale, immIU12 of\n \n operand indIndexScaledOffsetL(iRegP reg, iRegL lreg, immIScale scale, immLU12 off)\n %{\n+  predicate(size_fits_all_mem_uses(n->as_AddP(),\n+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));\n   constraint(ALLOC_IN_RC(ptr_reg));\n   match(AddP (AddP reg (LShiftL lreg scale)) off);\n   op_cost(INSN_COST);\n@@ -4797,6 +4819,8 @@ operand indIndexOffsetI2L(iRegP reg, iRegI ireg, immLU12 off)\n \n operand indIndexScaledOffsetI2L(iRegP reg, iRegI ireg, immIScale scale, immLU12 off)\n %{\n+  predicate(size_fits_all_mem_uses(n->as_AddP(),\n+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));\n   constraint(ALLOC_IN_RC(ptr_reg));\n   match(AddP (AddP reg (LShiftL (ConvI2L ireg) scale)) off);\n   op_cost(INSN_COST);\n@@ -4811,6 +4835,8 @@ operand indIndexScaledOffsetI2L(iRegP reg, iRegI ireg, immIScale scale, immLU12\n \n operand indIndexScaledI2L(iRegP reg, iRegI ireg, immIScale scale)\n %{\n+  predicate(size_fits_all_mem_uses(n->as_AddP(),\n+                                   n->in(AddPNode::Offset)->in(2)->get_int()));\n   constraint(ALLOC_IN_RC(ptr_reg));\n   match(AddP reg (LShiftL (ConvI2L ireg) scale));\n   op_cost(0);\n@@ -4825,6 +4851,8 @@ operand indIndexScaledI2L(iRegP reg, iRegI ireg, immIScale scale)\n \n operand indIndexScaled(iRegP reg, iRegL lreg, immIScale scale)\n %{\n+  predicate(size_fits_all_mem_uses(n->as_AddP(),\n+                                   n->in(AddPNode::Offset)->in(2)->get_int()));\n   constraint(ALLOC_IN_RC(ptr_reg));\n   match(AddP reg (LShiftL lreg scale));\n   op_cost(0);\n@@ -4980,7 +5008,9 @@ operand indirectN(iRegN reg)\n \n operand indIndexScaledOffsetIN(iRegN reg, iRegL lreg, immIScale scale, immIU12 off)\n %{\n-  predicate(Universe::narrow_oop_shift() == 0);\n+  predicate(Universe::narrow_oop_shift() == 0 &&\n+            size_fits_all_mem_uses(n->as_AddP(),\n+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));\n   constraint(ALLOC_IN_RC(ptr_reg));\n   match(AddP (AddP (DecodeN reg) (LShiftL lreg scale)) off);\n   op_cost(0);\n@@ -4995,7 +5025,9 @@ operand indIndexScaledOffsetIN(iRegN reg, iRegL lreg, immIScale scale, immIU12 o\n \n operand indIndexScaledOffsetLN(iRegN reg, iRegL lreg, immIScale scale, immLU12 off)\n %{\n-  predicate(Universe::narrow_oop_shift() == 0);\n+  predicate(Universe::narrow_oop_shift() == 0 &&\n+            size_fits_all_mem_uses(n->as_AddP(),\n+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));\n   constraint(ALLOC_IN_RC(ptr_reg));\n   match(AddP (AddP (DecodeN reg) (LShiftL lreg scale)) off);\n   op_cost(INSN_COST);\n@@ -5025,7 +5057,9 @@ operand indIndexOffsetI2LN(iRegN reg, iRegI ireg, immLU12 off)\n \n operand indIndexScaledOffsetI2LN(iRegN reg, iRegI ireg, immIScale scale, immLU12 off)\n %{\n-  predicate(Universe::narrow_oop_shift() == 0);\n+  predicate(Universe::narrow_oop_shift() == 0 &&\n+            size_fits_all_mem_uses(n->as_AddP(),\n+                                   n->in(AddPNode::Address)->in(AddPNode::Offset)->in(2)->get_int()));\n   constraint(ALLOC_IN_RC(ptr_reg));\n   match(AddP (AddP (DecodeN reg) (LShiftL (ConvI2L ireg) scale)) off);\n   op_cost(INSN_COST);\n@@ -5040,7 +5074,9 @@ operand indIndexScaledOffsetI2LN(iRegN reg, iRegI ireg, immIScale scale, immLU12\n \n operand indIndexScaledI2LN(iRegN reg, iRegI ireg, immIScale scale)\n %{\n-  predicate(Universe::narrow_oop_shift() == 0);\n+  predicate(Universe::narrow_oop_shift() == 0 &&\n+            size_fits_all_mem_uses(n->as_AddP(),\n+                                   n->in(AddPNode::Offset)->in(2)->get_int()));\n   constraint(ALLOC_IN_RC(ptr_reg));\n   match(AddP (DecodeN reg) (LShiftL (ConvI2L ireg) scale));\n   op_cost(0);\n@@ -5055,7 +5091,9 @@ operand indIndexScaledI2LN(iRegN reg, iRegI ireg, immIScale scale)\n \n operand indIndexScaledN(iRegN reg, iRegL lreg, immIScale scale)\n %{\n-  predicate(Universe::narrow_oop_shift() == 0);\n+  predicate(Universe::narrow_oop_shift() == 0 &&\n+            size_fits_all_mem_uses(n->as_AddP(),\n+                                   n->in(AddPNode::Offset)->in(2)->get_int()));\n   constraint(ALLOC_IN_RC(ptr_reg));\n   match(AddP (DecodeN reg) (LShiftL lreg scale));\n   op_cost(0);"
+    }
+  ]
+}

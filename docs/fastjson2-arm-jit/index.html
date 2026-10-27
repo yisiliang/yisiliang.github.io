@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="description" content="从 Fastjson2 2.0.61 的 ARM64 随机解析异常，定位到 OpenJDK C2 地址缩放缺陷 JDK-8267689，并用 8u292 / 8u302 验证修复边界。"><title>从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷 | YiSiliang</title><script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script><style id="reader-design">:root{--bg:#fafbfc;--surface:#fff;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;--header:70px;color-scheme:light}
+:root[data-theme=dark]{--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--bg:#131820;--surface:#19212d;--soft:#202b39;--text:#dde5ef;--muted:#a2b1c4;--border:#334156;--accent:#8ab7ff;--code:#18212e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:94px}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:6px 12px;font-size:14px}button:hover{background:var(--soft)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}p{margin:1em 0}h1,h2,h3{line-height:1.45;letter-spacing:-.02em;overflow-wrap:anywhere}h1{font-size:30px}h2{font-size:23px;margin:2.4em 0 1em;border-bottom:1px solid var(--border);padding-bottom:10px}h3{font-size:19px;margin:1.9em 0 .7em}h2,h3,.chapter,.route{scroll-margin-top:94px}li{margin:.45em 0}strong{font-weight:650}kbd{border:1px solid var(--border);padding:0 4px;font:12px monospace;color:var(--muted)}.skip{position:fixed;top:-80px;left:10px;z-index:30;background:var(--surface);padding:10px}.skip:focus{top:8px}.topbar{position:sticky;top:0;z-index:15;height:var(--header);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px}.brand{font-size:18px;font-weight:700;line-height:1.4}.brand span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.05em}.tools{display:flex;gap:8px;align-items:center}.tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}.mobile{display:none}.progress-track{position:fixed;top:var(--header);height:3px;width:100%;z-index:20}#progress-bar{height:100%;background:var(--accent);width:0}.layout{max-width:1600px;display:grid;grid-template-columns:260px minmax(0,820px) 210px;gap:38px;margin:auto;padding:0 26px}#left-nav,#right-toc{position:sticky;top:calc(var(--header) + 24px);height:calc(100dvh - var(--header) - 44px);overflow:auto;padding:6px 0 28px;font-size:13px}#left-nav{border-right:1px solid var(--border);padding-right:18px}.nav-label,.eyebrow{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em}.chapter-nav{margin:8px 0;border:0;background:none;padding:0}.chapter-nav summary{display:flex;align-items:center;list-style:none;padding:8px 0;font-size:13px}.chapter-nav summary::-webkit-details-marker{display:none}.chapter-nav summary:after{content:'+';margin-left:auto;color:var(--muted);cursor:pointer;padding:4px}.chapter-nav[open] summary:after{content:'−'}.chapter-nav summary a{color:var(--text);display:flex;gap:10px;line-height:1.6;flex:1}.chapter-nav summary span{color:var(--muted);font:11px/2.1 monospace}.chapter-nav div{padding:0 0 0 26px}.chapter-nav div a{display:block;color:var(--muted);padding:5px 8px;border-left:1px solid var(--border);font-size:12px}.chapter-nav.current summary a,.chapter-nav a.current{color:var(--accent);font-weight:600}.chapter-nav a.current{border-color:var(--accent);background:var(--soft)}.route-link{display:block;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}.intro{padding:40px 0 25px;border-bottom:1px solid var(--border)}.intro h1{font-size:34px;margin:12px 0}.intro p{color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap}.meta span{font-size:12px;border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted)}.note{font-size:12px}.chapter{padding:28px 0 60px}.chapter-title{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border)}.chapter-title h1{margin:10px 0}.chapter-title .eyebrow{margin:0}main{min-width:0}main p,main li{overflow-wrap:anywhere}main code{font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}p code,li code{background:var(--soft);border-radius:3px;padding:2px 5px;color:var(--accent)}pre{position:relative;overflow:auto;border:1px solid var(--border);border-radius:7px;background:var(--code);padding:46px 20px 20px;line-height:1.7;margin:20px 0;tab-size:4}pre code{white-space:pre;word-break:normal;overflow-wrap:normal}.code-lang{position:absolute;top:10px;left:16px;font:11px monospace;color:var(--muted);text-transform:uppercase}.copy{position:absolute;top:7px;right:9px;padding:2px 10px;font-size:12px}table{display:block;overflow:auto;max-width:100%;border-collapse:collapse;font-size:14px;margin:20px 0}th,td{padding:11px 13px;border:1px solid var(--border);text-align:left;min-width:120px}th{background:var(--soft)}blockquote{border-left:3px solid var(--accent);margin:22px 0;padding:4px 20px;background:var(--soft)}main details{border:1px solid var(--border);border-radius:6px;padding:0 18px;margin:16px 0;background:var(--surface)}main details summary{cursor:pointer;padding:12px 0;font-size:14px;font-weight:600;color:var(--accent)}main details[open]{padding-bottom:12px}main details p{font-size:15px}main details p strong{color:var(--accent)}.diagram{margin:26px 0;border:1px solid var(--border);border-radius:7px;padding:20px 12px 10px;background:var(--surface);overflow:auto}.diagram svg{display:block;margin:auto;max-width:100%;height:auto;min-width:380px}.diagram figcaption{color:var(--muted);font-size:11px;text-align:center;margin-top:10px}.diagram details{border:0;background:transparent;font-size:12px}.diagram pre{padding:12px}[data-reader="java-architect-interview"] .diagram svg .edgePath path,[data-reader="java-architect-interview"] .diagram svg .flowchart-link,[data-reader="java-architect-interview"] .diagram svg .messageLine0,[data-reader="java-architect-interview"] .diagram svg .messageLine1,[data-reader="java-architect-interview"] .diagram svg .actor-line{stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel rect{fill:var(--surface)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel span,[data-reader="java-architect-interview"] .diagram svg .messageText,[data-reader="java-architect-interview"] .diagram svg .loopText,[data-reader="java-architect-interview"] .diagram svg .labelText{color:var(--text)!important;fill:var(--text)!important}.diagram svg marker path{fill:var(--muted)!important;stroke:var(--muted)!important}[data-reader="java-architect-interview"] .diagram svg .edgeLabel{background:var(--surface)!important}.reading{font-size:11px;color:var(--muted);padding:8px 0 18px;border-bottom:1px solid var(--border)}.reading span{display:block}#toc a{display:block;color:var(--muted);border-left:1px solid var(--border);padding:6px 10px;font-size:12px;line-height:1.6}#toc a.depth3{padding-left:20px;font-size:11px}#toc a.current{color:var(--accent);border-color:var(--accent);background:var(--soft)}.quick{display:none}.route{padding:15px 0 24px}.route li{display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:14px}.route ol{padding-left:0;list-style:none}.route time{color:var(--muted)}.js-enabled.quick-mode .study{display:none}.js-enabled.quick-mode .quick{display:block}.js-enabled.quick-mode .route,.js-enabled.show-route .route{display:block}dialog{padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);width:min(720px,calc(100vw - 24px));max-height:85dvh;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.55)}.search-head{display:flex;align-items:center;justify-content:space-between;gap:15px}.search-head h2{margin:0;border:0;font-size:20px}.search-head button{flex-shrink:0}dialog label{font-size:12px;color:var(--muted);display:block;margin:15px 0 6px}input{border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);padding:12px;width:100%;font-size:16px}#search-status{font-size:12px;color:var(--muted)}.search-result{display:block;padding:16px 0;border-top:1px solid var(--border);line-height:1.7}.search-result small{color:var(--muted);display:block;font-size:11px}.search-result p{color:var(--muted);font-size:13px;margin:6px 0}mark{background:#f7d96f;color:#1b2634;border-radius:2px;padding:0 2px}#toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 18px;border-radius:5px;font-size:13px;z-index:40;opacity:0;pointer-events:none}#toast.visible{opacity:1}footer{max-width:1000px;margin:30px auto;padding:25px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}.token.comment,.token.prolog,.token.doctype{color:#708198}.token.keyword,.token.atrule,.token.boolean{color:#a347a5}.token.string,.token.attr-value{color:#247947}.token.function,.token.class-name{color:#2865ae}.token.number{color:#aa5726}.token.operator,.token.punctuation{color:var(--muted)}.token.tag,.token.property{color:#b8465c}[data-theme=dark] .token.keyword{color:#dca9ed}[data-theme=dark] .token.string,[data-theme=dark] .token.attr-value{color:#9bcf9d}[data-theme=dark] .token.function,[data-theme=dark] .token.class-name{color:#9bc6fc}[data-theme=dark] .token.number{color:#edb98c}[data-theme=dark] .token.tag,[data-theme=dark] .token.property{color:#f5a4b4}
+@media(min-width:1450px){.layout{gap:44px;grid-template-columns:270px minmax(0,850px) 220px}}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr);gap:28px}#right-toc{display:none}.topbar{padding:0 20px}}
+@media(max-width:760px){:root{--header:96px}.topbar{height:96px;padding:10px 14px;flex-wrap:wrap;justify-content:flex-start;gap:8px}.mobile{display:block;font-size:12px}.brand{font-size:16px;flex:1}.brand span{font-size:10px}.tools{width:100%;justify-content:flex-end;gap:6px}.tools button{font-size:12px;padding:3px 9px}.layout{display:block;padding:0 20px}.intro{padding-top:26px}.intro h1{font-size:27px}.chapter-title h1{font-size:26px}h2{font-size:21px}h3{font-size:18px}body{font-size:15px;line-height:1.85}#left-nav{display:none;position:fixed;top:96px;left:0;width:min(310px,85vw);height:calc(100dvh - 96px);padding:18px 20px;background:var(--surface);z-index:25;border-right:1px solid var(--border)}.drawer-open #left-nav{display:block}#drawer-backdrop:not([hidden]){display:block;position:fixed;inset:96px 0 0;background:rgba(0,0,0,.45);z-index:24}.drawer-open{overflow:hidden}.diagram{padding:14px 8px}.diagram svg{min-width:360px}.route li{grid-template-columns:105px 1fr}.chapter{padding-top:22px}pre{padding-left:14px;padding-right:14px}footer{padding:20px}main details{padding-left:14px;padding-right:14px}.intro .note{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,#left-nav,#right-toc,.progress-track,dialog,.copy,footer{display:none!important}.layout{display:block}.js-enabled .chapter{display:block!important}.js-enabled .study{display:block!important}.quick,.route{display:none!important}main details{display:block}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+
+/* 阅读排版：正文、源码、问题各有自己的节奏。 */
+.layout {
+  max-width: 1510px;
+  grid-template-columns: 248px minmax(0, 780px) 205px;
+  gap: 36px;
+}
+main {
+  font-size: 16px;
+  line-height: 1.95;
+}
+main p { margin: 1em 0 1.2em; }
+.intro {
+  padding: 28px 0 24px;
+}
+.intro h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+.intro > p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.chapter { padding-top: 32px; }
+.chapter-title { padding-bottom: 20px; margin-bottom: 26px; }
+.chapter-title h1 { font-size: 29px; margin: 9px 0 0; }
+.chapter-title .eyebrow {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+main h2 { margin-top: 2.5em; font-size: 22px; }
+main h3 { margin-top: 1.9em; font-size: 18px; font-weight: 650; }
+.source-caption {
+  margin: 28px 0 -20px;
+  padding: 13px 17px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--soft);
+  line-height: 1.65;
+}
+.source-caption code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-caption span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.source-caption + pre {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+pre { padding-top: 44px; }
+pre code { font-size: 12.5px; }
+main .question {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+main .question + .question { border-top: 0; }
+main .question summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px 18px;
+  color: var(--text);
+  line-height: 1.7;
+  list-style: none;
+}
+main .question summary::-webkit-details-marker { display: none; }
+main .question summary::before {
+  content: '+';
+  flex: 0 0 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+main .question[open] summary::before { content: '−'; }
+main .question[open] { padding-bottom: 0; }
+main .question[open] summary { border-bottom: 1px solid var(--border); }
+main .question summary h3,
+main .question .question-title {
+  margin: 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+.answer { padding: 6px 22px 10px 47px; }
+main .answer p { font-size: 15px; line-height: 1.9; }
+main .answer strong { color: var(--text); font-weight: 650; }
+main li { padding-left: 2px; }
+.chapter-nav summary { padding: 7px 0; }
+#toc a.depth3 { font-size: 11px; padding-top: 5px; padding-bottom: 5px; }
+@media (min-width: 1450px) {
+  .layout { grid-template-columns: 258px minmax(0, 810px) 205px; gap: 40px; }
+}
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: 222px minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 760px) {
+  .layout { display: block; padding: 0 21px; }
+  main { font-size: 15px; line-height: 1.95; }
+  .intro { padding: 23px 0 20px; }
+  .intro h1 { font-size: 21px; }
+  .intro > p { font-size: 13px; }
+  .chapter { padding-top: 25px; }
+  .chapter-title h1 { font-size: 25px; }
+  main h2 { font-size: 20px; }
+  main h3 { font-size: 17px; }
+  main .question summary { padding: 14px 13px; gap: 7px; }
+  main .question summary h3 { font-size: 14px; }
+  .answer { padding: 4px 15px 8px; }
+  main .answer p { font-size: 14px; }
+  .source-caption { padding: 12px; }
+  .source-caption code { font-size: 12px; }
+}
+
+/* Adapters for existing books: same topic-reader geometry, preserved source cards. */
+.learning-reader main h4{overflow-wrap:anywhere}
+.learning-reader{--ink:var(--text);--line:var(--border);--paper:var(--surface);--panel:var(--surface);--quote:var(--soft);--head:var(--text);--blue:var(--accent);background:var(--bg);color:var(--text);font:16px/1.85 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.learning-reader .layout{width:100%;margin:0 auto;padding:0 26px}
+.learning-reader main{margin:0;padding:0;max-width:none;width:auto;min-width:0}
+.learning-reader #left-nav{width:auto;max-width:none;margin:0;background:transparent;box-shadow:none}
+.learning-reader .chapter{margin:0;max-width:none;background:none;box-shadow:none;border:0;border-radius:0}
+.learning-reader .chapter-title{border-bottom:1px solid var(--border)}
+.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:29px;margin:9px 0 0;padding:0;border:0;color:var(--text);font-family:inherit}
+.learning-reader .study h2{font-size:22px;line-height:1.45;color:var(--text);font-family:inherit;border-color:var(--border)}
+.learning-reader .study h3{font-size:18px;color:var(--text);font-family:inherit}
+.learning-reader .study .original-chapter{padding:0;margin:0;border:0}
+.learning-reader .study p,.learning-reader .study li{color:var(--text);overflow-wrap:anywhere}
+.learning-reader .study pre{background:var(--code);color:var(--text);border-color:var(--border);max-width:100%}
+.learning-reader .study pre code{color:inherit;background:transparent;padding:0;white-space:pre;overflow-wrap:normal}
+.learning-reader .study :not(pre)>code{color:var(--accent);background:var(--soft);padding:2px 5px;overflow-wrap:anywhere}
+.learning-reader .study .source-card,.learning-reader .study .source,.learning-reader .study .source-block,.learning-reader .study .source-box{background:var(--surface);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:26px 0;color:var(--text)}
+.learning-reader .study .source-head,.learning-reader .study .source-bar,.learning-reader .study .source-meta,.learning-reader .study .source-tools{background:var(--soft);border-color:var(--border);color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding:12px 16px}
+.learning-reader .study .source-body{display:flex;align-items:stretch;overflow:auto;background:var(--code)}
+.learning-reader .study .source-body pre{margin:0;border:0;border-radius:0;flex:1;min-width:0}
+.learning-reader .study pre.gutter{flex:0 0 auto;min-width:50px;padding:46px 10px 20px;color:var(--muted);text-align:right;user-select:none;line-height:1.7;font-size:13px;border-right:1px solid var(--border)}
+.learning-reader .study pre.source-code{padding-top:46px}
+.learning-reader .study .source-code code{line-height:1.7;font-size:13px}
+.learning-reader .study table{display:block;width:100%;max-width:100%;overflow:auto}
+.learning-reader .study th,.learning-reader .study td{background:transparent;color:var(--text);border-color:var(--border)}
+.learning-reader .study th{background:var(--soft)}
+.learning-reader .study blockquote,.learning-reader .study .callout,.learning-reader .study .note{color:var(--text);background:var(--soft);border:0;border-left:3px solid var(--accent);padding:10px 20px;margin:24px 0}
+.learning-reader figure{max-width:100%;overflow:auto;color:var(--text)}
+.learning-reader figure svg{max-width:100%;height:auto}
+.learning-reader figure:has(svg){background:#f6f8fc;border:1px solid var(--border);border-radius:7px;margin:26px 0;padding:16px}
+.learning-reader[data-reader=nacos] figure:has(svg){background:#111c2b}
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:#607087;background:transparent;font-size:12px;margin-top:12px;padding:0}
+.learning-reader figure .expand{display:block;margin:0 0 10px auto;font-size:12px}
+.learning-reader .hljs-comment{color:#708198}.learning-reader .hljs-keyword{color:#a347a5}.learning-reader .hljs-string{color:#247947}.learning-reader .hljs-title,.learning-reader .hljs-built_in{color:#2865ae}.learning-reader .hljs-number,.learning-reader .hljs-literal{color:#aa5726}
+[data-theme=dark] .learning-reader .hljs-comment{color:#a2b1c4}[data-theme=dark] .learning-reader .hljs-keyword{color:#dca9ed}[data-theme=dark] .learning-reader .hljs-string{color:#9bcf9d}[data-theme=dark] .learning-reader .hljs-title,[data-theme=dark] .learning-reader .hljs-built_in{color:#9bc6fc}[data-theme=dark] .learning-reader .hljs-number,[data-theme=dark] .learning-reader .hljs-literal{color:#edb98c}
+.library-home{font-size:12px;font-weight:400;display:inline-block;margin-right:16px}
+.reader-downloads{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;margin-top:14px}
+.reader-preface{font-size:13px}.reader-preface table{overflow:auto;display:block;max-width:100%}.reader-preface h1{font-size:20px}.reader-preface h2{font-size:18px}
+.reader-preface:not([open]){margin-bottom:0}.reader-preface summary{font-size:13px}
+#diagram-dialog{width:min(1400px,96vw)}#diagram-close{position:sticky;top:0;display:block;margin:0 0 12px auto}#diagram-content{overflow:auto;background:#f6f8fc}#diagram-content svg{min-width:700px;max-width:none;width:100%;height:auto}
+.learning-reader .calc,.learning-reader .lab{padding:18px;border:1px solid var(--border);border-radius:7px;background:var(--soft)}
+.learning-reader input[type=range],.learning-reader input[type=checkbox]{width:auto}.learning-reader .calc input[type=number],.learning-reader .lab input[type=number]{max-width:120px}
+@media(max-width:1150px){.learning-reader .layout{grid-template-columns:222px minmax(0,1fr);gap:28px}}
+@media(max-width:760px){.learning-reader .layout{display:block;padding:0 21px}.learning-reader #left-nav{width:min(310px,85vw);background:var(--surface);padding:18px 20px}.learning-reader .chapter-title h1,.learning-reader .chapter-title h2{font-size:25px}.learning-reader .study h2{font-size:20px}.learning-reader .study h3{font-size:17px}.learning-reader .brand{font-size:15px}.library-home{font-size:11px;margin-right:8px}.learning-reader .diagram svg{min-width:360px}.learning-reader .study .source-body{max-width:100%}.learning-reader .study pre.gutter{min-width:40px}.learning-reader .reader-preface{max-width:100%;overflow:auto}}
+@media print{html[data-theme]{--bg:white;--surface:white;--soft:#f1f4f8;--text:#253247;--muted:#607087;--border:#dce3ec;--accent:#235bb6;--code:#f3f5f9;color-scheme:light}.learning-reader .chapter{display:block!important}.learning-reader .study{display:block!important}.learning-reader .layout{display:block;padding:0}.learning-reader .reader-preface{display:block}.learning-reader pre{white-space:pre-wrap}.learning-reader pre code{white-space:pre-wrap}.learning-reader figure{break-inside:avoid}}
+.learning-reader #right-toc{background:transparent;border:0;padding:6px 0 28px;width:auto;max-height:none}
+.learning-reader #toc a{background:transparent;border-radius:0}.learning-reader #toc a.current{background:var(--soft)}
+.learning-reader .chapter-title h2,.learning-reader .chapter-title h1{letter-spacing:-.02em;line-height:1.45}
+#diagram-actions{position:sticky;top:0;background:var(--surface);display:flex;justify-content:flex-end;gap:8px;padding-bottom:12px;z-index:1}#diagram-actions #diagram-close{position:static;margin:0}#diagram-content img{min-width:700px;max-width:none;width:100%;height:auto}
+/* HTML mechanism diagrams follow the same palette in both themes. */
+.learning-reader .timeline>div,.learning-reader .flow>div,.learning-reader .lane,.learning-reader .node{background:var(--soft);color:var(--text);border-color:var(--border)}
+.learning-reader .timeline b,.learning-reader .flow b,.learning-reader .lane b,.learning-reader .node b{color:var(--accent)}
+.learning-reader .timeline span,.learning-reader .flow span,.learning-reader .lane span,.learning-reader .node span{color:var(--muted)}
+.learning-reader .timeline>div{border-left-color:var(--accent)}
+
+.learning-reader .diagram figcaption,.learning-reader figcaption{color:var(--muted)}.learning-reader figure:has(svg) figcaption{color:#607087}.learning-reader[data-reader=nacos] figure:has(svg) figcaption{color:var(--muted)}
+</style><script id="reader-theme">(() => {
+  let preference = 'system';
+  try { preference = localStorage.getItem('learning-reader-theme') || localStorage.getItem('jai-theme') || localStorage.getItem('source-library-theme') || 'system'; } catch (_) {}
+  if (!['system', 'light', 'dark'].includes(preference)) preference = 'system';
+  const query = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = preference === 'system' ? (query.matches ? 'dark' : 'light') : preference;
+    document.documentElement.dataset.preference = preference;
+    window.dispatchEvent(new Event('learning-theme-change'));
+  };
+  apply(); query.addEventListener('change', apply);
+  window.addEventListener('storage',event=>{if(event.key==='learning-reader-theme'){preference=['system','light','dark'].includes(event.newValue)?event.newValue:'system';apply();}});
+  window.learningTheme = {
+    get: () => preference,
+    cycle: () => {
+      preference = {system:'light', light:'dark', dark:'system'}[preference];
+      try { localStorage.setItem('learning-reader-theme', preference); } catch (_) {}
+      apply(); return preference;
+    }
+  };
+})();
+</script><style>figure.diagram img{display:block;width:100%;height:auto}.intro>p{max-width:none;margin:.8em 0}.intro h1{font-size:30px;line-height:1.4}.study>p,.study li{overflow-wrap:anywhere}.primary-nav>a{display:flex;gap:10px;padding:10px 0;color:var(--muted);font-size:12px;line-height:1.7}.primary-nav>a>span{font-size:11px;min-width:19px}.primary-nav.current>a{color:var(--accent);font-weight:600}@media(max-width:760px){.intro h1{font-size:26px}}</style></head>
+<body class="learning-reader" data-layout="learning-v2" data-reader="fastjson2-arm-jit" data-toc-scope="document">
+<a class="skip" href="#main">跳到正文</a>
+<header class="topbar"><button id="menu" class="mobile" aria-label="打开章节导航" aria-expanded="false" aria-controls="left-nav">目录</button><div class="brand"><a class="library-home" href="../">← 学习库</a>Fastjson2 与 ARM64 JIT<span>C2 编译缺陷排查 · 2026-10-27</span></div><div class="tools"><button id="search-open" aria-label="打开全文搜索">搜索 <kbd>/</kbd></button><button id="print" type="button">打印</button><button id="theme" aria-label="切换主题">主题：系统</button></div></header>
+<div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div><div id="drawer-backdrop" hidden></div>
+<div class="layout"><nav id="left-nav" aria-label="一级目录"><p class="nav-label">一级目录 / 10 节</p><div class="chapter-nav primary-nav" data-chapter="case-overview"><a href="#case-overview"><span>01</span>现象：数据没变，解析结果却变了</a></div><div class="chapter-nav primary-nav" data-chapter="packed-read"><a href="#packed-read"><span>02</span>根据线索提出猜测，逐步缩小范围</a></div><div class="chapter-nav primary-nav" data-chapter="jit-controls"><a href="#jit-controls"><span>03</span>对照验证：错误是否跟着 JIT 和 JDK 版本变化？</a></div><div class="chapter-nav primary-nav" data-chapter="minimal-probe"><a href="#minimal-probe"><span>04</span>缩小复现：去掉 Fastjson，读取仍然出错</a></div><div class="chapter-nav primary-nav" data-chapter="source-cause"><a href="#source-cause"><span>05</span>定位根因：C2 为什么把 ×2 变成 ×8？</a></div><div class="chapter-nav primary-nav" data-chapter="patch"><a href="#patch"><span>06</span>找到补丁：拒绝不相容的地址缩放</a></div><div class="chapter-nav primary-nav" data-chapter="version-boundary"><a href="#version-boundary"><span>07</span>验证根因：修复前后的版本是否符合预期？</a></div><div class="chapter-nav primary-nav" data-chapter="cause-summary"><a href="#cause-summary"><span>08</span>串起故障链：为什么最终表现为 JSON 随机异常？</a></div><div class="chapter-nav primary-nav" data-chapter="mitigation"><a href="#mitigation"><span>09</span>解决方案：短期绕过与长期修复</a></div><div class="chapter-nav primary-nav" data-chapter="references"><a href="#references"><span>10</span>复现资料与参考来源</a></div></nav><main id="main" tabindex="-1"><section class="intro"><p class="eyebrow">JAVA / ARM64 / SOURCE INVESTIGATION</p><h1>从 Fastjson2 解析异常追到 ARM64 JIT 编译缺陷</h1>
+<p>同一个 String，为什么开始能正常解析，反复执行后却随机报错？</p>
+<p>这篇文章记录我排查 Fastjson2 2.0.61 一次解析异常的过程：先从输入、线程和平台差异寻找线索，再逐步验证 JIT 猜测、缩小复现，最后对照 OpenJDK 源码与补丁解释根因，并确定短期和长期处理方案。</p>
+<div class="reader-downloads"><a href="./article.md" download>Markdown 原文</a><a href="./fastjson2-arm-jit-evidence.zip" download>复现与证据包</a></div></section><article class="chapter" id="case-overview" data-title="1. 现象：数据没变，解析结果却变了"><div class="chapter-title"><p class="eyebrow">排查记录 / 01</p><h2 id="case-overview-heading">1. 现象：数据没变，解析结果却变了</h2></div><div class="study">
+<p>我在使用 Fastjson2 2.0.61 解析 JSON 时，遇到了一个奇怪的问题：同样的代码在 Windows x86 上可以稳定运行，到了 ARM Linux 上，反复执行一段时间后却会随机报错。</p>
+<p>Json字符串：</p>
+<pre><code class="language-json">{"messageId":"test-123","message":["consumer://service/path?key=value"]}
+</code></pre>
+<p>报错信息：</p>
+<pre><code class="language-text">invalid escape character EOI
+offset 641, character ]
+offset 64, character "
+</code></pre>
+<p>我检查了测试条件：JSON 本身合法，测试只有一个线程，输入始终是同一个 String，没有任何修改。异常位置却不固定，有时像是字符串没有结束，有时又像是数组或引号的位置出了问题。</p>
+<p>更奇怪的是，它并非一开始就失败：前面可以正常解析，反复执行一段时间后，才开始随机报错。同一份输入、同一条调用路径，为什么结果会在运行过程中发生变化？</p>
+</div></article><article class="chapter" id="packed-read" data-title="2. 根据线索提出猜测，逐步缩小范围"><div class="chapter-title"><p class="eyebrow">排查记录 / 02</p><h2 id="packed-read-heading">2. 根据线索提出猜测，逐步缩小范围</h2></div><div class="study">
+<h3 id="packed-read-s1">2.1 从输入、线程和平台差异开始排除</h3>
+<p>看到 <code>invalid escape character EOI</code>，我最先想到的是 JSON 内容有问题，特别是字符串中的转义字符。但如果输入本身不合法，很难解释同一个 String 为什么先能连续成功，随后才报错，而且异常位置还会变化。</p>
+<p>我也考虑过并发修改输入或共享状态。但这个复现只有一个线程，输入 String 没有变化；至少在这段最小场景中，没有找到支持这一猜测的证据。</p>
+<p>Windows x86 正常、ARM Linux 异常，则提示我继续关注平台相关的实现。不过，这时操作系统、CPU 架构和 JDK 构建都有差异，还不能直接认定 ARM 指令或 JVM 有问题。</p>
+<h3 id="packed-read-s2">2.2 为什么开始怀疑 JIT？</h3>
+<p>最有指向性的线索是：<strong>开始正常，执行一段时间后才出错。</strong> 这让我怀疑，变化的也许是执行这段代码的方式。</p>
+<p>在 HotSpot 默认的混合执行模式下，方法可以先解释执行；随着调用次数或循环次数增加，热点代码可能被编译，并进一步进入 C2 优化。如果问题只出现在某个编译版本中，就能解释为什么预热前正常、预热后失败。</p>
+<p>这时 JIT 只是一个待验证的猜测。我先加入 <code>-Xint</code>，让程序使用解释执行，结果连续循环解析恢复正常。输入与业务代码没变，改变执行模式后现象消失，值得继续沿编译路径调查。但单凭这一组结果，还不能判断是哪一个方法、哪一级编译出了问题。</p>
+<h3 id="packed-read-s3">2.3 从异常堆栈追到两个底层方法</h3>
+<p>排查不能只停留在异常消息，我还需要沿堆栈找到具体执行路径。下面是我后续在 ARM64 Linux 容器、BellSoft 8u202 上复现时保留的一条完整异常堆栈：</p>
+<pre><code class="language-text">Exception in thread "main" com.alibaba.fastjson2.JSONException: invalid escape character EOI, offset 14, character ", line 1, column 14, fastjson-version 2.0.61 {"messageId":"test-123","message":["consumer://service/path?key=value"]}
+    at com.alibaba.fastjson2.JSONReader.error(JSONReader.java:6630)
+    at com.alibaba.fastjson2.JSONReaderUTF16.readString(JSONReaderUTF16.java:3279)
+    at com.alibaba.fastjson2.JSONReader.read(JSONReader.java:3544)
+    at com.alibaba.fastjson2.JSON.parse(JSON.java:138)
+    at JsonOnlyProbe.main(JsonOnlyProbe.java:18)
+</code></pre>
+<p>从下往上看，调用经过 <code>JsonOnlyProbe.main</code>、<code>JSON.parse</code>、<code>JSONReader.read</code>，最后在 <code>JSONReaderUTF16.readString</code> 中抛出异常。因此，我先从 <strong><code>readString</code></strong> 的实现查起。</p>
+<p>我对照 Fastjson2 2.0.61 的源码，看到 <code>readString</code> 的第 3279 行是在扫描到输入末尾后抛出 <code>invalid escape character EOI</code>。再往前追它的字符串扫描循环，才找到两个关键步骤：<a href="https://github.com/alibaba/fastjson2/blob/2.0.61/core/src/main/java/com/alibaba/fastjson2/JSONReaderUTF16.java#L3231-L3248">readString 的扫描循环</a>。</p>
+<pre><code class="language-text">JSON.parse
+  → JSONReader.read
+    → JSONReaderUTF16.readString
+        先调用 IOUtils.getLongLE(chars, offset)：读取 4 个 UTF16 代码单元
+        再调用 containsSlashOrQuoteUTF16(v, quoteV)：判断是否有引号或反斜杠
+        持续扫描，后续发现到达输入末尾时抛出异常
+</code></pre>
+<p>上面这段是我沿源码整理的执行关系，不是另一份异常堆栈。<code>getLongLE</code> 和 <code>containsSlashOrQuoteUTF16</code> 在前面的扫描步骤中已经返回，所以不会因为参与过计算，就一定出现在后续抛出的异常栈里。我要检查的是：它们有没有在更早的步骤读错数据，导致 <code>readString</code> 后来才发现异常。</p>
+<p>沿着扫描循环找到 <code>getLongLE</code> 后，我继续看了 Fastjson2 2.0.61 的源码。<code>IOUtils</code> 中有 <code>byte[]</code> 和 <code>char[]</code> 两个同名重载，UTF16 字符串扫描涉及的是后者，其完整方法如下：</p>
+<pre><code class="language-java">public static long getLongLE(char[] buf, int offset) {
+    long v = UNSAFE.getLong(buf, ARRAY_CHAR_BASE_OFFSET + ((long) offset &lt;&lt; 1));
+    if (BIG_ENDIAN) {
+        v = Long.reverseBytes(v);
+    }
+    return v;
+}
+</code></pre>
+<p><a href="https://github.com/alibaba/fastjson2/blob/2.0.61/core/src/main/java/com/alibaba/fastjson2/util/IOUtils.java#L2788-L2794">Fastjson2 2.0.61：IOUtils.java</a>。</p>
+<p><code>LE</code> 表示 Little Endian，即小端顺序。这个方法读取的是数组中的原始位模式，并非把 JSON 里的数字文本转成 <code>long</code>。</p>
+<ul>
+<li>Java 的一个 <code>char</code> 占 2 字节，字符下标转换为字节偏移时需要乘 2，也就是 <code>offset &lt;&lt; 1</code>。</li>
+<li><code>ARRAY_CHAR_BASE_OFFSET</code> 是数组第一个元素相对对象起点的偏移，不是一个需要硬编码的常数。</li>
+<li><code>Unsafe.getLong</code> 一次读取 8 字节，因此一次可以装入 4 个 UTF16 代码单元。</li>
+<li>大端机器还需要调整字节顺序；本文实验使用小端 AArch64。</li>
+</ul>
+<p>Fastjson2 随后通过位运算，判断这 4 个代码单元中是否包含引号或反斜杠；如果没有，就跳过这 4 个位置继续扫描。这里的 <code>containsSlashOrQuoteUTF16</code> 与 <code>getLongLE</code> 配合，减少逐字符检查。<a href="https://github.com/alibaba/fastjson2/blob/2.0.61/core/src/main/java/com/alibaba/fastjson2/JSONReaderUTF16.java#L3231-L3248">UTF16 扫描路径</a>。</p>
+<p>如果底层读取了错误地址，扫描器就可能漏掉结束引号，或者把其他位置的数据当作当前字符串。最后抛出的异常仍然是 JSON 异常，真正出错的位置却可能在更早的内存读取步骤。</p>
+<h3 id="packed-read-s4">2.4 用方法排除进一步缩小范围</h3>
+<p>有了这条源码路径，我打开 <code>-XX:+PrintCompilation</code>，确认两个方法都参与了热点编译，再分别做排除对照：先排除 <code>containsSlashOrQuoteUTF16</code> 的编译，异常仍然存在；再排除 <code>IOUtils.getLongLE</code>，循环解析恢复正常。</p>
+<p>这让我把注意力集中到 <code>getLongLE</code> 相关的编译路径：扫描器报告的 JSON 错误，会不会是更早的一次批量读取出错所造成的？接下来需要验证两个问题：这种行为是否随 JDK 版本变化，以及离开 Fastjson 后能否单独复现读取错误。</p>
+</div></article><article class="chapter" id="jit-controls" data-title="3. 对照验证：错误是否跟着 JIT 和 JDK 版本变化？"><div class="chapter-title"><p class="eyebrow">排查记录 / 03</p><h2 id="jit-controls-heading">3. 对照验证：错误是否跟着 JIT 和 JDK 版本变化？</h2></div><div class="study">
+<h3 id="jit-controls-s1">3.1 保持输入和程序一致，比较不同 JDK</h3>
+<p>为了验证不同 JDK 版本的行为，我在自己的 ARM64 Mac 上，通过 Colima / Apple Virtualization Framework 启动 ARM64 Linux 虚拟机，再运行 <code>linux/arm64</code> 容器。这样执行的是原生 ARM64 指令。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>本次配置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linux 容器用户空间</td>
+<td>Ubuntu 22.04.5 LTS</td>
+</tr>
+<tr>
+<td>CPU 架构</td>
+<td><code>aarch64</code></td>
+</tr>
+<tr>
+<td>Fastjson2</td>
+<td>Maven Central 的 2.0.61 JAR</td>
+</tr>
+<tr>
+<td>旧版本</td>
+<td>BellSoft OpenJDK 8u202-b08、8u292-b10</td>
+</tr>
+<tr>
+<td>修复边界版本</td>
+<td>BellSoft OpenJDK 8u302-b08</td>
+</tr>
+<tr>
+<td>新版对照</td>
+<td>Temurin OpenJDK 8u504-b01</td>
+</tr>
+</tbody>
+</table>
+<p>我从 BellSoft 官方 GitHub Releases 下载旧 JRE，挂载到同一基础容器中，并显式调用它自己的 <code>bin/java</code>，同时检查完整版本输出，确认每一组实验实际运行的 JRE。</p>
+<p>我让各组测试使用同一份 Java 8 字节码，构造了短 URL、长 URL、中文及转义字符三个样例。每个样例内反复解析同一个 String，并将结果与首次解析结果比较，同时检查异常和解析结果是否变化。</p>
+<p>首个样例只有 72 个字符：</p>
+<pre><code class="language-json">{"messageId":"test-123","message":["consumer://service/path?key=value"]}
+</code></pre>
+<p>这次实际测试了 8u202、8u292、8u302 和 8u504。容器对照与最初遇到问题的机器分别记录。</p>
+<p>容器可以帮助控制 Linux 用户空间与 JRE，但 CPU 仍是宿主机的 ARM CPU。</p>
+<h3 id="jit-controls-s2">3.2 对比默认 JIT、解释执行和 C1</h3>
+<p>我先用 Temurin 8u504 测试，默认 JIT 累计完成 3900 万次 JSON 解析，没有出现异常。我又检查了编译日志，确认相关方法已经进入第 4 级编译，这次通过并不是因为方法还没预热。</p>
+<p>换成 BellSoft 8u202 后，我很快看到了差异：直接校验 <code>getLongLE</code> 的测试先报出返回值不匹配。为了继续观察 JSON 解析，我又单独运行了不经过这段校验预热的 <code>JsonOnlyProbe</code>。</p>
+<p>最近一轮三个独立进程的结果如下。循环下标从 0 开始，失败时刻随编译时机变化，不是稳定的次数阈值。</p>
+<table>
+<thead>
+<tr>
+<th>默认 JIT 进程</th>
+<th style="text-align: right;">失败时循环下标</th>
+<th>异常</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第 1 次</td>
+<td style="text-align: right;">635</td>
+<td><code>offset 39, character n</code></td>
+</tr>
+<tr>
+<td>第 2 次</td>
+<td style="text-align: right;">34611</td>
+<td><code>invalid escape character EOI, offset 14</code></td>
+</tr>
+<tr>
+<td>第 3 次</td>
+<td style="text-align: right;">37488</td>
+<td><code>invalid escape character EOI, offset 14</code></td>
+</tr>
+</tbody>
+</table>
+<p>接下来，我保持输入和程序一致，只调整 JVM 的运行模式：</p>
+<table>
+<thead>
+<tr>
+<th>BellSoft 8u202 运行模式</th>
+<th>实测结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>默认分层编译</td>
+<td>三个进程全部失败</td>
+</tr>
+<tr>
+<td><code>-Xint</code></td>
+<td>三个样例合计 30 万次，通过</td>
+</tr>
+<tr>
+<td>排除 <code>IOUtils.getLongLE</code> 编译</td>
+<td>三个样例合计 300 万次，通过</td>
+</tr>
+<tr>
+<td><code>-XX:TieredStopAtLevel=1</code></td>
+<td>三个样例合计 300 万次，通过</td>
+</tr>
+</tbody>
+</table>
+<p><code>-Xint</code> 使用解释执行；<code>TieredStopAtLevel=1</code> 保留基础 C1 编译，同时阻止进入 C2。再结合第 4 级编译日志，调查范围进一步缩小到旧 JDK 的 C2 优化路径。</p>
+<p>注意，不能只因方法出现在 <code>PrintCompilation</code> 日志中，就认定它有问题。这里有默认运行失败、解释执行通过、C1 通过、排除特定方法编译通过，以及后面的独立读取校验，证据才逐步形成闭环。</p>
+<h3 id="jit-controls-s3">3.3 用 <code>-Xcomp</code> 主动验证编译路径</h3>
+<p>前面的现象是“执行一段时间后才出错”。为了继续验证 JIT 这个方向，我又做了一个反向实验：手动加入 <code>-Xcomp</code>，请求 JVM 在方法首次调用时就编译，观察错误是否会更早出现，而不再等待通常的热点预热过程。</p>
+<pre><code class="language-sh">java -Xcomp -Xms128m -Xmx512m \
+  -cp .:fastjson2-2.0.61.jar JsonOnlyProbe 1000000
+</code></pre>
+<p>这个参数的含义见 <a href="https://docs.oracle.com/javase/8/docs/technotes/tools/unix/java.html">Java 8 启动参数说明</a>。这里我改变的是编译执行方式，JSON、Fastjson2 版本和测试程序都保持一致。</p>
+<p>结果，在 BellSoft 8u202 上，程序还没进入循环，就在用于建立参考结果的第一次 <code>JSON.parse</code> 调用中失败了。完整异常如下：</p>
+<pre><code class="language-text">Exception in thread "main" com.alibaba.fastjson2.JSONException: offset 29, character s, line 1, column 29, fastjson-version 2.0.61 {"messageId":"test-123","message":["consumer://service/path?key=value"]}
+    at com.alibaba.fastjson2.JSONReader.read(JSONReader.java:3459)
+    at com.alibaba.fastjson2.JSON.parse(JSON.java:138)
+    at JsonOnlyProbe.main(JsonOnlyProbe.java:15)
+</code></pre>
+<p>我也在 8u504 上运行同样的解析测试，进行对照：</p>
+<table>
+<thead>
+<tr>
+<th><code>-Xcomp</code> 实验</th>
+<th>BellSoft 8u202</th>
+<th>Temurin 8u504</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>JsonOnlyProbe</code></td>
+<td>首次 <code>JSON.parse</code> 即报错，尚未进入循环</td>
+<td>三个样例合计 300 万次通过</td>
+</tr>
+</tbody>
+</table>
+<p>这组结果与前面的现象对上了：默认模式下，错误在预热后出现；解释执行时通过；主动请求编译后，旧 JDK 更早出错。它进一步支持了我继续检查 JIT 编译路径的方向。具体是哪一步把地址算错，还需要下一步的独立探针和源码分析。</p>
+</div></article><article class="chapter" id="minimal-probe" data-title="4. 缩小复现：去掉 Fastjson，读取仍然出错"><div class="chapter-title"><p class="eyebrow">排查记录 / 04</p><h2 id="minimal-probe-heading">4. 缩小复现：去掉 Fastjson，读取仍然出错</h2></div><div class="study">
+<p>为了判断 Fastjson 的扫描逻辑是否参与了错误，我继续缩小复现：构造一个带位置标记的 <code>char[]</code>，第 <code>i</code> 个元素写入 <code>0x1000 + i</code>，然后反复从下标 4 读取 8 字节。这个程序完全不依赖 Fastjson。</p>
+<p>下面是可直接保存为 <code>UnsafeScaleProbe.java</code> 的完整程序：</p>
+<pre><code class="language-java">import sun.misc.Unsafe;
+import java.lang.reflect.Field;
+
+public class UnsafeScaleProbe {
+    static final Unsafe U;
+    static final long BASE;
+    static volatile long sink;
+
+    static {
+        try {
+            Field f = Unsafe.class.getDeclaredField("theUnsafe");
+            f.setAccessible(true);
+            U = (Unsafe) f.get(null);
+            BASE = U.arrayBaseOffset(char[].class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static long read(char[] chars, int index) {
+        return U.getLong(chars, BASE + ((long) index &lt;&lt; 1));
+    }
+
+    public static void main(String[] args) {
+        char[] chars = new char[4096];
+        for (int i = 0; i &lt; chars.length; i++) {
+            chars[i] = (char) (0x1000 + i);
+        }
+        int index = 4;
+        long expected = 0x1007100610051004L;
+        System.out.println("java=" + System.getProperty("java.runtime.version")
+                + " charBase=" + BASE);
+        for (int i = 0; i &lt; 1000000; i++) {
+            long actual = read(chars, index);
+            if (actual != expected) {
+                System.out.printf(
+                        "FAIL iteration=%d index=%d expected=0x%016x "
+                        + "actual=0x%016x actualFirstCharIndex=%d%n",
+                        i, index, expected, actual, (actual &amp; 65535) - 0x1000);
+                System.exit(1);
+            }
+            sink = actual;
+        }
+        System.out.println("PASS reads=1000000 expected=0x1007100610051004");
+    }
+}
+</code></pre>
+<p>程序按本文的小端环境设置参考值，<code>sink</code> 用于保留读取结果的可观察使用。运行时只允许 <code>read</code> 编译，让调用方保持解释执行，减少调用方优化带来的干扰：</p>
+<pre><code class="language-sh">javac -source 8 -target 8 UnsafeScaleProbe.java
+java -Xbatch \
+  '-XX:CompileCommand=compileonly,UnsafeScaleProbe::read' \
+  '-XX:CompileCommand=print,UnsafeScaleProbe::read' \
+  -cp . UnsafeScaleProbe
+</code></pre>
+<p>在 8u202 上，日志记录 <code>read</code> 先进入 C1，再进入 C2，随后出现：</p>
+<pre><code class="language-text">FAIL iteration=5376 index=4
+expected=0x1007100610051004
+actual=0x1013101210111010
+actualFirstCharIndex=16
+</code></pre>
+<p>预期读取的是 <code>chars[4..7]</code>，实际读取的是 <code>chars[16..19]</code>。同一个探针在 8u504 的 C2 编译后运行 100 万次通过。</p>
+<p>我还对这个独立探针补做了 <code>-Xcomp</code> 实验：8u202 在循环下标 1 就出现相同的读取偏移，8u504 则完成 100 万次读取。主动请求编译后，离开 Fastjson 仍会更早出现同一种错误。</p>
+<figure class="diagram"><img alt="同一个下标 4：正确读取 chars[4..7]，旧 C2 的错误缩放读到 chars[16..19]。" height="420" src="./diagrams/address.svg" width="860"/><figcaption>同一个下标 4：正确读取 chars[4..7]，旧 C2 的错误缩放读到 chars[16..19]。</figcaption></figure>
+<p>这个实验把“随机 JSON 错误”转化成了更具体的事实：<strong>一次合法范围内的读取，在 C2 编译后使用了错误的地址。</strong> 它还证明，复现这个错误不需要 Fastjson 参与。</p>
+</div></article><article class="chapter" id="source-cause" data-title="5. 定位根因：C2 为什么把 ×2 变成 ×8？"><div class="chapter-title"><p class="eyebrow">排查记录 / 05</p><h2 id="source-cause-heading">5. 定位根因：C2 为什么把 ×2 变成 ×8？</h2></div><div class="study">
+<p>带着“下标 4 为什么读成下标 16”这个问题，我查到了与现象对应的上游缺陷 <a href="https://bugs.openjdk.org/browse/JDK-8267689">JDK-8267689</a>，标题为“[8u] [aarch64] Crash due to bad shift in indirect addressing mode”。<a href="https://github.com/openjdk/jdk8u/commit/3c41cd8e624173834fa7b9ee8ede148c4e5541d0">OpenJDK 8 修复提交</a> 修改的是 AArch64 的 C2 机器描述文件：</p>
+<pre><code class="language-text">hotspot/src/cpu/aarch64/vm/aarch64.ad
+</code></pre>
+<h3 id="source-cause-s1">5.1 一个表达式中有两个尺寸</h3>
+<p><code>Unsafe.getLong(chars, BASE + ((long) index &lt;&lt; 1))</code> 包含两件不同的事：</p>
+<ol>
+<li>按字符下标定位：<code>index × 2</code>。</li>
+<li>从定位后的地址读取：8 字节。</li>
+</ol>
+<p>普通的数组元素读取中，元素步长与访存宽度通常相同；<code>Unsafe</code> 的跨类型批量读取打破了这种对应关系。</p>
+<p>AArch64 的这种寄存器偏移寻址形式，不能给 64 位加载随意指定一个缩放量。对本例，它可以不缩放，也可以按 8 字节缩放；<strong>不能把需要 <code>×2</code> 的地址计算直接塞进按访问宽度缩放的 64 位加载指令里。</strong></p>
+<h3 id="source-cause-s2">5.2 旧指令匹配缺少约束</h3>
+<p>旧版 <code>aarch64.ad</code> 中，<code>indIndexScaledI2L</code> 等 operand 能匹配带左移的地址表达式，却没有验证移位量是否与后续的内存访问宽度一致。</p>
+<p>继续看 <a href="https://github.com/openjdk/jdk8u/blob/0f8c1b4/hotspot/src/cpu/aarch64/vm/assembler_aarch64.hpp#L464-L483">Address 编码分支</a>：它先用 <code>assert</code> 检查非零移位量是否与访问尺寸相符，再将“是否需要缩放”编码到指令的一个比特中。对 64 位加载，这个比特代表按 8 字节缩放。</p>
+<p>调试构建可能触发 <code>bad shift</code> 断言；发布构建没有这项运行时断言，错误匹配就可能继续生成机器码。Java 需要的地址是：</p>
+<pre><code class="language-text">数组元素起点 + index × 2
+</code></pre>
+<p>实际效果却成了：</p>
+<pre><code class="language-text">数组元素起点 + index × 8
+</code></pre>
+<p>这正好解释了为什么下标 4 会读到下标 16。<code>byte[]</code> 的无缩放索引则不需要这一非零移位量，因此两个同名重载也可能表现不同。</p>
+<p>这里的指令行为分析来自源码与最小探针返回值。实验环境没有安装 hsdis，日志只确认了 C1/C2 编译，<strong>本文没有把示意指令冒充为本次直接捕获的反汇编结果</strong>。</p>
+</div></article><article class="chapter" id="patch" data-title="6. 找到补丁：拒绝不相容的地址缩放"><div class="chapter-title"><p class="eyebrow">排查记录 / 06</p><h2 id="patch-heading">6. 找到补丁：拒绝不相容的地址缩放</h2></div><div class="study">
+<p>JDK-8267689 在 <code>aarch64.ad</code> 中新增 <code>size_fits_all_mem_uses</code>。以下是该修复提交中的完整函数：</p>
+<pre><code class="language-cpp">bool size_fits_all_mem_uses(AddPNode* addp, int shift) {
+  for (DUIterator_Fast imax, i = addp-&gt;fast_outs(imax); i &lt; imax; i++) {
+    Node* u = addp-&gt;fast_out(i);
+    if (u-&gt;is_Mem()) {
+      int opsize = u-&gt;as_Mem()-&gt;memory_size();
+      assert(opsize &gt; 0, "unexpected memory operand size");
+      if (u-&gt;as_Mem()-&gt;memory_size() != (1&lt;&lt;shift)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+</code></pre>
+<p>它沿着地址节点的使用关系检查内存操作：读取或写入的字节数，必须与缩放量相容。该函数被加到多种带缩放地址的匹配条件中，例如完整的 <code>indIndexScaledI2L</code> 定义：</p>
+<pre><code class="language-cpp">operand indIndexScaledI2L(iRegP reg, iRegI ireg, immIScale scale)
+%{
+  predicate(size_fits_all_mem_uses(n-&gt;as_AddP(),
+                                   n-&gt;in(AddPNode::Offset)-&gt;in(2)-&gt;get_int()));
+  constraint(ALLOC_IN_RC(ptr_reg));
+  match(AddP reg (LShiftL (ConvI2L ireg) scale));
+  op_cost(0);
+  format %{ "$reg, $ireg sxtw($scale), 0, I2L" %}
+  interface(MEMORY_INTER) %{
+    base($reg);
+    index($ireg);
+    scale($scale);
+    disp(0x0);
+  %}
+%}
+</code></pre>
+<p><a href="https://github.com/openjdk/jdk8u/blob/3c41cd8e624173834fa7b9ee8ede148c4e5541d0/hotspot/src/cpu/aarch64/vm/aarch64.ad#L2167-L2179">固定提交中的完整检查函数</a>；operand 的新增条件见同一份<a href="https://github.com/openjdk/jdk8u/commit/3c41cd8e624173834fa7b9ee8ede148c4e5541d0">补丁差异</a>。</p>
+<p>代入 Fastjson2 的场景：<code>memory_size = 8</code>，而 <code>shift = 1</code>，所以 <code>8 != (1 &lt;&lt; 1)</code>。检查返回 <code>false</code>，C2 拒绝使用这项错误的寻址匹配，转而选择能正确表达地址的其他指令组合。</p>
+<figure class="diagram"><img alt="补丁在指令匹配时拒绝访问宽度与缩放量不一致的组合。" height="420" src="./diagrams/patch.svg" width="860"/><figcaption>补丁在指令匹配时拒绝访问宽度与缩放量不一致的组合。</figcaption></figure>
+<p>在 8u504 的源码中可以看到这项检查，另外还有后续针对 CAS 使用者的保护；普通 <code>getLong</code> 场景对应的主要修复是 JDK-8267689。</p>
+</div></article><article class="chapter" id="version-boundary" data-title="7. 验证根因：修复前后的版本是否符合预期？"><div class="chapter-title"><p class="eyebrow">排查记录 / 07</p><h2 id="version-boundary-heading">7. 验证根因：修复前后的版本是否符合预期？</h2></div><div class="study">
+<p>查到补丁后，我还想验证它是否与这次问题对应。前面的 8u202 与 8u504 使用了不同发行商，因此我又下载同为 BellSoft 的 ARM64 Linux 8u292-b10 和 8u302-b08，在同一个容器里运行同一份字节码。</p>
+<table>
+<thead>
+<tr>
+<th>测试</th>
+<th>BellSoft 8u292-b10</th>
+<th>BellSoft 8u302-b08</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>无 Fastjson 的地址缩放探针</td>
+<td>C2 后失败，<code>chars[4]</code> 读成 <code>chars[16]</code></td>
+<td>C2 后 100 万次通过</td>
+</tr>
+<tr>
+<td><code>getLongLE(char[])</code> 独立校验</td>
+<td>第 26550 下标失败</td>
+<td>1000 万次通过</td>
+</tr>
+<tr>
+<td>Fastjson2 2.0.61 解析</td>
+<td>第 35971 下标报 EOI 异常</td>
+<td>三个样例合计 300 万次通过</td>
+</tr>
+</tbody>
+</table>
+<p>源码标签也给出一致的边界：</p>
+<ul>
+<li><code>jdk8u292-b10</code>：尚无 <code>size_fits_all_mem_uses</code> 检查。</li>
+<li><code>jdk8u302-b08</code>：已有该检查。</li>
+<li><code>jdk8u504-b01</code>：保留该检查。</li>
+</ul>
+<p>JBS 的 <code>fixVersions</code> 标注为 <code>openjdk8u302</code>，<a href="https://docs.bell-sw.com/liberica-jdk/8u302b8/general/release-notes/">BellSoft 8u302+8 发布说明</a> 也列出了 JDK-8267689。因此，8u504 通过的解释是：<strong>它已包含这一更早合入的修复。</strong></p>
+<p>官方机制、补丁逻辑、独立探针和版本边界相互吻合，足以将此次现象对应到该修复。不过，本次没有把同一个 JVM 源码基线只增删这一补丁后重新构建，也就不声称完成了单补丁的二进制因果隔离。实测边界同样不能直接等同于所有厂商构建的边界。</p>
+</div></article><article class="chapter" id="cause-summary" data-title="8. 串起故障链：为什么最终表现为 JSON 随机异常？"><div class="chapter-title"><p class="eyebrow">排查记录 / 08</p><h2 id="cause-summary-heading">8. 串起故障链：为什么最终表现为 JSON 随机异常？</h2></div><div class="study">
+<p>回头看，最初那些看似零散的现象，其实可以用同一条故障链解释：</p>
+<pre><code class="language-text">固定 JSON，开始可以正常解析
+  → 热点代码进入旧版 AArch64 C2 编译路径
+  → char 下标 ×2 的地址表达式被错误匹配到按 ×8 缩放的访存
+  → getLongLE 读到其他位置的字符
+  → 字符串扫描器误判引号或反斜杠的位置
+  → 后续解析抛出 JSON 异常
+</code></pre>
+<p><strong>为什么看起来是随机报错？</strong> 错误地址计算有明确的规律，但是否进入相关编译版本、在第几次调用进入，会受到编译时机影响；读到错误位置后，解析器最终在哪个位置发现不合法，也取决于那里的数据。因此，失败次数和异常 offset 可以变化，背后却是同一种地址缩放错误。</p>
+<p><strong>为什么 <code>-Xint</code>、只保留 C1 或排除 <code>getLongLE</code> 后正常？</strong> 这些对照分别避开了已定位的 C2 编译路径。反过来，主动加上 <code>-Xcomp</code> 后，8u202 在首次解析时就失败，与“错误随编译路径出现”的判断一致。</p>
+<p><strong>为什么异常在 Fastjson 中抛出，根因却落到 JVM？</strong> Fastjson 的字符串扫描依赖底层读取结果。独立探针去掉全部 JSON 解析逻辑后，仍能稳定观测到 <code>chars[4]</code> 读成 <code>chars[16]</code>；再结合 OpenJDK 指令匹配缺陷、修复内容和 8u292 / 8u302 的版本边界，才能把问题对应到 JDK-8267689。</p>
+<p><strong>为什么 8u504 没问题？</strong> 它已经包含 8u302 合入的这项修复，拒绝将字符步长与 8 字节访存宽度错误地合并。这里关键的是目标 JDK 是否包含修复，而不只是“新版本跑得更久”。</p>
+<p>排查到这里，我才有足够依据决定如何处理：短期绕开触发缺陷的编译路径，长期换到包含修复并完成业务回归的 JDK。</p>
+</div></article><article class="chapter" id="mitigation" data-title="9. 解决方案：短期绕过与长期修复"><div class="chapter-title"><p class="eyebrow">排查记录 / 09</p><h2 id="mitigation-heading">9. 解决方案：短期绕过与长期修复</h2></div><div class="study">
+<h3 id="mitigation-s1">9.1 短期：排除相关方法编译，恢复解析</h3>
+<p>我最初用来恢复解析、并在后续实验中再次验证有效的临时参数是：</p>
+<pre><code class="language-sh">'-XX:CompileCommand=exclude,com.alibaba.fastjson2.util.IOUtils::getLongLE'
+</code></pre>
+<p>没有指定方法签名时，该规则会覆盖同名重载。本次组合校验的日志确认，<code>char[]</code> 和 <code>byte[]</code> 两个重载都被排除。不要只检查启动参数是否存在，还要检查 JVM 是否实际识别了规则，并运行原始输入的回归。</p>
+<p>这是临时规避手段，<strong>性能代价需要压测</strong>。本文普通组合校验的测试主体，默认 JIT 约 0.9 秒，排除组约 11 秒；其中包含大量直接 <code>getLongLE</code> 调用，不能据此推算线上接口降速比例，也不能无依据地说“影响极小”。<code>-Xint</code> 的测试次数更少，耗时不能与这些组直接比较。</p>
+<h3 id="mitigation-s2">9.2 长期：升级到包含修复的 JDK，并完成回归</h3>
+<p>长期方案是升级或更换到明确包含 JDK-8267689 或等价修复的 JDK 构建。对实际机器先收集完整 <code>java -version</code>、JVM 名称、CPU 架构及型号，再向发行商确认 JDK-8267689 或等价修复是否合入。在包含修复的目标 JDK 上，使用原始 JSON 和业务测试完成回归，然后评估移除临时排除参数。</p>
+<p>本文验证了 BellSoft 8u302 与 Temurin 8u504 的具体构建；“版本号更大”本身不能证明任意国产 JDK 已有相同补丁。只升级 Fastjson2 可能改变优化路径，但也不能替代对 JVM 根因的确认。</p>
+<p>回归时，我会保留原始 JSON、完整异常栈和独立探针，分别检查解析结果、相关方法进入编译后的行为，以及移除临时参数后的稳定性与性能。解释执行和限制到 C1 的结果可以作为诊断依据；本次已经验证的针对性短期绕过是上面的 <code>getLongLE</code> 排除规则。</p>
+</div></article><article class="chapter" id="references" data-title="10. 复现资料与参考来源"><div class="chapter-title"><p class="eyebrow">排查记录 / 10</p><h2 id="references-heading">10. 复现资料与参考来源</h2></div><div class="study">
+<p><a href="./fastjson2-arm-jit-evidence.zip">下载复现与证据包</a>：包含三类 Java 探针及辅助源码、运行脚本、关键原始日志、版本边界结果与文件校验清单。包内不附带 JRE 或 Fastjson JAR；运行方式与依赖下载地址见 README。源码与日志反映的是本文已执行的实验，读者在自己的机器上可能遇到不同的编译时机。</p>
+<table>
+<thead>
+<tr>
+<th>来源</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/alibaba/fastjson2/blob/2.0.61/core/src/main/java/com/alibaba/fastjson2/util/IOUtils.java#L2774-L2794">Fastjson2 2.0.61 IOUtils</a></td>
+<td><code>getLongLE</code> 两个重载</td>
+</tr>
+<tr>
+<td><a href="https://github.com/alibaba/fastjson2/blob/2.0.61/core/src/main/java/com/alibaba/fastjson2/JSONReaderUTF16.java#L3231-L3248">Fastjson2 2.0.61 JSONReaderUTF16</a></td>
+<td>读取 4 个代码单元后的扫描路径</td>
+</tr>
+<tr>
+<td><a href="https://bugs.openjdk.org/browse/JDK-8267689">JDK-8267689</a></td>
+<td>官方缺陷与修复版本记录</td>
+</tr>
+<tr>
+<td><a href="https://github.com/openjdk/jdk8u/commit/3c41cd8e624173834fa7b9ee8ede148c4e5541d0">OpenJDK 修复提交 3c41cd8</a></td>
+<td>检查函数及指令匹配条件</td>
+</tr>
+<tr>
+<td><a href="https://github.com/openjdk/jdk8u/blob/0f8c1b4/hotspot/src/cpu/aarch64/vm/assembler_aarch64.hpp#L464-L483">修复前的 Address 编码</a></td>
+<td>调试断言与缩放位编码</td>
+</tr>
+<tr>
+<td><a href="https://github.com/openjdk/jdk8u/blob/jdk8u292-b10/hotspot/src/cpu/aarch64/vm/aarch64.ad">8u292 源码标签</a> / <a href="https://github.com/openjdk/jdk8u/blob/jdk8u302-b08/hotspot/src/cpu/aarch64/vm/aarch64.ad">8u302 源码标签</a> / <a href="https://github.com/openjdk/jdk8u/blob/jdk8u504-b01/hotspot/src/cpu/aarch64/vm/aarch64.ad">8u504 源码标签</a></td>
+<td>核对补丁是否存在</td>
+</tr>
+<tr>
+<td><a href="https://docs.bell-sw.com/liberica-jdk/8u302b8/general/release-notes/">BellSoft 8u302+8 发布说明</a></td>
+<td>发行版修复清单</td>
+</tr>
+<tr>
+<td><a href="https://github.com/apache/fory/pull/4049">Apache Fory PR #4049</a></td>
+<td>相同 Unsafe 地址缩放机制的旁证，不替代本文实测</td>
+</tr>
+</tbody>
+</table>
+<p>继续阅读：<a href="../java-architect-interview/#c11">JIT 即时编译、JMM 与内存屏障</a>、<a href="../jdk-source/">JDK 源码手册</a>、<a href="../jvm/">JVM 学习手册</a>。</p></div></article></main><aside id="right-toc" aria-label="全文一二级目录"><div class="reading"><span id="progress-text">阅读进度 0%</span><span id="current-label"></span></div><p class="nav-label">全文目录 / 一级与二级</p><nav id="toc"></nav></aside></div>
+<dialog id="search-dialog" aria-labelledby="search-title"><div class="search-head"><h2 id="search-title">搜索这篇复盘</h2><button id="search-close" aria-label="关闭搜索">关闭</button></div><label for="search-input">搜索现象、方法名或补丁编号</label><input id="search-input" type="search" placeholder="例如 getLongLE、8u302、C2" autocomplete="off"><p id="search-status" role="status" aria-live="polite">输入关键词，搜索完整正文。</p><div id="search-results"></div></dialog><div id="toast" role="status" aria-live="polite"></div>
+<footer>YiSiliang · 源码之下，系统之上 · 2026-10-27</footer><dialog id="diagram-dialog" aria-label="图解放大"><div id="diagram-actions"><button id="zoom-in" type="button">放大</button><button id="zoom-out" type="button">缩小</button><button id="zoom-reset" type="button">重置</button><button id="diagram-close" type="button">关闭</button></div><div id="diagram-content"></div></dialog><script id="reader-controls">(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const chapters = [...document.querySelectorAll('.chapter')];
+  const root = document.documentElement;
+  const dialog = $('#search-dialog');
+  let active = chapters[0], mode = 'study', sections = [], ticking = false;
+  let lastSearch = '', searchTimer, toastTimer;
+  const highlighted = new WeakSet();
+  const escape = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const searchIndex = [];
+  // 从已存在的完整 HTML 建索引，包含默认折叠的答案，不加载远程内容。
+  chapters.forEach(article => {
+    let heading = article.querySelector('.chapter-title h1,.chapter-title h2'), text = [];
+    const flush = () => {
+      if (!text.length || !heading) return;
+      searchIndex.push({id:heading.id || article.id, chapter:article.id, title:heading.textContent,
+        chapterTitle:article.dataset.title, text:text.join(' ').replace(/\s+/g,' ').trim()}); text=[];
+    };
+    const study=article.querySelector('.study');
+    let sectionNumber=0;
+    study.querySelectorAll('h2,h3').forEach(h=>{if(!h.id)h.id=article.id+'-section-'+(++sectionNumber);});
+    study.querySelectorAll('h2,h3,p,li,pre:not(.gutter),td,.source-caption,.source-head,.source-bar').forEach(node=>{
+      if (/^H[23]$/.test(node.tagName)) {flush(); heading=node;}
+      else text.push(node.textContent);
+    });flush();
+    article.querySelectorAll('pre:not(.mermaid):not(.gutter)').forEach(pre => {
+      const code = pre.querySelector('code'); if (!code) return;
+      const container=pre.closest('.source-card,.source,.source-block,.source-box');
+      const previous=container?.querySelector('button.copy-source,button.copy,button[data-copy]') || pre.querySelector('button.copy');
+      if(previous)previous.remove();
+      const label=document.createElement('span'); label.className='code-lang';
+      label.textContent=(code.className.match(/language-([\w-]+)/)||[])[1] || 'text';
+      const button=document.createElement('button');button.className='copy';button.type='button';button.textContent='复制';
+      button.setAttribute('aria-label','复制 '+label.textContent+' 代码');
+      button.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code.textContent);
+          else {
+            const area=document.createElement('textarea');area.value=code.textContent;area.style.position='fixed';area.style.opacity='0';
+            document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();button.focus();if(!ok)throw Error('copy');
+          }
+          button.textContent='已复制';toast('代码已复制');setTimeout(()=>button.textContent='复制',1800);
+        } catch (_) {toast('自动复制失败，请选中代码手动复制');}
+      });pre.prepend(label);pre.append(button);
+    });
+  });
+  const preface=$('.reader-preface');if(preface)searchIndex.push({id:'reader-preface',chapter:chapters[0].id,title:'版本、来源与学习路线',chapterTitle:'阅读说明',text:preface.textContent});
+  if(preface)preface.id='reader-preface';
+  $('#print')?.addEventListener('click',()=>window.print());
+  function toast(message) {clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),2400);}
+  function highlight(article) {if(window.Prism && !highlighted.has(article)){Prism.highlightAllUnder(article);highlighted.add(article);}}
+  function visibleHeadings() {
+    if(document.body.dataset.tocScope==='document')return [...$('#main').querySelectorAll('.chapter-title h1,.chapter-title h2,.study h2,.study h3')];
+    return [...active.querySelector(mode==='quick'?'.quick':'.study').querySelectorAll('h2,h3')];
+  }
+  function makeToc() {
+    sections=visibleHeadings();$('#toc').replaceChildren();
+    sections.forEach(h=>{const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;a.className=h.tagName==='H3'?'depth3':'';$('#toc').append(a);});
+    $('#current-label').textContent=active.dataset.title;
+  }
+  function setMode(next) {
+    mode=next;root.classList.toggle('quick-mode',mode==='quick');
+    if(!$('#mode'))return;
+    $('#mode').setAttribute('aria-pressed',String(mode==='quick'));$('#mode').textContent=mode==='quick'?'完整学习':'要点速览';
+    chapters.forEach(c=>{c.querySelector('.eyebrow').textContent='专题 '+c.id.slice(1).padStart(2,'0')+' / '+(mode==='quick'?'要点速览':'完整阅读');});
+    makeToc();
+  }
+  function closeDrawer(focus=false) {document.body.classList.remove('drawer-open');$('#drawer-backdrop').hidden=true;$('#menu').setAttribute('aria-expanded','false');if(focus)$('#menu').focus();}
+  function selectChapter(article) {
+    active=article;
+    chapters.forEach(c=>c.classList.toggle('active',c===active));
+    document.querySelectorAll('.chapter-nav').forEach(n=>{const current=n.dataset.chapter===active.id;n.classList.toggle('current',current);if(current)n.open=true;});
+    highlight(active);makeToc();
+  }
+  function scrollToTarget(target) {
+    const margin=window.innerWidth<=760?115:90;
+    window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top+window.scrollY-margin),behavior:'instant'});
+  }
+  function navigate(hash, scroll=true) {
+    let id;try{id=decodeURIComponent((hash||'').replace(/^#/,''));}catch(_){id='';}
+    if(id==='review-route' && $('#review-route')) {root.classList.add('show-route');if(scroll)scrollToTarget($('#review-route'));closeDrawer();return;}
+    root.classList.remove('show-route');
+    const targetNode=document.getElementById(id);const article=targetNode?.closest('.chapter') || chapters[0];
+    if(!article)return;
+    active=article;
+    if(id.includes('-quick-') && mode!=='quick')setMode('quick');
+    else if(id.includes('-s') && mode!=='study')setMode('study');
+    selectChapter(article);closeDrawer();
+    let target=document.getElementById(id) || active;
+    if(target.closest('.study') && mode==='quick')target=active;
+    if(scroll) {
+      if(target.tagName==='DETAILS')target.open=true;
+      // 搜索可跳入默认折叠的问答，完整参考答案立即可见。
+      const next=target.nextElementSibling;if(next?.tagName==='DETAILS')next.open=true;
+      for(let p=target.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;
+      scrollToTarget(target);if(target.hasAttribute('tabindex'))target.focus({preventScroll:true});updateReading();
+    }
+    updateReading(false);
+  }
+  function updateReading(trackChapter=true) {
+    ticking=false;if(!active)return;
+    const margin=window.innerWidth<=760?115:90;
+    let currentChapter=chapters[0];
+    for(const chapter of chapters){if(chapter.getBoundingClientRect().top<=margin+30)currentChapter=chapter;else break;}
+    const first=chapters[0].getBoundingClientRect(),last=chapters[chapters.length-1].getBoundingClientRect();
+    const box={top:first.top,bottom:last.bottom,height:last.bottom-first.top};
+    const length=Math.max(1,box.height-(innerHeight-margin));
+    let progress=Math.min(100,Math.max(0,Math.round((margin-box.top)/length*100)));
+    if(box.bottom<=innerHeight+3 && box.bottom>margin)progress=100;
+    if(progress===100)currentChapter=chapters[chapters.length-1];
+    if(trackChapter && currentChapter!==active)selectChapter(currentChapter);
+    if(root.classList.contains('show-route'))progress=0;
+    $('#progress-bar').style.width=progress+'%';$('#progress-text').textContent='阅读进度 '+progress+'%';
+    let current=sections[0];for(const h of sections){if(h.getBoundingClientRect().top<=margin+30)current=h;else break;}
+    document.querySelectorAll('#toc a,.chapter-nav div a').forEach(a=>a.classList.toggle('current',!!current && a.hash==='#'+current.id));
+  }
+  window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateReading);ticking=true;}},{passive:true});
+  window.addEventListener('resize',()=>{if(innerWidth>760)closeDrawer();updateReading();});
+  window.addEventListener('hashchange',()=>navigate(location.hash));
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;if(a.closest('#search-results'))return;
+    if(a.hash===location.hash){e.preventDefault();navigate(a.hash);}else if(a.hash==='#main'){closeDrawer();}
+  });
+  $('#mode')?.addEventListener('click',()=>{const chapter=active.id;setMode(mode==='study'?'quick':'study');
+    const hash=mode==='quick'?'#'+chapter+'-quick-core':'#'+chapter;history.replaceState(null,'',hash);navigate(hash);
+  });
+  const themeNames={system:'系统',light:'浅色',dark:'深色'};
+  function themeLabel(){const name=themeNames[window.learningTheme?.get()||'system'];$('#theme').textContent='主题：'+name;$('#theme').setAttribute('aria-label','当前主题 '+name+'，点击切换');}
+  window.addEventListener('learning-theme-change',themeLabel);
+  themeLabel();$('#theme').addEventListener('click',()=>{window.learningTheme?.cycle();themeLabel();});
+  $('#menu').addEventListener('click',()=>{const open=!document.body.classList.contains('drawer-open');document.body.classList.toggle('drawer-open',open);$('#drawer-backdrop').hidden=!open;$('#menu').setAttribute('aria-expanded',String(open));if(open)$('#left-nav a').focus();});
+  $('#drawer-backdrop').addEventListener('click',()=>closeDrawer(true));
+  const openSearch=()=>{closeDrawer();if(!dialog.open)dialog.showModal();$('#search-input').focus();};
+  $('#search-open').addEventListener('click',openSearch);$('#search-close').addEventListener('click',()=>dialog.close());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(dialog.open){e.preventDefault();dialog.close();}else if(document.body.classList.contains('drawer-open'))closeDrawer(true);}
+    if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();openSearch();}
+    if(e.key==='Tab'&&document.body.classList.contains('drawer-open')){
+      const links=[...$('#left-nav').querySelectorAll('a,summary')].filter(x=>x.getClientRects().length);const first=links[0],last=links[links.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  function renderSearch() {
+    const q=$('#search-input').value.trim();lastSearch=q;$('#search-results').replaceChildren();
+    if(!q){$('#search-status').textContent='输入关键词，搜索完整正文与原理问答。';return;}
+    const words=q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits=searchIndex.map(entry=>{const title=(entry.chapterTitle+' '+entry.title).toLocaleLowerCase();const all=(title+' '+entry.text).toLocaleLowerCase();return {entry,score:words.every(w=>all.includes(w))?words.reduce((n,w)=>n+(title.includes(w)?5:1),0):0};}).filter(x=>x.score).sort((a,b)=>b.score-a.score);
+    $('#search-status').textContent=hits.length?'找到 '+hits.length+' 处匹配'+(hits.length>80?'，显示前 80 处':''):'没有找到匹配内容，请尝试缩短关键词或使用源码方法名。';
+    const mark=s=>{let safe=escape(s);const pattern=words.map(w=>escape(w).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length).join('|');return safe.replace(new RegExp(pattern,'gi'),v=>'<mark>'+v+'</mark>');};
+    hits.slice(0,80).forEach(({entry})=>{
+      const a=document.createElement('a');a.className='search-result';a.href='#'+entry.id;
+      const offset=entry.text.toLocaleLowerCase().indexOf(words[0]);const start=Math.max(0,offset-55);const excerpt=(start?'…':'')+entry.text.slice(start,start+190)+'…';
+      a.innerHTML='<small>'+escape(entry.chapterTitle)+'</small><strong>'+mark(entry.title)+'</strong><p>'+mark(excerpt)+'</p>';
+      a.addEventListener('click',e=>{e.preventDefault();dialog.close();setMode('study');if(location.hash===a.hash)navigate(a.hash);else location.hash=a.hash;});$('#search-results').append(a);
+    });
+  }
+  $('#search-input').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderSearch,100);});
+  const viewer=$('#diagram-dialog');
+  if(viewer){
+    let zoom=1;
+    const scale=next=>{zoom=Math.max(.5,Math.min(4,next));const graphic=$('#diagram-content').firstElementChild;if(graphic)graphic.style.width=(zoom*100)+'%';};
+    $('#zoom-in')?.addEventListener('click',()=>scale(zoom*1.25));
+    $('#zoom-out')?.addEventListener('click',()=>scale(zoom/1.25));
+    $('#zoom-reset')?.addEventListener('click',()=>scale(1));
+    $('#diagram-close').addEventListener('click',()=>viewer.close());
+    document.querySelectorAll('figure:has(svg),.diagram:has(svg),figure:has(img),.diagram:has(img)').forEach(figure=>{
+      let button=figure.querySelector('button.expand,button.zoom');
+      if(!button){button=document.createElement('button');button.type='button';button.className='expand';button.textContent='放大图解';figure.prepend(button);}
+      button.addEventListener('click',()=>{
+        const canvas=$('#diagram-content');canvas.classList.add('diagram');
+        canvas.style.margin='0';canvas.style.padding='0';canvas.style.border='0';
+        canvas.replaceChildren(figure.querySelector('svg,img').cloneNode(true));
+        const ids=new Map([...canvas.querySelectorAll('[id]')].map(el=>[el.id,'zoom-'+el.id]));
+        const keys=[...ids.keys()].sort((a,b)=>b.length-a.length).map(id=>id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+        const pattern=keys.length?new RegExp('#('+keys.join('|')+')(?=$|[^\\w-])','g'):null;
+        const references=value=>pattern?value.replace(pattern,(_,id)=>'#'+ids.get(id)):value;
+        canvas.querySelectorAll('[id]').forEach(el=>{el.id=ids.get(el.id);});
+        // Mermaid scopes CSS selectors to the root SVG ID; keep those selectors
+        // and marker/use references aligned with the renamed clone IDs.
+        canvas.querySelectorAll('style').forEach(el=>{el.textContent=references(el.textContent);});
+        canvas.querySelectorAll('*').forEach(el=>{
+          for(const attr of ['style','fill','stroke','marker-end','marker-start','marker-mid','clip-path','mask','filter','href','xlink:href']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,references(value));
+          }
+          for(const attr of ['aria-labelledby','aria-describedby']){
+            const value=el.getAttribute(attr);if(value)el.setAttribute(attr,value.split(/\s+/).map(id=>ids.get(id)||id).join(' '));
+          }
+        });scale(1);viewer.showModal();
+      });
+    });
+  }
+  root.classList.add('js-enabled');navigate(location.hash,false);
+  // Inline offline controls may run before the reference's deferred Prism files.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>highlight(active),{once:true});
+  else highlight(active);
+  if(location.hash)requestAnimationFrame(()=>navigate(location.hash));
+})();
+</script></body></html>

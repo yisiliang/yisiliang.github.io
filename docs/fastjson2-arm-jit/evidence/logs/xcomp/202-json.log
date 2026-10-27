@@ -1,0 +1,6 @@
+flags=-Xcomp -Xms128m -Xmx512m
+java=1.8.0_202-BellSoft-b08 arch=aarch64
+Exception in thread "main" com.alibaba.fastjson2.JSONException: offset 29, character s, line 1, column 29, fastjson-version 2.0.61 {"messageId":"test-123","message":["consumer://service/path?key=value"]}
+	at com.alibaba.fastjson2.JSONReader.read(JSONReader.java:3459)
+	at com.alibaba.fastjson2.JSON.parse(JSON.java:138)
+	at JsonOnlyProbe.main(JsonOnlyProbe.java:15)

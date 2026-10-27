@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 420" role="img" aria-labelledby="patch-title patch-desc">
+<title id="patch-title">JDK-8267689 在指令匹配阶段阻止错误地址</title><desc id="patch-desc">旧路径缺少尺寸检查，可能错误编码；修复后比较读取宽度八与移位缩放二，不相等时拒绝匹配，选择正确的地址计算。</desc>
+<style>text{font-family:Arial,'PingFang SC',sans-serif;fill:#24354a;font-size:17px}.small{font-size:14px;fill:#596b82}.box{fill:#edf2fa;stroke:#92a7c9}</style>
+<rect width="860" height="420" rx="12" fill="#f6f8fb"/>
+<text x="30" y="38" font-size="20" font-weight="bold">把正确性检查放到 C2 的指令选择阶段</text>
+<rect class="box" x="30" y="66" width="800" height="54" rx="8"/><text x="430" y="99" text-anchor="middle">输入：char 索引缩放 shift = 1，long 访问宽度 memory_size = 8</text>
+<path d="M230 120V153M630 120V153" stroke="#788ba5" stroke-width="2"/>
+<rect x="30" y="153" width="390" height="90" rx="8" fill="#fff0eb" stroke="#ce8b76"/>
+<text x="52" y="185" font-weight="bold">修复前：缺少匹配约束</text><text x="52" y="215">可能选择不合法的缩放寻址组合</text>
+<rect x="440" y="153" width="390" height="90" rx="8" fill="#e8f4ee" stroke="#6b9f82"/>
+<text x="462" y="185" font-weight="bold">修复后：检查 8 == (1 &lt;&lt; 1)</text><text x="462" y="215">8 ≠ 2 → 返回 false，拒绝这项匹配</text>
+<path d="M230 243V280M630 243V280" stroke="#788ba5" stroke-width="2"/>
+<rect x="30" y="280" width="390" height="70" rx="8" fill="#fff0eb" stroke="#ce8b76"/>
+<text x="225" y="309" text-anchor="middle">发布版跳过 assert</text><text x="225" y="335" text-anchor="middle">错误缩放可能变成 index × 8</text>
+<rect x="440" y="280" width="390" height="70" rx="8" fill="#e8f4ee" stroke="#6b9f82"/>
+<text x="635" y="309" text-anchor="middle">采用其他合法地址计算方式</text><text x="635" y="335" text-anchor="middle">保留 index × 2 的语义</text>
+<text x="30" y="393" class="small">本次核对：8u292 尚无检查；8u302 / 8u504 已包含检查。</text>
+</svg>

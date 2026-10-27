@@ -1,0 +1,3 @@
+flags=-Xcomp -Xms128m -Xmx512m
+java=1.8.0_202-BellSoft-b08 charBase=16
+FAIL iteration=1 index=4 expected=0x1007100610051004 actual=0x1013101210111010 actualFirstCharIndex=16

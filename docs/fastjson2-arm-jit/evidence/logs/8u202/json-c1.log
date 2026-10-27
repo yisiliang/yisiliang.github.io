@@ -1,0 +1,4 @@
+java=1.8.0_202-BellSoft-b08 arch=aarch64
+PASS JSON case=0 iterations=1000000
+PASS JSON case=1 iterations=1000000
+PASS JSON case=2 iterations=1000000

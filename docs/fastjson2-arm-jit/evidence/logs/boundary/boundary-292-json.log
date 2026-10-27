@@ -1,0 +1,8 @@
+java=1.8.0_292-b10 arch=aarch64
+FAIL JSON case=0 iteration=35971 chars=72
+Exception in thread "main" com.alibaba.fastjson2.JSONException: invalid escape character EOI, offset 14, character ", line 1, column 14, fastjson-version 2.0.61 {"messageId":"test-123","message":["consumer://service/path?key=value"]}
+	at com.alibaba.fastjson2.JSONReader.error(JSONReader.java:6630)
+	at com.alibaba.fastjson2.JSONReaderUTF16.readString(JSONReaderUTF16.java:3279)
+	at com.alibaba.fastjson2.JSONReader.read(JSONReader.java:3544)
+	at com.alibaba.fastjson2.JSON.parse(JSON.java:138)
+	at JsonOnlyProbe.main(JsonOnlyProbe.java:18)
