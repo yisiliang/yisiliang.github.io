@@ -30,6 +30,6 @@ python3 tools/audit_articles.py
 - 按作者要求，左侧仅显示 10 个一级目录；右侧固定显示全文一级与二级标题。此前浏览器验证过全文目录跳转与高亮；本轮重排后静态检查为 10 个一级标题、11 个二级标题，共 21 项。本轮没有重新进行浏览器交互验收。
 - 共享 reader 控件通过 data-toc-scope="document" 支持全文目录，本文启用；没有该属性的页面保留原逻辑，未重新生成其他阅读页面。
 - 首页有 14 个专题入口，新增入口可到达本文。原 Java 核心技术手册仍为 13 个专题。
-- 发布前重新从作者修改后的 article.md 构建页面与首页；单页审计、37 个证据文件及 SHA256SUMS 校验、shell 与 JavaScript 语法检查、git diff --check 均通过。
+- 发布前重新从作者修改后的 article.md 构建页面与首页；单页审计、37 个证据文件及 SHA256SUMS 校验、shell 与 JavaScript 语法检查均通过。纳入新增文件后的 diff 检查提示原始 JVM 日志尾部空格及作者 Markdown 末尾空行，保留原始记录与作者原文。
 
 全目录逐页校验另有两项既有问题，均不属于本次新增文件：Nacos 的离线 ZIP 中 offline.html 与本地文件不一致；java-architect-interview 页面引用的 lab-nginx.conf 在当前检出中缺失。本次保留原状，不将全站检查表述为全部通过。
