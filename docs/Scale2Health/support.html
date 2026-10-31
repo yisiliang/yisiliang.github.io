@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>轻秤同步 Support</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0d1110; --card:#161c1a; --text:#f5f5f5; --muted:#c3cac7; --line:#3a4642; --green:#4fd18b; --cyan:#63d9ef; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",sans-serif; background:linear-gradient(180deg,#1c2723 0%,var(--bg) 100%); color:var(--text); }
+    .wrap { max-width:860px; margin:0 auto; padding:40px 20px 72px; }
+    .hero { padding:28px; border:1px solid #1f6b45; border-radius:22px; background:linear-gradient(135deg,#10281c 0%,#111820 62%,#102a31 100%); box-shadow:0 20px 46px rgba(0,0,0,.3); }
+    .hero h1 { margin:0 0 12px; color:var(--green); font-size:clamp(32px,6vw,48px); }
+    .hero p,.card p,.card li { color:var(--muted); line-height:1.7; }
+    .grid { display:grid; gap:18px; margin-top:22px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:24px; }
+    h2 { margin:0 0 14px; color:var(--cyan); }
+    ol,ul { margin:0; padding-left:20px; }
+    li+li { margin-top:8px; }
+    a { color:var(--cyan); text-decoration:none; }
+    .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:16px; }
+    .button { display:inline-flex; align-items:center; min-height:44px; padding:0 16px; border-radius:999px; background:var(--green); color:#111; font-weight:700; }
+    .button.secondary { background:#183b44; color:var(--cyan); }
+    .meta { font-size:14px; }
+  </style>
+<script defer src="https://cloud.umami.is/script.js" data-website-id="8c64c0bf-97e7-4af5-a5bf-f090c52fc4d3"></script>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>轻秤同步 Support</h1>
+      <p>轻秤同步通过蓝牙接收体重秤的测量，并在你确认后把体重写入Apple健康。无账号、无广告、无追踪。</p>
+      <p>Scale2Health receives measurements from your Bluetooth scale and writes your confirmed weights to Apple Health. No account, ads, or tracking.</p>
+      <p class="meta">Last updated: 2026-10-31</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>快速开始</h2>
+        <ol>
+          <li>首次打开时阅读用途说明，并允许蓝牙和健康（体重写入）权限。</li>
+          <li>站上体重秤唤醒设备，点“开始扫描”，选择你自己的秤。</li>
+          <li>之后App会自动重连这台秤；点“停止扫描 / 断开”可暂停自动重连。</li>
+          <li>进入“测量历史”，勾选本人的记录，点“确认都是我的体重并同步”写入健康。</li>
+        </ol>
+        <p>Allow Bluetooth and Health permissions, wake the scale, tap Start Scan and pick your scale, then select your own records in History and confirm to sync them to Health.</p>
+      </article>
+
+      <article class="card">
+        <h2>自动同步</h2>
+        <p>自动同步默认关闭。你可以选择一条已同步的本人体重作为基准，开启后，落在所选范围内的新称重会自动写入健康。已有历史和失败记录不会被自动补传，已同步的记录不会重复写入。</p>
+        <p>Automatic sync is off by default. Choose a synced weight of yours as a baseline; new measurements within the selected range are then written automatically. Existing records are never back-filled or duplicated.</p>
+      </article>
+
+      <article class="card">
+        <h2>常见问题</h2>
+        <ul>
+          <li>找不到体重秤：先站上秤唤醒设备，确认已允许蓝牙权限；仍找不到时，在“设置 → 蓝牙诊断”尝试全BLE扫描。</li>
+          <li>家人也用同一台秤：所有记录先保存在App里，只勾选你自己的记录同步，其他记录留在本地。</li>
+          <li>健康里没有数据：确认已在“健康”App中允许轻秤同步写入体重，并且记录已确认同步。</li>
+          <li>兼容性：支持标准蓝牙体重服务（181D / 2A9D）的秤，部分加密秤也可适配；不同固件的兼容性可能不同。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>联系与反馈</h2>
+        <p>来信时请尽量附上体重秤品牌型号、iPhone型号、iOS版本、轻秤同步版本和重现步骤；如方便，可附上“复制诊断”的内容。</p>
+        <p>When contacting support, please include your scale model, iPhone model, iOS version, app version, steps to reproduce, and the copied diagnostics if possible.</p>
+        <div class="actions">
+          <a class="button" href="mailto:yisiliang@foxmail.com">发送邮件</a>
+          <a class="button secondary" href="./privacy.html">查看隐私政策</a>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
