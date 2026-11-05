@@ -34,7 +34,7 @@ table{width:100%;border-collapse:collapse;font-size:.95rem}td{padding:7px 4px;bo
  <div class="stat" id="tStat"></div>
 </section>
 <section id="quiz" class="card hide"><div class="row"><button class="b g" id="qDir"></button></div><div class="zh" id="qQ"></div><div id="qOpts"></div><div id="qRes"></div><div class="row"><button class="b g" id="qListen">🔊 Listen</button><button class="b" id="qNext">Next 下一个</button></div><div class="stat" id="qStat"></div></section>
-<section id="flash" class="card hide"><div class="fc" id="fc"></div><div class="row"><button class="b g" id="fPrev">◀ Prev</button><button class="b g" id="fListen">🔊</button><button class="b" id="fNext">Next ▶</button></div><div class="stat" id="fStat"></div></section>
+<section id="flash" class="card hide"><div class="fc" id="fc"></div><div class="row"><button class="b g" id="fPrev">◀ Prev</button><button class="b g" id="fListen">🔊</button><button class="b" id="fNext">Next ▶</button><button class="b g" id="fShuf">🔀 Shuffle again 重新洗牌</button></div><div class="stat" id="fStat"></div></section>
 <section id="list" class="card hide"><input type="text" id="lQ" placeholder="Search 搜索"><table id="lT"></table></section>
 <section id="stats" class="card hide"><div id="sBox"></div><div class="row"><button class="b g" id="sReset">Reset scores 清零</button></div></section>
 </main>
@@ -52,13 +52,15 @@ const isP=d=>/\s/.test(d.w);const nP=D.filter(isP).length;
 $('secSel').innerHTML=`<option value="@p">★ All phrases & sentences 全部短语和句子 (${nP})</option><option value="">All items 全部 (${D.length})</option><option value="@w">All single words 全部单词 (${D.length-nP})</option>`+secs.map(s=>`<option value="${s}">${s} (${D.filter(d=>d.s==s).length})</option>`).join('');
 const pool=()=>{const v=$('secSel').value;return v=='@p'?D.filter(isP):v=='@w'?D.filter(d=>!isP(d)):v?D.filter(d=>d.s==v):D};
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
+const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+let tDeck=[];const drawT=()=>{if(!tDeck.length)tDeck=shuf(pool());return tDeck.pop()};
 const modes=[['type','✍️ Type 拼写 (main)'],['quiz','✅ Quiz 选择'],['flash','🃏 Cards 卡片'],['list','📖 List 词表'],['stats','📊 Score 成绩']];
 $('nav').innerHTML=modes.map(m=>`<button data-m="${m[0]}">${m[1]}</button>`).join('');
-function show(m){modes.forEach(x=>$(x[0]).classList.toggle('hide',x[0]!=m));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.m==m));if(m=='list')renderList();if(m=='stats')renderStats();if(m=='flash')renderFlash()}
+function show(m){modes.forEach(x=>$(x[0]).classList.toggle('hide',x[0]!=m));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.m==m));if(m=='list')renderList();if(m=='stats')renderStats();if(m=='flash'){reshuf();renderFlash()}}
 $('nav').onclick=e=>{if(e.target.dataset.m)show(e.target.dataset.m)};
 // Type mode
 let cur,answered,hintLv;
-function nextType(){cur=rnd(pool());answered=false;hintLv=0;$('tSec').textContent=cur.s;$('tZh').textContent=cur.zh;$('tIn').value='';$('tHint').textContent='';$('tRes').innerHTML='';$('tListen').classList.add('hide');$('tIn').focus();tStat()}
+function nextType(){cur=drawT();answered=false;hintLv=0;$('tSec').textContent=cur.s;$('tZh').textContent=cur.zh;$('tIn').value='';$('tHint').textContent='';$('tRes').innerHTML='';$('tListen').classList.add('hide');$('tIn').focus();tStat()}
 function tStat(){const[a,b]=S.type;$('tStat').textContent=`Correct ${a} / ${b}`+(b?` (${Math.round(a*100/b)}%)`:'')}
 function check(){if(answered){nextType();return}const v=norm($('tIn').value);if(!v)return;answered=true;const ok=accepts(cur.w).includes(v);S.type[1]++;if(ok){S.type[0]++;delete S.wrong[cur.w]}else S.wrong[cur.w]=(S.wrong[cur.w]||0)+1;save();
 $('tRes').innerHTML=(ok?'<div class="ok">✔ Correct! 正确</div>':'<div class="bad">✘ Not quite 不对</div>')+`<div class="en">${cur.w}</div>${cur.ipa?`<div class="ipa">${cur.ipa}</div>`:''}`;$('tListen').classList.remove('hide');tStat();say(cur.w)}
@@ -74,15 +76,16 @@ $('qOpts').innerHTML='';opts.forEach(o=>{const b=document.createElement('button'
 function qStat(){const[a,b]=S.quiz;$('qStat').textContent=`Correct ${a} / ${b}`}
 $('qDir').onclick=()=>{qDir^=1;nextQuiz()};$('qNext').onclick=nextQuiz;$('qListen').onclick=()=>say(qCur.w);
 // Flash
-let fi=0,fBack=false;
-function renderFlash(){const p=pool();fi=(fi+p.length)%p.length;const d=p[fi];$('fc').innerHTML=fBack?`<div class="en">${d.w}</div><div class="ipa">${d.ipa}</div><div>${d.zh}</div>`:`<div class="zh">${d.zh}</div><div class="sec">tap to flip 点击翻面</div>`;$('fStat').textContent=`${fi+1} / ${p.length}`}
-$('fc').onclick=()=>{fBack=!fBack;renderFlash();if(fBack)say(pool()[fi].w)};
-$('fPrev').onclick=()=>{fi--;fBack=false;renderFlash()};$('fNext').onclick=()=>{fi++;fBack=false;renderFlash()};$('fListen').onclick=()=>say(pool()[fi].w);
+let fi=0,fBack=false,fDeck=[];const reshuf=()=>{fDeck=shuf(pool());fi=0;fBack=false};
+function renderFlash(){if(!fDeck.length)reshuf();const p=fDeck;fi=(fi+p.length)%p.length;const d=p[fi];$('fc').innerHTML=fBack?`<div class="en">${d.w}</div><div class="ipa">${d.ipa}</div><div>${d.zh}</div>`:`<div class="zh">${d.zh}</div><div class="sec">tap to flip 点击翻面</div>`;$('fStat').textContent=`${fi+1} / ${p.length}`}
+$('fc').onclick=()=>{fBack=!fBack;renderFlash();if(fBack)say(fDeck[fi].w)};
+$('fPrev').onclick=()=>{fi--;fBack=false;renderFlash()};$('fNext').onclick=()=>{fi++;fBack=false;renderFlash()};$('fListen').onclick=()=>say(fDeck[fi].w);
+$('fShuf').onclick=()=>{reshuf();renderFlash()};
 // List
 function renderList(){const q=$('lQ').value.toLowerCase();$('lT').innerHTML=pool().filter(d=>!q||(d.w+d.zh+d.s).toLowerCase().includes(q)).map((d,i)=>`<tr><td><b>${d.w}</b><br><span class="ipa">${d.ipa}</span></td><td>${d.zh}</td><td><button class="b g" data-i="${D.indexOf(d)}">🔊</button></td></tr>`).join('')}
 $('lQ').oninput=renderList;$('lT').onclick=e=>{if(e.target.dataset.i)say(D[e.target.dataset.i].w)};
 function renderStats(){const w=Object.entries(S.wrong).sort((a,b)=>b[1]-a[1]).slice(0,30);$('sBox').innerHTML=`<p>Typing: ${S.type[0]} / ${S.type[1]}<br>Quiz: ${S.quiz[0]} / ${S.quiz[1]}</p><p><b>Words to review 需复习:</b></p>`+(w.length?w.map(([k,n])=>{const d=D.find(x=>x.w==k)||{zh:''};return `<div>${k} — ${d.zh} (×${n})</div>`}).join(''):'<div>None yet 暂无</div>')}
 $('sReset').onclick=()=>{if(confirm('Reset all scores?')){S={type:[0,0],quiz:[0,0],wrong:{}};save();renderStats()}};
-$('secSel').onchange=()=>{fi=0;nextType();nextQuiz();renderList();renderFlash()};
+$('secSel').onchange=()=>{tDeck=[];reshuf();nextType();nextQuiz();renderList();renderFlash()};
 nextType();nextQuiz();show('type');
 </script></body></html>
