@@ -8,6 +8,7 @@
   const cache = new Map();
   const state = {scope: 'core', kind: 'all', lang: 'all', shown: 80, routeKey: ''};
   const tap = {word: '', n: 0, at: 0, timer: 0};
+  const DOUBLE_TAP_MS = 300;
 
   function asset(path) {
     return new URL(path, document.baseURI).href;
@@ -199,7 +200,7 @@
   function handleBookTap(el) {
     const word = el.dataset.word;
     const now = Date.now();
-    if (tap.word !== 'book:' + word || now - tap.at > 450) tap.n = 0;
+    if (tap.word !== 'book:' + word || now - tap.at > DOUBLE_TAP_MS) tap.n = 0;
     tap.word = 'book:' + word;
     tap.n += 1;
     tap.at = now;
@@ -245,7 +246,7 @@
     const word = el.dataset.word;
     const href = el.getAttribute('href') || '';
     const now = Date.now();
-    if (tap.word !== word || now - tap.at > 480) tap.n = 0;
+    if (tap.word !== word || now - tap.at > DOUBLE_TAP_MS) tap.n = 0;
     tap.word = word;
     tap.n += 1;
     tap.at = now;
@@ -254,7 +255,7 @@
     event.preventDefault();
     event.stopPropagation();
     if (el.dataset.planIndex) rememberPlan(Number(el.dataset.planIndex));
-    if (tap.n >= 3) {
+    if (tap.n >= 2) {
       tap.n = 0;
       addSpecial(el);
       return;
@@ -268,7 +269,7 @@
         history.pushState(null, '', target);
         render();
         window.scrollTo(0, 0);
-      }, 460);
+      }, DOUBLE_TAP_MS);
     }
   }
   function wordBlock(word, link) {
@@ -345,7 +346,7 @@
         return word.w.toLowerCase().includes(folded) || (word.z || '').includes(query);
       }).slice(0, 30);
       if (hits.length) {
-        wordHtml = '<h2 class="sub">单词</h2><p class="count">连点三次，收入生词本。</p>' + hits.map(function (word) {
+        wordHtml = '<h2 class="sub">单词</h2><p class="count">连点两次，收入生词本。</p>' + hits.map(function (word) {
           const root = word.m && word.m[0] ? word.m[0] : '';
           return '<a class="row' + (bookHas(word.w) ? ' saved' : '') + '" href="?w=' + encodeURIComponent(word.w) + '"' + wordData(word.w, word.z, '', root) + '><b>' + esc(word.w) + '</b><span>' + esc(word.z || '暂无中文') + '</span><small>' + (word.m || []).length + ' 个词根</small>' + star(word.w) + '</a>';
         }).join('');
@@ -369,7 +370,7 @@
     }
     const story = detail.story ? '<div class="story"><p>' + esc(detail.story.zh) + '</p><p class="meta">词源小记的译文。原文出处：<a href="' + esc(detail.story.source) + '" rel="noreferrer">' + esc(detail.story.source) + '</a></p><p class="en">' + esc(detail.story.en) + '</p></div>' : '';
     const words = (detail.words || []).map(function (word) { return wordBlock(word, true); }).join('') || '<p class="empty">这个条目没有例词。</p>';
-    main.innerHTML = '<p><a class="back" href="./">← 词根列表</a></p><article class="panel"><div class="kicker"><span class="pill">' + KIND[detail.kind] + '</span><span class="pill">' + (LANG[detail.lang] || esc(detail.lang)) + '</span></div><h1 class="form">' + esc(detail.forms) + '</h1><p class="zh">' + esc(detail.zh) + '</p><p class="en">' + esc(detail.en) + '</p><p class="origin">' + esc(detail.origin) + '</p><p class="meta">中文是这条英文释义的译文，不是另写的定义。连点三次例词，收入生词本。</p>' + story + '</article><h2 class="sub">例词 · ' + detail.words.length + '</h2>' + words;
+    main.innerHTML = '<p><a class="back" href="./">← 词根列表</a></p><article class="panel"><div class="kicker"><span class="pill">' + KIND[detail.kind] + '</span><span class="pill">' + (LANG[detail.lang] || esc(detail.lang)) + '</span></div><h1 class="form">' + esc(detail.forms) + '</h1><p class="zh">' + esc(detail.zh) + '</p><p class="en">' + esc(detail.en) + '</p><p class="origin">' + esc(detail.origin) + '</p><p class="meta">中文是这条英文释义的译文，不是另写的定义。连点两次例词，收入生词本。</p>' + story + '</article><h2 class="sub">例词 · ' + detail.words.length + '</h2>' + words;
   }
 
   async function showWord(spelling) {
@@ -412,7 +413,7 @@
       return '<div class="row plain' + saved + '"' + attrs + '>' + label + '</div>';
     }).join('');
     const more = rows.length > visible.length ? '<button type="button" class="more" id="more">再显示 ' + Math.min(120, rows.length - visible.length) + ' 个</button>' : '';
-    main.innerHTML = '<p class="lead">' + esc(data.label) + '</p><p class="sub">' + esc(data.code) + ' · ' + data.count + ' 词，其中 ' + data.withZh + ' 个有中文，' + data.linked + ' 个能连到词根。点进有词根的词，可以看拆分。连点三次，收入生词本。</p><div class="filters">' + chips + '</div><p class="count">当前 ' + rows.length + ' 条</p>' + body + more;
+    main.innerHTML = '<p class="lead">' + esc(data.label) + '</p><p class="sub">' + esc(data.code) + ' · ' + data.count + ' 词，其中 ' + data.withZh + ' 个有中文，' + data.linked + ' 个能连到词根。点进有词根的词，可以看拆分。连点两次，收入生词本。</p><div class="filters">' + chips + '</div><p class="count">当前 ' + rows.length + ' 条</p>' + body + more;
     const moreButton = document.getElementById('more');
     if (moreButton) moreButton.onclick = function () { state.shown += 120; showList(chosen, query); };
   }
@@ -562,7 +563,7 @@
       return '<div class="row plain' + saved + here + '" id="plan-word-' + index + '"' + attrs + '>' + label + '</div>';
     }).join('');
     const resumeWord = book.words[resumeAt];
-    main.innerHTML = '<p class="lead">第 ' + (safeView + 1) + ' 段</p><p class="sub">第 ' + day + ' 天只是进度标签。一段读完可以马上读下一段。停在半路，下次从最后一个词接着读。连点三次不认识的词，收入生词本。进度只存在这台浏览器里。</p>'
+    main.innerHTML = '<p class="lead">第 ' + (safeView + 1) + ' 段</p><p class="sub">第 ' + day + ' 天只是进度标签。一段读完可以马上读下一段。停在半路，下次从最后一个词接着读。连点两次不认识的词，收入生词本。进度只存在这台浏览器里。</p>'
       + '<button type="button" class="plan-continue" id="plan-continue">从「' + esc(resumeWord.w) + '」继续<small>第 ' + (resumeAt + 1) + ' 个词 · 已读 <span id="plan-read">0 / ' + total + '</span></small></button>'
       + '<div id="plan-banner" class="plan-banner" hidden><p></p><div class="book-actions"><button type="button" id="plan-next">继续下一段</button><button type="button" id="plan-review">复习生词本</button></div></div>'
       + '<div class="levels">' + levels + '<div class="level">总进度<div class="barline"><span id="plan-overall"></span></div></div></div>'
@@ -649,7 +650,7 @@
       return '<article class="word saved"' + bookAttrs(item) + '><h3>' + esc(item.w) + '</h3><p class="zh">' + esc(item.z || '暂无中文') + '</p><p class="meta">' + (item.p ? '/' + esc(item.p) + '/ · ' : '') + root + open + '</p></article>';
     }).join('');
     const tools = items.length ? '<div class="book-actions"><a class="more" href="?book=1&review=1">复习这些词</a><button type="button" class="more" id="copy-book">复制为文本</button><button type="button" class="more" id="clear-book">清空生词本</button></div>' : '';
-    main.innerHTML = '<p class="lead">生词本 · ' + items.length + '</p><p class="sub">连点三次不认识的词，会记在这里，换级别也不会丢。连点两次下面的词，再确认，才会移出。这份名单只存在这台浏览器里。</p>' + tools + (cards || '<p class="empty">还没有生词。在计划、词根例词、搜索结果或考试词表里，对一个单词连点三次。</p>');
+    main.innerHTML = '<p class="lead">生词本 · ' + items.length + '</p><p class="sub">连点两次不认识的词，会记在这里，换级别也不会丢。连点两次下面的词，再确认，才会移出。这份名单只存在这台浏览器里。</p>' + tools + (cards || '<p class="empty">还没有生词。在计划、词根例词、搜索结果或考试词表里，对一个单词连点两次。</p>');
     const copy = document.getElementById('copy-book');
     if (copy) copy.onclick = function () {
       const text = items.map(function (item) {
