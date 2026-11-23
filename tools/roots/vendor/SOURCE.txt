@@ -1,0 +1,40 @@
+Roots, affixes, example words, morpheme breakdowns and etymology notes
+-----------------------------------------------------------------------
+Project: jupsh/anki-word-roots
+Commit:  d5f7bd1ab23a29832e4b7ee8de558177229b5e2e
+License: CC BY-SA 4.0 (morpheme data). Build code of that project is Unlicense
+         and is not copied here.
+Files:   morphemes.csv, decode.csv, stories.csv, LICENSE.md
+Credit:  Adapted from Wikipedia "List of Greek and Latin roots in English" and
+         "List of medical roots, suffixes and prefixes", then reviewed in
+         anki-word-roots. Wikipedia contributors, CC BY-SA 4.0.
+         Upstream license text: LICENSE.md in this directory.
+         License deed: https://creativecommons.org/licenses/by-sa/4.0/
+
+The Chinese lines for roots, affixes, in-word glosses, literal breakdowns and
+etymology notes are translations of those English source strings. They are
+kept in tools/roots/zh/ and are part of the CC BY-SA adaptation. They are not
+a second dictionary.
+
+Chinese word glosses and exam tags
+-----------------------------------
+Project: skywind3000/ECDICT
+Commit:  39cfb9672c0906b63569e0453c2e6abfb9ab182a
+License: MIT. Copyright (c) 2025 Linwei. See ECDICT-LICENSE.txt.
+Used:    translation, phonetic, tag, exchange, frq.
+         The full CSV is downloaded at build time and is not committed.
+         Only the short glosses attached to published words are shipped.
+Tags:    cet4, cet6, ielts, toefl, gre, zk.
+
+Wordiyo
+-------
+Repository: https://github.com/zhaopeifei/wordiyo
+Commit reviewed: af8aff94055a380be6b2e35b5ca0ed85255dfe54
+License on the repository: MIT. Copyright (c) 2026 Wordiyo. See WORDIYO-LICENSE.txt.
+
+The MIT grant covers the software in that repository. The word, root and
+example database is not in the repository; the app reads it from Supabase.
+wordiyo.com's terms reserve the site content and forbid scraping, and the
+project offers a separate licence for the dataset. None of that database is
+copied into this site. The page is an independent static reader with the same
+kind of path: root list, root detail, member words, search, exam filter.

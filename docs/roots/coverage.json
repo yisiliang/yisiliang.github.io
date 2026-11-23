@@ -1,0 +1,68 @@
+{
+  "morphemes": 700,
+  "roots": 573,
+  "prefixes": 74,
+  "suffixes": 53,
+  "latin": 437,
+  "greek": 252,
+  "latinAndGreek": 11,
+  "core": 123,
+  "medical": 102,
+  "stories": 77,
+  "decodeWords": 222,
+  "memberWords": 3547,
+  "memberWithZh": 3543,
+  "memberWithoutZh": 4,
+  "missing": [
+    "cisgender",
+    "ortholog",
+    "orthologous",
+    "virality"
+  ],
+  "lists": {
+    "cet4": {
+      "count": 3849,
+      "withZh": 3849,
+      "linked": 822,
+      "code": "CET-4",
+      "label": "大学英语四级"
+    },
+    "cet6": {
+      "count": 5407,
+      "withZh": 5407,
+      "linked": 1179,
+      "code": "CET-6",
+      "label": "大学英语六级"
+    },
+    "ielts": {
+      "count": 5040,
+      "withZh": 5040,
+      "linked": 1117,
+      "code": "IELTS",
+      "label": "雅思"
+    },
+    "toefl": {
+      "count": 6974,
+      "withZh": 6974,
+      "linked": 1480,
+      "code": "TOEFL",
+      "label": "托福"
+    },
+    "gre": {
+      "count": 7504,
+      "withZh": 7504,
+      "linked": 1359,
+      "code": "GRE",
+      "label": "GRE"
+    },
+    "zk": {
+      "count": 1603,
+      "withZh": 1603,
+      "linked": 177,
+      "code": "中考",
+      "label": "初中学业水平"
+    }
+  },
+  "ankiCommit": "d5f7bd1ab23a29832e4b7ee8de558177229b5e2e",
+  "ecdictCommit": "39cfb9672c0906b63569e0453c2e6abfb9ab182a"
+}

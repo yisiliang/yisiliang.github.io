@@ -1,0 +1,80 @@
+词根学英语 /roots/
+====================
+
+This folder is a static reader. It is not a copy of Wordiyo.
+
+Wordiyo
+-------
+The study path (roots, then member words, plus search and exam filters) follows
+Wordiyo, https://wordiyo.com , source repository https://github.com/zhaopeifei/wordiyo
+(commit af8aff94055a380be6b2e35b5ca0ed85255dfe54).
+
+That repository is MIT licensed. Copyright (c) 2026 Wordiyo.
+The MIT text is kept at tools/roots/vendor/WORDIYO-LICENSE.txt in the source
+repository, and repeated here:
+
+MIT License
+
+Copyright (c) 2026 Wordiyo
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+What that MIT grant does not cover: Wordiyo's word and root database is not in
+the git repository. The application loads it from Supabase. The website terms
+reserve the site content and forbid scraping, and the project licenses the
+dataset separately. This site does not include Wordiyo's words, roots,
+examples, or code.
+
+Morpheme data — CC BY-SA 4.0
+----------------------------
+Roots, prefixes, suffixes, example words, breakdowns and etymology notes are
+adapted from jupsh/anki-word-roots, commit d5f7bd1ab23a29832e4b7ee8de558177229b5e2e.
+That data is CC BY-SA 4.0 because it comes from Wikipedia:
+
+- List of Greek and Latin roots in English, by Wikipedia contributors
+- List of medical roots, suffixes and prefixes, by Wikipedia contributors
+
+anki-word-roots reviewed the lists, kept common example words, and added
+decode breakdowns and sourced stories. Upstream statement:
+https://github.com/jupsh/anki-word-roots
+License deed: https://creativecommons.org/licenses/by-sa/4.0/
+
+Chinese wording for a root, affix, breakdown gloss, literal sense or story is
+a translation of that English source string. Those translations are part of
+the same CC BY-SA 4.0 adaptation. They are not new definitions.
+
+You may share and adapt this morpheme material, including commercially, if you
+give credit and license the adaptation under CC BY-SA 4.0.
+
+Chinese dictionary lines — MIT
+------------------------------
+Short Chinese senses, pronunciations and exam tags on individual words come
+from ECDICT, https://github.com/skywind3000/ECDICT , commit
+39cfb9672c0906b63569e0453c2e6abfb9ab182a.
+Copyright (c) 2025 Linwei. MIT License.
+The license text is tools/roots/vendor/ECDICT-LICENSE.txt.
+
+Only the senses attached to words on this site are included. A word with no
+ECDICT line is shown without a Chinese definition. Exam lists are the ECDICT
+rows tagged cet4, cet6, ielts, toefl, gre or zk (中考).
+
+Page code
+---------
+index.html, style.css and app.js in this folder, and tools/roots/build.py,
+were written for this site.

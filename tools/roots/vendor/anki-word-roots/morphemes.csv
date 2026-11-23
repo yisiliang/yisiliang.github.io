@@ -1,0 +1,701 @@
+id,kind,forms,meaning,language,origin,front,more,core,medical,source
+re-again-back,prefix,re-,"again, back",Latin,Latin re-,[re]turn; [re]build; [re]play,,y,related,wikipedia-medical
+pre-before,prefix,pre-,before,Latin,"Latin prae ""before, in front""",[pre]view; [pre]dict; [pre]historic,[pre]face; [pre]vent; [pre]cede; [pre]mature,y,,curated
+in-not-un,prefix,"in-, il-, im-, ir-","not, un- (negation)",Latin,Latin in-,[im]possible; [in]sane; [ir]rational,[il]licit; [in]imical,y,,wikipedia-roots
+di-apart-separation,prefix,"di-, dif-, dis-","apart, separation, taking apart",Latin,"Latin dis-, dif-, di-",[dis]tract; [dif]fer; [di]gress,[di]ssection; [di]lation,y,related,wikipedia-medical
+ex-outside-out,prefix,"ex-, e-, ef-","outside, out of, from, out",Latin,Latin ex,[ex]it; [ex]port; [e]ject,[ex]clude; [ex]cision; [ex]trude; [ex]sanguination,y,related,wikipedia-roots
+sub-below,prefix,"sub-, su-, suf-, sug-, sup-, sus-",below,Latin,Latin sub,[sub]marine; [sub]merge; [sup]press,[su]ffix,y,,wikipedia-roots
+super-above-over,prefix,super-,"above, over",Latin,Latin super,[super]ior; [super]b; [super]natural,[super]market; [super]ficial; [super]vise; [super]power; [super]stition; [super]sonic,y,related,wikipedia-roots
+trans-across,prefix,"trans-, tra-, tran-",across,Latin,Latin trans,[trans]port; [trans]late; [trans]parent,[trans]ient; [trans]cend; [trans]itory; [trans]act; in[trans]igent,y,related,wikipedia-roots
+inter-between-among,prefix,inter-,"between, among",Latin,Latin inter (preposition),[inter]national; [inter]rupt; [inter]val,,y,related,wikipedia-roots
+ant-against-opposed,prefix,"ant-, anti-","against, opposed to, preventive",Greek,"Greek ἀντί (antí) ""against""",[anti]biotic; [anti]body; [ant]agonist,[ant]igen; [ant]isocial; [ant]ichrist; [ant]ithesis; [ant]iseptic; [ant]ipathy,y,related,wikipedia-roots
+post-after-behind,prefix,post-,"after, behind",Latin,"Latin post, after, behind",[post]pone; [post]war; [post]mortem,[post]prandial,y,related,wikipedia-medical
+able-able-be,suffix,"-able, -ible","able to be, worth being",Latin,"Latin -abilis, -ibilis",read[able]; vis[ible]; cap[able],cred[ible]; port[able]; aud[ible],y,,curated
+ity-state-quality,suffix,-ity,state or quality of,Latin,Latin -itas,real[ity]; equal[ity]; curios[ity],,y,,curated
+tele-far-at,prefix,tele-,"far, at a distance",Greek,Greek τῆλε (têle),[tele]vision; [tele]phone; [tele]graph,[tele]scope; [tele]gram; [tele]metry; [tele]pathy,y,,wikipedia-roots
+phon-sound,root,phon-,sound,Greek,"Greek φωνή (phōnḗ), φωνητικός (phōnētikós), φώνημα (phṓnēma)",[phon]e; sym[phon]y; micro[phon]e,[phon]etic; tele[phon]y; sym[phon]ic; mega[phon]e; [phon]ograph; [phon]ology,y,related,wikipedia-roots
+graph-draw-write,root,graph-,"draw, write",Greek,Greek γράφειν (gráphein),photo[graph]; [graph]ic; [graph],para[graph]; tele[graph]; photo[graph]ic; auto[graph]; [graph]ite; mono[graph],y,,wikipedia-roots
+log-word-reason,root,"log-, -logy","word, reason, speech, thought",Greek,"Greek λόγος (lógos), λογία (logía)",[log]ic; psycho[log]y; bio[log]y,apo[log]y; theo[log]y; tri[log]y; geo[log]y; eco[log]y; ana[log]y,y,related,wikipedia-roots
+bio-life,root,bio-,life,Greek,Greek βιοῦν (bioûn),[bio]logical; [bio]logy; [bio]graphy,auto[bio]graphy; anti[bio]tic; [bio]logist; [bio]psy; micro[bio]logy; [bio]metric,y,related,wikipedia-roots
+geo-earth,root,geo-,earth,Greek,"Greek γῆ (gê), γαῖα, γαίας (gaîa, gaías), γεω- (geō-)",[ge]ography; [ge]ometry; [ge]ology,[ge]ophysics; [ge]odetic; apo[ge]e; [ge]omorphology; peri[ge]e; bio[ge]ography,y,,wikipedia-roots
+aut-self-directed,root,"aut-, auto-",self; directed from within,Greek,"Greek αὐτός (autós) ""self"", ""same""",[auto]matic; [auto]nomy; [auto]biography,[aut]omobile; [aut]ograph; [aut]istic; [aut]oimmune,y,related,wikipedia-roots
+micr-small,prefix,micr(o)-,small,Greek,"Greek μικρός (mikrós), μικρότης",[micr]ophone; [micr]oscope; [micr]oscopic,[micr]ocosm; [micr]obe; [micr]ometer; [micr]oeconomics; [micr]ocode,y,related,wikipedia-roots
+scept-look-at,root,"scept-, scop-","look at, examine, view, observe",Greek,Greek σκέπτεσθαι (sképtesthai),[scop]e; tele[scop]e; micro[scop]e,micro[scop]ic; peri[scop]e; kaleido[scop]e; tele[scop]ic; endo[scop]y; endo[scop]ic,y,,wikipedia-roots
+spec-look,root,"spec-, -spic-, spect-",look,Latin,"Latin perspicuus, specere, spectare, speculari",[spec]ial; re[spec]t; [spec]ific,[spec]ies; per[spec]tive; su[spec]t; a[spec]t; [spec]trum; in[spec]tor,y,,wikipedia-roots
+vid-see,root,"vid-, vis-",see,Latin,"Latin videre, visus",[vid]eo; pro[vid]e; e[vid]ence,[vis]it; [vis]ion; [vis]ual; [vis]ible; ad[vis]ory; pro[vis]ion,y,,wikipedia-roots
+aud-hearing-listening,root,aud-,"hearing, listening, sound",Latin,"Latin audire ""to hear""",[aud]ience; [aud]io; [aud]it,[aud]ition; [aud]itorium; [aud]ible; [aud]itory; [aud]iobook; [aud]iovisual,y,,wikipedia-roots
+dic-say-speak,root,"dic-, dict-","say, speak, proclaim",Latin,"Latin dīcere, dictus, dictare",pre[dic]t; ver[dic]t; [dic]tionary,pre[dic]tion; in[dic]tment; [dic]tator; [dic]tate; contra[dic]t; e[dic]t,y,,wikipedia-roots
+scrib-write,root,"scrib-, script-",write,Latin,"Latin scribere, scriptus",de[scrib]e; [script]; sub[scrib]e,manu[script]; [script]ure; pre[scrib]e; [scrib]e; [scrib]ble; in[scrib]e,y,,wikipedia-roots
+port-carry,root,port-,carry,Latin,"Latin portare ""to carry""",sup[port]; re[port]; [port]able,trans[port]; ex[port]; [port]folio; im[port],y,,wikipedia-roots
+duc-lead,root,"duc-, duct-",lead,Latin,"Latin ducere, ductus",pro[duc]e; re[duc]e; intro[duc]e,in[duc]e; se[duc]e; de[duc]e; ab[duc]t; ad[duc]t; ad[duc]e,y,,wikipedia-roots
+jac-cast-throw,root,"jac-, -ject-","cast, throw",Latin,"Latin jacio (also spelled iacio), iectus (jectus)",pro[ject]; sub[ject]; ob[ject],ob[ject]ive; re[ject]; in[ject]ion; re[ject]ion; sub[ject]ive; pro[ject]ion,y,,wikipedia-roots
+rump-break-burst,root,"rump-, rupt-","break, burst",Latin,"Latin rumpere, ruptus",cor[rupt]ion; cor[rupt]; dis[rupt]ion,inter[rupt]; dis[rupt]; e[rupt]ion; dis[rupt]ive; ab[rupt]; inter[rupt]ion,y,related,wikipedia-roots
+stru-make-up,root,"stru-, struct-","to make up, build",Latin,"Latin struere, structus",con[stru]ction; [stru]cture; con[stru]ct,in[stru]ct; ob[stru]ct; de[stru]ct; con[stru]e,y,,wikipedia-roots
+trah-draw-pull,root,"trah-, tract-","draw, pull",Latin,"Latin tractare, frequentative of trahere, tractus",con[tract]; at[tract]; abs[tract],[tract]or; [tract]ion; sub[tract]; re[tract]; de[tract]; [tract]able,y,,wikipedia-roots
+ive-tending-doing,suffix,-ive,"tending to, doing",Latin,Latin -ivus,act[ive]; creat[ive]; destruct[ive],,y,,curated
+ize-make-treat,suffix,"-ize, -ise","to make, to treat as",Greek,"Greek -ίζειν (-ízein), through Latin -izare",real[ize]; modern[ize]; critic[ize],,y,,curated
+ic-relating-like,suffix,-ic,"relating to, like",Greek,"Greek -ικός (-ikós), Latin -icus",histor[ic]; poet[ic]; metall[ic],,y,,curated
+ment-result-means,suffix,-ment,result or means of an action,Latin,Latin -mentum,move[ment]; agree[ment]; instru[ment],,y,,curated
+ation-act-process,suffix,"-ation, -tion, -sion, -ion","act, process or result of",Latin,"Latin -atio, -ationis",cre[ation]; inform[ation]; educ[ation],,y,,wikipedia-medical
+al-relating,suffix,"-al, -ar",relating to,Latin,Latin -alis,natur[al]; person[al]; manu[al],pol[ar]; sol[ar]; abdomin[al],y,,wikipedia-medical
+ous-full-having,suffix,"-ous, -ose","full of, having",Latin,"Latin -ōsus, full of, prone to",danger[ous]; fam[ous]; gener[ous],verb[ose]; por[ous],y,,wikipedia-medical
+ist-who-does,suffix,-ist,one who does or believes,Greek,"Greek -ιστής (-istḗs), agent noun, one who practices",art[ist]; scient[ist]; journal[ist],,y,,wikipedia-medical
+ism-belief-practice,suffix,-ism,"belief, practice or condition",Greek,Greek -ισμός (-ismós),real[ism]; critic[ism]; organ[ism],bipedal[ism],y,,wikipedia-medical
+or-who-does,suffix,-or,one who does,Latin,generally appended where Latin would do it—to the root of a Latin-type perfect passive participle. Cf. -er,act[or]; doct[or]; invent[or],,y,,wikipedia-medical
+con-with-together,prefix,"con-, co-, col-, com-, cor-","with, together",Latin,Latin cum,[con]nect; [com]bine; [co]operate,[con]tribute; [com]municate; [con]sult; [cor]rective; [co]llide,y,related,wikipedia-roots
+uni,prefix,"uni-, un-",one,Latin,"Latin ūnus, unius",[uni]form; [uni]corn; [uni]cycle,[un]iverse; [un]iversal; [un]ity; re[un]ion; [un]ite,y,,wikipedia-roots
+bi-two-twice,prefix,bi-,"two, twice",Latin,Latin bi-,[bi]cycle; [bi]lingual; [bi]nary,,y,related,wikipedia-medical
+tri-three,prefix,tri-,three,Greek,"Greek τρεῖς, τρία (tría), τριάς",[tri]ad; [tri]pod; [tri]cycle,[tri]ode; [tri]adic; [tri]gon,y,related,wikipedia-roots
+mon-alone-only,prefix,mon(o)-,"alone, only",Greek,"Greek μόνος (mónos), μονάς, μονάδος (monás, monádos)",[mono]poly; [mono]tone; [mon]k,[mon]astery; [mon]astic; [mon]olith; [mon]ad; [mon]asticism,y,,wikipedia-roots
+poly-many,prefix,poly-,many,Greek,Greek πολύς (polús),[poly]gon; [poly]glot; [poly]theism,[poly]theistic; [poly]andry; [poly]phase,y,related,wikipedia-roots
+multi-many-much,prefix,multi-,"many, much",Latin,Latin multus,[multi]ple; [multi]tude; [multi]ply,[multi]plication; [multi]lingual; [multi]plicity; [multi]plex; [multi]tudinous,y,,wikipedia-roots
+semi-half,prefix,semi-,half,Latin,Latin semis,[semi]conductor; [semi]final; [semi]colon,[semi]annual,y,related,wikipedia-roots
+cent-hundred,root,cent-,hundred,Latin,Latin centum,per[cent]; [cent]ury; [cent],[cent]ennial; [cent]urion,y,,wikipedia-roots
+mill-thousand,root,mill-,thousand,Latin,Latin mille,[mill]ion; [mill]ennium,,y,,wikipedia-roots
+hemi-half,prefix,hemi-,half,Greek,"Greek ἡμι- (hēmi-) ""half""",[hemi]sphere; [hemi]plegia,,y,related,curated
+mega-great-large,prefix,"mega-, megal(o)-","great, large",Greek,"Greek μέγας, μεγάλου (mégas, megálou) ""great""",[mega]phone; [megal]ith; [megalo]maniac,acro[megal]y,y,related,curated
+hydr-water,root,hydr-,water,Greek,"Greek ὕδωρ, ὕδατος (húdōr, húdatos), ὕδρα (húdra)",[hydr]ogen; [hydr]aulic; [hydr]a,[hydr]oelectric; [hydr]ate; [hydr]ophobic; [hydr]olysis; [hydr]aulics; [hydr]ology,y,related,wikipedia-roots
+therm-heat-warm,root,therm-,"heat, warm",Greek,"Greek θέρεσθαι (théresthai), θέρμη (thérmē), θερμός (thermós)",[therm]al; [therm]ometer; [therm]ostat,hypo[therm]ia; [therm]odynamic; [therm]os; [therm]oplastic; hyper[therm]ia; exo[therm]ic,y,related,wikipedia-roots
+chron-time,root,chron-,time,Greek,Greek χρόνος (khrónos),[chron]ic; [chron]icle; [chron]ology,syn[chron]ous; asyn[chron]ous; syn[chron]ize; [chron]ograph; ana[chron]ism; [chron]ometer,y,,wikipedia-roots
+phos-light,root,"phos-, phot-",light,Greek,"Greek φῶς, φωτός (phōtós)",[phot]o; [phot]ography; [phot]ograph,[phot]on; [phos]phorus; [phot]osynthesis; [phot]ogenic; [phos]phor; [phot]ometric,y,related,wikipedia-roots
+meter-measure,root,"meter-, metr-",measure,Greek,Greek μέτρον (métron),[meter]; dia[meter]; [metr]ic,[metr]e; peri[meter]; para[meter]; sym[metr]y; thermo[meter]; sym[metr]ic,y,related,wikipedia-roots
+aqu-water,root,aqu-,water,Latin,Latin aqua,[aqu]atic; [aqu]arium; [aqu]eous,[aqu]aculture; [aqu]educt; [aqu]ifer; [aqu]amarine; [aqu]arelle,y,,wikipedia-roots
+terr-earth,root,terr-,earth,Latin,Latin terra,[terr]itory; [terr]ain; [terr]ace,[terr]estrial; sub[terr]anean; [terr]acotta; [terr]arium,y,,wikipedia-roots
+mar-sea,root,mar-,sea,Latin,"Latin mare, maris",[mar]ine; [mar]itime; [mar]ina,sub[mar]ine; [mar]iner; [mar]inade; [mar]inate; [mar]inara; ultra[mar]ine,y,,wikipedia-roots
+ann-year-yearly,root,"ann-, -enn-","year, yearly",Latin,"Latin annus ""year""",[ann]ual; [ann]iversary; mill[enn]ium,per[enn]ial; cent[enn]ial,y,,wikipedia-roots
+viv-live,root,viv-,live,Latin,"Latin vivere ""to live"", related to vita ""life""",sur[viv]e; [viv]id; re[viv]e,[viv]acious; con[viv]ial; [viv]isection; [viv]acity,y,,wikipedia-roots
+vit-life,root,vit-,life,Latin,Latin vita,[vit]al; [vit]amin; [vit]ality,,y,,wikipedia-roots
+mort-death,root,mort-,death,Latin,"Latin mors, mortis",[mort]ality; [mort]al; im[mort]al,im[mort]ality; [mort]uary; [mort]ification; [mort]ician,y,,wikipedia-roots
+psych-mind,root,psych-,mind,Greek,"Greek ψύχειν (psúkhein), ψυχή (psukhḗ), ψυχικός (psukhikós)",[psych]ology; [psych]ologist; [psych]ic,[psych]iatry; [psych]otic; [psych]e; [psych]edelic; [psych]otherapy; [psych]osis,y,related,wikipedia-roots
+path-feeling-disease,root,path-,"feeling, disease",Greek,"Greek πάσχειν (páskhein), παθητικός (pathētikós), πάθος (páthos)",[path]etic; sym[path]y; sym[path]etic,em[path]y; [path]ology; psycho[path]; a[path]y; [path]ogen; [path]ologist,y,related,wikipedia-roots
+phil-love-friendship,root,"phil-, -phile","love, friendship",Greek,Greek φίλος (phílos),[phil]osophy; [phil]anthropy; [phil]harmonic,biblio[phil]e; para[phil]ia; [phil]trum,y,,wikipedia-roots
+phob-fear,root,"phob-, -phobia",fear,Greek,"Greek φόβος (phóbos) ""fear""",[phob]ia; claustro[phobia]; xeno[phobia],arachno[phobia]; hydro[phobia],y,related,curated
+dem-people,root,dem-,people,Greek,Greek δῆμος (dêmos),[dem]ocracy; [dem]ographic; epi[dem]ic,pan[dem]ic; en[dem]ic; epi[dem]iology; [dem]ography; [dem]agogue; [dem]otic,y,,wikipedia-roots
+cracy-government-rule,suffix,"-cracy, -crat","government, rule, authority",Greek,"Greek κράτος (krátos), κρατία (kratía)",demo[cracy]; bureau[cracy]; aristo[cracy],auto[cracy]; theo[cracy]; auto[crat]; pluto[cracy]; techno[crat]; techno[cracy],y,,wikipedia-roots
+anthrop-human,root,anthrop(o)-,human,Greek,"Greek ἄνθρωπος (ánthrōpos), human",[anthropo]logy; mis[anthrop]e; phil[anthrop]y,,y,related,wikipedia-medical
+the-god,root,"the-, thus-",god,Greek,Greek θεός (theós),[the]ology; a[the]ism; en[thus]iasm,[the]ocracy; mono[the]ism; a[the]istic; poly[the]ism; [the]odicy; [the]obromine,y,,wikipedia-roots
+ped-foot,root,ped-,foot,Latin,"Latin pes, pedis",[ped]al; [ped]estrian; [ped]icure,[ped]estal; [ped]igree; im[ped]e; ex[ped]ite; im[ped]iment,y,related,wikipedia-roots
+pod-foot,root,pod-,foot,Greek,"Greek πούς, ποδός (podós)",[pod]ium; tri[pod]; [pod]iatry,amphi[pod]; deca[pod]; tetra[pod]; anti[pod]e,y,related,wikipedia-roots
+man-hand,root,"man-, manu-",hand,Latin,Latin manus,[manu]al; [manu]facture; [manu]script,[man]date; [man]ipulation; [man]ifest,y,related,wikipedia-roots
+corpor-body,root,corpor-,body,Latin,"Latin corpus, corporis",[corpor]ate; [corpor]ation; in[corpor]ate,[corpor]al; in[corpor]ation; [corpor]eal; in[corpor]eal; extra[corpor]eal; [corpor]ative,y,,wikipedia-roots
+cred-believe-trust,root,cred-,"believe, trust",Latin,"Latin credere, creditus",[cred]it; in[cred]ible; [cred]ibility,[cred]ible; [cred]entials; ac[cred]itation; dis[cred]it; [cred]itor; [cred]ence,y,,wikipedia-roots
+voc-call-voice,root,voc-,"call, voice",Latin,"Latin vocare (to call), from vox ""voice"" (genitive vocis)",ad[voc]ate; [voc]al; ad[voc]acy,[voc]abulary; [voc]ational; pro[voc]ative; [voc]ation; pro[voc]ation; e[voc]ative,y,,wikipedia-roots
+vers-turn,root,"vers-, vert-",turn,Latin,"Latin versus, past participle of vertere",[vers]ion; con[vers]ation; uni[vers]e,anni[vers]ary; re[vers]e; [vers]us; contro[vers]y; [vers]e; [vert]ical,y,,wikipedia-roots
+mit-send,root,"mit-, miss-",send,Latin,"Latin mittere, missus",com[mit]tee; com[miss]ion; [miss]ion,ad[mit]; per[miss]ion; com[mit]ment; com[mit]; trans[miss]ion; sub[mit],y,,wikipedia-roots
+fac-do-make,root,"fac-, fact-, -fect-, -fic-","do, make",Latin,"Latin facere, factus",[fact]ory; manu[fact]ure; ef[fect],per[fect]; of[fic]ial; ef[fect]ive; sur[fac]e; [fac]tor,y,,wikipedia-roots
+cap-hold-take,root,"cap-, -cip-, capt-, -cept-","hold, take",Latin,"Latin capere, captus ""take or hold"" (vowel changes from a to i in compounds)",[capt]ure; [cap]able; ac[cept],re[cip]ient; con[cept]ion; [cap]tion; [cap]tive; inter[cept]; in[cip]ient,y,,wikipedia-roots
+ven-come,root,"ven-, vent-",come,Latin,Latin venire,e[ven]t; pre[ven]t; re[ven]ue,con[ven]tion; ad[ven]ture; a[ven]ue; inter[ven]tion; [ven]ture; [ven]ue,y,,wikipedia-roots
+mov-move-motion,root,"mov-, mot-, mut-","move, motion",Latin,"Latin movere, motus",[mov]e; [mov]ement; re[mov]e,e[mot]ional; [mot]ion; pro[mot]e; [mot]or; pro[mot]ion; re[mot]e,y,,wikipedia-roots
+cidal-killing-destroying,suffix,"-cidal, -cide","killing, destroying",Latin,"Latin -cīda, cutter, killer",sui[cide]; sui[cidal],,y,related,wikipedia-medical
+itis-inflammation,suffix,-itis,inflammation,Greek,"Greek -ῖτις (-îtis), short for -îtis nósos ""disease of""",tonsill[itis]; arthr[itis]; bronch[itis],,y,related,wikipedia-medical
+an-not-without,prefix,"an-, a-, am-, ar-","not, without",Greek,"Greek Greek ἀν-/ἀ- ""not""",[an]onymous; [an]archy; [a]theism,[an]esthesia; [a]pathy; [an]emia; [a]typical; [an]aerobic; [a]rrhythmia,y,related,wikipedia-roots
+syn-with,prefix,"syn-, sy-, syg-, syl-, sym-, sys-",with,Greek,Greek σύν (sún),[sym]pathy; [syn]onym; [syn]chronize,[sy]mmetry; [syn]chronous; [sy]llogism,y,,wikipedia-roots
+hyper-extreme-beyond,prefix,hyper-,extreme or beyond normal,Greek,"Greek ὑπέρ (hupér), over, above; beyond, to the extreme",[hyper]active; [hyper]tension; [hyper]bole,[hyper]trichosis,y,related,wikipedia-medical
+hyp-under-below,prefix,hyp(o)-,"under, below normal",Greek,"Greek ὑπό, ὑπο- (hupó), below, under",[hypo]thermia; [hypo]dermic; [hypo]thesis,[hypo]volemia,y,related,wikipedia-medical
+peri-around,prefix,peri-,around,Greek,Greek περί (perí),[peri]meter; [peri]scope; [peri]od,[peri]odontal; [peri]gee; [peri]helion; [peri]cope,y,related,wikipedia-roots
+ep-upon,prefix,"ep-, epi-",upon,Greek,Greek ἐπί (epí),[epi]demic; [epi]logue; [epi]dermis,[ep]iphany; [ep]hemeral; [ep]onymous; [ep]icenter; [epi]dural; [ep]istemology,y,related,wikipedia-roots
+dia-apart-through,prefix,dia-,"apart, through",Greek,Greek διά (diá),[dia]meter; [dia]logue; [dia]gnosis,,y,related,wikipedia-roots
+par-beside-near,prefix,"par-, para-","beside, near",Greek,Greek παρά (pará),[para]llel; [para]dox; [para]phrase,[par]ameter; [par]able; [par]abola,y,,wikipedia-roots
+pro-forward-for,prefix,pro-,"forward, for",Latin,Latin pro,[pro]pel; [pro]gress; [pro]ceed,[pro]crastinate,y,,wikipedia-roots
+contra-against,prefix,contra-,against,Latin,Latin contra,[contra]st; [contra]dict; [contra]ception,[contra]band; [contra]vene; [contra]indication,y,related,wikipedia-roots
+circum-around,prefix,circum-,around,Latin,"Latin circum, around",[circum]ference; [circum]stance; [circum]navigate,,y,related,wikipedia-medical
+ad-toward-addition,prefix,"ad-, a-, ac-, af-, ag-, al-, am-, an-, ap-, ar-, as-, at-","to, toward; in addition",Latin,"Latin ad ""to"", ""toward""",[ad]dition; [ad]dress; [ac]cept,[af]fect; [ad]mit; [ac]curate; [at]tend; [as]sault; [at]tract,y,related,wikipedia-roots
+ab-away-from,prefix,"ab-, a-, abs-, au-","away from, down, off",Latin,Latin ab,[ab]sent; [ab]sorb; [ab]normal,[ab]domen; [ab]duction; [ab]straction; [a]version; [ab]stain; [ab]rasion,y,related,wikipedia-roots
+intra-within,prefix,intra-,within,Latin,Latin intrā,[intra]venous; [intra]mural; [intra]net,,y,related,wikipedia-medical
+extra-outside-beyond,prefix,extra-,"outside, beyond",Latin,"Latin extra, extraneus and exterus",[extra]; [extra]ordinary,[extra]neous,y,,wikipedia-roots
+ultra-beyond-excessive,prefix,ultra-,"beyond, excessive",Latin,Latin ultra,[ultra]sound; [ultra]violet,,y,related,wikipedia-medical
+ante-before-front,prefix,"ante-, anti-","before, in front of",Latin,"Latin ante ""before"", ""against""",[anti]que; [anti]cipate; [ante]cedent,[ante]bellum; [anti]quarian; [ante]diluvian; [ante]room,y,related,wikipedia-roots
+eu-well-good,prefix,eu-,"well, good",Greek,Greek εὖ (eû),[eu]phoria; [eu]thanasia; [eu]phoric,[eu]karyote; an[eu]ploidy; [eu]phony,y,related,wikipedia-roots
+dys-bad-difficult,prefix,dys-,"bad, difficult, abnormal",Greek,Greek δυσ- (dus-),[dys]function; [dys]lexia; [dys]topia,,y,related,wikipedia-medical
+neo-new,prefix,neo-,new,Greek,"Greek νέος (néos), young, youthful, new, fresh",[neo]classical; [neo]phyte; [neo]plasm,,y,related,wikipedia-medical
+pseud-false-fake,root,pseud-,false or fake,Greek,"Greek ψεύδω (pseúdō), to lie or deceive",[pseudo]nym; [pseudo]science,,y,related,wikipedia-medical
+mal-bad-wretched,prefix,mal-,"bad, wretched",Latin,Latin malus,[mal]icious; [mal]ice; [mal]function,dis[mal]; [mal]evolent; [mal]aise; [mal]nourished; [mal]ignancy; [mal]feasance,y,,wikipedia-roots
+ben-good-well,root,"ben-, bene-","good, well",Latin,Latin bene (adverb),[ben]efit; [ben]ign; [ben]evolent,[ben]eficence,y,,wikipedia-roots
+omni-all-every,prefix,omni-,"all, every",Latin,"Latin omnis ""all""",[omni]vore; [omni]potent; [omni]present,[omni]bus; [omni]scient,y,,curated
+ance-state-action,suffix,"-ance, -ence",state or action of,Latin,"Latin -antia, -entia",import[ance]; exist[ence]; perform[ance],,y,,curated
+ant-who-does,suffix,"-ant, -ent",one who does; doing,Latin,"Latin present participles in -ans, -ens",serv[ant]; stud[ent]; pati[ent],,y,,curated
+ate-make-act,suffix,-ate,to make or act on; having,Latin,Latin -atus,activ[ate]; separ[ate]; fortun[ate],,y,,curated
+fy-make,suffix,"-fy, -ify",to make,Latin,"Latin -ficare, from facere ""to make""",simpl[ify]; magn[ify]; terr[ify],,y,,curated
+ics-field-study,suffix,-ics,field of study or practice,Latin and Greek,"Latin -icus, collection of related things, theme; cognate with Greek -ικός (ikós)",phys[ics]; polit[ics]; athlet[ics],,y,,wikipedia-medical
+sci-know,root,sci-,know,Latin,Latin scire,[sci]ence; con[sci]ous; con[sci]ence,con[sci]entious; omni[sci]ent; pre[sci]ent,y,,wikipedia-roots
+nov-new,root,nov-,new,Latin,Latin novus,[nov]el; in[nov]ation; in[nov]ative,[nov]a; re[nov]ation; [nov]elty; [nov]ice; in[nov]ate; super[nov]a,y,,wikipedia-roots
+fin-end,root,fin-,end,Latin,Latin fīnis,[fin]al; [fin]e; [fin]ish,[fin]ance; de[fin]e; in[fin]ite; [fin]ale; [fin]ite; af[fin]ity,y,,wikipedia-roots
+form-shape,root,form-,shape,Latin,Latin fōrma,[form]; per[form]; re[form],[form]ation; [form]al; [form]ula; uni[form]; in[form]; con[form],y,,wikipedia-roots
+grad-walk-step,root,"grad-, gred-, gress-","walk, step, go",Latin,"Latin gradi, gressus ""to step"", from gradus ""step""",[grad]e; pro[gress]; [grad]uate,[grad]uation; ag[gress]ion; [grad]ual; [grad]ient; post[grad]uate; de[grad]e,y,,wikipedia-roots
+nasc-born,root,"nasc-, nat-",born,Latin,"Latin nascere, nāsci (past participle natus)",[nat]ional; inter[nat]ional; [nat]ural,[nat]ure; [nat]ion; [nat]ive; super[nat]ural; [nat]ionality; multi[nat]ional,,,wikipedia-roots
+st-stand,root,st-,stand,Latin,"Latin stare ""to stand"", also causative form statuere ""to enact, set""",[st]ate; [st]ay; [st]ation,[st]atus; di[st]ance; e[st]ate; in[st]ance; arre[st]; con[st]ant,,,wikipedia-roots
+ag-do-go,root,"ag-, -ig-, act-","do, go, move",Latin,"Latin agere, actus",[act]ion; [ag]ent; re[act],[act]or; [ag]enda; trans[act]ion; [act]ivation,,,wikipedia-roots
+leg-choose-gather,root,"leg-, lect-","choose, gather, read",Latin,Latin legere,[lect]ure; col[lect]; se[lect],se[lect]ion; [leg]end; col[lect]ive; intel[lect]ual,,,wikipedia-roots
+prem-press,root,"prem-, -prim-, press-",press,Latin,"Latin premere, pressus",[press]; [press]ure; ex[press],de[press]ion; ex[press]ion; im[press]ive; im[press]ion; im[press]; com[press]ion,,,wikipedia-roots
+ten-hold-keep,root,"ten-, -tin-, tent-, tain-, tinu-","hold, keep",Latin,"Latin tenere, tentus",con[tin]ue; con[ten]t; main[tain],enter[tain]ment; main[ten]ance; con[tain]; lieu[ten]ant; ob[tain]; con[tin]uous,,,wikipedia-roots
+min-less-smaller,root,min-,"less, smaller",Latin,"Latin minor, minus",[min]or; [min]imum; [min]us,ad[min]istrative; [min]ority; ad[min]istrator; [min]isterial,,,wikipedia-roots
+soci-group,root,soci-,group,Latin,"Latin socius, sociare",[soci]al; [soci]ety; as[soci]ation,as[soci]ate; [soci]etal; [soci]able; dis[soci]ation; as[soci]ative; dis[soci]ative,,,wikipedia-roots
+fer-bear-carry,root,-fer-,"to bear, carry",Latin,Latin ferre,of[fer]; trans[fer]; pre[fer],re[fer]; suf[fer]; dif[fer]; [fer]tile; de[fer],,,wikipedia-roots
+spond-promise-pledge,root,"spond-, spons-","promise, pledge",Latin,"Latin spondere, sponsus",re[spons]e; re[spons]ible; re[spons]ibility,re[spond]; [spons]or; corre[spond]ent; corre[spond]ence; re[spons]ive; irre[spons]ible,,,wikipedia-roots
+cur-care-for,root,cur-,care for,Latin,"Latin cūra, curare",se[cur]ity; se[cur]e; ac[cur]ate,[cur]ious; [cur]e; ac[cur]acy; [cur]iosity; inse[cur]e; pro[cur]ement,,,wikipedia-roots
+mod-measure-change,root,mod-,"measure, change",Latin,"Latin modus ""measure""",[mod]el; [mod]ern; [mod]e,[mod]erate; accom[mod]ation; [mod]est; accom[mod]ate; [mod]ule; com[mod]ity,,,wikipedia-roots
+part-part,root,part-,part,Latin,"Latin pars, partis",[part]; a[part]; [part]icipate,[part]ial; [part]icle; [part]isan; de[part]; [part]ition; com[part]ment,,,wikipedia-roots
+cad-fall,root,"cad-, -cid-, cas-",fall,Latin,"Latin cadere, casus",ac[cid]ent; [cas]ual; de[cad]ence,coin[cid]ence; ac[cid]ental; in[cid]ence; [cas]ualty; coin[cid]e,,,wikipedia-roots
+caus-cause-motive,root,"caus-, -cus-",cause or motive,Latin,Latin causa,be[caus]e; [caus]e; ex[cus]e,ac[cus]e; [caus]al; [caus]ative,,,wikipedia-roots
+pon-put,root,"pon-, posit-",put,Latin,"Latin ponere, positus",[posit]ion; [posit]ive; com[pon]ent,de[posit]; op[pon]ent; pro[posit]ion; post[pon]e; pro[pon]ent; ex[pon]ent,,,wikipedia-roots
+serv-save-protect,root,serv-,"save, protect, serve",Latin,Latin servare,[serv]ice; re[serv]e; de[serv]e,pre[serv]e; [serv]ant; ob[serv]e; con[serv]e; [serv]itude; sub[serv]ient,,,wikipedia-roots
+rect-straight-direct,root,"rect-, reg-, -rig-","straight, direct",Latin,"Latin regere ""to direct, lead straight, guide"", related rectus ""straight, right""",[reg]ion; di[rect]; cor[rect],[reg]ime; [reg]iment; e[rect]ion; e[rect]; [reg]ent; [reg]imen,,,wikipedia-roots
+leg-law,root,leg-,law,Latin,"Latin lex, legis",[leg]al; il[leg]al; [leg]islation,[leg]islative; [leg]itimate; privi[leg]e; [leg]islature; [leg]itimacy; [leg]ality,,,wikipedia-roots
+sent-feel,root,"sent-, sens-",feel,Latin,"Latin sentire, sensus",[sens]e; [sent]ence; [sens]itive,con[sent]; con[sens]us; [sent]iment; [sens]ible; [sens]ation; [sens]ory,,,wikipedia-roots
+caed-cut-kill,root,"caed-, -cid-, caes-, -cis-","cut, kill",Latin,"Latin caedere, caesus",de[cis]ion; de[cid]e; sui[cid]e,pre[cis]e; pre[cis]ion; geno[cid]e; de[cis]ive; s[cis]sors; con[cis]e,,,wikipedia-roots
+medi-middle,root,"medi-, -midi-",middle,Latin,"Latin medius, mediare",[medi]a; [medi]um; im[medi]ate,[medi]eval; [medi]an; multi[medi]a; [medi]ocre; [medi]ation; inter[medi]ary,,,wikipedia-roots
+sed-sit,root,"sed-, -sid-, sess-",sit,Latin,"Latin sedere, sessus",pre[sid]ent; [sess]ion; re[sid]ent,pos[sess]; ob[sess]ion; re[sid]e; [sed]iment; in[sid]ious; [sed]entary,,,wikipedia-roots
+tend-stretch-strain,root,"tend-, tens-","stretch, strain",Latin,Latin tendere (past participle tensus),[tend]; at[tend]; ex[tens]ive,ex[tens]ion; in[tens]e; ex[tend]; pre[tend]; [tens]ion; in[tens]ity,,,wikipedia-roots
+col-cultivate-till,root,"col-, cult-","cultivate, till, inhabit",Latin,"Latin colere, cultus",[cult]ure; agri[cult]ure; [cult]ivate,[col]onial; [col]ony; [cult]; [cult]ivation; multi[cult]ural,,,wikipedia-roots
+ut-use,root,"ut-, us-",use,Latin,"Latin uti, usus",[us]e; ab[us]e; [us]ual,[ut]ility; [ut]ilitarian; dis[us]e,,,wikipedia-roots
+sign-sign,root,sign-,sign,Latin,Latin signum,de[sign]; [sign]ificant; [sign]al,[sign]ature; de[sign]ate; in[sign]ia,,,wikipedia-roots
+mand-order-commit,root,"mand-, -mend-","order, commit",Latin,"Latin mandāre, mandātus",de[mand]; com[mand]; recom[mend],[mand]atory; recom[mend]ation; [mand]ate; com[mend]; com[mand]ant; com[mand]ment,,,wikipedia-roots
+jus-law-justice,root,"jus-, jur-","law, justice",Latin,"Latin ius, iuris",[jus]t; [jus]tice; [jur]y,per[jur]y; [jur]isprudence; ab[jur]e,,,wikipedia-roots
+gen-birth-kind,root,gen-,"birth, kind, origin",Latin,"Latin gignere, genitus, genus (genitive generis)",[gen]eration; [gen]der; [gen]erate,[gen]ius; [gen]tle; indi[gen]ous; [gen]us; [gen]ital,,,wikipedia-roots
+poli-city,root,poli-,city,Greek,"Greek πόλις, πόλιος (pólis, pólios)",metro[poli]s; [poli]tics; [poli]ce,cosmo[poli]tan; [poli]ty; geo[poli]tics; [poli]tic; [poli]s,,,wikipedia-roots
+de-down-away,prefix,de-,"down, away from, removing",Latin,Latin dē,[de]scend; [de]crease; [de]cline,[de]clare; [de]cay; [de]mentia; [de]dicate,,related,wikipedia-roots
+teg-cover,root,"teg-, tect-",cover,Latin,"Latin tegere, tectus",pro[tect]; pro[tect]ion; de[tect]ive,pro[tect]ive; de[tect]ion; de[tect]; de[tect]or; pro[tect]or; de[tect]able,,,wikipedia-roots
+par-order-prepare,root,par-,"order, prepare, provide, procure",Latin,Latin parare,se[par]ate; pre[par]e; pre[par]ation,[par]ade; se[par]ation; ap[par]atus; pre[par]atory; [par]ry; dis[par]ate,,,wikipedia-roots
+ment-mind,root,ment-,mind,Latin,"Latin mens, mentis",[ment]al; de[ment]ia; [ment]ality,me[ment]o; de[ment],,,wikipedia-roots
+erg-work,root,"erg-, org-, urg-",work,Greek,Greek ϝέργον (wérgon),en[erg]y; [erg]onomic; s[urg]eon,[org]anize; all[erg]ic; en[erg]etic; all[erg]y; [org]anism,,,wikipedia-roots
+vari-vary,root,vari-,vary,Latin,Latin variare,[vari]ous; [vari]ety; [vari]able,[vari]ation; [vari]ant; [vari]ance; in[vari]ant; [vari]etal; in[vari]ance,,,wikipedia-roots
+ori-rise,root,"ori-, ort-",rise,Latin,"Latin oriri, ortus",[ori]gin; [ori]ent; [ori]ginal,[ori]entation; ab[ori]ginal; [ori]ental; [ori]ginate; [ori]ginality,,,wikipedia-roots
+vinc-conquer,root,"vinc-, vict-",conquer,Latin,Latin vincere (past participle victus),[vict]ory; pro[vinc]e; con[vinc]e,[vict]or; con[vict]ion; [vict]orious; con[vict]; in[vinc]ible; e[vict],,,wikipedia-roots
+opt-choose,root,opt-,choose,Latin,Latin optare,[opt]ion; ad[opt]; [opt]ional,ad[opt]ion; [opt]; ad[opt]ive; ad[opt]ee; [opt]ative,,,wikipedia-roots
+crit-judge-separate,root,"crit-, crisi-","judge, separate",Greek,"Greek κρίνειν (krínein), κρίσις (krísis), κρίμα (kríma)",[crit]ical; [crisi]s; [crit]icism,[crit]ic; [crit]ique; [crit]erion; hypo[crit]e; [crit]icise; dia[crit]ic,,,wikipedia-roots
+ser-attach-join,root,ser-,"attach, join",Latin,"Latin serere, sertus",[ser]ies; in[ser]t; as[ser]t,dis[ser]tation; as[ser]tion; [ser]mon; in[ser]tion,,,wikipedia-roots
+quer-search-seek,root,"quer-, -quir-, quesit-, -quisit-","search, seek",Latin,"Latin quaerere, quaesītus",re[quir]e; in[quir]y; [quer]y,ac[quir]e; con[quer]; ex[quisit]e; in[quir]e,,,wikipedia-roots
+crea-make,root,crea-,make,Latin,"Latin creare, creatus",[crea]tive; [crea]tion; [crea]tor,[crea]ture; re[crea]tion; pro[crea]tion,,,wikipedia-roots
+merc-reward-wages,root,merc-,"reward, wages, hire",Latin,Latin merx (genitive mercis),com[merc]ial; com[merc]e; [merc]y,[merc]hant; [merc]handise; [merc]enary; [merc]antile; noncom[merc]ial,,,wikipedia-roots
+pati-suffer-feel,root,"pati-, pass-","suffer, feel, endure, permit",Latin,"Latin pati, passus",[pati]ent; [pass]ion; [pati]ence,[pass]ionate; [pass]ive; com[pati]ble; com[pass]ion; com[pati]bility; com[pass]ionate,,,wikipedia-roots
+loc-place,root,loc-,place,Latin,"Latin locus, locare",[loc]al; [loc]ation; [loc]ate,[loc]ality; re[loc]ation; re[loc]ate; al[loc]ate; [loc]us; [loc]ator,,,wikipedia-roots
+solv-loosen-set,root,"solv-, solut-","loosen, set free",Latin,"Latin solvere, solutus",[solut]ion; ab[solut]e; [solv]e,re[solv]e; dis[solv]e; [solv]ent; re[solut]e; ab[solv]e; [solut]e,,,wikipedia-roots
+claud-close-shut,root,"claud-, -clud-, claus-, -clus-","close, shut",Latin,"Latin claudere, clausus",in[clud]e; ex[clus]ive; [claus]e,con[clud]e; ex[clud]e; re[clus]e; oc[clus]ion; [claus]trophobia; se[clud]e,,,wikipedia-roots
+chem-chemistry-drug,root,chem(o)-,"chemistry, drug",Greek,Greek χημεία (khēmeía),[chem]ical; [chem]istry; [chemo]therapy,,,related,wikipedia-medical
+cor-heart,root,"cor-, cord-",heart,Latin,"Latin cor, cordis",[cord]ial; ac[cord]; re[cor]d,con[cor]d; dis[cor]d; dis[cor]dant; con[cor]dance,,related,wikipedia-roots
+val-strength-worth,root,val-,"strength, worth",Latin,Latin valere,[val]ue; equi[val]ent; [val]id,e[val]uate; [val]iant; [val]or; [val]ence; ambi[val]ence,,,wikipedia-roots
+labor-work,root,labor-,work,Latin,Latin labor,[labor]; [labor]atory; col[labor]ation,e[labor]ate; col[labor]ative; col[labor]ate; col[labor]ator; e[labor]ation; [labor]ious,,,wikipedia-roots
+electr-amber-hence,root,electr-,amber; hence electricity,Greek,Greek ἤλεκτρον (ḗlektron),[electr]ic; [electr]onic; [electr]icity,[electr]on; [electr]omagnetic; [electr]olyte; [electr]olysis; poly[electr]olyte,,,wikipedia-roots
+test-witness,root,test-,witness,Latin,Latin testis,con[test]; pro[test]; [test]imony,[test]ament; [test]ify; at[test]; de[test],,,wikipedia-roots
+ur-urine-urinary,root,ur-,"urine, the urinary system",Greek,"Greek οὐρέω, οὐρεῖν (ouréō, oureîn); οὖρον (oûron), urine",[ur]ethra; [ur]ology; di[ur]etic,[ur]eter; [ur]emic; en[ur]esis; di[ur]esis; antidi[ur]etic,,y,wikipedia-medical
+sequ-follow,root,"sequ-, secut-",follow,Latin,"Latin sequi, secutus ""to follow""",sub[sequ]ent; [sequ]ence; con[secut]ive,con[sequ]ence; [sequ]el; pro[secut]e; ob[sequ]ious,,,wikipedia-roots
+pet-strive-toward,root,pet-,strive toward,Latin,Latin petere,com[pet]ition; com[pet]e; [pet]ition,ap[pet]ite; re[pet]ition; im[pet]us; [pet]ulant,,,wikipedia-roots
+dent-teeth,root,dent-,teeth,Latin,"Latin dens, dentis, tooth",[dent]al; [dent]ist; [dent]ition,,,related,wikipedia-medical
+cern-sift,root,"cern-, cer-",sift,Latin,"Latin cernere ""to sift, separate""",[cer]tain; con[cern]; con[cer]t,as[cer]tain; dis[cern],,,wikipedia-roots
+plac-please,root,"plac-, plea-",please,Latin,"Latin placēre, placitus",[plea]se; [plea]sure; [plea],[plac]ebo; com[plac]ent; [plac]id; dis[plea]se,,,wikipedia-roots
+fibr-fiber,root,fibr-,fiber,Latin,"Latin fibra, fiber, filament, entrails",[fibr]osis; [fibr]oblast; [fibr]in,[fibr]il,,y,wikipedia-medical
+plan-flat,root,plan-,flat,Latin,Latin plānus,[plan]; [plan]e; ex[plan]ation,ex[plan]atory; [plan]ar; es[plan]ade; co[plan]ar; de[plan]e; [plan]arian,,,wikipedia-roots
+hab-have,root,"hab-, -hib-, habit-, -hibit-",have,Latin,"Latin habere ""to have"", habitus ""habit"", habitare ""to live (reside)""",ex[hib]ition; [hab]it; ex[hib]it,re[hab]ilitation; [hab]itat; pro[hib]ition; pro[hib]it; in[hib]ition; in[hib]it,,,wikipedia-roots
+dermat-skin,root,"dermat(o)-, derm(o)-",skin,Greek,"Greek δέρμα, δέρματος (dérma, dérmatos), skin, human skin",[dermato]logy; epi[derm]is; hypo[derm]ic,,,y,wikipedia-medical
+st-stand-cause,root,st-,"stand, cause to stand",Greek,"Greek ἵστημι histēmi, histánai, στατικός, στάσις, στατήρ, στήλη",[st]atic; sy[st]em; ec[st]asy,sy[st]emic; ec[st]atic; meta[st]atic; [st]asis; apo[st]asy,,,wikipedia-roots
+andr-man,root,andr-,a man,Greek,"Greek ἀνήρ, ἀνδρ- (anḗr, andr-), male",[andr]oid; [andr]ogen,[andr]ology,,related,wikipedia-medical
+priv-own,root,priv-,own,Latin,"Latin privus, privare, privatus",[priv]ate; [priv]acy; [priv]ilege,[priv]y; de[priv]ation; de[priv]e; [priv]ateer; [priv]ation; [priv]ity,,,wikipedia-roots
+nom-arrangement-law,root,nom-,"arrangement, law, order",Greek,"Greek νόμος (nómos), νομή",eco[nom]y; eco[nom]ics; auto[nom]y,auto[nom]ous; astro[nom]y; poly[nom]ial; taxo[nom]y; gastro[nom]y; metro[nom]e,,,wikipedia-roots
+acr-top-tip,root,acr(o)-,"top, tip, extremity",Greek,"Greek ἄκρος (ákros) ""topmost, at the tip""",[acr]obat; [acr]onym; [acr]opolis,[acr]ophobia; [acr]omegaly,,,curated
+osis-condition-process,suffix,-osis,"condition, process or disease",Greek,"Greek -ωσις (-ōsis), state, abnormal condition, action",psych[osis]; osteopor[osis]; phagocyt[osis],,,related,wikipedia-medical
+bal-throw,root,"bal-, bel-, bol-",throw,Greek,"Greek βάλλειν (bállein), βολή (bolḗ), βλῆμα (blêma)",[bal]listic; sym[bol]; meta[bol]ism,meta[bol]ic; sym[bol]ism; hyper[bol]ic; sym[bol]ize,,,wikipedia-roots
+tex-weave,root,"tex-, text-",weave,Latin,"Latin texere, textus",[tex]t; con[tex]t; [tex]ture,[tex]tile; pre[tex]t,,,wikipedia-roots
+oxy-sharp-acid,root,oxy-,"sharp, acid, acute; oxygen",Greek,"Greek ὀξύς (oxús) ""sharp, sour""",[oxy]gen; [oxy]moron; [oxy]tocin,,,related,wikipedia-medical
+gen-birth-origin,root,"gen-, gon-","birth, origin, kind",Greek,Greek γίγνεσθαι (gígnesthai),[gen]etic; [gen]esis; hydro[gen],[gen]ocide; [gen]ealogy; homo[gen]eous; anti[gen]; patho[gen],,related,wikipedia-roots
+ordin-order,root,ordin-,order,Latin,"Latin ōrdō, ordinis",[ordin]ary; extra[ordin]ary; co[ordin]ator,co[ordin]ation; co[ordin]ate; [ordin]ance; sub[ordin]ate; [ordin]ation; [ordin]ate,,,wikipedia-roots
+camp-field,root,camp-,field,Latin,"Latin campus ""field"", ""level ground""",[camp]aign; [camp]; [camp]us,[camp]site; en[camp]ment; [camp]o; de[camp]; [camp]esino; en[camp],,,wikipedia-roots
+cyt-cell,root,"cyt(o)-, -cyte",cell,Greek,"Greek κύτος (kútos), a hollow, vessel",[cyto]plasm; [cyto]kine; leuko[cyt]e,,,related,wikipedia-medical
+the-put,root,the-,put,Greek,Greek τιθέναι (tithénai),[the]sis; hypo[the]sis; syn[the]sis,[the]matic; pros[the]tic; anti[the]sis,,,wikipedia-roots
+prim-first,root,prim-,first,Latin,Latin primus,[prim]ary; [prim]e; [prim]itive,[prim]er; [prim]al; [prim]ate; [prim]ordial; [prim]rose; [prim]acy,,related,wikipedia-roots
+arm-weapon,root,arm-,weapon,Latin,Latin arma,[arm]y; [arm]s; [arm]or,[arm]ory; [arm]istice; dis[arm]; [arm]ament; re[arm],,,wikipedia-roots
+ba-step,root,ba-,to step,Greek,Greek βαίνειν (baínein),[ba]sis; [ba]se; acro[ba]t,acro[ba]tic; adia[ba]tic; aero[ba]tic; ana[ba]sis,,,wikipedia-roots
+plic-fold,root,plic-,fold,Latin,"Latin plicare, plicatus",ap[plic]ation; ap[plic]able; ex[plic]it,re[plic]a; ap[plic]ant; re[plic]ate; im[plic]it; re[plic]ation; com[plic]ation,,,wikipedia-roots
+civ-citizen,root,civ-,citizen,Latin,Latin civis,[civ]il; [civ]ilian; [civ]ilization,[civ]ic; [civ]ility,,,wikipedia-roots
+memor-remember,root,memor-,remember,Latin,Latin memor,[memor]y; [memor]ial; [memor]able,com[memor]ate; [memor]andum; [memor]abilia; im[memor]ial,,,wikipedia-roots
+sist-cause-stand,root,sist-,cause to stand,Latin,Latin sistere,as[sist]; re[sist]; in[sist],con[sist]; per[sist]; de[sist]; sub[sist],,,wikipedia-roots
+gnosis-knowledge-recognition,suffix,-gnosis,"knowledge, recognition",Greek,"Greek γνῶσις (gnôsis), inquiry, knowledge",dia[gnosis]; pro[gnosis],,,related,wikipedia-medical
+sum-take,root,"sum-, sumpt-",take,Latin,"Latin sumere, sumptus",as[sum]e; con[sum]ption; as[sum]ption,con[sum]e; pre[sum]ption; sub[sum]e,,,wikipedia-roots
+fa-say-speak,root,fa-,"say, speak",Latin,Latin fārī,[fa]te; [fa]me; in[fa]nt,in[fa]ntry; pre[fa]ce; de[fa]mation; in[fa]ncy; [fa]ble,,,wikipedia-roots
+oma-tumor-mass,suffix,-oma,"tumor, mass, fluid collection",Greek,Greek -μα (-ma),carcin[oma]; melan[oma]; sarc[oma],terat[oma],,y,wikipedia-medical
+tribu-pay,root,tribu-,pay,Latin,"Latin tribuere ""to pay"", from tribus",con[tribu]te; dis[tribu]te; at[tribu]te,re[tribu]tion; [tribu]tary; [tribu]te,,,wikipedia-roots
+norm-carpenter-square,root,norm-,carpenter's square,Latin,Latin norma,[norm]al; e[norm]ous; [norm],ab[norm]al; [norm]ative; [norm]ality; ab[norm]ality; e[norm]ity; sub[norm]al,,,wikipedia-roots
+pan-bread,root,pan-,bread,Latin,Latin pānis,com[pan]y; com[pan]ion; [pan]try,accom[pan]iment; [pan]nier; em[pan]ada; [pan]ettone,,,wikipedia-roots
+opsy-examination-inspection,suffix,-opsy,examination or inspection,Greek,"Greek ὄψῐς (ópsis), view",aut[opsy]; bi[opsy]; necr[opsy],,,related,wikipedia-medical
+ure-act-process,suffix,-ure,"act, process or result",Latin,Latin -ura,fail[ure]; press[ure]; script[ure],,,,curated
+liter-letter,root,liter-,letter,Latin,Latin littera,[liter]ature; [liter]ary; [liter]acy,[liter]al; il[liter]ate; [liter]ate; il[liter]acy; ob[liter]ate; al[liter]ation,,,wikipedia-roots
+flu-flow,root,"flu-, fluv-, flux-",flow,Latin,"Latin fluere, fluxus",[flu]id; in[flu]x; [flu]ent,[flu]x; af[flu]ent; con[flu]ence; [flu]ency,,,wikipedia-roots
+tang-touch,root,"tang-, -ting-, tact-, tag-",touch,Latin,Latin tangere (past participle tactus),con[tact]; in[tact]; con[ting]ent,[tang]ible; con[tag]ious; con[ting]ency; [tang]ent; [tact]ile,,,wikipedia-roots
+rhin-nose,root,rhin(o)-,nose,Greek,"Greek ῥίς, ῥῑνο- (rhís, rhīno-), nose",[rhino]ceros; [rhino]plasty,[rhino]virus,,y,wikipedia-medical
+simil-likeness-imitating,root,"simil-, simul-","likeness, imitating",Latin,"Latin simulare ""to emulate"", from similis ""alike""",[simil]ar; [simul]ation; [simul]ator,[simil]arity; [simul]taneous; [simul]ate; as[simil]ate; [simil]e; veri[simil]itude,,,wikipedia-roots
+flect-bend,root,"flect-, flex-",bend,Latin,"Latin flectere, flexus",re[flect]; re[flect]ion; [flex]ible,[flex]; re[flex]; de[flect]; in[flect]ion; [flex]ion; [flex]or,,,wikipedia-roots
+migr-wander,root,migr-,wander,Latin,Latin migrare,im[migr]ation; [migr]ation; im[migr]ant,[migr]ant; [migr]ate; e[migr]ation; [migr]atory; e[migr]ate; e[migr]ant,,,wikipedia-roots
+ac-relating,suffix,-ac,relating to,Greek,Greek -ακός (-akós),cardi[ac]; celi[ac],,,y,wikipedia-medical
+liber-free,root,liber-,free,Latin,"Latin liber, liberare",[liber]al; [liber]ty; [liber]ation,[liber]tarian; [liber]ate; [liber]ator; [liber]tine; il[liber]al; [liber]alize,,,wikipedia-roots
+mir-wonder-amazement,root,mir-,"wonder, amazement",Latin,"Latin mirus, miror, mirari, miratus sum",[mir]ror; [mir]acle; ad[mir]e,ad[mir]ation; ad[mir]able; [mir]aculous; [mir]age,,,wikipedia-roots
+prot-first,root,prot-,first,Greek,Greek πρῶτος (prôtos),[prot]ein; [prot]ocol; [prot]otype,[prot]agonist; [prot]on; [prot]oplasm; anti[prot]on,,related,wikipedia-roots
+merge-dip-plunge,root,"merge-, mers-","dip, plunge",Latin,Latin mergere,e[merge]ncy; e[merge]; [merge],e[merge]nce; im[mers]ion; im[mers]ive; e[merge]nt; im[mers]e; sub[mers]ible,,,wikipedia-roots
+exo-outside,prefix,exo-,outside,Greek,"Greek ἔξω (éxō), outside of, external",[exo]skeleton; [exo]tic; [exo]planet,,,related,wikipedia-medical
+tude-state-quality,suffix,-tude,"state, quality",Latin,Latin -tudo,soli[tude]; grati[tude]; magni[tude],,,,curated
+curr-run-course,root,"curr-, curs-","run, course",Latin,"Latin currere, cursus",[curr]ent; [curr]ency; con[curr]ent,ex[curs]ion; [curs]or; [curs]ory; re[curs]ive; [curs]ive; re[curs]ion,,,wikipedia-roots
+journ-day-daily,root,journ-,"day, daily",Latin,Latin diurnus (also spelled journe),[journ]al; [journ]ey; [journ]alist,[journ]eyman; so[journ]; ad[journ],,,wikipedia-roots
+therap-treatment,root,therap-,treatment,Greek,Greek θερᾰπείᾱ (therapeíā),[therap]eutic; hydro[therap]y,,,related,wikipedia-medical
+vac-empty,root,vac-,empty,Latin,Latin vacare,[vac]ation; [vac]uum; [vac]ant,[vac]ancy; e[vac]uate; [vac]ate; [vac]uous,,,wikipedia-roots
+ced-move-yield,root,"ced-, cess-","move, yield, go, surrender",Latin,"Latin cedere, cessus",suc[cess]; pro[ced]ure; pro[cess]ion,con[ced]e; pre[ced]e; [ced]e; se[ced]e; re[ced]e; ac[ced]e,,,wikipedia-roots
+ly-loosen-dissolve,root,"ly-, lysi-, lyt-","loosen, dissolve",Greek,"Greek λύειν (lúein), λυτός (lutós), λυτικός (lutikós), λύσις (lúsis)",ana[ly]sis; cata[ly]st; meta-ana[ly]sis,para[ly]sis; ana[ly]se; ana[ly]tic; dia[ly]sis; cata[ly]tic; electro[ly]te,,,wikipedia-roots
+domin-master,root,domin-,master,Latin,"Latin dominus ""master""; (from domus ""house"")",[domin]ant; [domin]ate; [domin]ance,[domin]ation; [domin]ion; pre[domin]ant; [domin]o; con[domin]ium; [domin]atrix,,,wikipedia-roots
+ory-place-for,suffix,"-ory, -orium",place for; relating to,Latin,"Latin -orius, -orium",observat[ory]; audit[orium]; mandat[ory],,,,curated
+hyster-womb-uterus,root,hyster(o)-,womb or the uterus,Greek,"Greek ὑστέρα (hustéra), womb",[hyster]ia; [hyster]ectomy,,,y,wikipedia-medical
+lev-lift-light,root,lev-,"lift, light, raise",Latin,"Latin levare ""lighten, raise"", from levis ""light"" (in weight)",e[lev]ator; e[lev]ation; [lev]erage,[lev]y; [lev]er; al[lev]iate; e[lev]ate; [lev]ee; al[lev]iation,,,wikipedia-roots
+gluco-sweet,root,gluco-,sweet,Greek,"Greek γλυκύς (glukús), sweet",[gluco]se; [gluco]corticoid,,,y,wikipedia-medical
+sol-alone-only,root,sol-,"alone, only",Latin,Latin solus,[sol]o; [sol]e; [sol]itary,[sol]itude; de[sol]ate; de[sol]ation; [sol]itaire; [sol]iloquy,,,wikipedia-roots
+doc-teach,root,"doc-, doct-",teach,Latin,"Latin docere, doctus",[doc]tor; [doc]ument; [doc]trine,[doc]ile; in[doc]trination; in[doc]trinate,,,wikipedia-roots
+lact-milk,root,lact(o)-,milk,Latin,"Latin lac, milk",[lact]ose; [lact]ation,,,y,wikipedia-medical
+aug-grow-increase,root,"aug-, auct-","grow, increase",Latin,"Latin augēre, auctus ""to increase""",[aug]ment; [auct]ion; [aug]ust,[aug]mentation,,,wikipedia-roots
+lepsis-attack-seizure,suffix,"-lepsis, -lepsy, -leps-","attack, seizure",Greek,"Greek λῆψις (lêpsis), seizure",epi[lepsy]; narco[lepsy],,,y,wikipedia-medical
+in-on,prefix,"in-, il-, im-","in, on",Latin,Latin in,[in]vade; [im]port; [in]sert,[il]luminate; [in]cur,,,wikipedia-roots
+firm-firm-strong,root,firm-,"firm, strong",Latin,"Latin firmus, firmāre",[firm]; con[firm]; con[firm]ation,af[firm]; in[firm]; [firm]ament,,,wikipedia-roots
+gam-marriage-union,root,gam-,"marriage, union",Greek,"Greek γάμος (gámos) ""marriage""",mono[gam]y; poly[gam]y; bi[gam]y,[gam]ete,,,curated
+ali-other,root,"ali-, alter-",other,Latin,"Latin alius ""another"", alter ""other""",[ali]en; [alter]nate; [alter],[ali]as; [ali]bi,,,wikipedia-roots
+anim-breath-life,root,anim-,"breath, life, soul, spirit",Latin,"Latin anima ""breath"", ""soul""",[anim]al; [anim]ation; in[anim]ate,[anim]us; equ[anim]ity; [anim]ism,,,wikipedia-roots
+don-give,root,don-,give,Latin,"Latin dōnum, donare",[don]ate; [don]ation; [don]or,par[don]; con[don]e; [don]ator,,,wikipedia-roots
+gyno-woman,root,"gyno-, gynaeco-, gyneco-",woman,Greek,"Greek γυνή, γυναικ (gunḗ, gunaik)",[gynaeco]logy; [gyneco]mastia,,,y,wikipedia-medical
+ile-able-relating,suffix,-ile,able to; relating to,Latin,Latin -ilis,fert[ile]; frag[ile]; juven[ile],,,,curated
+plaud-approve-clap,root,"plaud-, -plod-, plaus-, -plos-","approve, clap",Latin,"Latin plaudere, plausus",ex[plos]ion; ap[plaus]e; ex[plod]e,[plaus]ible; ap[plaud]; im[plod]e; [plaud]its,,,wikipedia-roots
+met-above-among,prefix,"met-, meta-","above, among, beyond",Greek,Greek μετά (metá),[meta]phor; [meta]morphosis; [met]hod,[met]eor; [met]aphysics; [met]astatic; [met]amorphic; [meta]carpal,,related,wikipedia-roots
+ver-true,root,ver-,true,Latin,Latin verus,[ver]y; [ver]dict; [ver]ify,[ver]ity; a[ver]; [ver]isimilitude,,,wikipedia-roots
+equ-even-equal,root,"equ-, -iqu-","even, equal, level",Latin,Latin aequus,[equ]al; [equ]ity; [equ]ilibrium,[equ]ate; [equ]ivalence; [equ]inox; in[iqu]ity; [equ]animity; [equ]ivocal,,,wikipedia-roots
+leg-send,root,leg-,send,Latin,Latin legare (from legis),[leg]acy; de[leg]ation; de[leg]ate,al[leg]ation; re[leg]ation; [leg]ation; [leg]ate; re[leg]ate,,,wikipedia-roots
+line-line,root,line-,line,Latin,Latin linea,[line]; [line]ar; [line]age,non[line]ar; de[line]ate; [line]arity; de[line]ation; [line]al; [line]a,,,wikipedia-roots
+rect-rectum,root,rect-,rectum,Latin,"Latin rectum intestinum ""straight intestine""",[rect]um; [rect]al,,,y,wikipedia-medical
+quati-shake,root,"quati-, -cuti-, quass-, -cuss-",shake,Latin,Latin quatere,dis[cuss]ion; dis[cuss]; con[cuss]ion,per[cuss]ion; per[cuss]ive; reper[cuss]ion; con[cuss]ive,,,wikipedia-roots
+san-healthy,root,san-,healthy,Latin,Latin sanus,in[san]e; in[san]ity; [san]e,[san]itation; [san]ity; [san]itary; [san]atorium; [san]itarium,,,wikipedia-roots
+form-shaped-like,suffix,-form,shaped like,Latin,"Latin fōrma, form, shape",cruci[form]; cunei[form]; vermi[form],,,related,wikipedia-medical
+sper-hope,root,sper-,hope,Latin,"Latin spes, sperare",de[sper]ate; pro[sper]ity; pro[sper]ous,de[sper]ation; pro[sper]; de[sper]ado; e[sper]ance,,,wikipedia-roots
+dur-hard,root,dur-,hard,Latin,"Latin durus, durare",[dur]ation; en[dur]e; en[dur]ance,[dur]able; [dur]ability; [dur]ess; [dur]a; sub[dur]al; [dur]al,,,wikipedia-roots
+iatry-medical-treatment,suffix,-iatry,medical treatment,Greek,"Greek ἰατρός (iatrós), healer, physician",psych[iatry]; pod[iatry],,,y,wikipedia-medical
+ple-fill,root,"ple-, plet-",fill,Latin,Latin plere,com[ple]te; im[ple]ment; com[ple]ment,re[ple]te; de[ple]te,,,wikipedia-roots
+pen-punish,root,"pen-, poen-, puni-",punish,Latin,"Latin punire ""punish"" (earlier poenire), from poena ""punishment""",[pen]alty; [puni]sh; [pen]al,[puni]tive; sub[poen]a; im[puni]ty; [pen]itentiary,,,wikipedia-roots
+oste-bone,root,oste(o)-,bone,Greek,"Greek ὀστέον (ostéon), bone",[oste]oporosis; [oste]oarthritis,,,y,wikipedia-medical
+nav-ship,root,nav-,ship,Latin,Latin nāvis,[nav]y; [nav]al; [nav]igate,[nav]e; [nav]igable; [nav]icular,,,wikipedia-roots
+oid-like-resembling,suffix,-oid,"like, resembling",Greek,"Greek -οειδής (-oeidḗs), from εἶδος (eîdos) ""form""",human[oid]; aster[oid]; andr[oid],thyr[oid]; aden[oid],,related,curated
+nomen-name,root,"nomen-, nomin-",name,Latin,"Latin nomen, nominis",[nomin]ation; [nomin]ee; [nomin]al,[nomin]ate; de[nomin]ation; [nomen]clature; de[nomin]ator; de[nomin]ational; [nomin]ative,,,wikipedia-roots
+vov-vow,root,"vov-, vot-",vow,Latin,"Latin vovere, votus",[vot]e; de[vot]ion; de[vot]e,de[vot]ional; de[vot]ee; [vot]ive,,,wikipedia-roots
+endo-inside-within,prefix,endo-,"inside, within",Greek,"Greek ἔνδον (éndon), inside, internal",[endo]crine; [endo]scope; [endo]skeleton,,,related,wikipedia-medical
+fid-faith-trust,root,"fid-, fis-","faith, trust",Latin,"Latin fidēs ""faith, trust"", from fidere ""to trust""",con[fid]ence; con[fid]ent; [fid]elity,[fid]uciary; in[fid]el; con[fid]ante; dif[fid]ent; per[fid]ious; per[fid]y,,,wikipedia-roots
+can-sing,root,"can-, -cin-, cant-, -cent-",sing,Latin,"Latin canere, cantus",ac[cent]; in[cent]ive; [cant]ata,[can]tor; [can]to; ac[cent]uate; in[can]tation; re[can]t,,,wikipedia-roots
+nect-join-tie,root,"nect-, nex-","join, tie",Latin,"Latin nectere, nexus",con[nect]; [nex]us; an[nex],discon[nect]; an[nex]ation; recon[nect]; intercon[nect]; con[nex]ion,,,wikipedia-roots
+zym-fermentation,root,zym(o)-,fermentation,Greek,"Greek ζύμη (zúmē), leaven, yeast",en[zym]e,lyso[zym]e,,y,wikipedia-medical
+here-cling-stick,root,"here-, hes-","cling, stick",Latin,"Latin haerere, haesus",in[here]nt; [hes]itate; co[here]nt,ad[here]; [hes]itation; [hes]itant; ad[hes]ive; ad[here]nce; co[hes]ive,,,wikipedia-roots
+cycl-circle,root,cycl(o)-,circle,Greek,"Greek κύκλος (kúklos), κυκλικός (kuklikós)",[cycl]e; bi[cycl]e; [cycl]one,[cycl]ic; [cycl]ops; tri[cycl]e; uni[cycl]e; poly[cycl]ic; hetero[cycl]ic,,related,wikipedia-roots
+pell-drive-push,root,"pell-, puls-","drive, push",Latin,"Latin pellere, pulsus",[puls]e; im[puls]e; com[puls]ory,pro[puls]ion; ex[puls]ion; re[puls]ive; re[pell]ent; pro[puls]ive; [puls]ate,,,wikipedia-roots
+loqu-speak,root,"loqu-, locut-",speak,Latin,"Latin loqui, locutus ""to speak""",e[loqu]ent; [loqu]acious; circum[locut]ion,ventri[loqu]ist; col[loqu]ial,,,curated
+her-heir,root,"her-, heir-",heir,Latin,Latin heres (genitive heredis),[her]itage; [heir]; in[her]it,[her]editary; [heir]ess; [her]edity,,,wikipedia-roots
+mening-membrane,root,mening(o)-,membrane,Greek,Greek μῆνῐγξ (mêninx),[mening]itis,[mening]es,,y,wikipedia-medical
+und-wave,root,und-,wave,Latin,Latin unda,ab[und]ance; surro[und]; ab[und]ant,red[und]ant; red[und]ancy; abo[und]; in[und]ation; in[und]ate; [und]ine,,,wikipedia-roots
+arch-ruler-chief,root,"arch-, arche-, archi-","ruler, chief, first",Greek,Greek ἄρχειν (árkhein),[arch]itect; mon[arch]; mon[arch]y,an[arch]y; an[arch]ist; patri[arch]y; an[arch]ism; [arch]angel; [arch]etype,,,wikipedia-roots
+min-jut,root,min-,jut,Latin,Latin minere,pro[min]ent; im[min]ent; e[min]ent,pro[min]ence; e[min]ence; pree[min]ent; pree[min]ence; im[min]ence,,,wikipedia-roots
+adren-adrenal-glands,root,adren-,adrenal glands,Latin,"Latin ad + rēnēs, kidneys",[adren]aline,[adren]ochrome,,y,wikipedia-medical
+mor-custom-disposition,root,mor-,"custom, disposition",Latin,"Latin mos, moris",[mor]al; [mor]ality; [mor]ale,im[mor]al; im[mor]ality; [mor]es; [mor]ose,,,wikipedia-roots
+ule-small,suffix,"-ule, -cule",small,Latin,"Latin -ulus, -culus",mole[cule]; caps[ule]; gran[ule],,,,curated
+fil-thread,root,fil-,thread,Latin,Latin fīlum,pro[fil]e; [fil]e; [fil]ament,[fil]let; de[fil]e; [fil]igree,,,wikipedia-roots
+sarc-flesh,root,sarc(o)-,flesh,Greek,"Greek σάρξ (sárx), flesh",[sarco]ma; [sarc]asm; [sarco]phagus,,,related,wikipedia-medical
+ob-against,prefix,"ob-, o-, oc-, of-, og-, op-, os-",against,Latin,Latin ob,[ob]struct; [op]pose; [oc]cur,[ob]lique; [o]mit; [ob]stinate; [o]stentatious; [o]stensible; [ob]fuscate,,,wikipedia-roots
+put-prune-reckon,root,put-,"prune, reckon",Latin,Latin putāre,re[put]ation; dis[put]e; com[put]e,am[put]ation; [put]ative; im[put]e,,,wikipedia-roots
+tem-cut,root,"tem-, tom-",cut,Greek,Greek τέμνειν (témnein),a[tom]; ana[tom]y; appendec[tom]y,epi[tom]e; [tom]e; dicho[tom]y; [tom]ography; en[tom]ology; dicho[tom]ous,,,wikipedia-roots
+dyna-power,root,dyna-,power,Greek,Greek δύνασθαι (dúnasthai),[dyna]mic; [dyna]sty; [dyna]mite,aero[dyna]mic; [dyna]mo; aero[dyna]mics; [dyna]mism; [dyna]stic,,,wikipedia-roots
+dec-ten-tenth,prefix,"dec-, deca-, deci-",ten; a tenth,Latin and Greek,"Greek δέκα (déka), Latin decem ""ten""",[deca]de; [dec]imal; [deca]thlon,[deci]mate; [deci]bel,,,curated
+spir-breathe,root,spir-,breathe,Latin,Latin spirare,[spir]it; in[spir]e; a[spir]e,re[spir]ation; con[spir]e; per[spir]e,,,wikipedia-roots
+typ-stamp-model,root,typ-,"stamp, model",Greek,Greek τύπτειν (túptein),[typ]e; proto[typ]e; pheno[typ]e,[typ]ography; arche[typ]e; holo[typ]e; [typ]ology; iso[typ]e; logo[typ]e,,,wikipedia-roots
+maj-greater,root,maj-,greater,Latin,"Latin major, majus",[maj]or; [maj]ority; [maj]esty,super[maj]ority,,,wikipedia-roots
+carp-wrist,root,carp-,wrist,Latin and Greek,"Latin carpus < Greek καρπός (karpós), wrist",[carp]al; meta[carp]al,,,y,wikipedia-medical
+cand-glowing-iridescent,root,"cand-, cend-","glowing, iridescent",Latin,"Latin candere ""to be white or glisten""",[cand]idate; [cand]le; [cand]id,in[cend]iary; in[cand]escent; [cand]or; [cand]ela,,,wikipedia-roots
+frag-break,root,"frag-, frang-, -fring-, fract-",break,Latin,"Latin frangere, frāctus",[fract]ion; [frag]ile; [fract]ure,[frag]ment; in[fring]e; [fract]al; in[fract]ion; re[fract]ory; [fract]ious,,,wikipedia-roots
+du-two,root,du-,two,Latin,Latin duo,[du]al; [du]o; [du]et,[du]ality; [du]plex; [du]plicity,,,wikipedia-roots
+rrhea-flowing-discharge,suffix,-rrhea,"flowing, discharge",Greek,"Greek ῥοίᾱ (rhoíā), flow, flux",dia[rrhea],,,y,wikipedia-medical
+pac-peace,root,"pac-, pax-",peace,Latin,"Latin pax, pacis ""peace""",[pac]ify; [pac]ifist; [Pac]ific,,,,curated
+apo-away-from,prefix,apo-,away from,Greek,Greek ἀπό (apó),[apo]logy; [apo]strophe; [apo]calypse,[apo]crine,,related,wikipedia-medical
+fix-attach,root,fix-,attach,Latin,"Latin fīxāre, frequentative of fīgere",[fix]; [fix]ture; [fix]ation,pre[fix]; suf[fix]; af[fix],,,wikipedia-roots
+mon-warn,root,mon-,warn,Latin,"Latin monere, monitus",[mon]itor; [mon]ument; sum[mon],[mon]umental; pre[mon]ition; ad[mon]ition; ad[mon]ish; ad[mon]ishment; pre[mon]itory,,,wikipedia-roots
+pend-hang,root,"pend-, pens-",hang,Latin,"Latin pensare, frequentative of pendere",[pend]ing; sus[pend]; sus[pens]e,[pend]ant; [pend]ulum; ap[pend]; [pens]ive,,,wikipedia-roots
+burs-bursa-fluid,root,burs(o)-,bursa (fluid sac in a joint),Latin and Greek,"Latin bursa, purse; Greek βύρσα (búrsa), hide, wine-skin",[burs]a; [burs]itis,,,y,wikipedia-medical
+vol-will,root,vol-,will,Latin,"Latin voluntas ""will"" from velle ""to wish""",[vol]unteer; [vol]untary; in[vol]untary,bene[vol]ent; male[vol]ent; [vol]ition; bene[vol]ence; [vol]uptuous; male[vol]ence,,,wikipedia-roots
+qui-rest,root,qui-,rest,Latin,"Latin quies, quiētus",[qui]et; [qui]t; re[qui]em,ac[qui]ttal; ac[qui]t; ac[qui]esce; ac[qui]escence; [qui]escent; [qui]etus,,,wikipedia-roots
+feder-treaty-league,root,feder-,"treaty, league",Latin,"Latin foederāre, from foedus (genitive foederis)",[feder]al; [feder]ation; con[feder]ation,con[feder]acy; [feder]ate,,,wikipedia-roots
+pur-pure,root,pur-,pure,Latin,"Latin purare ""to purify"", from purus ""pure""",[pur]e; [pur]ity; [pur]ge,[pur]ify; [pur]ee; im[pur]ity,,,wikipedia-roots
+turb-disturb,root,turb-,disturb,Latin,Latin turba,[turb]ine; dis[turb]ance; dis[turb],[turb]ulence; [turb]ulent; per[turb]ation; [turb]idity; [turb]id; per[turb]ative,,,wikipedia-roots
+escent-becoming-beginning,suffix,-escent,"becoming, beginning to",Latin,"Latin -escens, from verbs in -escere",adol[escent]; fluor[escent]; obsol[escent],,,,curated
+rog-ask,root,rog-,ask,Latin,Latin rogāre,inter[rog]ate; ar[rog]ant; sur[rog]ate,de[rog]atory; pre[rog]ative; ab[rog]ate; de[rog]ation; ar[rog]ate,,,wikipedia-roots
+fund-pour,root,"fund-, fus-",pour,Latin,"Latin fundere, fūsus",[fus]ion; re[fund]; dif[fus]ion,in[fus]ion; trans[fus]ion; per[fus]ion; pro[fus]ion; ef[fus]ive; ef[fus]ion,,,wikipedia-roots
+gastr-stomach,root,gastr-,stomach,Greek,"Greek γαστήρ, γαστρ- (gastḗr, gastr-), stomach, belly",[gastr]ic; [gastr]itis; [gastr]onomy,,,y,wikipedia-medical
+dipl-twofold,root,dipl-,twofold,Greek,"Greek διπλόος (diplóos), δίπλωσις (díplōsis), δίπλωμα (díplōma)",[dipl]omatic; [dipl]oma; [dipl]omacy,[dipl]omat; [dipl]oid; [dipl]opia,,,wikipedia-roots
+plor-cry-out,root,plor-,"cry out, complain",Latin,Latin plorare,ex[plor]e; ex[plor]ation; de[plor]able,ex[plor]atory; im[plor]e; de[plor]e,,,wikipedia-roots
+greg-flock-herd,root,greg-,"flock, herd",Latin,"Latin grex, gregis",ag[greg]ate; con[greg]ation; se[greg]ation,ag[greg]ation; e[greg]ious; con[greg]ational; con[greg]ate; dese[greg]ation; ag[greg]ator,,,wikipedia-roots
+rap-rob-seize,root,rap-,"rob, seize",Latin,"Latin rapere, raptus",[rap]id; [rap]ture; [rap]tor,[rap]t; [rap]turous; [rap]acious; [rap]idity; [rap]acity,,,wikipedia-roots
+pent-five,prefix,"pent-, penta-",five,Greek,"Greek πέντε (pénte) ""five""",[penta]gon; [pent]athlon; [penta]meter,,,,curated
+grav-heavy,root,grav-,heavy,Latin,Latin gravis,[grav]e; [grav]ity; [grav]itational,[grav]itate; ag[grav]ate; ag[grav]ation; [grav]itation; [grav]itas; [grav]id,,,wikipedia-roots
+jung-join,root,"jung-, junct-",join,Latin,"Latin iungo, junctus",[junct]ion; con[junct]ion; in[junct]ion,ad[junct]; [junct]ure; sub[junct]ive; in[junct]ive; con[junct]; dis[junct]ion,,,wikipedia-roots
+men-month-menstrual,root,men-,"month, menstrual cycle",Greek,"Greek μήν (mḗn), month",[men]opause,,,y,wikipedia-medical
+nutri-nourish,root,nutri-,nourish,Latin,Latin nutrire,[nutri]tion; [nutri]tional; [nutri]ent,mal[nutri]tion; [nutri]tious; [nutri]ment,,,wikipedia-roots
+man-stay,root,man-,stay,Latin,"Latin manēre, mansus",per[man]ent; [man]sion; [man]or,per[man]ence; [man]se; imper[man]ence; im[man]ent; [man]orial; imper[man]ent,,,wikipedia-roots
+centr-center,root,centr-,center,Greek,"Greek κεντεῖν, κέντησις, κέντρον (kéntron) ""needle""",[centr]e; ec[centr]ic; [centr]ic,[centr]ist; ego[centr]ic; epi[centr]e; [centr]um; [centr]oid; [centr]ism,,,wikipedia-roots
+angi-blood-vessel,root,angi-,blood vessel,Greek,Greek ἀγγεῖον (angeîon),[angi]oplasty; [angi]ogram,,,y,wikipedia-medical
+later-side,root,later-,side,Latin,"Latin latus, lateris",[later]al; bi[later]al; col[later]al,uni[later]al; multi[later]al; tri[later]al; quadri[later]al; equi[later]al; contra[later]al,,,wikipedia-roots
+rrhage-bursting-forth,suffix,"-rrhage, -rrhagia",bursting forth (of blood),Greek,"Greek -ραγία (-ragía), to break, to burst",hemo[rrhage],,,y,wikipedia-medical
+pater-father,root,"pater-, patr-",father,Greek,"Greek πατήρ, πατρός (patḗr, patrós)",[patr]iot; [pater]nal; [patr]on,[patr]iarch; [patr]iarchy; [patr]onymic; sym[patr]ic; allo[patr]ic,,,wikipedia-roots
+my-muscle,root,my(o)-,muscle,Greek,"Greek μῦς, μυός (mûs, muós) ""mouse; muscle""",[my]algia; [myo]cardium; [my]opathy,,,y,curated
+fort-strong,root,fort-,strong,Latin,Latin fortis,[fort]; [fort]ress; [fort]e,[fort]itude; [fort]ify,,,wikipedia-roots
+top-place-location,root,top-,"place, location",Greek,Greek τόπος (tópos),[top]ic; u[top]ia; [top]ography,[top]ology; iso[top]e; dys[top]ia; ec[top]ic; a[top]ic; [top]iary,,related,wikipedia-roots
+stenosis-narrowing,suffix,-stenosis,narrowing,Greek,Greek στενός (stenós),[stenosis],re[stenosis],,y,wikipedia-medical
+err-stray,root,err-,stray,Latin,Latin errare,[err]or; [err]; [err]atic,[err]oneous; ab[err]ation; [err]ant; ab[err]ant; in[err]ant; [err]atum,,,wikipedia-roots
+tempor-time,root,tempor-,time,Latin,"Latin tempus, temporis",con[tempor]ary; [tempor]ary; [tempor]al,con[tempor]aneous; ex[tempor]aneous,,,wikipedia-roots
+qual-what-kind,root,"qual-, quant-",of what kind; how much,Latin,Latin quantus qualis,[qual]ity; [qual]ify; [quant]ity,[quant]um,,,wikipedia-roots
+mater-mother,root,"mater-, matr-",mother,Latin,"Latin mater, matris",[matr]ix; [mater]nal; [mater]nity,[matr]on; [matr]imony,,,wikipedia-roots
+cav-hollow,root,cav-,hollow,Latin,Latin cavus,[cav]e; [cav]ity; ex[cav]ation,[cav]ern; con[cav]e; [cav]ernous,,,wikipedia-roots
+gram-something-written,suffix,"-gram, -gramme",something written or drawn,Greek,"Greek γράμμα (grámma), picture, letter, writing",dia[gram]; tele[gram]; pro[gram],,,related,wikipedia-medical
+urb-city,root,urb-,city,Latin,"Latin urbs, urbis",[urb]an; sub[urb]an; sub[urb],inter[urb]an; [urb]ane; con[urb]ation; [urb]anity; sub[urb]anite; ex[urb]an,,,wikipedia-roots
+onym-name,root,onym-,name,Greek,Greek ὄνυμα (ónuma),an[onym]ous; syn[onym]ous; acr[onym],syn[onym]; pseud[onym]; ep[onym]ous; syn[onym]y; pseud[onym]ous; ant[onym],,,wikipedia-roots
+rot-wheel,root,rot-,wheel,Latin,"Latin rota, rotāre",[rot]ation; [rot]ary; [rot]ate,[rot]ational; [rot]unda; [rot]ator; [rot]und; [rot]avirus,,,wikipedia-roots
+thromb-blood-clot,root,thromb(o)-,"a blood clot, clotting of blood",Greek,"Greek θρόμβος (thrómbos), lump, piece, clot of blood",[thrombo]cytopenia; [thromb]us,,,y,wikipedia-medical
+judic-judge,root,judic-,judge,Latin,"Latin iudex, iūdicis",[judic]ial; [judic]iary; pre[judic]e,ad[judic]ation; pre[judic]ial; [judic]ious; extra[judic]ial; ad[judic]ate; ad[judic]ator,,,wikipedia-roots
+magn-great-large,root,magn-,"great, large",Latin,Latin magnus,[magn]ificent; [magn]itude; [magn]um,[magn]ate; [magn]ify; [magn]animous; [magn]animity,,,wikipedia-roots
+par-equal,root,par-,equal,Latin,Latin par,com[par]e; [par]; [par]ity,sub[par]; dis[par]age,,,wikipedia-roots
+or-mouth,root,or(o)-,mouth,Latin,"Latin ōs, ōris, mouth",[or]al; [or]ifice,,,related,wikipedia-medical
+aster-star-star,root,"aster-, astr-","star, star-shaped",Greek,"Greek ἀστήρ, ἀστέρος (astḗr, astéros), ἄστρον (ástron) ""star""",[astr]onomy; [astr]onaut; [aster]oid,[astr]ology; [aster]isk; [aster],,,wikipedia-roots
+phag-eat,root,"phag-, -phagia",eat,Greek,"Greek φαγεῖν (phageîn) ""to eat""",eso[phag]us; sarco[phag]us; dys[phag]ia,,,y,curated
+gubern-govern-pilot,root,"gubern-, gov-","govern, pilot",Latin,Latin gubernare,[gov]ernment; [gov]ernor; [gov]ern,[gubern]atorial,,,wikipedia-roots
+drom-running-conduction,root,"drom(o)-, drom(e)-","running, conduction, course",Greek,Greek δρόμος (drómos),syn[drom]e; palin[drom]e; hippo[drom]e,,,related,wikipedia-medical
+ambi-both-on,prefix,"ambi-, am-, amb-, ambo-, an-","both, on both sides",Latin,Latin ambi,[ambi]dextrous; [ambi]guous; [ambi]valent,[am]putation; [ambi]t,,related,wikipedia-roots
+gnosc-know,root,"gnosc-, -gnit-",know,Latin,Latin gnoscere,reco[gnit]ion; co[gnit]ive; co[gnit]ion,inco[gnit]o; preco[gnit]ion; co[gnosc]enti,,,wikipedia-roots
+nerv-nerve,root,nerv-,nerve,Latin and Greek,"Latin nervus, tendon, nerve; cognate with Greek νεῦρον (neûron)",[nerv]e; [nerv]ous; in[nerv]ate,,,related,wikipedia-medical
+torqu-twist,root,"torqu-, tort-",twist,Latin,"Latin torquere, tortus",[tort]ure; [torqu]e; ex[tort]ion,dis[tort]; re[tort]; ex[tort]; [tort]uous; con[tort],,,wikipedia-roots
+reg-king,root,"reg-, rex-",king,Latin,Latin rex (genitive regis),[reg]al; [reg]icide; [reg]alia,,,,wikipedia-roots
+cry-cold,root,cry(o)-,cold,Greek,"Greek κρύος (krúos), cold, frost",[cryo]genic,,,related,wikipedia-medical
+ops-eye,root,"ops-, opt-",eye,Greek,Greek ὄψεσθαι (ópsesthai),[opt]ic; [opt]ician; cycl[ops],syn[opt]ic; pan[opt]icon; di[opt]er,,,wikipedia-roots
+hex-six,prefix,"hex-, hexa-",six,Greek,"Greek ἕξ (héx) ""six""",[hexa]gon; [hex]ameter,,,,curated
+vir-man,root,vir-,man,Latin,Latin vir,[vir]tue; [vir]ile; trium[vir]ate,[vir]tuoso; [vir]tuosity; [vir]ility; [vir]ago,,,wikipedia-roots
+cit-call-start,root,cit-,"call, start",Latin,"Latin citare, frequentative of ciere",[cit]ation; [cit]e; ex[cit]e,in[cit]e; soli[cit]; soli[cit]ous,,,wikipedia-roots
+faci-face,root,faci-,face,Latin,"Latin faciēs, the face, countenance",[faci]al,,,related,wikipedia-medical
+dens-thick,root,dens-,thick,Latin,Latin densus,[dens]ity; [dens]e; con[dens]ation,con[dens]ate; con[dens]e,,,wikipedia-roots
+techn-art-skill,root,techn-,"art, skill",Greek,Greek τίκτειν (tíktein),[techn]ology; [techn]ique; poly[techn]ic,[techn]ocracy; [techn]ocrat,,,wikipedia-roots
+not-letter-mark,root,not-,"letter, mark, note",Latin,Latin notare,[not]able; [not]ation; de[not]e,[not]ary; con[not]ation; an[not]ation; an[not]ate; [not]ability; con[not]e,,,wikipedia-roots
+chol-bile,root,chol(e)-,bile,Greek,"Greek χολή (kholḗ) ""bile""",[chole]sterol; [chol]era; melan[chol]y,,,y,curated
+capit-head,root,"capit-, -cipit-",head,Latin,"Latin caput, capitis",[capit]al; pre[cipit]ation; [capit]ulation,oc[cipit]al; de[capit]ation; pre[cipit]ous; [capit]ulate; de[capit]ate; re[capit]ulate,,related,wikipedia-roots
+fig-form-shape,root,"fig-, fing-, fict-","to form, shape",Latin,"Latin fingere ""to touch, handle; devise; fabricate, alter, change""",[fict]ion; non[fict]ion; [fict]itious,con[fig]ure; [fig]urine; ef[fig]y; [fig]ment; dis[fig]ure; trans[fig]ure,,,wikipedia-roots
+lud-play,root,"lud-, lus-",play,Latin,"Latin ludere, lusus",il[lus]ion; e[lus]ive; [lud]icrous,pre[lud]e; e[lud]e; al[lud]e; col[lud]e; de[lud]e,,,wikipedia-roots
+hem-blood,root,"hem(o)-, hemat(o)-, haem(o)-",blood,Greek,"Greek αἷμα, (grc), blood",[hemo]globin; [hemo]rrhage; [hemat]ology,,,y,wikipedia-medical
+quart-fourth,root,quart-,fourth,Latin,Latin quartus,[quart]er; [quart]et; [quart]ermaster,[quart]; [quart]o; [quart]ile; [quart]ic; inter[quart]ile,,,wikipedia-roots
+sen-old-man,root,sen-,old man,Latin,"Latin senex, senis",[sen]ior; [sen]ator,[sen]ile; [sen]ility; [sen]escent,,,wikipedia-roots
+ect-outside,prefix,ect(o)-,outside,Greek,Greek ἐκτός (ektós),[ecto]derm; [ecto]plasm,,,related,wikipedia-medical
+carn-flesh,root,carn-,flesh,Latin,"Latin caro, carnis",[carn]ival; in[carn]ation; [carn]age,rein[carn]ation; in[carn]ate; [carn]al; [carn]ation; [carn]ivore; rein[carn]ate,,,wikipedia-roots
+hum-ground,root,hum-,ground,Latin,"Latin humus, humare",[hum]ble; [hum]ility; [hum]iliation,[hum]iliate; [hum]us; [hum]ic; ex[hum]ation; ex[hum]e; in[hum]ation,,,wikipedia-roots
+phan-show-visible,root,"phan-, phen-","to show, visible",Greek,Greek φαίνειν (phaínein),[phen]omenon; [phan]tom; epi[phan]y,[phen]otype; trypto[phan]; [phan]tasm; syco[phan]t; [phen]ology; dia[phan]ous,,,wikipedia-roots
+crani-skull,root,crani(o)-,skull,Greek,"Greek κρανίον (kraníon) ""skull""",[crani]al; [crani]um; [cranio]tomy,,,y,curated
+tachy-fast,root,tachy-,fast,Greek,"Greek τᾰχῠ́ς (takhús), fast, quickly",[tachy]cardia; [tachy]pnea,,,y,wikipedia-medical
+numer-number,root,numer-,number,Latin,Latin numerus,[numer]ous; [numer]ical; in[numer]able,[numer]al; e[numer]ation; [numer]acy; [numer]o; e[numer]ate; [numer]ator,,,wikipedia-roots
+grat-thank-please,root,grat-,"thank, please",Latin,Latin grātus,[grat]itude; con[grat]ulate; [grat]ification,[grat]uitous; [grat]is; con[grat]ulatory; [grat]uity; in[grat]itude; [grat]ify,,,wikipedia-roots
+vest-clothing-garment,root,vest-,"clothing, garment",Latin,"Latin vestire ""to clothe"", related to vestis ""garment""",in[vest]; [vest]; tra[vest]y,di[vest]; [vest]ibule; trans[vest]ite; in[vest]iture; [vest]ment,,,wikipedia-roots
+dom-house,root,dom-,house,Latin,Latin domus,[dom]estic; [dom]e; [dom]icile,[dom]estication; [dom]esticity; [dom]esticate; [dom]iciliary,,,wikipedia-roots
+kine-movement-motion,root,"kine-, cine-","movement, motion",Greek,"Greek κινεῖν (kineîn), κίνησις (kínēsis), κίνημα (kínēma)",[cine]ma; [cine]matic; [kine]tic,[kine]tics; [kine]matics; tele[kine]sis; [kine]siology; [kine]sthetic; dys[kine]sia,,related,wikipedia-roots
+corn-horn,root,corn-,horn,Latin,Latin cornū,[corn]er; uni[corn],[corn]ea; [corn]eal; [corn]ucopia; tri[corn]; tri[corn]e,,,wikipedia-roots
+nan-dwarf-billionth,root,nan(o)-,dwarf; a billionth,Greek,"Greek νᾶνος (nânos), dwarf",[nano]second; [nano]technology,,,related,wikipedia-medical
+oct-eight,prefix,"oct-, octa-, octo-",eight,Latin and Greek,"Latin octo, Greek ὀκτώ (oktṓ) ""eight""",[octa]gon; [octo]pus; [oct]ave,[oct]et,,,curated
+volv-roll,root,"volv-, volut-",roll,Latin,"Latin volvere, volutus",in[volv]e; e[volv]e; re[volv]e,de[volv]e; con[volut]ion; coe[volut]ion; [volv]ulus,,,wikipedia-roots
+chro-color,root,"chro-, chrom-",color,Greek,Greek χρῶμα (khrôma),[chrom]osome; mono[chrom]e; [chrom]atic,[chro]ma; mono[chro]matic; poly[chro]me; di[chro]ic,,related,wikipedia-roots
+arthr-joints-limbs,root,arthr-,"joints, limbs",Greek,"Greek ἄρθρον (árthron), a joint, limb",[arthr]itis; [arthr]opod,,,y,wikipedia-medical
+calc-calcium-stone,root,calc-,"calcium, stone",Latin and Greek,"Latin and Greek from Latin calx (genitive calcis) ""lime""",[calc]ulate; [calc]ium; [calc]ulus,[calc]ite; re[calc]itrant,,,wikipedia-roots
+lax-not-tense,root,lax-,"not tense, slack",Latin,"Latin laxus, laxare",re[lax]; re[lax]ation; [lax],[lax]ative; re[lax]ant; [lax]ity,,,wikipedia-roots
+cerebr-brain,root,cerebr(o)-,brain,Latin,"Latin cerebrum ""brain""",[cerebr]al; [cerebr]um; [cerebro]spinal,,,y,curated
+pasc-feed,root,"pasc-, past-",feed,Latin,"Latin pāscere, pāstus",[past]or; [past]oral; [past]ure,[past]el; [past]orate; re[past]; anti[past]o; [past]urage; [past]orale,,,wikipedia-roots
+phren-mind,root,"phren-, phrenic-",the mind,Greek,"Greek φρήν (phrḗn), intellect, wits, mind",schizo[phren]ia,,,y,wikipedia-medical
+cosm-universe,root,cosm-,universe,Greek,Greek κόσμος (kósmos),[cosm]ic; [cosm]os; [cosm]opolitan,[cosm]ology; micro[cosm]; [cosm]onaut; [cosm]ogony,,,wikipedia-roots
+monstra-show,root,monstra-,show,Latin,Latin monstrāre,de[monstra]te; de[monstra]tion,de[monstra]tor; de[monstra]tive; de[monstra]ble; re[monstra]te; re[monstra]nce; [monstra]nce,,,wikipedia-roots
+schiz-split,root,schiz(o)-,split,Greek,"Greek σχῐ́ζω (skhízō), to split, cleave, part",[schizo]phrenia; [schis]m,,,related,wikipedia-medical
+gran-grain,root,gran-,grain,Latin,Latin grānum,[gran]ary; [gran]ule; [gran]ite,[gran]ular; [gran]ola; pome[gran]ate; [gran]ularity,,,wikipedia-roots
+pot-power,root,pot-,power,Latin,"Latin potere ""be powerful"", from potis ""powerful, able""",[pot]ential; [pot]ent; im[pot]ent,des[pot]; [pot]entate,,,wikipedia-roots
+rad-scrape-shave,root,"rad-, ras-","scrape, shave",Latin,"Latin rādere, rāsus",e[ras]e; ab[ras]ive; e[ras]er,e[ras]ure; ab[ras]ion; [ras]ter; [rad]ula; ab[rad]e; [ras]e,,,wikipedia-roots
+pulmon-lungs,root,"pulmon-, pulmo-",lungs,Latin,"Latin pulmō, a lung",[pulmon]ary,,,y,wikipedia-medical
+troph-nourishment-growth,root,"troph-, -trophy","nourishment, growth",Greek,"Greek τροφή (trophḗ) ""nourishment""",a[troph]y; hyper[troph]y; dys[troph]y,,,y,curated
+ten-stretch,root,"ten-, ton-",stretch,Greek,Greek τείνειν (teínein),[ton]e; mono[ton]ous; [ton]ic,mono[ton]e; mono[ton]y; cata[ton]ic; dys[ton]ia; penta[ton]ic,,,wikipedia-roots
+vir-poison-venom,root,vir-,"poison, venom",Latin,Latin vīrus,[vir]us; [vir]al,[vir]ulent; [vir]ulence; retro[vir]us; retro[vir]al; rota[vir]us; [vir]ality,,,wikipedia-roots
+nas-nose,root,nas(o)-,nose,Latin,"Latin nāsus, nose",[nas]al,,,y,wikipedia-medical
+string-tight-upright,root,"string-, strict-","tight, upright, stiff",Latin,"Latin stringere, strictus",[strict]; re[strict]; [string]ent,a[string]ent; con[strict],,,wikipedia-roots
+idi-own-peculiarity,root,idi-,"own, peculiarity",Greek,"Greek ϝίδιος, ἴδιος (ídios), ""private, personal, one's own""",[idi]om; [idi]osyncrasy; [idi]ot,[idi]osyncratic; [idi]opathic,,,wikipedia-roots
+neur-nerve-sinew,root,neur-,"nerve, sinew",Greek,Greek νεῦρον (neûron),[neur]al; [neur]ology; [neur]on,[neur]otic; [neur]ologist; [neur]osurgery; [neur]opathy; [neur]osurgeon; [neur]osis,,,wikipedia-roots
+prob-worthy-good,root,prob-,"worthy, good",Latin,"Latin probare ""prove to be worthy"", probus",[prob]e; [prob]ation; [prob]able,[prob]ity; ap[prob]ation; re[prob]ate; disap[prob]ation,,,wikipedia-roots
+son-sound,root,son-,sound,Latin,Latin sonus,re[son]ance; re[son]ate; super[son]ic,[son]ata; re[son]ant; ultra[son]ic; con[son]ant; dis[son]ance; [son]net,,,wikipedia-roots
+quint-five-fifth,prefix,"quint-, quinque-","five, fifth",Latin,"Latin quintus ""fifth"", quinque ""five""",[quint]et; [quint]essence; [quint]uple,,,,curated
+bacteri-bacteria,root,bacteri-,bacteria,Latin and Greek,"Latin bacterium; Greek βακτήριον (baktḗrion), small staff",[bacteri]a; [bacteri]al; anti[bacteri]al,,,related,wikipedia-medical
+lab-slide-slip,root,"lab-, laps-","slide, slip",Latin,"Latin labi, lapsus",col[laps]e; [laps]e; re[laps]e,col[laps]ible; pro[laps]e; [lab]ile; e[laps]e,,,wikipedia-roots
+scand-climb,root,"scand-, -scend-, scans-, -scens-",climb,Latin,Latin scandere,de[scend]; a[scens]ion; a[scend],tran[scend]; tran[scend]ental; tran[scend]ent; tran[scend]ence; conde[scens]ion; de[scend]ent,,,wikipedia-roots
+athl-contest,root,athl-,contest,Greek,"Greek ἆθλος (âthlos) ""contest, feat"", ἄεθλος",[athl]etic; [athl]ete; tri[athl]on,dec[athl]on; pent[athl]on,,,wikipedia-roots
+ren-kidney,root,ren(o)-,kidney,Latin,"Latin rēn, rēnes, kidney",[ren]al,,,y,wikipedia-medical
+fund-bottom,root,fund-,bottom,Latin,"Latin fundāre ""to found"", from fundus ""bottom, foundation""",[fund]; [fund]amental,[fund]amentalism; pro[fund]ity; [fund]ament,,,wikipedia-roots
+dog-opinion-tenet,root,"dog-, dox-","opinion, tenet",Greek,"Greek δοκεῖν (dokeîn) ""to appear, seem, think""",ortho[dox]; para[dox]; [dog]ma,[dog]matic; hetero[dox]; [dog]matism; [dox]ology,,,wikipedia-roots
+ag-lead,root,ag-,lead,Greek,"Greek ἄγειν (ágein) (cognate with Latin agere), ἀγωγός (agōgós)",ped[ag]ogy; dem[ag]ogue; syn[ag]ogue,ant[ag]onize; ped[ag]ogue,,,wikipedia-roots
+pan-all-every,prefix,"pan-, pant(o)-","all, every",Greek,"Greek πᾶς, παν- (pâs, pan-), all, every",[pan]demic; [pan]orama; [pan]acea,,,related,wikipedia-medical
+nem-arrangement-law,root,"nem-, nom-","distribute, allot",Greek,"Greek νέμειν (némein) ""to distribute, allot; to pasture""",[nem]esis; [nom]ad; [nom]adic,[nom]adism,,,wikipedia-roots
+lith-stone,root,lith-,stone,Greek,"Greek λίθος (líthos) ""stone""",mono[lith]; neo[lith]ic; [lith]ium,[litho]graphy,,related,curated
+coron-crown,root,coron-,crown,Latin,"Latin corona, coronare",[coron]ation; [coron]er; [coron]a,[coron]avirus; [coron]et,,,wikipedia-roots
+glob-sphere,root,glob-,sphere,Latin,Latin globus,[glob]al; [glob]e,[glob]ular; [glob]ulin; [glob]ose; [glob]ule,,,wikipedia-roots
+ary-relating,suffix,-ary,relating to,Latin,Latin -arius,milit[ary]; second[ary]; coron[ary],,,,wikipedia-medical
+magnet-lodestone,root,magnet-,lodestone,Greek,"Greek μάγνης, μάγνητος (mágnēs, mágnētos)",[magnet]ic; [magnet]; [magnet]ism,[magnet]ite; geo[magnet]ic; [magnet]ometer; electro[magnet]; para[magnet]ic; [magnet]ize,,,wikipedia-roots
+poie-make,root,"poie-, poe-",make,Greek,"Greek ποιϝέω, ποιεῖν (poieîn)",[poe]m; [poe]t; [poe]tic,onomato[poe]ia; [poe]sy,,,wikipedia-roots
+ov-egg,root,ov-,egg,Latin,Latin ovum,[ov]al; [ov]arian,[ov]ulation; [ov]ary; [ov]ate; [ov]um; [ov]iduct; ob[ov]ate,,,wikipedia-roots
+lumin-light,root,lumin-,light,Latin,"Latin lumen, luminis, luminare",il[lumin]ation; il[lumin]ate; [lumin]ous,il[lumin]ati; [lumin]osity; [lumin]ance; [lumin]escence; [lumin]escent; [lumin]ary,,,wikipedia-roots
+avi-bird,root,"avi-, au-",bird,Latin,Latin avis,[avi]ation; [avi]an; [au]spicious,[avi]ator; [avi]ary,,,wikipedia-roots
+uter-uterus-womb,root,uter(o)-,uterus or womb,Latin,"Latin uterus, womb, uterus",[uter]us,,,y,wikipedia-medical
+pyr-fire-fever,root,pyr(o)-,"fire, fever",Greek,"Greek πῦρ (pûr) ""fire""",[pyro]technics; [pyr]e; anti[pyr]etic,[pyro]mania,,related,curated
+misc-mix,root,"misc-, mixt-",mix,Latin,"Latin miscere, mixtus",[mixt]ure; [misc]ellaneous,pro[misc]uous; pro[misc]uity; ad[mixt]ure; [misc]ellany; [misc]ellanea; [misc]ible,,,wikipedia-roots
+clin-lean-recline,root,clin-,"lean, recline",Latin,Latin -clinare,de[clin]e; in[clin]ation; in[clin]e,re[clin]e; de[clin]ation,,,wikipedia-roots
+hom-same,root,hom(o)-,same,Greek,Greek ὁμός (homós),[homo]geneous; [homo]nym; [homo]logous,[hom]ophobia; [hom]ology; [hom]ily; [hom]ozygous,,related,wikipedia-roots
+fl-blow,root,"fl-, fla-",blow,Latin,"Latin flāre, flātus",in[fla]te; de[fla]te; [fla]tulence,con[fl]ate; insuf[fl]ation,,,wikipedia-roots
+sever-stern-strict,root,sever-,"stern, strict, serious",Latin,Latin severus,[sever]e; [sever]ity; per[sever]ance,per[sever]e,,,wikipedia-roots
+damn-inflict-loss,root,"damn-, -demn-",to inflict loss upon,Latin,"Latin damnum, damnāre",con[demn]; con[demn]ation,[damn]ation; in[demn]ity; in[demn]ify,,,wikipedia-roots
+cruc-cross,root,cruc-,cross,Latin,"Latin crux, crucis",[cruc]ial; [cruc]ifixion; [cruc]ifix,[cruc]ify; [cruc]iate; [cruc]iform; [cruc]iferous,,,wikipedia-roots
+fall-false-deceive,root,"fall-, fallac-, fals-","false, deceive",Latin,"Latin fallere, falsus, fallāx, fallācis",[fals]e; [fall]acy; [fall]ible,[fals]etto; [fall]acious; [fals]ify; [fals]ity,,,wikipedia-roots
+per-through-thoroughly,prefix,"per-, pel-","through, thoroughly",Latin,Latin per,[per]fect; [per]sist; [per]meate,[per]use; [per]cutaneous; [per]vade; [pel]lucid,,related,wikipedia-roots
+ot-ear,root,ot(o)-,ear,Greek,"Greek οὖς, ὠτός (oûs, ōtós) ""ear""",[ot]itis; [oto]scope; [oto]laryngology,,,y,curated
+onco-tumor-bulk,root,onco-,"tumor, bulk, volume",Greek,Greek ὄγκος (ónkos),[onco]logy; [onco]logist,,,y,wikipedia-medical
+hospit-host,root,hospit-,host,Latin,"Latin hospes, hospitis",[hospit]al; [hospit]ality,[hospit]able; in[hospit]able,,,wikipedia-roots
+carbon-coal,root,carbon-,coal,Latin,"Latin carbo, carbonis",[carbon]; [carbon]ate,radio[carbon]; bi[carbon]ate; [carbon]ation; [carbon]ara,,,wikipedia-roots
+mes-middle,root,mes(o)-,middle,Greek,"Greek μέσος (mésos), middle, between, half",[meso]sphere; [meso]derm; [meso]morph,,,related,wikipedia-medical
+paed-child,root,"paed-, ped-",child,Greek,"Greek παῖς, παιδός (paîs, paidós), παιδικός (paidikós)",[ped]iatric; [ped]agogy; encyclo[ped]ia,ortho[ped]ic; [paed]iatric; [ped]antic; [ped]agogue,,related,wikipedia-roots
+circ-circle-ring,root,circ-,"circle, ring",Latin,"Latin circulus, circus",[circ]le; [circ]us; [circ]ular,[circ]ulate,,,wikipedia-roots
+lu-wash,root,"lu-, luv-, lut-",wash,Latin,"Latin luere ""to wash""",pol[lu]tion; di[lu]te; di[lu]tion,de[lu]ge; al[lu]vium; ab[lu]tion; e[lu]tion; di[lu]ent; di[lu]tive,,,wikipedia-roots
+orn-decorate,root,orn-,decorate,Latin,Latin ōrnāre,[orn]amental; [orn]ament; [orn]ate,ad[orn]; [orn]amentation; ad[orn]ment; sub[orn],,,wikipedia-roots
+long-long,root,long-,long,Latin,Latin longus,[long]itudinal; [long]itude; pro[long],ob[long]; e[long]ate; e[long]ation; pro[long]ation; [long]a; [long]e,,,wikipedia-roots
+cyst-bladder-sac,root,cyst(o)-,"bladder, sac",Greek,"Greek κύστις (kústis) ""bladder""",[cyst]; [cyst]itis; chole[cyst]ectomy,[cysto]scopy,,y,curated
+fend-strike,root,"fend-, fens-",strike,Latin,"Latin fendere, -fensus",de[fend]; of[fens]e; of[fend],[fend],,,wikipedia-roots
+art-art-skill,root,art-,"art, skill",Latin,"Latin ars, artis",[art]ificial; [art]ifact; [art]isan,[art]ifice; [art]ificiality,,,wikipedia-roots
+morph-form-shape,root,morph-,"form, shape",Greek,Greek μορφή (morphḗ),[morph]ology; meta[morph]osis; a[morph]ous,poly[morph]ism; meta[morph]ic; iso[morph]ic; poly[morph]ic; iso[morph]ism,,related,wikipedia-roots
+emia-blood-condition,suffix,"-emia, -aemia",blood condition (Am. Engl.),Greek,"Greek αἷμα (haîma), ""blood""",an[emia]; leuk[emia]; hypoglyc[emia],,,y,wikipedia-medical
+pand-spread,root,"pand-, pans-",spread,Latin,"Latin pandere, pansus / passus",ex[pans]ion; ex[pand]; ex[pans]ive,ex[pans]e,,,wikipedia-roots
+sorb-suck,root,"sorb-, sorpt-",suck,Latin,Latin sorbere,ab[sorb]; ab[sorpt]ion,ad[sorpt]ion; ab[sorb]ent; [sorpt]ion; re[sorpt]ion; malab[sorpt]ion; ad[sorb]ent,,,wikipedia-roots
+ed-eat,root,"ed-, es-",eat,Latin,"Latin edere, esus",ob[es]ity; ob[es]e; [ed]ible,in[ed]ible; [ed]ibility; [es]carole,,,wikipedia-roots
+ia-condition-especially,suffix,-ia,"condition, especially a disease",Latin and Greek,Latin and Greek,pneumon[ia]; insomn[ia]; anem[ia],,,related,wikipedia-medical
+oper-work,root,oper-,work,Latin,"Latin opus, operis",[oper]ate; [oper]a; co[oper]ate,in[oper]able,,,wikipedia-roots
+ven-vein,root,ven(o)-,vein,Latin,"Latin vena ""vein""",[ven]ous; intra[ven]ous; [ven]ule,,,y,curated
+pung-prick,root,"pung-, punct-",prick,Latin,"Latin pungere, punctus",[punct]uation; [punct]ure; acu[punct]ure,[pung]ent; [punct]ual; ex[pung]e,,,wikipedia-roots
+gno-know,root,gno-,know,Greek,Greek γιγνώσκειν (gignṓskein),dia[gno]sis; pro[gno]sis; a[gno]stic,[gno]sticism; a[gno]sticism; [gno]sis; physio[gno]my; [gno]mon; [gno]mic,,,wikipedia-roots
+carcin-cancer,root,carcin-,cancer,Greek,"Greek καρκίνος (karkínos), crab",[carcin]oma; [carcin]ogen,,,y,wikipedia-medical
+ora-pray-plead,root,ora-,"pray, plead",Latin,"Latin orare ""to pray, plead""",[ora]cle; ad[ora]tion,[ora]tory; [ora]tor; [ora]tion; inex[ora]ble; [ora]torio,,,wikipedia-roots
+orth-straight,root,orth-,straight,Greek,"Greek ὀρθός (orthós), ὀρθότης",[orth]odox; [orth]odoxy; [orth]opedic,[orth]odontist; [orth]odontic; [orth]ographic; [orth]otic; [orth]olog; [orth]ologous,,related,wikipedia-roots
+sali-jump,root,"sali-, -sili-, salt-",jump,Latin,"Latin salire, saltus",re[sili]ence; re[sili]ent; [sali]ent,re[sili]ency; [salt]ire; [sali]ence; [salt]o,,,wikipedia-roots
+sparg-scatter-sprinkle,root,"sparg-, -sperg-, spars-, -spers-","scatter, sprinkle",Latin,Latin spargere,[spars]e; di[spers]e; di[spers]ion,di[spers]al; di[spers]ive; [spars]ity; inter[spers]e,,,wikipedia-roots
+termin-boundary-limit,root,termin-,"boundary, limit, end",Latin,Latin terminus,de[termin]e; [termin]al; [termin]ation,in[termin]able,,,wikipedia-roots
+articul-joint,root,articul-,joint,Latin,Latin articulus,[articul]ate; [articul]ation,,,related,wikipedia-medical
+phleb-vein,root,phleb(o)-,vein,Greek,"Greek φλέψ, φλεβός (phléps, phlebós) ""vein""",[phleb]itis; [phlebo]tomy,,,y,curated
+ger-bear-carry,root,"ger-, gest-","bear, carry",Latin,"Latin gerere, gestus",sug[gest]; di[gest]; [gest]ation,ag[ger],,,wikipedia-roots
+cata-down-against,prefix,"cata-, cat-","down, against, back",Greek,"Greek κατά (katá) ""down, against, back""",[cata]lyst; [cata]strophe; [cat]hode,[cata]ract; [cata]combs; [cat]ion; [cata]comb; [cata]bolism; [cata]bolic,,related,wikipedia-roots
+en-in,prefix,"en-, el-, em-",in,Greek,Greek ἐν (en),[en]ergy; [em]phasis; [en]thusiasm,[el]liptic; [el]lipsis; [en]clitic,,,wikipedia-roots
+lun-moon,root,lun-,moon,Latin,Latin lūna,[lun]ar; [lun]a; [lun]atic,[lun]e; [lun]ette; [lun]ate,,,wikipedia-roots
+mor-foolish-dull,root,mor-,"foolish, dull",Greek,Greek μωρός (mōrós),[mor]on; sopho[mor]e; oxy[mor]on,[mor]onic; sopho[mor]ic; oxy[mor]onic,,,wikipedia-roots
+crine-secrete,suffix,"-crine, crin(o)-",to secrete,Greek,"Greek κρίνω (krínō), separate, divide, discern",endo[crine],,,y,wikipedia-medical
+quot-how-many,root,quot-,"how many, how great",Latin,Latin quotiens,[quot]e; [quot]a,[quot]ient; ali[quot],,,wikipedia-roots
+dors-back,root,dors-,back,Latin,Latin dorsum,en[dors]ement; en[dors]e; [dors]al,[dors]um; [dors]iflexion,,related,wikipedia-roots
+flig-strike,root,"flig-, flict-",strike,Latin,"Latin flīgere, -flīctus",con[flict]; in[flict],af[flict]; pro[flig]ate; pro[flig]acy,,,wikipedia-roots
+alb-white,root,alb-,white,Latin,"Latin albus, white",[alb]ino; [alb]um; [alb]umen,,,related,wikipedia-medical
+arteri-artery,root,arteri(o)-,artery,Greek,"Greek ἀρτηρία (artēría) ""windpipe; artery""",[arteri]al; [arterio]sclerosis,,,y,curated
+non-not,prefix,non-,not,Latin,Latin non,[non]sense; [non]existent; [non]fiction,[non]invasive,,,wikipedia-roots
+rid-laugh,root,"rid-, ris-",laugh,Latin,"Latin ridere ""to laugh"" (past participle risus)",[rid]iculous; [rid]icule,de[ris]ion; de[rid]e; [ris]ible,,,wikipedia-roots
+spher-ball,root,spher-,ball,Greek,Greek σφαῖρα (sphaîra),[spher]e; hemi[spher]e,strato[spher]e; tropo[spher]e; [spher]oid; meso[spher]e; a[spher]ic,,,wikipedia-roots
+strat-army,root,strat-,army,Greek,"Greek στρατός (stratós), στρατηγία (stratēgía)",[strat]egy; [strat]egic; [strat]egist,[strat]agem,,,wikipedia-roots
+vi-way,root,vi-,way,Latin,Latin via,[vi]a; ob[vi]ous; de[vi]ate,ob[vi]ate,,,wikipedia-roots
+trud-thrust,root,"trud-, trus-",thrust,Latin,"Latin trudere, trusus",in[trus]ion; in[trus]ive,in[trud]e; ex[trus]ion; pro[trud]e; pro[trus]ion; ob[trus]ive; abs[trus]e,,,wikipedia-roots
+umbilic-navel-umbilicus,root,umbilic-,"navel, the umbilicus",Latin,"Latin umbilīcus, navel, belly-button",[umbilic]al,,,y,wikipedia-medical
+thorac-chest,root,thorac(o)-,chest,Greek,"Greek θώραξ, θώρακος (thṓrax, thṓrakos) ""breastplate, chest""",[thorac]ic; [thoraco]tomy; [thoraco]scopy,,,y,curated
+noc-hurt-harm,root,noc-,"hurt, harm",Latin,Latin nocere,in[noc]ent; in[noc]ence; in[noc]uous,[noc]iceptive; [noc]iception; [noc]ebo,,,wikipedia-roots
+zo-animal-living,root,zo-,"animal, living being",Greek,"Greek ζῶ, ζῷον (zôion)",[zo]o; [zo]diac; [zo]ology,proto[zo]a; [zo]on; crypto[zo]ology,,related,wikipedia-roots
+glauc-grey-bluish,root,glauc(o)-,grey or bluish-grey colour,Greek,"Greek γλαυκός (glaukós), grey, bluish-grey",[glauco]ma,,,y,wikipedia-medical
+integr-whole-complete,root,integr-,"whole, complete",Latin,"Latin in-, teg-",[integr]ation; [integr]al; [integr]ate,dis[integr]ate,,,wikipedia-roots
+cardi-heart,root,cardi-,heart,Greek,Greek καρδιά (kardiá),[cardi]ac; [cardi]ology; [cardi]ologist,[cardi]omyopathy; electro[cardi]ogram; myo[cardi]um; peri[cardi]um; electro[cardi]ography; [cardi]oid,,y,wikipedia-roots
+alt-high-deep,root,alt-,"high, deep",Latin,"Latin altus, altitudo",[alt]itude; [alt]o,ex[alt]; [alt]imeter; contr[alt]o,,,wikipedia-roots
+dra-do,root,dra-,do,Greek,Greek δρᾶν (drân),[dra]matic; [dra]stic,melo[dra]matic; [dra]maturgy; mono[dra]ma,,,wikipedia-roots
+ptosis-falling-drooping,suffix,-ptosis,"falling, drooping",Greek,"Greek πτῶσῐς (ptôsis), falling",apo[ptosis],,,y,wikipedia-medical
+plur-more,root,"plur-, plus-",more,Latin,"Latin plus, pluris",[plus]; sur[plus]; [plur]al,[plur]alist,,,wikipedia-roots
+miser-unhappy-wretched,root,miser-,"unhappy, wretched",Latin,Latin miser,[miser]able; [miser]y,[miser]; com[miser]ate; com[miser]ation,,,wikipedia-roots
+cost-rib,root,cost(o)-,rib,Latin,"Latin costa ""rib""",inter[cost]al; [cost]al,,,y,curated
+sacr-sacred,root,"sacr-, -secr-",sacred,Latin,"Latin sacrare, from sacer (genitive sacri)",[sacr]ed; [sacr]ament,[sacr]osanct; con[secr]ate; de[secr]ate,,,wikipedia-roots
+ophthalm-eye,root,ophthalm(o)-,eye,Greek,"Greek ὀφθαλμός (ophthalmós), the eye",[ophthalm]ology; [ophthalm]ic,,,y,wikipedia-medical
+lab-grasp-seize,root,"lab-, lep-","grasp, seize, take",Greek,"Greek λαμβάνειν (lambánein), λῆψις (lêpsis), λῆμμα (lêmma)",epi[lep]sy; syl[lab]le,epi[lep]tic; narco[lep]sy; syl[lab]ic; cata[lep]sy,,,wikipedia-roots
+tag-arrange-order,root,"tag-, tax-","arrange, order",Greek,Greek τάσσειν (tássein),syn[tax]; [tax]is; [tax]onomy,a[tax]ia; chemo[tax]is; syn[tag]ma,,,wikipedia-roots
+somat-body-bodily,root,somat(o)-,"body, bodily",Greek,Greek σῶμα (sôma),[somat]ic; psycho[somat]ic,,,y,wikipedia-medical
+pto-fall,root,pto-,fall,Greek,Greek πίπτειν (píptein),sym[pto]m; sym[pto]matic,apo[pto]sis; asym[pto]matic; [pto]sis,,,wikipedia-roots
+naut-ship,root,naut-,ship,Greek,"Greek ναῦς (naûs), ναύτης (naútēs)",astro[naut]; [naut]ical,[naut]ilus; cosmo[naut]; aero[naut]ic,,,wikipedia-roots
+nuc-nut,root,nuc-,nut,Latin,"Latin nux, nucis",[nuc]lear; [nuc]leus,[nuc]leation; [nuc]leolar; [nuc]leolus; [nuc]leate; e[nuc]leation; supra[nuc]lear,,,wikipedia-roots
+bronch-bronchus,root,bronch(o)-,bronchus,Latin and Greek,"Latin bronchus; Greek βρόγχος (brónkhos), windpipe",[bronch]itis; [bronch]ial,,,y,wikipedia-medical
+haur-draw,root,"haur-, haust-",draw,Latin,"Latin haurire, haustus",ex[haust]; ex[haust]ion; ex[haust]ive,inex[haust]ible,,,wikipedia-roots
+cyan-blue,root,cyan(o)-,blue,Greek,"Greek κύανος (kúanos) ""dark blue""",[cyan]; [cyan]ide; [cyan]osis,,,related,curated
+propri-property-own,root,propri-,property; one's own,Latin,"Latin proprietas ""appropriateness, property, ownership"", from proprius ""one's own""",ap[propri]ate; [propri]etary; [propri]etor,[propri]ety,,,wikipedia-roots
+soph-wise,root,soph-,wise,Greek,Greek σοφός (sophós),philo[soph]y; [soph]isticated; [soph]omore,[soph]istry; [soph]omoric; [soph]ist; philo[soph]ize; [soph]isticate,,,wikipedia-roots
+necr-death,root,necr(o)-,death,Greek,"Greek νεκρός (nekrós), dead body, corpse, dying person",[necro]sis; [necro]polis,,,y,wikipedia-medical
+id-shape-form,root,id-,"shape, form, picture",Greek,"Greek εἶδειν (eîdein), εἶδος (eîdos)",[id]ea; [id]ol; kale[id]oscope,[id]olatry; [id]yll; e[id]olon; e[id]etic; e[id]os; pare[id]olia,,,wikipedia-roots
+bibl-book,root,bibl-,book,Greek,"Greek βίβλος (bíblos), βιβλίον (biblíon) ""book""",[bibl]e; [bibl]iography,[bibl]iographic; [bibl]iophile,,,wikipedia-roots
+trep-turn,root,"trep-, trop-",turn,Greek,Greek τρέπειν (trépein),[trop]ic; en[trop]y; [trop]hy,psycho[trop]ic; iso[trop]ic; aniso[trop]y; [trop]osphere; en[trop]ic,,,wikipedia-roots
+pi-kind-devout,root,pi-,"kind, devout, pity",Latin,Latin pius,[pi]ty; [pi]ous; [pi]ety,im[pi]ous; ex[pi]ate,,,wikipedia-roots
+luc-bright-light,root,luc-,"bright, light",Latin,"Latin lūx (genitive lūcis), lucere",[luc]id; trans[luc]ent,e[luc]idate; [luc]ent; [luc]idity; e[luc]idation; [luc]iferase; trans[luc]ency,,,wikipedia-roots
+gon-corner-angle,root,gon-,"corner, angle, knee",Greek,"Greek γωνία (gōnía), γόνυ (gónu)",penta[gon]; poly[gon],hexa[gon]; tri[gon]ometry; tri[gon],,,wikipedia-roots
+tox-arrow-bow,root,tox-,"arrow, bow, poison",Greek,Greek τόξον (tóxon),[tox]ic; [tox]in; neuro[tox]in,[tox]oplasmosis; anti[tox]in; in[tox]icate; [tox]oid,,related,wikipedia-roots
+kerat-horn-cornea,root,kerat(o)-,horn; cornea,Greek,"Greek κέρας, κέρατος (kéras, kératos) ""horn""",[kerat]in; [kerato]sis,,,y,curated
+curv-bent,root,curv-,bent,Latin,"Latin curvus ""crooked, curved"", from curvare ""to bend""",[curv]e; [curv]ature,[curv]aceous; [curv]ilinear; re[curv]e,,,wikipedia-roots
+home-similar,root,home(o)-,similar,Greek,"Greek ὅμοιος (homoios), like, resembling, similar",[homeo]stasis; [homeo]pathy,,,related,wikipedia-medical
+heter-different-other,root,heter(o)-,"different, other",Greek,Greek ἕτερος (héteros),[hetero]geneous; [hetero]dox; [hetero]sexual,[heter]osexuality; [heter]ochromatin; [heter]odoxy; [heter]osis,,related,wikipedia-roots
+man-madness-obsession,root,"man-, mant-","madness, obsession",Greek,"Greek μαίνεσθαι (maínesthai), μανία (manía), μανικός (manikós), μάντις",[man]ia; [man]ic; [man]iac,megalo[man]ia; pyro[man]iac; klepto[man]ia; hypo[man]ia; pyro[man]ia; mono[man]ia,,,wikipedia-roots
+hol-whole,root,hol-,whole,Greek,"Greek ὅλος (hólos), ὁλικός (holikós)",[hol]istic; [hol]ocaust; cat[hol]ic,[hol]ography; [hol]omorphic; [hol]ism,,,wikipedia-roots
+sep-rot,root,sep-,rot,Greek,Greek σήψ (sḗps),[sep]tic; [sep]sis,anti[sep]tic; [sep]ia; a[sep]tic,,,wikipedia-roots
+led-hurt-strike,root,"led-, les-, -lid-, -lis-","hurt, strike",Latin,"Latin laedere, laesus, -lidere",col[lis]ion; col[lid]e; [les]ion,e[lis]ion; e[lid]e,,,wikipedia-roots
+chir-hand,root,"chir-, cheir-",hand,Greek,"Greek χείρ, χειρο- (kheír, kheiro-), hand",[chir]opractor; [chir]opody,,,y,wikipedia-medical
+plas-mould,root,plas-,mould,Greek,Greek πλάσσειν (plássein),[plas]tic; [plas]ma; proto[plas]m,[plas]tique; [plas]tron,,,wikipedia-roots
+mend-defect-fault,root,mend-,"defect, fault",Latin,"Latin mendax ""lying, a liar"", from menda ""defect, fault""",a[mend]ment; a[mend],[mend]acity; [mend]acious; e[mend],,,wikipedia-roots
+penia-lack-deficiency,suffix,-penia,"lack, deficiency",Greek,"Greek πενία (penía) ""poverty""",osteo[penia]; neutro[penia]; thrombocyto[penia],,,y,curated
+isch-restriction,root,isch-,restriction,Greek,"Greek ἴσχω (ískhō), hold back, restrain",[isch]emia,,,y,wikipedia-medical
+av-desire,root,av-,desire,Latin,"Latin avere ""crave, long for""",[av]id; [av]arice,[av]aricious; [av]idity,,,wikipedia-roots
+melan-black-dark,root,melan-,"black, dark",Greek,"Greek μέλας, μέλανος (mélas, mélanos), μελανότης",[melan]choly; [melan]oma; [melan]in,[melan]cholic; [melan]ocyte,,related,wikipedia-roots
+hypn-sleep,root,hypn-,sleep,Greek,Greek ὕπνος (húpnos),[hypn]osis; [hypn]otic,[hypn]otize; [hypn]otist; [hypn]otherapy; [hypn]agogic,,,wikipedia-roots
+cutane-skin,root,cutane-,skin,Latin,Latin cutis,sub[cutane]ous; [cutane]ous,,,y,wikipedia-medical
+sol-sun,root,sol-,sun,Latin,"Latin sol, solis",[sol]ar; [sol]stice,[sol]arium; in[sol]ation; extra[sol]ar,,,wikipedia-roots
+mim-repeat,root,mim-,repeat,Greek,"Greek μιμεῖσθαι (mimeîsthai), μιμητικός (mimētikós), μίμος (mímos)",[mim]ic; [mim]e; panto[mim]e,[mim]etic; [mim]esis; [mim]eograph,,,wikipedia-roots
+veh-carry,root,"veh-, vect-",carry,Latin,"Latin vehere ""to carry"", vectus",[veh]icle; [vect]or,[veh]ement; in[vect]ive,,,wikipedia-roots
+ather-gruel-fatty,root,ather-,gruel; fatty deposit,Greek,"Greek ἀθήρα (athḗra) ""gruel""",[ather]osclerosis,,,y,wikipedia-medical
+gel-freeze,root,gel-,freeze,Latin,Latin gelum,[gel]atin; [gel]ato; [gel]id,[gel]atinous; [gel]ati; [gel]ignite; [gel]ation,,,wikipedia-roots
+lingu-language-tongue,root,lingu-,"language, tongue",Latin,Latin lingua,bi[lingu]al; [lingu]istics; multi[lingu]al,[lingu]al; sub[lingu]al; [lingu]ine; tri[lingu]al,,related,wikipedia-roots
+hal-breathe,root,"hal-, -hel-",breathe,Latin,"Latin halare, halatus",in[hal]e; in[hal]ation; ex[hal]e,ex[hal]ation; in[hal]ant,,,wikipedia-roots
+aur-ear,root,aur-,ear,Latin,"Latin auris, the ear",[aur]al; [aur]icle,,,y,wikipedia-medical
+iatr-heal,root,iatr-,heal,Greek,Greek ἰᾶσθαι (iâsthai),psych[iatr]ist; psych[iatr]y,pod[iatr]ist; pod[iatr]y; [iatr]ogenic,,,wikipedia-roots
+prehend-grasp,root,"prehend-, prend-, prehens-",grasp,Latin,"Latin prehendere, prehensus",com[prehens]ive; com[prehend]; ap[prehend],,,,wikipedia-roots
+popul-people,root,popul-,people,Latin,"Latin populus, populare",[popul]ar; [popul]ation; [popul]ous,,,,wikipedia-roots
+scler-hard-hardening,root,scler(o)-,"hard, hardening",Greek,Greek σκληρός (sklērós),athero[scler]osis; [scler]osis; [scler]a,,,y,wikipedia-medical
+calyp-cover,root,calyp-,cover,Greek,Greek καλύπτειν (kalúptein),apo[calyp]se; apo[calyp]tic; eu[calyp]tus,eu[calyp]t,,,wikipedia-roots
+liqu-flow,root,liqu-,flow,Latin,Latin liquere,[liqu]id; [liqu]or,[liqu]eur; [liqu]efy,,,wikipedia-roots
+chlor-green,root,chlor(o)-,green,Greek,"Greek χλωρός (khlōrós), green, yellow-green",[chlor]ophyll; [chlor]ine,,,related,wikipedia-medical
+arbit-judge,root,arbit-,judge,Latin,"Latin arbiter (from ad ""to"" + baetere ""to come, go"")",[arbit]rary; [arbit]ration,[arbit]er; [arbit]rage,,,wikipedia-roots
+tum-be-swollen,root,tum-,be swollen,Latin,Latin tumere,[tum]or; [tum]ultuous,[tum]ult; [tum]ulus; [tum]escent; [tum]escence,,,wikipedia-roots
+col-colon,root,"col(o)-, colon(o)-",colon,Greek,Greek κόλον (kólon),[colon]oscopy; [col]itis,,,y,wikipedia-medical
+pne-blow-breathe,root,"pne-, pneum(o)-","blow, breathe, lung",Greek,"Greek πνεῖν (pneîn), πνεῦμα (pneûma), πνεύμων (pneúmōn)",[pne]umonia; [pne]umatic; a[pne]a,[pne]umonic,,y,wikipedia-roots
+pharmac-drug-medicine,root,pharmac-,"drug, medicine",Greek,Greek φάρμακον (phármakon),[pharmac]y; [pharmac]ology; [pharmac]eutical,[pharmac]odynamics; [pharmac]eutics; [pharmac]ogenetics,,related,wikipedia-roots
+sangui-blood,root,"sangui-, sanguine-",blood,Latin,"Latin sanguis, blood",[sangui]ne; con[sangui]nity,,,related,wikipedia-medical
+streph-turn,root,"streph-, stroph-, strob-, stromb-",turn,Greek,"Greek στρέφειν (stréphein), στρεπτός (streptós), στροφή (strophḗ)",cata[stroph]ic; cata[stroph]e,apo[stroph]e; [stroph]e; [stroph]ic,,,wikipedia-roots
+crypt-hide-hidden,root,crypt-,"hide, hidden",Greek,"Greek κρύπτειν (krúptein) ""to hide"", κρυπτός (kruptós)",[crypt]ic; [crypt],[crypt]ography; [crypt]ology; [crypt]analysis; [crypt]osystem,,,wikipedia-roots
+eth-custom-habit,root,eth-,"custom, habit",Greek,"Greek ἐθεῖν (etheîn), ἦθος (êthos)",[eth]ics; [eth]ic; [eth]os,[eth]ology,,,wikipedia-roots
+stasis-stopping-standing,suffix,-stasis,"stopping, standing",Greek,"Greek στᾰ́σῐς (stásis), to stand, place, set",homeo[stasis],,,y,wikipedia-medical
+libr-book,root,libr-,book,Latin,"Latin liber, libri",[libr]ary; [libr]arian,[libr]etto; inter[libr]ary,,,wikipedia-roots
+spin-thorn,root,spin-,thorn,Latin,Latin spina,[spin]e; [spin]al,[spin]el; [spin]ous,,,wikipedia-roots
+hod-way,root,hod-,way,Greek,Greek ὁδός (hodós),met[hod]; met[hod]ology; cat[hod]e,,,,wikipedia-roots
+vigil-watchful,root,vigil-,watchful,Latin,"Latin vigil, also vigilare",[vigil]ant; [vigil]ante; [vigil],[vigil]ance,,,wikipedia-roots
+vin-wine,root,vin-,wine,Latin,Latin vinum,[vin]e; [vin]egar,[vin]aigrette; [vin]ous,,,wikipedia-roots
+eco-house-household,root,eco-,"house, household",Greek,Greek οἶκος (oîkos),[eco]nomy; [eco]logy; [eco]system,,,,wikipedia-roots
+speir-sow,root,"speir-, spor-",sow,Greek,Greek σπείρω (speírō),dia[spor]a; [spor]adic; [spor]e,[spor]ophyte; [spor]angium,,,wikipedia-roots
+aesthe-feeling-sensation,root,"aesthe-, esthe-","feeling, sensation",Greek,Greek αἴσθησις (aísthēsis),[aesthe]tic; an[esthe]sia; syn[esthe]sia,,,related,wikipedia-medical
+vill-country-house,root,vill-,country house,Latin,Latin villa,[vill]age; [vill]a; [vill]ain,,,,wikipedia-roots
+gon-seed-semen,root,gon-,"seed, semen; reproductive",Greek,"Greek γόνος (gónos), fruit, seed, procreating",[gon]orrhea,,,y,wikipedia-medical
+plen-full,root,plen-,full,Latin,Latin plenus,[plen]ty; [plen]ary; re[plen]ish,[plen]itude,,,wikipedia-roots
+gloss-tongue,root,"gloss-, glot-",tongue,Greek,"Greek γλῶσσα (glôssa), γλωττίς (glōttís)",[gloss]; [gloss]ary; poly[glot],epi[glot]tis; [glot]tis,,related,wikipedia-roots
+milit-soldier,root,milit-,soldier,Latin,"Latin mīles, militis",[milit]ary; [milit]ia; [milit]ant,,,,wikipedia-roots
+ectomy-surgical-removal,suffix,-ectomy,surgical removal,Greek,"Greek ἐκτομή (ektomḗ), excision",mast[ectomy]; append[ectomy]; tonsill[ectomy],,,y,wikipedia-medical
+can-reed-rod,root,can-,"reed, rod",Greek,"Greek κάννα (kánna), κανών (kanṓn)",[can]on; [can]e; [can]ister,[can]onic,,,wikipedia-roots
+host-enemy,root,host-,enemy,Latin,Latin hostis,[host]ile; [host]ility,,,,wikipedia-roots
+mast-breast,root,mast(o)-,breast,Greek,"Greek μαστός (mastós), breast, woman's breast, man's pectoral muscle",[mast]ectomy; [mast]itis,,,y,wikipedia-medical
+maxim-greatest,root,maxim-,greatest,Latin,Latin maximus,[maxim]um; [maxim]; [maxim]al,,,,wikipedia-roots
+scen-booth-tent,root,scen-,"booth, tent",Greek,Greek σκηνή (skēnḗ),[scen]e; [scen]ic,pro[scen]ium; [scen]ography,,,wikipedia-roots
+scoli-twisted,root,scoli(o)-,twisted,Greek,"Greek σκολιός (skoliós), curved, bent",[scolio]sis,,,y,wikipedia-medical
+clam-cry-out,root,clam-,cry out,Latin,Latin clamare,pro[clam]ation; re[clam]ation; ex[clam]ation,[clam]or,,,wikipedia-roots
+prior-former,root,prior-,former,Latin,Latin prior,[prior]; [prior]ity; [prior]y,,,,wikipedia-roots
+alg-pain,root,"alg-, algesi-, -algia",pain,Greek,Greek ἄλγος (álgos),an[algesi]c; neur[alg]ia; my[alg]ia,,,y,wikipedia-medical
+sanc-holy,root,sanc-,holy,Latin,Latin sancire (past participle sanctus),[sanc]tuary; [sanc]tion,sacro[sanc]t; [sanc]tify,,,wikipedia-roots
+aev-age,root,"aev-, ev-",age,Latin,Latin aevum,medi[ev]al; long[ev]ity,prim[ev]al; co[ev]al,,,wikipedia-roots
+hepat-liver,root,hepat-,liver,Greek,"Greek ἧπαρ, ἥπατος (hêpar, hḗpatos), ἡπατικός (hēpatikós)",[hepat]itis; [hepat]ic; [hepat]ology,[hepat]ocyte,,y,wikipedia-roots
+bell-war,root,"bell-, belli-",war,Latin,"Latin bellum, belli",re[bell]ion; [bell]igerent,ante[bell]um; [bell]icose,,,wikipedia-roots
+sit-food-grain,root,sit-,"food, grain, wheat",Greek,"Greek σῖτος, σίτου (sîtos, sítou)",para[sit]e; para[sit]ic,para[sit]ism; para[sit]oid,,,wikipedia-roots
+do-give,root,do-,give,Greek,Greek διδόναι (didónai),[do]se; anti[do]te; anec[do]te,,,,wikipedia-roots
+schem-plan,root,schem-,plan,Greek,Greek σχῆμα (skhêma),[schem]e; [schem]a; [schem]atic,,,,wikipedia-roots
+urg-press-drive,root,urg-,"press, drive",Latin,"Latin urgere ""to press, drive""",[urg]ent; [urg]e; [urg]ency,,,,wikipedia-roots
+se-away-apart,prefix,"se-, sed-","away, apart",Latin,Latin se,[se]parate; [se]duce; [se]cede,[se]ditious,,,wikipedia-roots
+narr-tell,root,narr-,tell,Latin,Latin narrare,[narr]ative; [narr]ator; [narr]ation,,,,wikipedia-roots
+glaci-ice,root,glaci-,ice,Latin,Latin glacies,[glaci]er; [glaci]al,[glaci]ation; [glaci]s,,,wikipedia-roots
+mne-memory,root,mne-,memory,Greek,"Greek μνᾶσθαι (mnâsthai), μνήμη (mnḗmē)",a[mne]sty; a[mne]sia,[mne]monic; ana[mne]sis,,,wikipedia-roots
+enter-intestine,root,enter(o)-,intestine,Greek,"Greek ἔντερον (énteron), intestine",gastro[entero]logy,,,y,wikipedia-medical
+gymn-nude,root,gymn-,nude,Greek,Greek γυμνός (gumnós),[gymn]astics; [gymn]asium; [gymn]ast,,,,wikipedia-roots
+sec-cut,root,"sec-, sect-, seg-",cut,Latin,Latin secare,[sect]ion; [seg]ment; dis[sect],[sec]ant,,,wikipedia-roots
+mas-male-man,root,mas-,"male, man",Latin,"Latin mās, māris, masculus, masculi",[mas]culine; [mas]culinity,e[mas]culate; e[mas]culation,,,wikipedia-roots
+lip-fat,root,lip(o)-,fat,Greek,"Greek λίπος (lípos), fat, lard",[lipo]suction; [lip]id,,,y,wikipedia-medical
+digit-finger,root,digit-,finger,Latin,Latin digitus,[digit]al; [digit],,,related,wikipedia-roots
+mechan-machine-instrument,root,mechan-,machine or instrument,Greek,"Greek μῆχος, μηχανή (mēkhanḗ), μηχανικός (mēkhanikós)",[mechan]ism; [mechan]ics,[mechan]ize,,,wikipedia-roots
+sol-comfort-soothe,root,sol-,"comfort, soothe",Latin,Latin solari,con[sol]e; con[sol]ation; [sol]ace,,,,wikipedia-roots
+pact-fasten,root,pact-,fasten,Latin,"Latin pangere ""to fix, fasten""",im[pact]; com[pact],im[pact]ion,,,wikipedia-roots
+ec-out,prefix,ec-,out,Greek,Greek ἐκ (ek),[ec]centric; [ec]stasy; [ec]static,,,related,wikipedia-roots
+myth-story,root,myth-,story,Greek,Greek μῦθος (mûthos),[myth]ology; [myth]ic,[myth]os,,,wikipedia-roots
+salv-save,root,salv-,save,Latin,"Latin salvus, salvare",[salv]ation; [salv]age,[salv]e,,,wikipedia-roots
+foc-hearth,root,foc-,hearth,Latin,Latin focus,[foc]us; [foc]al,bi[foc]al,,,wikipedia-roots
+somn-sleep,root,somn(o)-,sleep,Latin,"Latin somnus, sleep, drowsiness",in[somn]ia; [somn]ambulist,,,related,wikipedia-medical
+neg-say-no,root,neg-,say no,Latin,Latin negare,[neg]ative; re[neg]ade,re[neg]e,,,wikipedia-roots
+del-erase,root,del-,erase,Latin,Latin delere (from dē + linere),[del]ete; [del]etion,in[del]ible,,,wikipedia-roots
+dexter-right-hand,root,dexter-,"right (hand), skilful",Latin,Latin dexter,[dexter]; [dexter]ity,[dexter]ous,,,wikipedia-roots
+hist-tissue,root,"hist(o)-, histio-",tissue,Greek,"Greek ἱστός (histós), web, tissue",[histo]logy; [hist]amine,,,y,wikipedia-medical
+front-forehead,root,front-,forehead,Latin,"Latin frōns, frontis",con[front]; [front]al; [front]age,,,related,wikipedia-roots
+fug-flee,root,"fug-, fugit-",flee,Latin,Latin fugere,re[fug]e; [fug]itive; centri[fug]e,,,,wikipedia-roots
+ampl-large-abundant,root,ampl-,"large, abundant",Latin,Latin amplus,[ampl]e; [ampl]itude; [ampl]ify,,,,wikipedia-roots
+traum-wound,root,traum-,wound,Greek,"Greek τραῦμα, τραῦματος (traûma, traûmatos)",[traum]a; [traum]atic,[traum]atize,,,wikipedia-roots
+pred-prey,root,pred-,prey,Latin,"Latin praedari ""plunder"", from praeda ""prey""",[pred]ator; [pred]atory,[pred]ation,,,wikipedia-roots
+varic-swollen-twisted,root,varic(o)-,swollen or twisted vein,Latin,Latin varix,[varic]ose,,,y,wikipedia-medical
+acu-sharp-pointed,root,"acu-, acut-","sharp, pointed",Latin,"Latin acutus, past participle of acuere ""to sharpen"", from acus ""needle""",[acu]te; [acu]puncture,[acu]men,,,wikipedia-roots
+ign-fire,root,ign-,fire,Latin,Latin ignis,[ign]ition; [ign]ite,[ign]eous,,,wikipedia-roots
+odont-teeth,root,odont-,teeth,Greek,"Greek ὀδούς, ὀδοντ- (odoús, odont-), tooth",orth[odont]ist; [odont]ology; peri[odont]al,,,y,wikipedia-medical
+vas-vessel-duct,root,vas-,"vessel, duct",Latin,Latin vas,[vas]e; [vas]cular; [vas]ectomy,[vaso]constriction,,related,wikipedia-roots
+hort-garden,root,hort-,garden,Latin,"Latin hortus, horti",co[hort]; [hort]iculture; [hort]icultural,,,,wikipedia-roots
+can-dog,root,can-,dog,Latin,Latin canis,[can]ine; [can]ary,[can]id,,,wikipedia-roots
+em-buy,root,"em-, empt-",buy,Latin,"Latin emere, emptus",ex[empt]; pre[empt]; rede[em],,,,wikipedia-roots
+pen-almost,prefix,pen-,almost,Latin,Latin paene,[pen]insula; [pen]ultimate,[pen]umbra,,,wikipedia-roots
+narc-numb-sleep,root,narc(o)-,"numb, sleep",Greek,"Greek νάρκη (nárkē), numbess, torpor",[narco]lepsy; [narc]otic,,,related,wikipedia-medical
+van-empty-vain,root,van-,"empty, vain, idle",Latin,"Latin vanus ""empty"", also vanescere ""vanish""",[van]ity; [van]ish,e[van]escent,,,wikipedia-roots
+rod-gnaw,root,"rod-, ros-",gnaw,Latin,"Latin rōdere, rōsus",e[ros]ion; [rod]ent,cor[rod]e,,,wikipedia-roots
+heres-choose-take,root,"heres-, heret-","choose, take",Greek,"Greek αἱρεῖν (haireîn) ""to take, choose""",[heres]y; [heret]ic,[heret]ical,,,wikipedia-roots
+mamm-breast,root,mamm(o)-,breast,Latin,"Latin mamma, breast, udder",[mammo]gram; [mamm]al,,,y,wikipedia-medical
+pro-before-front,prefix,pro-,"before, in front of",Greek,"Greek πρό (pró), πρότερος (próteros) ""former"", πρῶτος (prôtos)",[pro]logue; [pro]phet; [pro]gnosis,[pro]dromal,,related,wikipedia-roots
+vol-fly,root,vol-,fly,Latin,Latin volare,[vol]atile; [vol]ley,non[vol]atile,,,wikipedia-roots
+verb-word,root,verb-,word,Latin,Latin verbum,[verb]al; [verb]atim,[verb]osity,,,wikipedia-roots
+retro-backward-behind,prefix,retro-,"backward, behind",Latin,Latin retrō,[retro]spective; [retro]grade; [retro]virus,,,related,wikipedia-roots
+aden-gland,root,aden-,a gland,Greek,"Greek ἀδήν, ἀδέν-, (adḗn, adén-), an acorn; a gland",[aden]oid; [aden]oma; [aden]ocarcinoma,,,y,wikipedia-medical
+gust-taste,root,gust-,taste,Latin,Latin gustus,dis[gust]; [gust]o,[gust]atory,,,wikipedia-roots
+ping-paint,root,"ping-, pict-",paint,Latin,"Latin pingere, pictus",[pict]ure; de[pict]; [pict]orial,,,,wikipedia-roots
+pir-try,root,pir-,try,Greek,"Greek πεῖρα, πείρας (peîra, peíras)",[pir]ate; em[pir]ical,,,,wikipedia-roots
+macr-large-long,prefix,macr(o)-,"large, long",Greek,"Greek μᾰκρός (makrós), long, tall",[macro]economics; [macro]phage,,,related,wikipedia-medical
+physi-nature,root,physi-,nature,Greek,Greek φύσις (phúsis),[physi]cs; [physi]cal; [physi]ology,,,,wikipedia-roots
+deb-owe,root,deb-,owe,Latin,"Latin debere, debitus",[deb]t; [deb]it,,,,wikipedia-roots
+cortic-cortex-outer,root,cortic-,"cortex, outer region",Latin,"Latin cortex, bark of a tree",[cortic]osteroid,,,y,wikipedia-medical
+statu-stand,root,"statu-, -stitu-",stand,Latin,Latin statuere,in[stitu]tion; [statu]te,,,,wikipedia-roots
+infra-below-under,prefix,infra-,"below, under",Latin,Latin infra,[infra]structure; [infra]red,,,related,wikipedia-roots
+mor-pause-delay,root,mor-,"pause, delay",Latin,"Latin morari ""to delay"", from mora ""a pause, delay""",[mor]a; [mor]atorium,re[mor]a,,,wikipedia-roots
+clar-clear,root,clar-,clear,Latin,"Latin clarus, clarare",de[clar]ation; [clar]ity,,,,wikipedia-roots
+stingu-apart,root,"stingu-, stinct-","prick, mark",Latin,"Latin *stinguere ""to prick"", in distinguere ""to separate by marking"" (dis- ""apart"") and instinguere ""to goad, urge on"". Extinguish comes from a different stinguere, ""to quench""",di[stinct]ion; di[stingu]ish; in[stinct],di[stinct],,,wikipedia-roots
+ferv-boil-glow,root,ferv-,"boil, glow",Latin,Latin fervēre,[ferv]or; [ferv]ent,[ferv]id,,,wikipedia-roots
+kilo-thousand,root,kilo-,thousand,Greek,Greek χίλιοι (khílioi),[kilo]meter; [kilo]gram,[kilo]byte,,,wikipedia-roots
+ultim-farthest,root,ultim-,farthest,Latin,Latin ultimus,[ultim]ate; [ultim]atum,,,,wikipedia-roots
+stomy-surgical-opening,suffix,-stomy,surgical opening,Latin and Greek,"New Latin stoma, opening; from Greek στόμᾰ (stóma)",colo[stomy],,,y,wikipedia-medical
+radic-root,root,radic-,root,Latin,"Latin rādix, rādīcis",[radic]al; e[radic]ate,[radic]ulopathy,,related,wikipedia-roots
+vacc-cow,root,vacc-,cow,Latin,Latin vacca,[vacc]ine; [vacc]ination,,,,wikipedia-roots
+proxim-nearest,root,proxim-,nearest,Latin,"Latin proximus, proximare",[proxim]ity; ap[proxim]ate,,,,wikipedia-roots
+optim-best,root,optim-,best,Latin,Latin optimus,[optim]al; [optim]um,,,,wikipedia-roots
+radi-beam-spoke,root,radi-,"beam, spoke",Latin,"Latin radius, radiāre",[radi]ation; [radi]ance,,,,wikipedia-roots
+stell-star,root,stell-,star,Latin,Latin stella,[stell]ar; con[stell]ation,,,,wikipedia-roots
+nephr-kidney,root,nephr(o)-,kidney,Greek,"Greek νεφρός (nephrós), kidney",[nephr]ology; [nephr]itis,,,y,wikipedia-medical
+vad-go,root,"vad-, vas-",go,Latin,Latin vadere,e[vad]e; per[vas]ive,,,,wikipedia-roots
+glyc-sugar,root,glyc-,sugar,Greek,"Greek γλυκύς (glukús), sweet",[glyc]ogen; hypo[glyc]emia,,,y,wikipedia-medical
+insul-island,root,insul-,island,Latin,Latin insula,[insul]ation; [insul]ar; [insul]in,,,,wikipedia-roots
+purg-cleanse,root,purg-,cleanse,Latin,Latin purgare,[purg]e; [purg]atory,,,,wikipedia-roots
+frater-brother,root,"frater-, fratr-",brother,Latin,Latin frāter,[frater]nity; [frater]nal,,,,wikipedia-roots
+quadr-four,prefix,quadr(i)-,four,Latin,Latin quattuor,[quadr]uple; [quadri]ceps; [quadr]ant,,,related,wikipedia-medical
+dorm-sleep,root,dorm-,sleep,Latin,Latin dormire,[dorm]ant; [dorm]itory,,,,wikipedia-roots
+still-drip,root,still-,drip,Latin,"Latin stilla, stillare",di[still]ation; in[still],,,,wikipedia-roots
+viscer-internal-organs,root,viscer(o)-,"internal organs, the viscera",Latin,"Latin viscus (pl. viscera), internal organ(s)",[viscer]a,,,y,wikipedia-medical
+cephal-head-as,root,cephal(o)-,head (as a whole),Greek,"Greek κεφαλή (kephalḗ), the head",[cephal]ic; en[cephal]itis; hydro[cephal]us,,,y,wikipedia-medical
+leuc-white,root,"leuc(o)-, leuk(o)-",white,Greek,"Greek λευκός (leukós), white, bright, pale",[leuk]emia; [leuko]cyte,,,y,wikipedia-medical
+gingiv-gums,root,gingiv-,gums,Latin,"Latin gingīva, gum",[gingiv]itis,,,y,wikipedia-medical
+plasty-surgical-repair,suffix,-plasty,surgical repair or reshaping,Greek,"Greek πλαστός (plastós), molded, formed",rhino[plasty],,,y,wikipedia-medical
+cis-on-this,prefix,cis-,on this side,Latin,Latin cis,[cis]gender,,,related,wikipedia-medical
+ase-enzyme,suffix,-ase,enzyme,Greek,"from diastase, the first enzyme named, from Greek διάστασις (diástasis) ""separation""",lact[ase],,,y,wikipedia-medical
+milli-thousandth,root,milli-,thousandth,Latin,"Latin mille, thousand",[milli]meter; [milli]liter,,,related,wikipedia-medical
+brady-slow,root,brady-,slow,Greek,"Greek βραδύς (bradús), slow",[brady]cardia,,,y,wikipedia-medical
+edema-swelling,suffix,-edema,swelling,Greek,"Greek οἴδημα (oídēma), swelling",lymph[edema],,,y,wikipedia-medical
+lymph-lymph,root,lymph(o)-,lymph,Latin,"Latin lympha, water",[lymph]edema,,,y,wikipedia-medical
+erythr-red,root,erythr(o)-,red,Greek,"Greek ἐρυθρός (eruthrós), red",[erythro]cyte,,,y,wikipedia-medical
+plegia-paralysis,suffix,-plegia,paralysis,Greek,Greek πληγή (plēgḗ),para[plegia],,,y,wikipedia-medical
+pepsia-digestion,suffix,-pepsia,digestion,Greek,"Greek πέψις (pépsis) ""digestion"", from πέσσειν (péssein) ""to cook, digest""",dys[pepsia],,,y,wikipedia-medical
+lapar-abdominal-wall,root,lapar(o)-,"abdominal wall, flank",Greek,"Greek λαπάρα (lapára), flank",[laparo]tomy,,,y,wikipedia-medical
+ipsi-same,root,ipsi-,same,Latin,Latin ipsi-,[ipsi]lateral,,,y,wikipedia-medical
+iso-equal,prefix,iso-,equal,Greek,"Greek ἴσος (ísos), equal",[iso]tonic; [iso]metric; [iso]sceles,,,related,wikipedia-medical
+polio-grey-color,root,polio-,grey color,Greek,"Greek πολῐός (poliós), grey, grizzled",[polio]myelitis,,,y,wikipedia-medical

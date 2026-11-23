@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="用拉丁语和希腊语词根看英语单词。每个词根、词缀和例词后面都有中文。">
+<title>词根学英语</title>
+<link rel="icon" href="../favicon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">跳到内容</a>
+<header class="top">
+  <div class="bar">
+    <a class="brand" href="./">词根<small>学英语</small></a>
+    <form id="search" role="search">
+      <label class="sr" for="q">搜索</label>
+      <input id="q" type="search" placeholder="搜词根、中文或单词" autocomplete="off" enterkeyhint="search">
+    </form>
+    <button id="theme" type="button">深色</button>
+  </div>
+  <nav class="tabs" aria-label="分区">
+    <a href="./" data-tab="roots">词根</a>
+    <a href="?list=cet4" data-tab="lists">考试词表</a>
+    <a href="?about=1" data-tab="about">说明</a>
+  </nav>
+</header>
+<main id="main" tabindex="-1">
+  <p class="loading">正在打开词根表…</p>
+</main>
+<footer class="foot">
+  <p>词根内容 <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> · 单词中文来自 <a href="https://github.com/skywind3000/ECDICT">ECDICT</a>（MIT） · 浏览方式参考 <a href="https://wordiyo.com">Wordiyo</a></p>
+  <p><a href="NOTICE.txt">许可与出处</a></p>
+</footer>
+<noscript><p class="noscript">这个页面要用 JavaScript 在浏览器里把词条拼出来，没有服务器。</p></noscript>
+<script src="app.js"></script>
+</body>
+</html>
