@@ -110,10 +110,16 @@ a { color: inherit; }
   border: 1px solid var(--line); background: var(--card); color: var(--ink);
   border-radius: 999px; padding: 9px 12px; cursor: pointer; white-space: nowrap;
 }
-.tabs { display: flex; gap: 6px; padding: 0 0 10px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 10px; }
 .tabs a {
   text-decoration: none; padding: 7px 12px; border-radius: 999px; color: var(--muted); font-weight: 650;
 }
+.badge {
+  display: inline-block; margin-left: 6px; min-width: 1.3em; padding: 0 6px;
+  border-radius: 999px; background: var(--accent); color: var(--accent-ink);
+  font-size: .75rem; line-height: 1.4; text-align: center; vertical-align: 1px;
+}
+.badge[hidden] { display: none; }
 .tabs a.on { background: var(--ink); color: var(--bg); }
 main { padding: 18px 0 48px; min-height: 60vh; }
 .lead { font-family: var(--serif); font-size: 1.55rem; line-height: 1.35; margin: 4px 0 8px; }
@@ -157,13 +163,59 @@ main { padding: 18px 0 48px; min-height: 60vh; }
   display: grid; grid-template-columns: minmax(7rem, .7fr) 1.4fr auto; gap: 8px;
   align-items: baseline; text-decoration: none; padding: 12px 14px; margin: 0 0 8px;
 }
+[data-word] { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.word.saved, .row.saved { border-color: var(--accent); }
+.star { display: inline-block; margin-top: 6px; color: var(--accent); font-size: .78rem; font-weight: 750; }
+.row .star { margin-top: 0; }
+.book-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+#toast {
+  position: fixed; left: 50%; bottom: 22px; z-index: 6; max-width: calc(100% - 32px);
+  transform: translateX(-50%) translateY(8px); opacity: 0; pointer-events: none;
+  background: var(--ink); color: var(--bg); border-radius: 999px; padding: 10px 16px;
+  font-weight: 650; transition: opacity .18s ease, transform .18s ease;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .row b { font-family: var(--serif); font-size: 1.15rem; }
 .row span { color: var(--ink); }
 .plain { cursor: default; }
-.more {
-  display: block; width: 100%; margin-top: 8px; border: 1px solid var(--line);
-  background: var(--card); color: var(--ink); border-radius: 12px; padding: 12px; cursor: pointer; font-weight: 700;
+.more, .plan-jump, .confirm-card button {
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  border-radius: 12px; padding: 12px; cursor: pointer; font-weight: 700;
 }
+.more { display: block; width: 100%; margin-top: 8px; }
+.plan-continue {
+  display: block; width: 100%; margin: 0 0 12px; border: 0; border-radius: 14px;
+  background: var(--accent); color: var(--accent-ink); padding: 14px 16px;
+  font: inherit; font-weight: 700; cursor: pointer; text-align: left;
+}
+.plan-continue small { display: block; font-weight: 550; opacity: .85; }
+.levels { display: grid; gap: 8px; margin: 0 0 14px; }
+.level { font-size: .92rem; }
+.barline { height: 8px; margin-top: 4px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.barline span { display: block; height: 100%; width: 0; background: var(--accent); }
+.plan-banner {
+  margin: 0 0 12px; padding: 12px 14px; border-radius: 14px;
+  background: var(--card); border: 1px solid var(--accent);
+}
+.plan-banner[hidden] { display: none; }
+.plan-banner .book-actions { margin: 8px 0 0; }
+.plan-jump { width: 100%; margin: 0 0 12px; }
+.row.here { outline: 2px solid var(--accent); }
+.review { text-align: center; padding: 28px 16px; }
+.review .form { font-size: clamp(2rem, 8vw, 3rem); }
+.review .zh { font-size: 1.35rem; }
+.confirm {
+  position: fixed; inset: 0; z-index: 8; display: flex; align-items: flex-end; justify-content: center;
+  padding: 16px; background: rgba(20, 14, 10, .45);
+}
+.confirm[hidden] { display: none; }
+.confirm-card {
+  width: min(440px, 100%); background: var(--card); color: var(--ink);
+  border-radius: 18px; padding: 18px; box-shadow: var(--shadow);
+}
+.confirm-card p { margin: 0 0 14px; font-size: 1.05rem; }
+#confirm-yes { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.book-actions button { flex: 1; }
 .panel { padding: 16px 18px; margin: 0 0 14px; }
 .panel h2 { font-family: var(--serif); margin: 0 0 8px; }
 .panel p, .panel li { margin: 6px 0; }

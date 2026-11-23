@@ -21,14 +21,26 @@
     <button id="theme" type="button">深色</button>
   </div>
   <nav class="tabs" aria-label="分区">
+    <a href="?plan=1" data-tab="plan">计划</a>
     <a href="./" data-tab="roots">词根</a>
     <a href="?list=cet4" data-tab="lists">考试词表</a>
+    <a href="?book=1" data-tab="book">生词本<span id="book-count" class="badge" hidden></span></a>
     <a href="?about=1" data-tab="about">说明</a>
   </nav>
 </header>
 <main id="main" tabindex="-1">
   <p class="loading">正在打开词根表…</p>
 </main>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="confirm" class="confirm" hidden>
+  <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-text">
+    <p id="confirm-text"></p>
+    <div class="book-actions">
+      <button type="button" id="confirm-yes">移除</button>
+      <button type="button" id="confirm-no">保留</button>
+    </div>
+  </div>
+</div>
 <footer class="foot">
   <p>词根内容 <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> · 单词中文来自 <a href="https://github.com/skywind3000/ECDICT">ECDICT</a>（MIT） · 浏览方式参考 <a href="https://wordiyo.com">Wordiyo</a></p>
   <p><a href="NOTICE.txt">许可与出处</a></p>
